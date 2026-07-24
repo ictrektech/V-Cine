@@ -4,6 +4,7 @@ import { mediaApi, streamApi, seriesApi } from '@/api'
 import type { Media, MediaPlayInfo } from '@/types'
 import VideoPlayer from '@/components/VideoPlayer'
 import WebCodecsPlayerShell from '@/components/WebCodecsPlayerShell'
+import PlayerScenePanel from '@/components/player/PlayerScenePanel'
 import STRMDiagnostics from '@/components/player/STRMDiagnostics'
 import { useToast } from '@/components/Toast'
 import { usePlayerStore } from '@/stores/player'
@@ -132,6 +133,8 @@ export default function PlayerPage() {
   const [remuxFailed, setRemuxFailed] = useState(false)
   // WebCodecs 降级状态：WebCodecs 播放失败时降级到原生/Remux/HLS
   const [webcodecsFailed, setWebcodecsFailed] = useState(false)
+  // 右侧视频分析场景面板（默认展开；无分析结果时面板自行隐藏）
+  const [scenePanelCollapsed, setScenePanelCollapsed] = useState(false)
 
   // Remux 播放失败回调：自动降级到 HLS 转码模式
   const handleRemuxFallback = useCallback(() => {
@@ -264,112 +267,122 @@ export default function PlayerPage() {
   }
 
   return (
-    <div className="h-screen w-screen bg-black relative">
-      {/* 左上角常驻返回按钮（不受播放器 showControls 显隐影响） */}
-      <button
-        onClick={handleBack}
-        aria-label="返回"
-        title="返回"
-        className="absolute left-4 top-4 z-[60] flex h-9 w-9 items-center justify-center rounded-full text-white backdrop-blur-md transition-all hover:scale-105"
-        style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid var(--neon-blue-15)' }}
-      >
-        <ArrowLeft size={18} />
-      </button>
+    <div className="relative flex h-screen w-screen overflow-hidden bg-black">
+      <div className="relative min-w-0 flex-1">
+        {/* 左上角常驻返回按钮（不受播放器 showControls 显隐影响） */}
+        <button
+          onClick={handleBack}
+          aria-label="返回"
+          title="返回"
+          className="absolute left-4 top-4 z-[60] flex h-9 w-9 items-center justify-center rounded-full text-white backdrop-blur-md transition-all hover:scale-105"
+          style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid var(--neon-blue-15)' }}
+        >
+          <ArrowLeft size={18} />
+        </button>
 
-      {/* 预处理状态提示 + 桌面端播放内核提示 */}
-      <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">
-        {playInfo.is_strm && (
-          <STRMDiagnostics mediaId={id} compact />
-        )}
-        {/* 桌面端 —— 播放内核决策徽章（仅 Tauri 环境显示） */}
-        <DesktopPlayerBadge
-          profile={{
-            container: (playInfo.file_ext || '').replace(/^\./, '').toLowerCase(),
-            video_codec: (playInfo.video_codec || '').toLowerCase(),
-            audio_codec: (playInfo.audio_codec || '').toLowerCase(),
-            height: (playInfo as any).height || 0,
-            hdr: (playInfo as any).hdr || '',
-          } as MediaProfile}
-          streamUrl={streamApi.getDirectUrl(id)}
-          playOptions={{ title: playerTitle }}
-        />
-        {(mode === 'webcodecs' || canDirectHEVC || isPreprocessed ||
-          playInfo.preprocess_status === 'running' ||
-          playInfo.preprocess_status === 'pending' ||
-          playInfo.preprocess_status === 'queued') && (
-          <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs backdrop-blur-md"
-            style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid var(--neon-blue-15)' }}>
-            {mode === 'webcodecs' ? (
-              <>
-                <Cpu size={12} className="text-cyan-400" />
-                <span className="text-cyan-400">WebCodecs 硬解播放</span>
-              </>
-            ) : canDirectHEVC ? (
-              <>
-                <Zap size={12} className="text-purple-400" />
-                <span className="text-purple-400">HEVC 直接播放</span>
-              </>
-            ) : isPreprocessed ? (
-              <>
-                <Zap size={12} className="text-emerald-400" />
-                <span className="text-emerald-400">秒开播放</span>
-              </>
-            ) : playInfo.preprocess_status === 'running' ? (
-              <>
-                <Loader2 size={12} className="text-neon-blue animate-spin" />
-                <span className="text-surface-400">正在预处理中...</span>
-              </>
-            ) : playInfo.preprocess_status === 'pending' || playInfo.preprocess_status === 'queued' ? (
-              <>
-                <Loader2 size={12} className="text-yellow-400" />
-                <span className="text-surface-400">等待预处理</span>
-              </>
-            ) : null}
-          </div>
-        )}
-      </div>
+        {/* 预处理状态提示 + 桌面端播放内核提示 */}
+        <div className={`absolute top-4 z-50 flex flex-col items-end gap-2 ${scenePanelCollapsed ? 'right-4' : 'right-4'}`}>
+          {playInfo.is_strm && (
+            <STRMDiagnostics mediaId={id} compact />
+          )}
+          {/* 桌面端 —— 播放内核决策徽章（仅 Tauri 环境显示） */}
+          <DesktopPlayerBadge
+            profile={{
+              container: (playInfo.file_ext || '').replace(/^\./, '').toLowerCase(),
+              video_codec: (playInfo.video_codec || '').toLowerCase(),
+              audio_codec: (playInfo.audio_codec || '').toLowerCase(),
+              height: (playInfo as any).height || 0,
+              hdr: (playInfo as any).hdr || '',
+            } as MediaProfile}
+            streamUrl={streamApi.getDirectUrl(id)}
+            playOptions={{ title: playerTitle }}
+          />
+          {(mode === 'webcodecs' || canDirectHEVC || isPreprocessed ||
+            playInfo.preprocess_status === 'running' ||
+            playInfo.preprocess_status === 'pending' ||
+            playInfo.preprocess_status === 'queued') && (
+            <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs backdrop-blur-md"
+              style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid var(--neon-blue-15)' }}>
+              {mode === 'webcodecs' ? (
+                <>
+                  <Cpu size={12} className="text-cyan-400" />
+                  <span className="text-cyan-400">WebCodecs 硬解播放</span>
+                </>
+              ) : canDirectHEVC ? (
+                <>
+                  <Zap size={12} className="text-purple-400" />
+                  <span className="text-purple-400">HEVC 直接播放</span>
+                </>
+              ) : isPreprocessed ? (
+                <>
+                  <Zap size={12} className="text-emerald-400" />
+                  <span className="text-emerald-400">秒开播放</span>
+                </>
+              ) : playInfo.preprocess_status === 'running' ? (
+                <>
+                  <Loader2 size={12} className="text-neon-blue animate-spin" />
+                  <span className="text-surface-400">正在预处理中...</span>
+                </>
+              ) : playInfo.preprocess_status === 'pending' || playInfo.preprocess_status === 'queued' ? (
+                <>
+                  <Loader2 size={12} className="text-yellow-400" />
+                  <span className="text-surface-400">等待预处理</span>
+                </>
+              ) : null}
+            </div>
+          )}
+        </div>
 
-      {useMpvEmbed ? (
-        <MpvEmbedPlayer
-          streamUrl={src}
-          sessionId={`media-${id}`}
-          title={playerTitle}
-          playOptions={{
-            title: playerTitle,
-            start_time: switchPosition ?? initialStartPosition,
-          }}
-          onBack={handleBack}
-          className="h-full w-full"
-        />
-      ) : mode === 'webcodecs' ? (
-        <WebCodecsPlayerShell
-          src={src}
-          mediaId={id}
-          title={playerTitle}
-          startPosition={switchPosition ?? initialStartPosition}
-          knownDuration={playInfo.duration}
-          onBack={handleBack}
-          onNext={nextEpisode ? handleNext : undefined}
-          nextTitle={nextTitle}
-          onFallback={handleWebCodecsFallback}
-        />
-      ) : (
-        <VideoPlayer
-          src={src}
-          mode={mode as 'direct' | 'hls' | 'remux'}
-          mediaId={id}
-          title={playerTitle}
-          isStrm={playInfo.is_strm}
-          knownDuration={playInfo.duration}
-          startPosition={switchPosition ?? initialStartPosition}
-          spriteVttUrl={playInfo.sprite_vtt_url ? streamApi.withTokenUrl(playInfo.sprite_vtt_url) : undefined}
-          onPreprocessReady={handlePreprocessReady}
-          onRemuxFallback={mode === 'remux' ? handleRemuxFallback : undefined}
-          onBack={handleBack}
-          onNext={nextEpisode ? handleNext : undefined}
-          nextTitle={nextTitle}
-        />
-      )}
+        {useMpvEmbed ? (
+          <MpvEmbedPlayer
+            streamUrl={src}
+            sessionId={`media-${id}`}
+            title={playerTitle}
+            playOptions={{
+              title: playerTitle,
+              start_time: switchPosition ?? initialStartPosition,
+            }}
+            onBack={handleBack}
+            className="h-full w-full"
+          />
+        ) : mode === 'webcodecs' ? (
+          <WebCodecsPlayerShell
+            src={src}
+            mediaId={id}
+            title={playerTitle}
+            startPosition={switchPosition ?? initialStartPosition}
+            knownDuration={playInfo.duration}
+            onBack={handleBack}
+            onNext={nextEpisode ? handleNext : undefined}
+            nextTitle={nextTitle}
+            onFallback={handleWebCodecsFallback}
+          />
+        ) : (
+          <VideoPlayer
+            src={src}
+            mode={mode as 'direct' | 'hls' | 'remux'}
+            mediaId={id}
+            title={playerTitle}
+            isStrm={playInfo.is_strm}
+            knownDuration={playInfo.duration}
+            startPosition={switchPosition ?? initialStartPosition}
+            spriteVttUrl={playInfo.sprite_vtt_url ? streamApi.withTokenUrl(playInfo.sprite_vtt_url) : undefined}
+            onPreprocessReady={handlePreprocessReady}
+            onRemuxFallback={mode === 'remux' ? handleRemuxFallback : undefined}
+            onBack={handleBack}
+            onNext={nextEpisode ? handleNext : undefined}
+            nextTitle={nextTitle}
+          />
+        )}
+
+        </div>
+
+      {/* 单一实例：折叠/展开只改 prop，避免重复请求分析结果 */}
+      <PlayerScenePanel
+        mediaId={id}
+        collapsed={scenePanelCollapsed}
+        onToggle={() => setScenePanelCollapsed((value) => !value)}
+      />
     </div>
   )
 }
