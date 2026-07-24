@@ -393,6 +393,32 @@ func (s *VideoAnalysisService) CleanupOldTasks(keepRecent int) (int64, error) {
 	return s.tasks.CleanupOldTasks(keepRecent)
 }
 
+// DeleteTask 删除任务记录。运行中的任务不可删除。
+// 仅删除 Nowen 本地编排记录；外部 Scene/Structure 缓存与九宫格文件不清理。
+func (s *VideoAnalysisService) DeleteTask(taskID string) error {
+	if !s.IsAvailable() {
+		return errors.New("video analysis service is not configured")
+	}
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return errors.New("task id is required")
+	}
+	task, err := s.tasks.FindByID(taskID)
+	if err != nil {
+		return err
+	}
+	// running 拒绝逻辑在 repo.DeleteByID，这里只取 media_id 用于广播。
+	if err := s.tasks.DeleteByID(taskID); err != nil {
+		return err
+	}
+	if s.wsHub != nil {
+		s.wsHub.BroadcastEvent(videoAnalysisTaskUpdateEvent, map[string]any{
+			"id": taskID, "media_id": task.MediaID, "deleted": true,
+		})
+	}
+	return nil
+}
+
 // ProcessTask executes one queued task. Only the first caller can atomically
 // claim it, so repeated queue scans do not duplicate external submissions.
 func (s *VideoAnalysisService) ProcessTask(parent context.Context, taskID string) error {

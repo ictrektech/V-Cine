@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, Clock3, Loader2, RefreshCw, RotateCcw, Search, ScanLine } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock3, Loader2, RefreshCw, RotateCcw, ScanLine, Search, Trash2 } from 'lucide-react'
 import { videoAnalysisApi } from '@/api'
+import { useDialog } from '@/components/Dialog'
 import { useToast } from '@/components/Toast'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import type { VideoAnalysisDetailedStats, VideoAnalysisStatistics, VideoAnalysisStatus, VideoAnalysisTask } from '@/types/videoAnalysis'
@@ -28,6 +29,7 @@ function formatTime(value: string | null) {
 
 export default function VideoAnalysisTaskTab() {
   const toast = useToast()
+  const dialog = useDialog()
   const { on, off } = useWebSocket()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tasks, setTasks] = useState<VideoAnalysisTask[]>([])
@@ -47,6 +49,7 @@ export default function VideoAnalysisTaskTab() {
   const [page, setPage] = useState(urlPage)
   const [total, setTotal] = useState(0)
   const [retrying, setRetrying] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [resultTaskOverride, setResultTaskOverride] = useState<VideoAnalysisTask | null>(null)
   const pageSize = 20
 
@@ -108,6 +111,33 @@ export default function VideoAnalysisTaskTab() {
       toast.error('重试失败，请检查任务状态或视频文件')
     } finally {
       setRetrying(null)
+    }
+  }
+
+  const removeTask = async (task: VideoAnalysisTask) => {
+    const ok = await dialog.confirm({
+      title: '删除视频分析任务',
+      message: `确认删除「${task.media_title || '未命名媒体'}」的这条分析任务记录？\n仅删除 Nowen 本地任务与结果 JSON，不会删除视频文件，也不会清理外部九宫格缓存。`,
+      confirmText: '删除',
+      variant: 'danger',
+    })
+    if (!ok) return
+    setDeleting(task.id)
+    try {
+      await videoAnalysisApi.deleteTask(task.id)
+      // 若正在查看该任务结果，收起详情并清掉焦点标记
+      if (urlResultTaskId === task.id || urlTaskId === task.id) {
+        const params = new URLSearchParams(searchParams)
+        if (urlResultTaskId === task.id) params.delete('analysisResultTaskId')
+        if (urlTaskId === task.id) params.delete('analysisTaskId')
+        setSearchParams(params, { replace: true })
+      }
+      toast.success('任务已删除')
+      await load(true)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || '删除失败')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -247,6 +277,17 @@ export default function VideoAnalysisTaskTab() {
                           </button>
                         )}
                         {(task.status === 'failed' || task.status === 'partial') && <button disabled={retrying === task.id} onClick={() => retry(task)} className="btn-ghost rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1 disabled:opacity-50">{retrying === task.id ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}重试</button>}
+                        {task.status !== 'running' && (
+                          <button
+                            disabled={deleting === task.id}
+                            onClick={() => removeTask(task)}
+                            title="删除任务记录"
+                            className="btn-ghost rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1 text-red-300 hover:bg-red-400/10 disabled:opacity-50"
+                          >
+                            {deleting === task.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                            删除
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

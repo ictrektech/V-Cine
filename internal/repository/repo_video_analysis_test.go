@@ -105,6 +105,36 @@ func TestVideoAnalysisRepoListsAndCountsTasks(t *testing.T) {
 	}
 }
 
+func TestVideoAnalysisRepoDeleteByID(t *testing.T) {
+	repo := setupVideoAnalysisRepo(t)
+
+	queued := newVideoAnalysisTask("media-1", model.VideoAnalysisStatusQueued)
+	if err := repo.CreateIfNoActive(queued); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.DeleteByID(queued.ID); err != nil {
+		t.Fatalf("delete queued task: %v", err)
+	}
+	if _, err := repo.FindByID(queued.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("queued task still present after delete: %v", err)
+	}
+
+	running := newVideoAnalysisTask("media-2", model.VideoAnalysisStatusRunning)
+	if err := repo.CreateIfNoActive(running); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.DeleteByID(running.ID); !errors.Is(err, ErrVideoAnalysisTaskActive) {
+		t.Fatalf("delete running = %v, want ErrVideoAnalysisTaskActive", err)
+	}
+	if _, err := repo.FindByID(running.ID); err != nil {
+		t.Fatalf("running task should remain: %v", err)
+	}
+
+	if err := repo.DeleteByID("missing-id"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("delete missing = %v, want ErrRecordNotFound", err)
+	}
+}
+
 func TestVideoAnalysisRepoDeleteByMediaID(t *testing.T) {
 	repo := setupVideoAnalysisRepo(t)
 

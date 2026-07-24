@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -109,6 +110,33 @@ func TestVideoAnalysisServiceProcessesDetectAndStructure(t *testing.T) {
 	}
 	if len(client.structureSubmits) != 1 || client.structureSubmits[0].VideoPath != "/photos/movie.mp4" || client.structureSubmits[0].DetectJobID != "detect-1" {
 		t.Fatalf("structure submits: %+v", client.structureSubmits)
+	}
+}
+
+func TestVideoAnalysisServiceDeleteTask(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.DeleteTask(task.ID); err != nil {
+		t.Fatalf("DeleteTask queued: %v", err)
+	}
+	if _, err := tasks.FindByID(task.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("task still present after delete: %v", err)
+	}
+
+	running, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	running.Status = model.VideoAnalysisStatusRunning
+	if err := tasks.Update(running); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.DeleteTask(running.ID); !errors.Is(err, ErrVideoAnalysisTaskActive) {
+		t.Fatalf("DeleteTask running = %v, want ErrVideoAnalysisTaskActive", err)
 	}
 }
 

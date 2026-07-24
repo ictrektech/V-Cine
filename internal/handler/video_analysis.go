@@ -162,6 +162,25 @@ func (h *VideoAnalysisHandler) RetryTask(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"data": task})
 }
 
+func (h *VideoAnalysisHandler) DeleteTask(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
+		return
+	}
+	if err := h.service.DeleteTask(c.Param("id")); err != nil {
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在"})
+		case errors.Is(err, service.ErrVideoAnalysisTaskActive):
+			c.JSON(http.StatusConflict, gin.H{"error": "分析中的任务不可删除，请等待完成后再删"})
+		default:
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "任务已删除"})
+}
+
 func (h *VideoAnalysisHandler) Statistics(c *gin.Context) {
 	if h.service == nil || !h.service.IsAvailable() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})

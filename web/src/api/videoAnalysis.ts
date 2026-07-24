@@ -27,6 +27,9 @@ export const videoAnalysisApi = {
   retryTask: (id: string) =>
     api.post<{ data: VideoAnalysisTask }>(`/admin/video-analysis/tasks/${id}/retry`),
 
+  deleteTask: (id: string) =>
+    api.delete<{ message: string }>(`/admin/video-analysis/tasks/${id}`),
+
   statistics: () =>
     api.get<{ data: VideoAnalysisStatistics }>('/admin/video-analysis/statistics'),
 

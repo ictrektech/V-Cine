@@ -166,6 +166,29 @@ func (r *VideoAnalysisTaskRepo) CountByStatus() (map[string]int64, error) {
 	return counts, nil
 }
 
+// DeleteByID 删除指定任务。运行中的任务不可删除，避免与 worker 抢状态。
+func (r *VideoAnalysisTaskRepo) DeleteByID(id string) error {
+	if id == "" {
+		return gorm.ErrRecordNotFound
+	}
+	result := r.db.Where("id = ? AND status <> ?", id, model.VideoAnalysisStatusRunning).Delete(&model.VideoAnalysisTask{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 1 {
+		return nil
+	}
+	// RowsAffected=0: either missing, or still running (lost the race with ClaimQueued).
+	var task model.VideoAnalysisTask
+	if err := r.db.Select("status").First(&task, "id = ?", id).Error; err != nil {
+		return err
+	}
+	if task.Status == model.VideoAnalysisStatusRunning {
+		return ErrVideoAnalysisTaskActive
+	}
+	return gorm.ErrRecordNotFound
+}
+
 // DeleteByMediaID 删除指定媒体的所有视频分析任务（用于媒体删除时清理）
 func (r *VideoAnalysisTaskRepo) DeleteByMediaID(mediaID string) (int64, error) {
 	if mediaID == "" {
