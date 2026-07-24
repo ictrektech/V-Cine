@@ -1,6 +1,7 @@
 import api from './client'
 import type {
   VideoAnalysisBatchResult,
+  VideoAnalysisDetailedStats,
   VideoAnalysisResult,
   VideoAnalysisStatistics,
   VideoAnalysisTask,
@@ -28,6 +29,9 @@ export const videoAnalysisApi = {
 
   statistics: () =>
     api.get<{ data: VideoAnalysisStatistics }>('/admin/video-analysis/statistics'),
+
+  detailedStatistics: () =>
+    api.get<{ data: VideoAnalysisDetailedStats }>('/admin/video-analysis/statistics/detailed'),
 
   getResult: (mediaId: string, taskId?: string) =>
     api.get<{ data: VideoAnalysisResult }>(`/media/${mediaId}/video-analysis`, { params: taskId ? { task_id: taskId } : undefined }),

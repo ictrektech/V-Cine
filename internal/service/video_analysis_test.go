@@ -18,7 +18,10 @@ import (
 type fakeVideoAnalysisClient struct {
 	detectSubmits    []DetectJobRequest
 	structureSubmits []StructureJobRequest
+	describeSubmits  []DescribeJobRequest
 	structureError   error
+	describeError    error
+	describeResult   []byte
 }
 
 func (f *fakeVideoAnalysisClient) SubmitDetectJob(_ context.Context, request DetectJobRequest) (*ExternalJobRef, error) {
@@ -44,6 +47,22 @@ func (f *fakeVideoAnalysisClient) GetStructureJob(context.Context, string) (*Ext
 	return &ExternalJob{JobID: "structure-1", Status: "succeeded", Result: result}, nil
 }
 
+func (f *fakeVideoAnalysisClient) SubmitDescribeJob(_ context.Context, request DescribeJobRequest) (*ExternalJobRef, error) {
+	f.describeSubmits = append(f.describeSubmits, request)
+	if f.describeError != nil {
+		return nil, f.describeError
+	}
+	return &ExternalJobRef{JobID: "describe-1", Status: "queued", PollURL: "/api/v2/video/describe/jobs/describe-1"}, nil
+}
+
+func (f *fakeVideoAnalysisClient) GetDescribeJob(context.Context, string) (*ExternalJob, error) {
+	result := f.describeResult
+	if len(result) == 0 {
+		result, _ = json.Marshal(map[string]any{"video_hash": "hash-1", "descriptions": []any{}})
+	}
+	return &ExternalJob{JobID: "describe-1", Status: "succeeded", Result: result}, nil
+}
+
 func setupVideoAnalysisService(t *testing.T, client videoAnalysisExternalClient) (*VideoAnalysisService, *repository.VideoAnalysisTaskRepo, string) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -67,7 +86,7 @@ func setupVideoAnalysisService(t *testing.T, client videoAnalysisExternalClient)
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, client, mapper, filepath.Join(dir, "cache"), nil, nil, time.Millisecond, time.Second)
+	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, client, mapper, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second)
 	return service, repos.VideoAnalysis, media.ID
 }
 
@@ -228,4 +247,72 @@ func TestVideoAnalysisBatchSubmitSkipsUnreadableFile(t *testing.T) {
 	if result.SkippedErrors[0].Kind != "unreadable_file" {
 		t.Fatalf("skip kind = %q", result.SkippedErrors[0].Kind)
 	}
+}
+
+func TestVideoAnalysisServiceProcessesDescribeWhenEnabled(t *testing.T) {
+	client := &fakeVideoAnalysisClient{
+		describeResult: mustMarshalJSONBytes(t, map[string]any{
+			"video_hash": "hash-1",
+			"descriptions": []map[string]any{{
+				"scene_index": 0,
+				"description": "画面展示一群人在室外广场活动。",
+				"status":      "ok",
+			}},
+		}),
+	}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusSucceeded || stored.Stage != model.VideoAnalysisStageDone || stored.DescribeJobID != "describe-1" {
+		t.Fatalf("unexpected task: %+v", stored)
+	}
+	if len(client.describeSubmits) != 1 || client.describeSubmits[0].VideoHash != "hash-1" {
+		t.Fatalf("describe submits: %+v", client.describeSubmits)
+	}
+	if stored.IncludeDescriptions != true {
+		t.Fatal("include_descriptions should be persisted")
+	}
+}
+
+func TestVideoAnalysisServiceDescribeFailureMarksPartial(t *testing.T) {
+	client := &fakeVideoAnalysisClient{describeError: &VideoAnalysisAPIError{HTTPStatus: 200, Code: 70301, Message: "describe failed"}}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusPartial || stored.Stage != model.VideoAnalysisStageDescribe || stored.ResultJSON == "" || stored.VideoHash != "hash-1" {
+		t.Fatalf("unexpected partial task: %+v", stored)
+	}
+}
+
+func TestVideoAnalysisServiceRejectsDescriptionsWhenDisabled(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, _, mediaID := setupVideoAnalysisService(t, client)
+	_, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err == nil {
+		t.Fatal("expected describe-disabled error")
+	}
+}
+
+func mustMarshalJSONBytes(t *testing.T, value any) []byte {
+	return []byte(mustMarshalJSON(t, value))
 }

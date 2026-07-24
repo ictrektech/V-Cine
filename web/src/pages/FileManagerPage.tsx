@@ -380,9 +380,9 @@ export default function FileManagerPage() {
     }
   }, [dialog, showVideoAnalysisBatchIssues, toast])
 
-  const submitBatchAnalyze = useCallback(async (force = false) => {
+  const submitBatchAnalyze = useCallback(async (force = false, includeDescriptions = false) => {
     try {
-      const res = await videoAnalysisApi.batchSubmit({ media_ids: Array.from(selectedIds), force })
+      const res = await videoAnalysisApi.batchSubmit({ media_ids: Array.from(selectedIds), force, include_descriptions: includeDescriptions })
       const result = res.data.data
       await showVideoAnalysisResultToast(result)
       if (result.created > 0 || result.reused > 0) {
@@ -415,7 +415,7 @@ export default function FileManagerPage() {
     setActiveDialog('batchAnalyze')
   }, [selectedIds, toast, videoAnalysisDisabledReason, videoAnalysisEnabled])
 
-  const handleAnalyzeFile = useCallback(async (media: Media, force = false) => {
+  const handleAnalyzeFile = useCallback(async (media: Media, force = false, includeDescriptions = false) => {
     if (!videoAnalysisEnabled) {
       toast.warning(videoAnalysisDisabledReason || '视频分析服务未启用或配置无效')
       return
@@ -430,8 +430,9 @@ export default function FileManagerPage() {
       if (!ok) return
     }
     try {
-      const res = await videoAnalysisApi.submit({ media_id: media.id, force })
+      const res = await videoAnalysisApi.submit({ media_id: media.id, force, include_descriptions: includeDescriptions })
       if (res.data.reused) toast.success('已复用现有视频分析任务')
+      else if (includeDescriptions) toast.success(force ? '已重新提交“分析并生成描述”任务' : '已提交“分析并生成描述”任务')
       else toast.success(force ? '已重新提交视频分析任务' : '视频分析任务已提交')
       setActiveTab('analysis')
       const nextParams = new URLSearchParams(searchParams)
@@ -860,8 +861,8 @@ export default function FileManagerPage() {
           onClose={() => setActiveDialog('none')}
           onEdit={() => { setEditMedia(detailMedia); setActiveDialog('edit') }}
           onScrape={() => { handleScrapeFile(detailMedia.id); setActiveDialog('none') }}
-          onAnalyze={(force) => {
-            void handleAnalyzeFile(detailMedia, Boolean(force))
+          onAnalyze={(force, includeDescriptions) => {
+            void handleAnalyzeFile(detailMedia, Boolean(force), Boolean(includeDescriptions))
             setActiveDialog('none')
           }}
           onRetryAnalysis={(task) => {
@@ -894,8 +895,8 @@ export default function FileManagerPage() {
           videoAnalysisEnabled={videoAnalysisEnabled}
           disabledReason={videoAnalysisDisabledReason}
           onClose={() => setActiveDialog('none')}
-          onConfirm={({ force }) => {
-            void submitBatchAnalyze(force)
+          onConfirm={({ force, includeDescriptions }) => {
+            void submitBatchAnalyze(force, includeDescriptions)
             setActiveDialog('none')
           }}
         />

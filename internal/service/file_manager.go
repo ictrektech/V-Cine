@@ -27,6 +27,9 @@ type FileManagerService struct {
 	wsHub      *WSHub
 	logger     *zap.SugaredLogger
 
+	// 视频分析任务清理（可选注入）
+	videoAnalysisRepo *repository.VideoAnalysisTaskRepo
+
 	// 内存缓存（只读快缓存，为了兼容旧 API）
 	opLogMu sync.Mutex
 	opLogs  []FileOperationLog
@@ -126,6 +129,11 @@ func NewFileManagerService(
 // SetWSHub 设置 WebSocket Hub
 func (s *FileManagerService) SetWSHub(hub *WSHub) {
 	s.wsHub = hub
+}
+
+// SetVideoAnalysisTaskRepo 设置视频分析任务仓库（用于媒体删除时清理关联任务）
+func (s *FileManagerService) SetVideoAnalysisTaskRepo(repo *repository.VideoAnalysisTaskRepo) {
+	s.videoAnalysisRepo = repo
 }
 
 // ==================== 文件列表与查询 ====================
@@ -644,6 +652,19 @@ func (s *FileManagerService) DeleteFile(mediaID, userID string) error {
 	// 仅删除数据库记录
 	if err := s.mediaRepo.DeleteByID(mediaID); err != nil {
 		return fmt.Errorf("删除失败: %w", err)
+	}
+
+	// 清理关联的视频分析任务记录（best-effort，不阻塞媒体删除）
+	if s.videoAnalysisRepo != nil {
+		if deletedCount, err := s.videoAnalysisRepo.DeleteByMediaID(mediaID); err != nil {
+			if s.logger != nil {
+				s.logger.Warnf("清理视频分析任务失败: media_id=%s, err=%v", mediaID, err)
+			}
+		} else if deletedCount > 0 {
+			if s.logger != nil {
+				s.logger.Infof("已清理 %d 个视频分析任务: media_id=%s", deletedCount, mediaID)
+			}
+		}
 	}
 
 	// 记录操作日志

@@ -43,7 +43,7 @@ func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repo
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, cacheRoot, nil, nil, time.Millisecond, time.Second)
+	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, cacheRoot, false, nil, nil, time.Millisecond, time.Second)
 	return NewVideoAnalysisHandler(vaService, nil), repos.VideoAnalysis, media.ID, cacheRoot
 }
 
@@ -59,6 +59,12 @@ func (f *fakeHandlerVideoAnalysisClient) SubmitStructureJob(context.Context, ser
 	return nil, nil
 }
 func (f *fakeHandlerVideoAnalysisClient) GetStructureJob(context.Context, string) (*service.ExternalJob, error) {
+	return nil, nil
+}
+func (f *fakeHandlerVideoAnalysisClient) SubmitDescribeJob(context.Context, service.DescribeJobRequest) (*service.ExternalJobRef, error) {
+	return nil, nil
+}
+func (f *fakeHandlerVideoAnalysisClient) GetDescribeJob(context.Context, string) (*service.ExternalJob, error) {
 	return nil, nil
 }
 

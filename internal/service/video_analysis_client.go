@@ -42,6 +42,11 @@ type StructureJobRequest struct {
 	GridCols    int             `json:"grid_cols,omitempty"`
 }
 
+type DescribeJobRequest struct {
+	VideoHash string `json:"video_hash"`
+	Force     bool   `json:"force"`
+}
+
 type ExternalJobRef struct {
 	JobID   string `json:"job_id"`
 	Status  string `json:"status"`
@@ -148,6 +153,24 @@ func (c *VideoAnalysisClient) SubmitStructureJob(ctx context.Context, request St
 
 func (c *VideoAnalysisClient) GetStructureJob(ctx context.Context, jobID string) (*ExternalJob, error) {
 	return c.getJob(ctx, c.structureBase, "/api/v2/video/structure/jobs/", jobID)
+}
+
+func (c *VideoAnalysisClient) SubmitDescribeJob(ctx context.Context, request DescribeJobRequest) (*ExternalJobRef, error) {
+	if strings.TrimSpace(request.VideoHash) == "" {
+		return nil, errors.New("video_hash is required")
+	}
+	var result ExternalJobRef
+	if err := c.doJSON(ctx, http.MethodPost, c.structureBase, "/api/v2/video/describe/jobs", request, &result); err != nil {
+		return nil, err
+	}
+	if err := c.validateJobRef(c.structureBase, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *VideoAnalysisClient) GetDescribeJob(ctx context.Context, jobID string) (*ExternalJob, error) {
+	return c.getJob(ctx, c.structureBase, "/api/v2/video/describe/jobs/", jobID)
 }
 
 func (c *VideoAnalysisClient) CheckSceneHealth(ctx context.Context) (*VideoAnalysisHealth, error) {

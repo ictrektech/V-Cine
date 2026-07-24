@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, Clock3, Loader2, RefreshCw, RotateCcw, Searc
 import { videoAnalysisApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import type { VideoAnalysisStatistics, VideoAnalysisStatus, VideoAnalysisTask } from '@/types/videoAnalysis'
+import type { VideoAnalysisDetailedStats, VideoAnalysisStatistics, VideoAnalysisStatus, VideoAnalysisTask } from '@/types/videoAnalysis'
 import VideoAnalysisResultPanel from './VideoAnalysisResultPanel'
 
 const statusMeta: Record<VideoAnalysisStatus, { label: string; className: string }> = {
@@ -32,6 +32,7 @@ export default function VideoAnalysisTaskTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [tasks, setTasks] = useState<VideoAnalysisTask[]>([])
   const [statistics, setStatistics] = useState<VideoAnalysisStatistics>({})
+  const [detailedStats, setDetailedStats] = useState<VideoAnalysisDetailedStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [unavailable, setUnavailable] = useState(false)
   const urlStatus = searchParams.get('analysisStatus')
@@ -73,13 +74,15 @@ export default function VideoAnalysisTaskTab() {
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true)
     try {
-      const [taskResponse, statsResponse] = await Promise.all([
+      const [taskResponse, statsResponse, detailedResponse] = await Promise.all([
         videoAnalysisApi.listTasks({ page, page_size: pageSize, status: status || undefined, keyword: query || undefined }),
         videoAnalysisApi.statistics(),
+        videoAnalysisApi.detailedStatistics().catch(() => ({ data: { data: null } })),
       ])
       setTasks(taskResponse.data.data.tasks || [])
       setTotal(taskResponse.data.data.total || 0)
       setStatistics(statsResponse.data.data || {})
+      setDetailedStats(detailedResponse.data.data || null)
       setUnavailable(false)
     } catch {
       setUnavailable(true)
@@ -162,12 +165,36 @@ export default function VideoAnalysisTaskTab() {
           </h2>
           <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>统一查看场景检测与视频结构分析进度{query ? ` · 当前筛选：${query}` : ''}{status ? ` · ${statusSummary}` : ''}</p>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center text-xs min-w-64">
+        <div className="grid grid-cols-4 gap-2 text-center text-xs min-w-80">
           <div className="rounded-lg bg-white/5 px-3 py-2"><strong className="block text-base">{activeCount}</strong>进行中</div>
           <div className="rounded-lg bg-emerald-500/10 px-3 py-2"><strong className="block text-base text-emerald-300">{statistics.succeeded || 0}</strong>已完成</div>
           <div className="rounded-lg bg-red-500/10 px-3 py-2"><strong className="block text-base text-red-300">{statistics.failed || 0}</strong>失败</div>
+          <div className="rounded-lg bg-neon-blue/10 px-3 py-2">
+            <strong className="block text-base text-neon">{detailedStats ? `${Math.round(detailedStats.success_rate)}%` : '—'}</strong>
+            成功率
+          </div>
         </div>
       </div>
+      {detailedStats && detailedStats.total_tasks > 0 && (
+        <div className="glass-panel rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <div className="text-surface-400 text-xs">总任务数</div>
+            <div className="font-medium text-lg mt-1">{detailedStats.total_tasks}</div>
+          </div>
+          <div>
+            <div className="text-surface-400 text-xs">平均耗时</div>
+            <div className="font-medium text-lg mt-1">{detailedStats.avg_elapsed_seconds > 0 ? `${Math.round(detailedStats.avg_elapsed_seconds)}秒` : '—'}</div>
+          </div>
+          <div>
+            <div className="text-surface-400 text-xs">错误率</div>
+            <div className="font-medium text-lg mt-1 text-red-300">{detailedStats.error_rate > 0 ? `${detailedStats.error_rate.toFixed(1)}%` : '0%'}</div>
+          </div>
+          <div>
+            <div className="text-surface-400 text-xs">部分完成率</div>
+            <div className="font-medium text-lg mt-1 text-amber-300">{detailedStats.partial_rate > 0 ? `${detailedStats.partial_rate.toFixed(1)}%` : '0%'}</div>
+          </div>
+        </div>
+      )}
 
       {urlLastSkipped && (
         <div className="glass-panel rounded-xl border border-amber-400/20 bg-amber-500/5 p-3 text-sm">

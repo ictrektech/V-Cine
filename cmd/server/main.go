@@ -953,6 +953,8 @@ func main() {
 		admin.GET("/video-analysis/tasks/:id", handlers.VideoAnalysis.GetTask)
 		admin.POST("/video-analysis/tasks/:id/retry", handlers.VideoAnalysis.RetryTask)
 		admin.GET("/video-analysis/statistics", handlers.VideoAnalysis.Statistics)
+		admin.GET("/video-analysis/statistics/detailed", handlers.VideoAnalysis.DetailedStatistics)
+		admin.POST("/video-analysis/cleanup", handlers.VideoAnalysis.Cleanup)
 
 		// ==================== 字幕预处理管理 ====================
 		admin.POST("/subtitle-preprocess/submit", handlers.SubtitlePreprocess.SubmitMedia)

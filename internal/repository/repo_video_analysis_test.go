@@ -104,3 +104,56 @@ func TestVideoAnalysisRepoListsAndCountsTasks(t *testing.T) {
 		t.Fatalf("counts = %#v", counts)
 	}
 }
+
+func TestVideoAnalysisRepoDeleteByMediaID(t *testing.T) {
+	repo := setupVideoAnalysisRepo(t)
+
+	// 创建 2 个任务属于同一个媒体，1 个属于另一个媒体
+	task1 := newVideoAnalysisTask("media-to-delete", model.VideoAnalysisStatusSucceeded)
+	task2 := newVideoAnalysisTask("media-to-delete", model.VideoAnalysisStatusFailed)
+	task3 := newVideoAnalysisTask("media-keep", model.VideoAnalysisStatusQueued)
+	for _, task := range []*model.VideoAnalysisTask{task1, task2, task3} {
+		if err := repo.CreateIfNoActive(task); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 删除指定媒体的任务
+	deletedCount, err := repo.DeleteByMediaID("media-to-delete")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deletedCount != 2 {
+		t.Fatalf("deleted count = %d, want 2", deletedCount)
+	}
+
+	// 验证删除后该媒体没有任务
+	tasks, total, err := repo.List(1, 100, "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 1 || len(tasks) != 1 {
+		t.Fatalf("remaining tasks len=%d total=%d", len(tasks), total)
+	}
+	if tasks[0].MediaID != "media-keep" {
+		t.Fatalf("remaining task media_id = %q, want media-keep", tasks[0].MediaID)
+	}
+
+	// 删除不存在的媒体 ID 不报错
+	deletedCount, err = repo.DeleteByMediaID("non-existent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deletedCount != 0 {
+		t.Fatalf("deleted count for non-existent = %d, want 0", deletedCount)
+	}
+
+	// 空媒体 ID 不报错
+	deletedCount, err = repo.DeleteByMediaID("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deletedCount != 0 {
+		t.Fatalf("deleted count for empty = %d, want 0", deletedCount)
+	}
+}

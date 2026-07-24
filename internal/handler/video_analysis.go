@@ -175,6 +175,41 @@ func (h *VideoAnalysisHandler) Statistics(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": counts})
 }
 
+func (h *VideoAnalysisHandler) DetailedStatistics(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
+		return
+	}
+	stats, err := h.service.DetailedStatistics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询详细统计失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": stats})
+}
+
+func (h *VideoAnalysisHandler) Cleanup(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
+		return
+	}
+	var request struct {
+		KeepRecent int `json:"keep_recent"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		request.KeepRecent = 100
+	}
+	if request.KeepRecent < 10 {
+		request.KeepRecent = 10
+	}
+	deletedCount, err := h.service.CleanupOldTasks(request.KeepRecent)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "清理任务失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"deleted_count": deletedCount}})
+}
+
 func (h *VideoAnalysisHandler) GetMediaResult(c *gin.Context) {
 	if h.service == nil || !h.service.IsAvailable() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})

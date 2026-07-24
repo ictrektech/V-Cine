@@ -53,6 +53,17 @@ export interface VideoAnalysisBatchResult {
 
 export type VideoAnalysisStatistics = Partial<Record<VideoAnalysisStatus, number>>
 
+export interface VideoAnalysisDetailedStats {
+  status_counts: Record<string, number>
+  total_tasks: number
+  queued_count: number
+  running_count: number
+  success_rate: number
+  error_rate: number
+  partial_rate: number
+  avg_elapsed_seconds: number
+}
+
 export interface VideoAnalysisWarning {
   code?: string
   message: string

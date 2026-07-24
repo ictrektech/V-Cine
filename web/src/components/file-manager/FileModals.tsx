@@ -306,7 +306,7 @@ interface FileDetailModalProps {
   onClose: () => void
   onEdit: () => void
   onScrape: () => void
-  onAnalyze: (force?: boolean) => void
+  onAnalyze: (force?: boolean, includeDescriptions?: boolean) => void
   onRetryAnalysis: (task: VideoAnalysisTask) => void
   onViewAnalysis: (task?: VideoAnalysisTask | null) => void
 }
@@ -448,9 +448,14 @@ export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, o
                   </button>
                 )}
                 {(!analysisMeta || analysisMeta.action === 'analyze' || analysisMeta.action === 'retry') && (
-                  <button onClick={() => onAnalyze()} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-cyan-300 hover:bg-cyan-400/10">
-                    <ScanSearch size={14} /> 分析视频
-                  </button>
+                  <>
+                    <button onClick={() => onAnalyze()} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-cyan-300 hover:bg-cyan-400/10">
+                      <ScanSearch size={14} /> 分析视频
+                    </button>
+                    <button onClick={() => onAnalyze(false, true)} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-violet-300 hover:bg-violet-400/10">
+                      <Sparkles size={14} /> 分析并生成描述
+                    </button>
+                  </>
                 )}
               </div>
             )}
@@ -475,11 +480,12 @@ interface BatchAnalyzeModalProps {
   videoAnalysisEnabled: boolean
   disabledReason?: string
   onClose: () => void
-  onConfirm: (options: { force: boolean }) => void
+  onConfirm: (options: { force: boolean; includeDescriptions: boolean }) => void
 }
 
 export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
   const [force, setForce] = useState(false)
+  const [includeDescriptions, setIncludeDescriptions] = useState(false)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
@@ -492,21 +498,38 @@ export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, disable
           已有进行中任务会自动复用，已完成且文件未变化的任务默认会跳过。
         </p>
 
-        <label className="mt-4 flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-secondary)' }}>
-          <input
-            type="checkbox"
-            checked={force}
-            onChange={e => setForce(e.target.checked)}
-            className="mt-0.5 accent-[var(--neon-blue)]"
-            disabled={!videoAnalysisEnabled}
-          />
-          <div>
-            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>强制重新分析</div>
-            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-              即使已有成功结果，也创建新的历史任务重新执行；不会覆盖旧任务记录。
+        <div className="mt-4 space-y-3">
+          <label className="flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-secondary)' }}>
+            <input
+              type="checkbox"
+              checked={force}
+              onChange={e => setForce(e.target.checked)}
+              className="mt-0.5 accent-[var(--neon-blue)]"
+              disabled={!videoAnalysisEnabled}
+            />
+            <div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>强制重新分析</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                即使已有成功结果，也创建新的历史任务重新执行；不会覆盖旧任务记录。
+              </div>
             </div>
-          </div>
-        </label>
+          </label>
+          <label className="flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-secondary)' }}>
+            <input
+              type="checkbox"
+              checked={includeDescriptions}
+              onChange={e => setIncludeDescriptions(e.target.checked)}
+              className="mt-0.5 accent-[var(--neon-purple)]"
+              disabled={!videoAnalysisEnabled}
+            />
+            <div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>包含场景描述（可选）</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                在结构分析成功后继续生成场景文字描述。若描述阶段失败，结构结果仍会保留并显示为“部分完成”。
+              </div>
+            </div>
+          </label>
+        </div>
 
         {!videoAnalysisEnabled && (
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
@@ -523,7 +546,7 @@ export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, disable
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
           <button
-            onClick={() => onConfirm({ force })}
+            onClick={() => onConfirm({ force, includeDescriptions })}
             disabled={!videoAnalysisEnabled}
             className="btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >

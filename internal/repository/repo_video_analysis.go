@@ -165,3 +165,59 @@ func (r *VideoAnalysisTaskRepo) CountByStatus() (map[string]int64, error) {
 	}
 	return counts, nil
 }
+
+// DeleteByMediaID 删除指定媒体的所有视频分析任务（用于媒体删除时清理）
+func (r *VideoAnalysisTaskRepo) DeleteByMediaID(mediaID string) (int64, error) {
+	if mediaID == "" {
+		return 0, nil
+	}
+	result := r.db.Where("media_id = ?", mediaID).Delete(&model.VideoAnalysisTask{})
+	return result.RowsAffected, result.Error
+}
+
+// AvgElapsedByStatus 计算指定状态的任务平均耗时（秒）
+func (r *VideoAnalysisTaskRepo) AvgElapsedByStatus(status string) (float64, error) {
+	var avg float64
+	if err := r.db.Model(&model.VideoAnalysisTask{}).
+		Where("status = ? AND started_at IS NOT NULL AND finished_at IS NOT NULL", status).
+		Select("COALESCE(AVG(CAST((julianday(finished_at) - julianday(started_at)) * 86400 AS REAL)), 0)").
+		Scan(&avg).Error; err != nil {
+		return 0, err
+	}
+	return avg, nil
+}
+
+// CleanupOldTasks 清理旧的已完成/失败任务，保留最近 N 条记录
+func (r *VideoAnalysisTaskRepo) CleanupOldTasks(keepRecent int) (int64, error) {
+	if keepRecent < 0 {
+		keepRecent = 100
+	}
+
+	// 找到需要保留的任务 ID
+	var keepIDs []string
+	err := r.db.Model(&model.VideoAnalysisTask{}).
+		Where("status IN ?", []string{model.VideoAnalysisStatusSucceeded, model.VideoAnalysisStatusPartial, model.VideoAnalysisStatusFailed, model.VideoAnalysisStatusSkipped}).
+		Order("created_at DESC").
+		Limit(keepRecent).
+		Pluck("id", &keepIDs).Error
+	if err != nil {
+		return 0, err
+	}
+
+	// 删除不在保留列表中的已完成任务
+	result := r.db.Where("status IN ? AND id NOT IN ?",
+		[]string{model.VideoAnalysisStatusSucceeded, model.VideoAnalysisStatusPartial, model.VideoAnalysisStatusFailed, model.VideoAnalysisStatusSkipped},
+		keepIDs,
+	).Delete(&model.VideoAnalysisTask{})
+
+	return result.RowsAffected, result.Error
+}
+
+// CleanupOrphanedByMediaID 清理媒体不存在的孤儿任务
+func (r *VideoAnalysisTaskRepo) CleanupOrphanedByMediaID(existingMediaIDs []string) (int64, error) {
+	if len(existingMediaIDs) == 0 {
+		return 0, nil
+	}
+	result := r.db.Where("media_id NOT IN ?", existingMediaIDs).Delete(&model.VideoAnalysisTask{})
+	return result.RowsAffected, result.Error
+}

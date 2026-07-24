@@ -37,39 +37,39 @@ type SceneResult struct {
 }
 
 type VideoAnalysisResult struct {
-	TaskID               string                 `json:"task_id"`
-	MediaID              string                 `json:"media_id"`
-	LibraryID            string                 `json:"library_id"`
-	MediaTitle           string                 `json:"media_title"`
-	Status               string                 `json:"status"`
-	Stage                string                 `json:"stage"`
-	Trigger              string                 `json:"trigger"`
-	Progress             float64                `json:"progress"`
-	VideoHash            string                 `json:"video_hash"`
-	VideoPath            string                 `json:"video_path"`
-	MappedVideoPath      string                 `json:"mapped_video_path"`
-	Duration             float64                `json:"duration,omitempty"`
-	FPS                  float64                `json:"fps,omitempty"`
-	Width                int                    `json:"width,omitempty"`
-	Height               int                    `json:"height,omitempty"`
-	Codec                string                 `json:"codec,omitempty"`
-	Bitrate              int64                  `json:"bitrate,omitempty"`
-	HasAudio             bool                   `json:"has_audio"`
-	TotalFrames          int64                  `json:"total_frames,omitempty"`
-	SceneCount           int                    `json:"scene_count"`
-	Warnings             []VideoAnalysisWarning `json:"warnings,omitempty"`
-	StageTimings         map[string]float64     `json:"stage_timings,omitempty"`
-	ElapsedSec           float64                `json:"elapsed_sec,omitempty"`
-	FallbackUsed         bool                   `json:"fallback_used"`
-	IncludeDescriptions  bool                   `json:"include_descriptions"`
-	Force                bool                   `json:"force"`
-	Attempt              int                    `json:"attempt"`
-	ErrorCode            string                 `json:"error_code,omitempty"`
-	ErrorMessage         string                 `json:"error_message,omitempty"`
-	CreatedAt            time.Time              `json:"created_at"`
-	StartedAt            *time.Time             `json:"started_at,omitempty"`
-	FinishedAt           *time.Time             `json:"finished_at,omitempty"`
-	Scenes               []SceneResult          `json:"scenes"`
+	TaskID              string                 `json:"task_id"`
+	MediaID             string                 `json:"media_id"`
+	LibraryID           string                 `json:"library_id"`
+	MediaTitle          string                 `json:"media_title"`
+	Status              string                 `json:"status"`
+	Stage               string                 `json:"stage"`
+	Trigger             string                 `json:"trigger"`
+	Progress            float64                `json:"progress"`
+	VideoHash           string                 `json:"video_hash"`
+	VideoPath           string                 `json:"video_path"`
+	MappedVideoPath     string                 `json:"mapped_video_path"`
+	Duration            float64                `json:"duration,omitempty"`
+	FPS                 float64                `json:"fps,omitempty"`
+	Width               int                    `json:"width,omitempty"`
+	Height              int                    `json:"height,omitempty"`
+	Codec               string                 `json:"codec,omitempty"`
+	Bitrate             int64                  `json:"bitrate,omitempty"`
+	HasAudio            bool                   `json:"has_audio"`
+	TotalFrames         int64                  `json:"total_frames,omitempty"`
+	SceneCount          int                    `json:"scene_count"`
+	Warnings            []VideoAnalysisWarning `json:"warnings,omitempty"`
+	StageTimings        map[string]float64     `json:"stage_timings,omitempty"`
+	ElapsedSec          float64                `json:"elapsed_sec,omitempty"`
+	FallbackUsed        bool                   `json:"fallback_used"`
+	IncludeDescriptions bool                   `json:"include_descriptions"`
+	Force               bool                   `json:"force"`
+	Attempt             int                    `json:"attempt"`
+	ErrorCode           string                 `json:"error_code,omitempty"`
+	ErrorMessage        string                 `json:"error_message,omitempty"`
+	CreatedAt           time.Time              `json:"created_at"`
+	StartedAt           *time.Time             `json:"started_at,omitempty"`
+	FinishedAt          *time.Time             `json:"finished_at,omitempty"`
+	Scenes              []SceneResult          `json:"scenes"`
 }
 
 type videoAnalysisStructureResult struct {
@@ -80,6 +80,12 @@ type videoAnalysisStructureResult struct {
 	Warnings     []VideoAnalysisWarning `json:"warnings"`
 	StageTimings map[string]float64     `json:"stage_timings"`
 	ElapsedSec   float64                `json:"elapsed_sec"`
+}
+
+type videoAnalysisDescribeResult struct {
+	VideoHash    string                       `json:"video_hash"`
+	Descriptions []videoAnalysisSceneDescribe `json:"descriptions"`
+	Warnings     []VideoAnalysisWarning       `json:"warnings"`
 }
 
 type videoAnalysisMetadata struct {
@@ -95,16 +101,24 @@ type videoAnalysisMetadata struct {
 }
 
 type videoAnalysisScene struct {
-	SceneID    string  `json:"scene_id"`
-	SceneIndex int     `json:"scene_index"`
-	StartTime  float64 `json:"start_time"`
-	EndTime    float64 `json:"end_time"`
-	StartFrame int64   `json:"start_frame"`
-	EndFrame   int64   `json:"end_frame"`
-	GridImage  string  `json:"grid_image"`
+	SceneID     string  `json:"scene_id"`
+	SceneIndex  int     `json:"scene_index"`
+	StartTime   float64 `json:"start_time"`
+	EndTime     float64 `json:"end_time"`
+	StartFrame  int64   `json:"start_frame"`
+	EndFrame    int64   `json:"end_frame"`
+	GridImage   string  `json:"grid_image"`
+	Description string  `json:"description"`
+	Status      string  `json:"status"`
+	Error       string  `json:"error"`
+}
+
+type videoAnalysisSceneDescribe struct {
+	SceneIndex  int    `json:"scene_index"`
+	GridImage   string `json:"grid_image"`
 	Description string `json:"description"`
-	Status     string  `json:"status"`
-	Error      string  `json:"error"`
+	Status      string `json:"status"`
+	Error       string `json:"error"`
 }
 
 func (s *VideoAnalysisService) GetResultByMedia(mediaID, taskID string) (*VideoAnalysisResult, error) {
@@ -302,6 +316,42 @@ func detectVideoAnalysisImageContentType(path string) string {
 	default:
 		return "application/octet-stream"
 	}
+}
+
+func mergeDescribeResult(structureJSON string, describeJSON []byte) (string, error) {
+	var structureResult videoAnalysisStructureResult
+	if err := json.Unmarshal([]byte(structureJSON), &structureResult); err != nil {
+		return "", fmt.Errorf("decode structure result: %w", err)
+	}
+	var describeResult videoAnalysisDescribeResult
+	if err := json.Unmarshal(describeJSON, &describeResult); err != nil {
+		return "", fmt.Errorf("decode describe result: %w", err)
+	}
+	byIndex := make(map[int]videoAnalysisSceneDescribe, len(describeResult.Descriptions))
+	for _, item := range describeResult.Descriptions {
+		byIndex[item.SceneIndex] = item
+	}
+	for i := range structureResult.Scenes {
+		if item, ok := byIndex[structureResult.Scenes[i].SceneIndex]; ok {
+			structureResult.Scenes[i].Description = strings.TrimSpace(item.Description)
+			structureResult.Scenes[i].Status = strings.TrimSpace(item.Status)
+			structureResult.Scenes[i].Error = strings.TrimSpace(item.Error)
+			if strings.TrimSpace(structureResult.Scenes[i].GridImage) == "" {
+				structureResult.Scenes[i].GridImage = strings.TrimSpace(item.GridImage)
+			}
+		}
+	}
+	if len(describeResult.Warnings) > 0 {
+		structureResult.Warnings = append(structureResult.Warnings, describeResult.Warnings...)
+	}
+	if structureResult.VideoHash == "" {
+		structureResult.VideoHash = strings.TrimSpace(describeResult.VideoHash)
+	}
+	merged, err := json.Marshal(structureResult)
+	if err != nil {
+		return "", fmt.Errorf("encode merged describe result: %w", err)
+	}
+	return string(merged), nil
 }
 
 func firstNonEmptyVideoAnalysis(values ...string) string {

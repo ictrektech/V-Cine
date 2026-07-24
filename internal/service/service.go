@@ -414,7 +414,8 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			logger.Errorf("视频分析配置无效，功能未启动: client=%v mapping=%v", clientErr, mappingErr)
 		} else {
 			svcs.VideoAnalysis = NewVideoAnalysisService(
-				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, cfg.VideoAnalysis.CacheRoot, wsHub, logger,
+				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, cfg.VideoAnalysis.CacheRoot,
+				cfg.VideoAnalysis.DescribeEnabled, wsHub, logger,
 				time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,
 				time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,
 			)
@@ -452,6 +453,11 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// 延迟注入：LibraryService / FileWatcher 需要 VideoAnalysisService（用于扫描结束后自动入队视频分析）
 	svcs.Library.SetVideoAnalysis(svcs.VideoAnalysis, svcs.VideoAnalysisWorker)
 	fileWatcher.SetVideoAnalysis(svcs.VideoAnalysis, svcs.VideoAnalysisWorker)
+
+	// 延迟注入：FileManager 需要 VideoAnalysisTaskRepo（用于媒体删除时清理关联任务）
+	if svcs.FileManager != nil {
+		svcs.FileManager.SetVideoAnalysisTaskRepo(repos.VideoAnalysis)
+	}
 
 	// 延迟注入：StreamService 需要 PreprocessService（用于自动选择预处理内容）
 	svcs.Stream.SetPreprocessService(preprocessService)

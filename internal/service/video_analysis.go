@@ -24,12 +24,26 @@ type videoAnalysisExternalClient interface {
 	GetDetectJob(context.Context, string) (*ExternalJob, error)
 	SubmitStructureJob(context.Context, StructureJobRequest) (*ExternalJobRef, error)
 	GetStructureJob(context.Context, string) (*ExternalJob, error)
+	SubmitDescribeJob(context.Context, DescribeJobRequest) (*ExternalJobRef, error)
+	GetDescribeJob(context.Context, string) (*ExternalJob, error)
 }
 
 type VideoAnalysisSubmitOptions struct {
 	Trigger             string
 	Force               bool
 	IncludeDescriptions bool
+}
+
+// VideoAnalysisDetailedStats 详细的视频分析统计指标
+type VideoAnalysisDetailedStats struct {
+	StatusCounts      map[string]int64 `json:"status_counts"`
+	TotalTasks        int64            `json:"total_tasks"`
+	QueuedCount       int64            `json:"queued_count"`
+	RunningCount      int64            `json:"running_count"`
+	SuccessRate       float64          `json:"success_rate"`
+	ErrorRate         float64          `json:"error_rate"`
+	PartialRate       float64          `json:"partial_rate"`
+	AvgElapsedSeconds float64          `json:"avg_elapsed_seconds"`
 }
 
 type VideoAnalysisSubmitOutcome struct {
@@ -55,15 +69,16 @@ type VideoAnalysisBatchResult struct {
 }
 
 type VideoAnalysisService struct {
-	tasks        *repository.VideoAnalysisTaskRepo
-	media        *repository.MediaRepo
-	client       videoAnalysisExternalClient
-	pathMapper   *VideoPathMapper
-	cacheRoot    string
-	wsHub        *WSHub
-	logger       *zap.SugaredLogger
-	pollInterval time.Duration
-	jobTimeout   time.Duration
+	tasks           *repository.VideoAnalysisTaskRepo
+	media           *repository.MediaRepo
+	client          videoAnalysisExternalClient
+	pathMapper      *VideoPathMapper
+	cacheRoot       string
+	describeEnabled bool
+	wsHub           *WSHub
+	logger          *zap.SugaredLogger
+	pollInterval    time.Duration
+	jobTimeout      time.Duration
 }
 
 func NewVideoAnalysisService(
@@ -72,6 +87,7 @@ func NewVideoAnalysisService(
 	client videoAnalysisExternalClient,
 	pathMapper *VideoPathMapper,
 	cacheRoot string,
+	describeEnabled bool,
 	wsHub *WSHub,
 	logger *zap.SugaredLogger,
 	pollInterval, jobTimeout time.Duration,
@@ -84,7 +100,7 @@ func NewVideoAnalysisService(
 	}
 	return &VideoAnalysisService{
 		tasks: tasks, media: media, client: client, pathMapper: pathMapper, cacheRoot: strings.TrimSpace(cacheRoot),
-		wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
+		describeEnabled: describeEnabled, wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
 	}
 }
 
@@ -104,8 +120,8 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 	if !s.IsAvailable() {
 		return nil, errors.New("video analysis service is not configured")
 	}
-	if options.IncludeDescriptions {
-		return nil, errors.New("scene descriptions are not enabled in the current video analysis worker")
+	if options.IncludeDescriptions && !s.describeEnabled {
+		return nil, errors.New("scene descriptions are not enabled by server configuration")
 	}
 	if active, err := s.tasks.FindActiveByMediaID(mediaID); err == nil {
 		return &VideoAnalysisSubmitOutcome{Task: active, Result: "reused"}, nil
@@ -167,6 +183,20 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 		}
 		return nil, err
 	}
+
+	if s.logger != nil {
+		s.logger.Infow("Video analysis task created",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"media_title", task.MediaTitle,
+			"trigger", task.Trigger,
+			"force", task.Force,
+			"include_descriptions", task.IncludeDescriptions,
+			"video_path", task.VideoPath,
+			"mapped_video_path", task.MappedVideoPath,
+		)
+	}
+
 	s.broadcast(task)
 	return &VideoAnalysisSubmitOutcome{Task: task, Result: "created"}, nil
 }
@@ -311,6 +341,58 @@ func (s *VideoAnalysisService) Statistics() (map[string]int64, error) {
 	return s.tasks.CountByStatus()
 }
 
+// DetailedStatistics 返回详细的视频分析统计指标
+func (s *VideoAnalysisService) DetailedStatistics() (*VideoAnalysisDetailedStats, error) {
+	if !s.IsAvailable() {
+		return nil, errors.New("video analysis service is not configured")
+	}
+
+	statusCounts, err := s.tasks.CountByStatus()
+	if err != nil {
+		return nil, err
+	}
+
+	stats := &VideoAnalysisDetailedStats{
+		StatusCounts: statusCounts,
+		QueuedCount:  statusCounts[model.VideoAnalysisStatusQueued],
+		RunningCount: statusCounts[model.VideoAnalysisStatusRunning],
+	}
+
+	// 计算成功率和错误率
+	total := int64(0)
+	for _, count := range statusCounts {
+		total += count
+	}
+	stats.TotalTasks = total
+
+	succeeded := statusCounts[model.VideoAnalysisStatusSucceeded]
+	partial := statusCounts[model.VideoAnalysisStatusPartial]
+	failed := statusCounts[model.VideoAnalysisStatusFailed]
+
+	completedTasks := succeeded + partial + failed
+	if completedTasks > 0 {
+		stats.SuccessRate = float64(succeeded) / float64(completedTasks) * 100
+		stats.ErrorRate = float64(failed) / float64(completedTasks) * 100
+		stats.PartialRate = float64(partial) / float64(completedTasks) * 100
+	}
+
+	// 计算平均耗时（最近完成的任务）
+	avgElapsed, err := s.tasks.AvgElapsedByStatus(model.VideoAnalysisStatusSucceeded)
+	if err == nil {
+		stats.AvgElapsedSeconds = avgElapsed
+	}
+
+	return stats, nil
+}
+
+// CleanupOldTasks 清理旧的已完成/失败任务
+func (s *VideoAnalysisService) CleanupOldTasks(keepRecent int) (int64, error) {
+	if !s.IsAvailable() {
+		return 0, errors.New("video analysis service is not configured")
+	}
+	return s.tasks.CleanupOldTasks(keepRecent)
+}
+
 // ProcessTask executes one queued task. Only the first caller can atomically
 // claim it, so repeated queue scans do not duplicate external submissions.
 func (s *VideoAnalysisService) ProcessTask(parent context.Context, taskID string) error {
@@ -346,6 +428,15 @@ func (s *VideoAnalysisService) processClaimedTask(parent context.Context, taskID
 		return err
 	}
 
+	if s.logger != nil {
+		s.logger.Infow("Video analysis task started",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"trigger", task.Trigger,
+			"attempt", task.Attempt,
+		)
+	}
+
 	ctx, cancel := context.WithTimeout(parent, s.jobTimeout)
 	defer cancel()
 	if err := s.run(ctx, task); err != nil {
@@ -366,7 +457,23 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 	}
 	detectResult, err := s.waitForJob(ctx, detectJob, s.client.GetDetectJob)
 	if err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("Video analysis detect stage failed",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"detect_job_id", detectJob,
+				"error", err,
+			)
+		}
 		return fmt.Errorf("detect stage: %w", err)
+	}
+
+	if s.logger != nil {
+		s.logger.Infow("Video analysis detect stage completed",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"detect_job_id", detectJob,
+		)
 	}
 
 	task.Stage = model.VideoAnalysisStageStructure
@@ -380,6 +487,14 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 	}
 	structureResult, err := s.waitForJob(ctx, structureJob, s.client.GetStructureJob)
 	if err != nil && !task.FallbackUsed && shouldFallbackToScenes(err) {
+		if s.logger != nil {
+			s.logger.Infow("Video analysis structure stage using scenes fallback",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"structure_job_id", structureJob,
+				"error", err,
+			)
+		}
 		task.FallbackUsed = true
 		task.StructureJobID = ""
 		if persistErr := s.persist(task); persistErr != nil {
@@ -391,7 +506,25 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		}
 	}
 	if err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("Video analysis structure stage failed",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"structure_job_id", structureJob,
+				"fallback_used", task.FallbackUsed,
+				"error", err,
+			)
+		}
 		return fmt.Errorf("structure stage: %w", err)
+	}
+
+	if s.logger != nil {
+		s.logger.Infow("Video analysis structure stage completed",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"structure_job_id", structureJob,
+			"fallback_used", task.FallbackUsed,
+		)
 	}
 
 	task.ResultJSON = string(structureResult.Result)
@@ -402,8 +535,44 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		return errors.New("structure result is missing video_hash")
 	}
 	task.VideoHash = resultHeader.VideoHash
-	// Describe is deliberately disabled in the MVP worker until its server-side
-	// model credentials and partial-success policy are wired.
+
+	if task.IncludeDescriptions {
+		task.Stage = model.VideoAnalysisStageDescribe
+		task.Progress = 90
+		if err := s.persist(task); err != nil {
+			return err
+		}
+		describeJob, err := s.ensureDescribeJob(ctx, task)
+		if err != nil {
+			return s.completeDescribePartial(task, fmt.Errorf("describe stage: %w", err), "")
+		}
+		describeResult, err := s.waitForJob(ctx, describeJob, s.client.GetDescribeJob)
+		if err != nil {
+			if s.logger != nil {
+				s.logger.Warnw("Video analysis describe stage failed",
+					"task_id", task.ID,
+					"media_id", task.MediaID,
+					"describe_job_id", describeJob,
+					"error", err,
+				)
+			}
+			return s.completeDescribePartial(task, fmt.Errorf("describe stage: %w", err), "")
+		}
+		mergedResult, err := mergeDescribeResult(task.ResultJSON, describeResult.Result)
+		if err != nil {
+			return s.completeDescribePartial(task, err, "DESCRIBE_MERGE_ERROR")
+		}
+		task.ResultJSON = mergedResult
+
+		if s.logger != nil {
+			s.logger.Infow("Video analysis describe stage completed",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"describe_job_id", describeJob,
+			)
+		}
+	}
+
 	task.Status = model.VideoAnalysisStatusSucceeded
 	task.Stage = model.VideoAnalysisStageDone
 	task.Progress = 100
@@ -411,15 +580,41 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 	task.FinishedAt = &finished
 	task.ErrorCode = ""
 	task.ErrorMessage = ""
+
+	if s.logger != nil {
+		s.logger.Infow("Video analysis task completed successfully",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"trigger", task.Trigger,
+			"attempt", task.Attempt,
+			"fallback_used", task.FallbackUsed,
+			"include_descriptions", task.IncludeDescriptions,
+			"elapsed", finished.Sub(*task.StartedAt).String(),
+		)
+	}
+
 	return s.persist(task)
 }
 
 func (s *VideoAnalysisService) ensureDetectJob(ctx context.Context, task *model.VideoAnalysisTask) (string, error) {
 	if task.DetectJobID != "" {
+		if s.logger != nil {
+			s.logger.Debugw("Video analysis detect job already submitted",
+				"task_id", task.ID,
+				"detect_job_id", task.DetectJobID,
+			)
+		}
 		return task.DetectJobID, nil
 	}
 	job, err := s.client.SubmitDetectJob(ctx, DetectJobRequest{VideoPath: task.MappedVideoPath})
 	if err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("Video analysis detect job submission failed",
+				"task_id", task.ID,
+				"video_path", task.MappedVideoPath,
+				"error", err,
+			)
+		}
 		return "", fmt.Errorf("submit detect job: %w", err)
 	}
 	task.DetectJobID = job.JobID
@@ -427,11 +622,24 @@ func (s *VideoAnalysisService) ensureDetectJob(ctx context.Context, task *model.
 	if err := s.persist(task); err != nil {
 		return "", err
 	}
+	if s.logger != nil {
+		s.logger.Infow("Video analysis detect job submitted",
+			"task_id", task.ID,
+			"detect_job_id", job.JobID,
+			"video_path", task.MappedVideoPath,
+		)
+	}
 	return job.JobID, nil
 }
 
 func (s *VideoAnalysisService) ensureStructureJob(ctx context.Context, task *model.VideoAnalysisTask, detectResult *ExternalJob) (string, error) {
 	if task.StructureJobID != "" {
+		if s.logger != nil {
+			s.logger.Debugw("Video analysis structure job already submitted",
+				"task_id", task.ID,
+				"structure_job_id", task.StructureJobID,
+			)
+		}
 		return task.StructureJobID, nil
 	}
 	job, err := s.client.SubmitStructureJob(ctx, StructureJobRequest{
@@ -439,6 +647,13 @@ func (s *VideoAnalysisService) ensureStructureJob(ctx context.Context, task *mod
 		FrameGrid: true, Force: task.Force, GridRows: 3, GridCols: 3,
 	})
 	if err != nil && !task.FallbackUsed && shouldFallbackToScenes(err) {
+		if s.logger != nil {
+			s.logger.Infow("Video analysis structure job falling back to scenes",
+				"task_id", task.ID,
+				"detect_job_id", task.DetectJobID,
+				"error", err,
+			)
+		}
 		task.FallbackUsed = true
 		if persistErr := s.persist(task); persistErr != nil {
 			return "", persistErr
@@ -446,11 +661,25 @@ func (s *VideoAnalysisService) ensureStructureJob(ctx context.Context, task *mod
 		return s.submitStructureWithScenes(ctx, task, detectResult)
 	}
 	if err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("Video analysis structure job submission failed",
+				"task_id", task.ID,
+				"detect_job_id", task.DetectJobID,
+				"error", err,
+			)
+		}
 		return "", fmt.Errorf("submit structure job: %w", err)
 	}
 	task.StructureJobID = job.JobID
 	if err := s.persist(task); err != nil {
 		return "", err
+	}
+	if s.logger != nil {
+		s.logger.Infow("Video analysis structure job submitted",
+			"task_id", task.ID,
+			"structure_job_id", job.JobID,
+			"detect_job_id", task.DetectJobID,
+		)
 	}
 	return job.JobID, nil
 }
@@ -474,6 +703,58 @@ func (s *VideoAnalysisService) submitStructureWithScenes(ctx context.Context, ta
 		return "", err
 	}
 	return job.JobID, nil
+}
+
+func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *model.VideoAnalysisTask) (string, error) {
+	if task.DescribeJobID != "" {
+		if s.logger != nil {
+			s.logger.Debugw("Video analysis describe job already submitted",
+				"task_id", task.ID,
+				"describe_job_id", task.DescribeJobID,
+			)
+		}
+		return task.DescribeJobID, nil
+	}
+	if strings.TrimSpace(task.VideoHash) == "" {
+		return "", errors.New("video_hash is required before describe")
+	}
+	job, err := s.client.SubmitDescribeJob(ctx, DescribeJobRequest{VideoHash: task.VideoHash, Force: task.Force})
+	if err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("Video analysis describe job submission failed",
+				"task_id", task.ID,
+				"video_hash", task.VideoHash,
+				"error", err,
+			)
+		}
+		return "", fmt.Errorf("submit describe job: %w", err)
+	}
+	task.DescribeJobID = job.JobID
+	if err := s.persist(task); err != nil {
+		return "", err
+	}
+	if s.logger != nil {
+		s.logger.Infow("Video analysis describe job submitted",
+			"task_id", task.ID,
+			"describe_job_id", job.JobID,
+			"video_hash", task.VideoHash,
+		)
+	}
+	return job.JobID, nil
+}
+
+func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysisTask, err error, errorCode string) error {
+	task.Status = model.VideoAnalysisStatusPartial
+	task.Progress = 90
+	finished := time.Now()
+	task.FinishedAt = &finished
+	if errorCode != "" {
+		task.ErrorCode = errorCode
+	} else {
+		task.ErrorCode = analysisErrorCode(err)
+	}
+	task.ErrorMessage = err.Error()
+	return s.persist(task)
 }
 
 func (s *VideoAnalysisService) waitForJob(ctx context.Context, jobID string, get func(context.Context, string) (*ExternalJob, error)) (*ExternalJob, error) {
@@ -524,11 +805,27 @@ func (s *VideoAnalysisService) persist(task *model.VideoAnalysisTask) error {
 }
 
 func (s *VideoAnalysisService) failTask(task *model.VideoAnalysisTask, err error) {
-	task.Status = model.VideoAnalysisStatusFailed
+	if task.Status != model.VideoAnalysisStatusPartial {
+		task.Status = model.VideoAnalysisStatusFailed
+	}
 	task.ErrorCode = analysisErrorCode(err)
 	task.ErrorMessage = err.Error()
 	finished := time.Now()
 	task.FinishedAt = &finished
+
+	if s.logger != nil {
+		s.logger.Warnw("Video analysis task failed",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"trigger", task.Trigger,
+			"attempt", task.Attempt,
+			"stage", task.Stage,
+			"error_code", task.ErrorCode,
+			"error", err,
+			"elapsed", finished.Sub(*task.StartedAt).String(),
+		)
+	}
+
 	if persistErr := s.persist(task); persistErr != nil && s.logger != nil {
 		s.logger.Errorf("persist failed video analysis task %s: %v", task.ID, persistErr)
 	}
