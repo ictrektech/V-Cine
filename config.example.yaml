@@ -91,8 +91,8 @@ video_analysis:
   path_mappings:
     - source: /media
       target: /photos
-  # Structure 缓存卷在 Nowen 内的只读挂载路径，用于鉴权代理九宫格
-  cache_root: /analysis-cache
+  # Structure 九宫格缓存根目录（与 Structure 的 CACHE_BASE_PATH 对齐，一般固定为该路径）
+  cache_root: /data/video-structure-cache
   max_concurrent: 2
   poll_interval_seconds: 2
   job_timeout_minutes: 120

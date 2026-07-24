@@ -25,7 +25,7 @@ video_analysis:
   path_mappings:
     - source: /media
       target: /photos
-  cache_root: /analysis-cache
+  cache_root: /data/video-structure-cache
   max_concurrent: 0
   poll_interval_seconds: 0
   job_timeout_minutes: 0
