@@ -65,6 +65,17 @@ func TestVideoAnalysisRepoAllowsNewTaskAfterTerminalState(t *testing.T) {
 	if latest.ID != second.ID {
 		t.Fatalf("latest task = %q, want %q", latest.ID, second.ID)
 	}
+	first.ResultJSON = `{"video_hash":"hash-1"}`
+	if err := repo.Update(first); err != nil {
+		t.Fatal(err)
+	}
+	latestResult, err := repo.FindLatestResultByMediaID("media-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if latestResult.ID != first.ID {
+		t.Fatalf("latest result task = %q, want %q", latestResult.ID, first.ID)
+	}
 }
 
 func TestVideoAnalysisRepoListsAndCountsTasks(t *testing.T) {

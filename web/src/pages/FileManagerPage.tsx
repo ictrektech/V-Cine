@@ -873,8 +873,14 @@ export default function FileManagerPage() {
             nextParams.set('tab', 'analysis')
             nextParams.set('analysisKeyword', detailMedia.title || '')
             nextParams.delete('analysisPage')
-            if (task?.id) nextParams.set('analysisTaskId', task.id)
-            else nextParams.delete('analysisTaskId')
+            if (task?.id) {
+              nextParams.set('analysisTaskId', task.id)
+              if (task.status === 'succeeded' || task.status === 'partial') nextParams.set('analysisResultTaskId', task.id)
+              else nextParams.delete('analysisResultTaskId')
+            } else {
+              nextParams.delete('analysisTaskId')
+              nextParams.delete('analysisResultTaskId')
+            }
             setSearchParams(nextParams, { replace: true })
             setActiveTab('analysis')
             setActiveDialog('none')

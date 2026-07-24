@@ -386,6 +386,10 @@ func main() {
 		// 元数据刮削（管理员）
 		api.POST("/media/:id/scrape", middleware.AdminOnly(), handlers.Metadata.ScrapeMedia)
 
+		// 视频分析结果（媒体权限守卫）
+		api.GET("/media/:id/video-analysis", guardByMediaID, handlers.VideoAnalysis.GetMediaResult)
+		api.GET("/media/:id/video-analysis/scenes/:sceneIndex/grid", guardByMediaID, handlers.VideoAnalysis.ServeSceneGrid)
+
 		// 用户
 		api.GET("/users/me", handlers.User.Profile)
 		api.PUT("/users/me", handlers.User.UpdateProfile)

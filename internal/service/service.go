@@ -414,7 +414,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			logger.Errorf("视频分析配置无效，功能未启动: client=%v mapping=%v", clientErr, mappingErr)
 		} else {
 			svcs.VideoAnalysis = NewVideoAnalysisService(
-				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, wsHub, logger,
+				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, cfg.VideoAnalysis.CacheRoot, wsHub, logger,
 				time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,
 				time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,
 			)

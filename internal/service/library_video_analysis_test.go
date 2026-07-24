@@ -33,7 +33,7 @@ func setupLibraryVideoAnalysisTest(t *testing.T) (*LibraryService, *repository.R
 	if err != nil {
 		t.Fatal(err)
 	}
-	vaSvc := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, vaClient, mapper, nil, logger, 0, 0)
+	vaSvc := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, vaClient, mapper, filepath.Join(dir, "cache"), nil, logger, 0, 0)
 	vaWorker := NewVideoAnalysisWorker(vaSvc, repos.VideoAnalysis, logger, 1)
 	libSvc.videoAnalysis = vaSvc
 	libSvc.videoAnalysisWorker = vaWorker

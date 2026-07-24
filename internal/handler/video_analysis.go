@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -119,16 +120,19 @@ func (h *VideoAnalysisHandler) ListTasks(c *gin.Context) {
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	tasks, total, err := h.service.ListTasks(page, pageSize, c.Query("status"), c.Query("library_id"), c.Query("keyword"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询任务列表失败"})
 		return
-	}
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
 		"tasks": tasks, "total": total, "page": page, "page_size": pageSize,
@@ -169,4 +173,51 @@ func (h *VideoAnalysisHandler) Statistics(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": counts})
+}
+
+func (h *VideoAnalysisHandler) GetMediaResult(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
+		return
+	}
+	result, err := h.service.GetResultByMedia(c.Param("id"), c.Query("task_id"))
+	if err != nil {
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "未找到可展示的视频分析结果"})
+		case err.Error() == "media_id is required":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 media_id"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询视频分析结果失败"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *VideoAnalysisHandler) ServeSceneGrid(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
+		return
+	}
+	sceneIndex, err := strconv.Atoi(c.Param("sceneIndex"))
+	if err != nil || sceneIndex < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sceneIndex 必须是非负整数"})
+		return
+	}
+	file, contentType, modTime, err := h.service.OpenSceneGridByMedia(c.Param("id"), c.Query("task_id"), sceneIndex)
+	if err != nil {
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "九宫格图片不存在"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "读取九宫格图片失败"})
+		}
+		return
+	}
+	defer file.Close()
+	c.Header("Content-Type", contentType)
+	c.Header("Cache-Control", "private, max-age=300")
+	c.Header("X-Content-Type-Options", "nosniff")
+	http.ServeContent(c.Writer, c.Request, filepath.Base(file.Name()), modTime, file)
 }

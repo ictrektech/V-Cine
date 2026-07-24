@@ -52,3 +52,60 @@ export interface VideoAnalysisBatchResult {
 }
 
 export type VideoAnalysisStatistics = Partial<Record<VideoAnalysisStatus, number>>
+
+export interface VideoAnalysisWarning {
+  code?: string
+  message: string
+  scope?: string
+  target_id?: string
+}
+
+export interface VideoAnalysisSceneResult {
+  scene_id?: string
+  scene_index: number
+  start_time: number
+  end_time: number
+  start_frame: number
+  end_frame: number
+  grid_available: boolean
+  grid_url?: string
+  description?: string
+  status?: string
+  error?: string
+}
+
+export interface VideoAnalysisResult {
+  task_id: string
+  media_id: string
+  library_id: string
+  media_title: string
+  status: VideoAnalysisStatus
+  stage: VideoAnalysisStage
+  trigger: 'manual' | 'auto'
+  progress: number
+  video_hash: string
+  video_path: string
+  mapped_video_path: string
+  duration?: number
+  fps?: number
+  width?: number
+  height?: number
+  codec?: string
+  bitrate?: number
+  has_audio: boolean
+  total_frames?: number
+  scene_count: number
+  warnings?: VideoAnalysisWarning[]
+  stage_timings?: Record<string, number>
+  elapsed_sec?: number
+  fallback_used: boolean
+  include_descriptions: boolean
+  force: boolean
+  attempt: number
+  error_code?: string
+  error_message?: string
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+  scenes: VideoAnalysisSceneResult[]
+}

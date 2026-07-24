@@ -1,6 +1,7 @@
 import api from './client'
 import type {
   VideoAnalysisBatchResult,
+  VideoAnalysisResult,
   VideoAnalysisStatistics,
   VideoAnalysisTask,
   VideoAnalysisTaskPage,
@@ -27,4 +28,13 @@ export const videoAnalysisApi = {
 
   statistics: () =>
     api.get<{ data: VideoAnalysisStatistics }>('/admin/video-analysis/statistics'),
+
+  getResult: (mediaId: string, taskId?: string) =>
+    api.get<{ data: VideoAnalysisResult }>(`/media/${mediaId}/video-analysis`, { params: taskId ? { task_id: taskId } : undefined }),
+
+  getSceneGridBlob: (mediaId: string, sceneIndex: number, taskId?: string) =>
+    api.get<Blob>(`/media/${mediaId}/video-analysis/scenes/${sceneIndex}/grid`, {
+      params: taskId ? { task_id: taskId } : undefined,
+      responseType: 'blob',
+    }),
 }

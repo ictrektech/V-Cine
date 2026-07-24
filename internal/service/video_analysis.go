@@ -59,6 +59,7 @@ type VideoAnalysisService struct {
 	media        *repository.MediaRepo
 	client       videoAnalysisExternalClient
 	pathMapper   *VideoPathMapper
+	cacheRoot    string
 	wsHub        *WSHub
 	logger       *zap.SugaredLogger
 	pollInterval time.Duration
@@ -70,6 +71,7 @@ func NewVideoAnalysisService(
 	media *repository.MediaRepo,
 	client videoAnalysisExternalClient,
 	pathMapper *VideoPathMapper,
+	cacheRoot string,
 	wsHub *WSHub,
 	logger *zap.SugaredLogger,
 	pollInterval, jobTimeout time.Duration,
@@ -81,7 +83,7 @@ func NewVideoAnalysisService(
 		jobTimeout = 2 * time.Hour
 	}
 	return &VideoAnalysisService{
-		tasks: tasks, media: media, client: client, pathMapper: pathMapper,
+		tasks: tasks, media: media, client: client, pathMapper: pathMapper, cacheRoot: strings.TrimSpace(cacheRoot),
 		wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
 	}
 }

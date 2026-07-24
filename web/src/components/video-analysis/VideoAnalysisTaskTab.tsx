@@ -5,6 +5,7 @@ import { videoAnalysisApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import type { VideoAnalysisStatistics, VideoAnalysisStatus, VideoAnalysisTask } from '@/types/videoAnalysis'
+import VideoAnalysisResultPanel from './VideoAnalysisResultPanel'
 
 const statusMeta: Record<VideoAnalysisStatus, { label: string; className: string }> = {
   queued: { label: '排队中', className: 'text-surface-300 bg-surface-600/30' },
@@ -37,6 +38,7 @@ export default function VideoAnalysisTaskTab() {
   const urlKeyword = searchParams.get('analysisKeyword') || ''
   const urlTaskId = searchParams.get('analysisTaskId') || ''
   const urlLastSkipped = searchParams.get('analysisLastSkipped') || ''
+  const urlResultTaskId = searchParams.get('analysisResultTaskId') || ''
   const urlPage = Math.max(1, Number(searchParams.get('analysisPage') || '1') || 1)
   const [status, setStatus] = useState<'' | VideoAnalysisStatus>((urlStatus as '' | VideoAnalysisStatus) || '')
   const [keyword, setKeyword] = useState(urlKeyword)
@@ -44,6 +46,7 @@ export default function VideoAnalysisTaskTab() {
   const [page, setPage] = useState(urlPage)
   const [total, setTotal] = useState(0)
   const [retrying, setRetrying] = useState<string | null>(null)
+  const [resultTaskOverride, setResultTaskOverride] = useState<VideoAnalysisTask | null>(null)
   const pageSize = 20
 
   useEffect(() => {
@@ -104,6 +107,47 @@ export default function VideoAnalysisTaskTab() {
       setRetrying(null)
     }
   }
+
+  useEffect(() => {
+    if (!urlResultTaskId) {
+      setResultTaskOverride(null)
+      return
+    }
+    const existing = tasks.find((task) => task.id === urlResultTaskId)
+    if (existing) {
+      setResultTaskOverride(null)
+      return
+    }
+    let cancelled = false
+    videoAnalysisApi.getTask(urlResultTaskId)
+      .then((res) => {
+        if (!cancelled) setResultTaskOverride(res.data.data)
+      })
+      .catch(() => {
+        if (!cancelled) setResultTaskOverride(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tasks, urlResultTaskId])
+
+  const selectedResultTask = useMemo(() => {
+    if (!urlResultTaskId) return null
+    return tasks.find((task) => task.id === urlResultTaskId) || resultTaskOverride || null
+  }, [tasks, urlResultTaskId, resultTaskOverride])
+
+  const openResult = useCallback((task: VideoAnalysisTask) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('analysisTaskId', task.id)
+    params.set('analysisResultTaskId', task.id)
+    setSearchParams(params, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  const closeResult = useCallback(() => {
+    const params = new URLSearchParams(searchParams)
+    params.delete('analysisResultTaskId')
+    setSearchParams(params, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const activeCount = (statistics.queued || 0) + (statistics.running || 0)
@@ -168,7 +212,16 @@ export default function VideoAnalysisTaskTab() {
                     <td className="px-3 py-3"><span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${meta.className}`}>{task.status === 'running' ? <Loader2 size={12} className="animate-spin" /> : task.status === 'succeeded' ? <CheckCircle2 size={12} /> : <Clock3 size={12} />}{meta.label}</span>{task.error_message && <p className="mt-1 max-w-52 truncate text-xs text-red-300" title={task.error_message}>{task.error_message}</p>}</td>
                     <td className="px-3 py-3"><div className="flex justify-between text-xs mb-1"><span>{stageLabels[task.stage]}</span><span>{Math.round(task.progress)}%</span></div><div className="h-1.5 w-40 rounded-full bg-surface-700 overflow-hidden"><div className="h-full bg-neon-blue transition-all" style={{ width: `${Math.max(0, Math.min(100, task.progress))}%` }} /></div></td>
                     <td className="px-3 py-3 text-xs text-surface-400">{formatTime(task.created_at)}</td>
-                    <td className="px-4 py-3 text-right">{(task.status === 'failed' || task.status === 'partial') && <button disabled={retrying === task.id} onClick={() => retry(task)} className="btn-ghost rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1 disabled:opacity-50">{retrying === task.id ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}重试</button>}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        {(task.status === 'succeeded' || task.status === 'partial') && (
+                          <button onClick={() => openResult(task)} className="btn-ghost rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1 text-cyan-300 hover:bg-cyan-400/10">
+                            <ScanLine size={13} /> 结果详情
+                          </button>
+                        )}
+                        {(task.status === 'failed' || task.status === 'partial') && <button disabled={retrying === task.id} onClick={() => retry(task)} className="btn-ghost rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1 disabled:opacity-50">{retrying === task.id ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}重试</button>}
+                      </div>
+                    </td>
                   </tr>
                 })}
               </tbody>
@@ -178,6 +231,10 @@ export default function VideoAnalysisTaskTab() {
       </div>
 
       {!loading && !unavailable && total > 0 && <nav aria-label="视频分析任务分页" className="flex items-center justify-between text-sm"><span className="text-surface-400">共 {total} 项</span><div className="flex items-center gap-2"><button disabled={page <= 1} onClick={() => { const next = page - 1; setPage(next); syncUrl({ page: next }) }} className="btn-ghost rounded-lg px-3 py-1.5 disabled:opacity-40">上一页</button><span className="text-surface-400">{page} / {totalPages}</span><button disabled={page >= totalPages} onClick={() => { const next = page + 1; setPage(next); syncUrl({ page: next }) }} className="btn-ghost rounded-lg px-3 py-1.5 disabled:opacity-40">下一页</button></div></nav>}
+
+      {urlResultTaskId && (
+        <VideoAnalysisResultPanel task={selectedResultTask} onClose={closeResult} />
+      )}
     </section>
   )
 }

@@ -72,6 +72,13 @@ func (r *VideoAnalysisTaskRepo) FindLatestByMediaID(mediaID string) (*model.Vide
 	return &task, err
 }
 
+func (r *VideoAnalysisTaskRepo) FindLatestResultByMediaID(mediaID string) (*model.VideoAnalysisTask, error) {
+	var task model.VideoAnalysisTask
+	err := r.db.Where("media_id = ? AND result_json <> ''", mediaID).
+		Order("created_at DESC").First(&task).Error
+	return &task, err
+}
+
 func (r *VideoAnalysisTaskRepo) ListPending(limit int) ([]model.VideoAnalysisTask, error) {
 	var tasks []model.VideoAnalysisTask
 	if limit <= 0 {

@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { mediaApi, streamApi, seriesApi } from '@/api'
 import type { Media, MediaPlayInfo } from '@/types'
 import VideoPlayer from '@/components/VideoPlayer'
@@ -35,6 +35,7 @@ function canPlayHEVC(): boolean {
 export default function PlayerPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const toast = useToast()
   const [media, setMedia] = useState<Media | null>(null)
   const [playInfo, setPlayInfo] = useState<MediaPlayInfo | null>(null)
@@ -103,6 +104,13 @@ export default function PlayerPage() {
       navigate(`/play/${nextEpisode.id}`, { replace: true })
     }
   }, [nextEpisode, navigate])
+
+  const initialStartPosition = useMemo(() => {
+    const raw = searchParams.get('start')
+    if (!raw) return undefined
+    const value = Number(raw)
+    return Number.isFinite(value) && value >= 0 ? value : undefined
+  }, [searchParams])
 
   // 预处理完成回调：后台静默刷新播放信息，自动切换到预处理流（无缝、无感知）
   const [switchPosition, setSwitchPosition] = useState<number | undefined>(undefined)
@@ -328,7 +336,7 @@ export default function PlayerPage() {
           title={playerTitle}
           playOptions={{
             title: playerTitle,
-            start_time: switchPosition,
+            start_time: switchPosition ?? initialStartPosition,
           }}
           onBack={handleBack}
           className="h-full w-full"
@@ -338,7 +346,7 @@ export default function PlayerPage() {
           src={src}
           mediaId={id}
           title={playerTitle}
-          startPosition={switchPosition}
+          startPosition={switchPosition ?? initialStartPosition}
           knownDuration={playInfo.duration}
           onBack={handleBack}
           onNext={nextEpisode ? handleNext : undefined}
@@ -353,7 +361,7 @@ export default function PlayerPage() {
           title={playerTitle}
           isStrm={playInfo.is_strm}
           knownDuration={playInfo.duration}
-          startPosition={switchPosition}
+          startPosition={switchPosition ?? initialStartPosition}
           spriteVttUrl={playInfo.sprite_vtt_url ? streamApi.withTokenUrl(playInfo.sprite_vtt_url) : undefined}
           onPreprocessReady={handlePreprocessReady}
           onRemuxFallback={mode === 'remux' ? handleRemuxFallback : undefined}
