@@ -35,7 +35,7 @@ services:
     # devices 段已经映射 /dev/fuse 时可去掉此 tmpfs
     # =========================================================
     ports:
-      - "8080:8080"
+      - "38080:8080"
       # Python 番号刮削微服务（内部已由主进程自动拉起，默认绑 127.0.0.1）
       # 如需从容器外直接调试该微服务，取消下行注释并把 SCRAPER_HOST 改成 0.0.0.0
       # - "5000:5000"
@@ -48,7 +48,7 @@ services:
       # 示例: 挂载整个媒体根目录
       # - /volume1/Media:/media
       # 示例: 分别挂载不同媒体目录
-      # - /volume1/Media/电影:/media/电影
+      - /data:/data:ro
       # - /volume1/Media/电视剧:/media/电视剧
     # 硬件加速设备映射
     # - amd64 (Intel QSV/VAAPI): /dev/dri

@@ -20,13 +20,13 @@ build-server:
 build-web:
 	cd web && VITE_APP_VERSION=$(VERSION) npm run build
 
-# 开发模式运行后端
+# 开发模式运行后端（端口 38080，调试模式）
 dev:
-	NOWEN_DEBUG=true NOWEN_VERSION=$(VERSION) go run -ldflags "$(GO_LDFLAGS)" ./cmd/server
+	NOWEN_APP_ENV=development NOWEN_DEBUG=true NOWEN_VERSION=$(VERSION) go run -ldflags "$(GO_LDFLAGS)" ./cmd/server
 
-# 开发模式运行前端
+# 开发模式运行前端（端口 33000，代理到后端 38080）
 dev-web:
-	cd web && VITE_APP_VERSION=$(VERSION) npm run dev
+	cd web && WEB_PORT=33000 VITE_API_PROXY_TARGET=http://localhost:38080 VITE_APP_VERSION=$(VERSION) npm run dev
 
 # 运行（生产模式）
 run: build
