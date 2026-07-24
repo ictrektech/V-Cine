@@ -6,7 +6,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestSubmitStructureJobSendsVideoPathAndDetectJobID(t *testing.T) {
@@ -154,6 +156,71 @@ func TestNewVideoAnalysisClientRejectsUnsafeBaseURL(t *testing.T) {
 		if _, err := NewVideoAnalysisClient(raw, "http://localhost:8911", nil); err == nil {
 			t.Fatalf("NewVideoAnalysisClient(%q) should fail", raw)
 		}
+	}
+}
+
+func TestVideoAnalysisClientRejectsMalformedJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"code":0,"msg":"ok","data":`))
+	}))
+	defer server.Close()
+
+	client, err := NewVideoAnalysisClient(server.URL, server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.CheckSceneHealth(context.Background()); err == nil {
+		t.Fatal("CheckSceneHealth should reject malformed JSON")
+	}
+}
+
+func TestVideoAnalysisClientRejectsOversizedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Exceed maxVideoAnalysisResponseBytes (4 MiB) with a single write.
+		payload := make([]byte, maxVideoAnalysisResponseBytes+2)
+		for i := range payload {
+			payload[i] = 'x'
+		}
+		_, _ = w.Write(payload)
+	}))
+	defer server.Close()
+
+	client, err := NewVideoAnalysisClient(server.URL, server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.CheckSceneHealth(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "exceeds size limit") {
+		t.Fatalf("error = %v, want size limit error", err)
+	}
+}
+
+func TestVideoAnalysisClientSurfacesRequestTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(2 * time.Second):
+			writeAnalysisResponse(t, w, http.StatusOK, 0, "ok", map[string]any{"status": "ok", "service": "scene"})
+		}
+	}))
+	defer server.Close()
+
+	httpClient := &http.Client{Timeout: 50 * time.Millisecond}
+	client, err := NewVideoAnalysisClient(server.URL, server.URL, httpClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.CheckSceneHealth(context.Background())
+	if err == nil {
+		t.Fatal("CheckSceneHealth should surface request timeout")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) && !strings.Contains(strings.ToLower(err.Error()), "timeout") && !strings.Contains(strings.ToLower(err.Error()), "deadline") {
+		t.Fatalf("error = %v, want timeout/deadline error", err)
 	}
 }
 

@@ -50,6 +50,11 @@ services:
       # 示例: 分别挂载不同媒体目录
       - /data:/data:ro
       # - /volume1/Media/电视剧:/media/电视剧
+      # ---- 视频分析（可选）----
+      # Structure 九宫格缓存：与 Structure 服务共享同一卷，Nowen 侧只读挂载。
+      # 容器内路径需与 config.yaml 的 video_analysis.cache_root 一致（默认 /analysis-cache）。
+      # - video-structure-cache:/analysis-cache:ro
+      # 若 Scene/Structure 看到的媒体路径与 Nowen 不同，再在 config.yaml 配置 path_mappings。
     # 硬件加速设备映射
     # - amd64 (Intel QSV/VAAPI): /dev/dri
     # - arm64 (树莓派 V4L2 / 瑞芯微 RKMPP / Mali GPU): /dev/dri, /dev/video*
@@ -87,6 +92,12 @@ services:
       # - NOWEN_APP_CORS_ORIGINS=http://localhost:3000
       # ---- 番号刮削（可选，默认关闭；改成 true 并重启即可启用） ----
       - NOWEN_ADULT_SCRAPER_ENABLED=false
+      # ---- 视频结构化分析（可选，默认关闭；详见 docs/video-analysis-deployment.md）----
+      # - NOWEN_VIDEO_ANALYSIS_ENABLED=true
+      # - NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
+      # - NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://video-structure:8911
+      # - NOWEN_VIDEO_ANALYSIS_CACHE_ROOT=/analysis-cache
+      # path_mappings 建议写在 config.yaml，例如 source:/media target:/photos
       - NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON=true
       - NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
       - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
