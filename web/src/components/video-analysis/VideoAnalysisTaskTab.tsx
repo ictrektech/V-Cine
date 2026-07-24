@@ -35,6 +35,7 @@ export default function VideoAnalysisTaskTab() {
   const [unavailable, setUnavailable] = useState(false)
   const urlStatus = searchParams.get('analysisStatus')
   const urlKeyword = searchParams.get('analysisKeyword') || ''
+  const urlTaskId = searchParams.get('analysisTaskId') || ''
   const urlPage = Math.max(1, Number(searchParams.get('analysisPage') || '1') || 1)
   const [status, setStatus] = useState<'' | VideoAnalysisStatus>((urlStatus as '' | VideoAnalysisStatus) || '')
   const [keyword, setKeyword] = useState(urlKeyword)
@@ -138,7 +139,7 @@ export default function VideoAnalysisTaskTab() {
         {loading ? (
           <div className="py-16 text-center" aria-busy="true"><Loader2 className="mx-auto animate-spin text-neon" /><p className="mt-2 text-sm text-surface-400">正在加载任务…</p></div>
         ) : unavailable ? (
-          <div className="py-16 px-4 text-center" role="alert"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">无法加载视频分析任务</h3><p className="mt-1 text-sm text-surface-400">请检查网络，或确认 video_analysis、Scene 与 Structure 服务已正确配置。</p><button onClick={() => load()} className="btn-ghost mt-4 rounded-lg px-4 py-2 text-sm">重新检查</button></div>
+          <div className="py-16 px-4 text-center" role="alert"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">无法加载视频分析任务</h3><p className="mt-1 text-sm text-surface-400">请检查网络，或确认 video_analysis、Scene 与 Structure 服务已正确配置。</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><button onClick={() => load()} className="btn-ghost rounded-lg px-4 py-2 text-sm">重新检查</button><button onClick={() => { window.location.href = '/admin#ai' }} className="btn-ghost rounded-lg px-4 py-2 text-sm text-amber-300 hover:bg-amber-400/10">前往系统配置</button></div></div>
         ) : tasks.length === 0 ? (
           <div className="py-16 px-4 text-center"><ScanLine className="mx-auto text-surface-500" /><h3 className="mt-3 font-medium">暂无视频分析任务</h3><p className="mt-1 text-sm text-surface-400">从文件列表选择视频并发起分析后，任务会显示在这里。</p></div>
         ) : (
@@ -148,8 +149,9 @@ export default function VideoAnalysisTaskTab() {
               <tbody className="divide-y divide-white/5">
                 {tasks.map((task) => {
                   const meta = statusMeta[task.status]
-                  return <tr key={task.id} className="hover:bg-white/[0.025]">
-                    <td className="px-4 py-3 max-w-xs"><div className="font-medium truncate" title={task.media_title}>{task.media_title || '未命名媒体'}</div><div className="text-xs text-surface-500 mt-1">{task.trigger === 'auto' ? '媒体库自动分析' : '手动提交'} · 第 {task.attempt || 0} 次执行</div></td>
+                  const isFocused = urlTaskId !== '' && task.id === urlTaskId
+                  return <tr key={task.id} className={isFocused ? 'bg-neon-blue/10' : 'hover:bg-white/[0.025]'}>
+                    <td className="px-4 py-3 max-w-xs"><div className="font-medium truncate" title={task.media_title}>{task.media_title || '未命名媒体'}{isFocused && <span className="ml-2 inline-flex rounded bg-neon-blue/15 px-1.5 py-0.5 text-[10px] text-neon">当前关注</span>}</div><div className="text-xs text-surface-500 mt-1">{task.trigger === 'auto' ? '媒体库自动分析' : '手动提交'} · 第 {task.attempt || 0} 次执行</div></td>
                     <td className="px-3 py-3"><span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${meta.className}`}>{task.status === 'running' ? <Loader2 size={12} className="animate-spin" /> : task.status === 'succeeded' ? <CheckCircle2 size={12} /> : <Clock3 size={12} />}{meta.label}</span>{task.error_message && <p className="mt-1 max-w-52 truncate text-xs text-red-300" title={task.error_message}>{task.error_message}</p>}</td>
                     <td className="px-3 py-3"><div className="flex justify-between text-xs mb-1"><span>{stageLabels[task.stage]}</span><span>{Math.round(task.progress)}%</span></div><div className="h-1.5 w-40 rounded-full bg-surface-700 overflow-hidden"><div className="h-full bg-neon-blue transition-all" style={{ width: `${Math.max(0, Math.min(100, task.progress))}%` }} /></div></td>
                     <td className="px-3 py-3 text-xs text-surface-400">{formatTime(task.created_at)}</td>

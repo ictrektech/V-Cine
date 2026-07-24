@@ -21,6 +21,7 @@ export {
   ScanDirectoryModal,
   EditFileModal,
   FileDetailModal,
+  BatchAnalyzeModal,
   RenameModal,
   OperationLogsModal,
 } from './FileModals'

@@ -209,6 +209,13 @@ func (s *VideoAnalysisService) GetTask(taskID string) (*model.VideoAnalysisTask,
 	return s.tasks.FindByID(taskID)
 }
 
+func (s *VideoAnalysisService) GetLatestTaskByMediaID(mediaID string) (*model.VideoAnalysisTask, error) {
+	if !s.IsAvailable() {
+		return nil, errors.New("video analysis service is not configured")
+	}
+	return s.tasks.FindLatestByMediaID(mediaID)
+}
+
 func (s *VideoAnalysisService) ListTasks(page, pageSize int, status, libraryID, keyword string) ([]model.VideoAnalysisTask, int64, error) {
 	if !s.IsAvailable() {
 		return nil, 0, errors.New("video analysis service is not configured")

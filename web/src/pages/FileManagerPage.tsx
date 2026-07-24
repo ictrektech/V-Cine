@@ -36,6 +36,7 @@ import {
   EditFileModal,
   FileDetailModal,
   RenameModal,
+  BatchAnalyzeModal,
   OperationLogsModal,
 } from '@/components/file-manager'
 import type { TabType, DialogType } from '@/components/file-manager'
@@ -117,6 +118,8 @@ export default function FileManagerPage() {
 
   // 刮削源
   const [scrapeSource, setScrapeSource] = useState('')
+  const [videoAnalysisEnabled, setVideoAnalysisEnabled] = useState(true)
+  const [videoAnalysisDisabledReason, setVideoAnalysisDisabledReason] = useState('')
 
   // ==================== 数据加载 ====================
 
@@ -181,8 +184,24 @@ export default function FileManagerPage() {
     finally { setFolderTreeLoading(false) }
   }, [filterLibrary])
 
+  const checkVideoAnalysisAvailability = useCallback(async () => {
+    try {
+      await videoAnalysisApi.statistics()
+      setVideoAnalysisEnabled(true)
+      setVideoAnalysisDisabledReason('')
+    } catch (err: any) {
+      if (err?.response?.status === 503) {
+        setVideoAnalysisEnabled(false)
+        setVideoAnalysisDisabledReason(err?.response?.data?.error || '视频分析服务未启用或配置无效')
+        return
+      }
+      setVideoAnalysisEnabled(true)
+      setVideoAnalysisDisabledReason('')
+    }
+  }, [])
+
   useEffect(() => { fetchFiles() }, [fetchFiles])
-  useEffect(() => { fetchStats(); fetchLibraries() }, [fetchStats, fetchLibraries])
+  useEffect(() => { fetchStats(); fetchLibraries(); checkVideoAnalysisAvailability() }, [fetchStats, fetchLibraries, checkVideoAnalysisAvailability])
   useEffect(() => { fetchFolderTree() }, [fetchFolderTree])
 
   // WebSocket 实时更新
@@ -311,16 +330,9 @@ export default function FileManagerPage() {
     else toast.info(summary)
   }, [toast])
 
-  const handleBatchAnalyze = useCallback(async () => {
-    if (selectedIds.size === 0) return
-    const ok = await dialog.confirm({
-      title: '批量分析视频',
-      message: `确定对选中的 ${selectedIds.size} 个视频提交场景检测与结构分析任务吗？已有进行中任务会自动复用。`,
-      confirmText: '开始分析',
-    })
-    if (!ok) return
+  const submitBatchAnalyze = useCallback(async (force = false) => {
     try {
-      const res = await videoAnalysisApi.batchSubmit({ media_ids: Array.from(selectedIds) })
+      const res = await videoAnalysisApi.batchSubmit({ media_ids: Array.from(selectedIds), force })
       const result = res.data.data
       showVideoAnalysisResultToast(result)
       if (result.created > 0 || result.reused > 0) {
@@ -332,9 +344,31 @@ export default function FileManagerPage() {
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '批量视频分析提交失败')
     }
-  }, [dialog, selectedIds, showVideoAnalysisResultToast, searchParams, setSearchParams, toast])
+  }, [selectedIds, showVideoAnalysisResultToast, searchParams, setSearchParams, toast])
+
+  const handleBatchAnalyze = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    if (!videoAnalysisEnabled) {
+      toast.warning(videoAnalysisDisabledReason || '视频分析服务未启用或配置无效')
+      return
+    }
+    setActiveDialog('batchAnalyze')
+  }, [selectedIds, toast, videoAnalysisDisabledReason, videoAnalysisEnabled])
 
   const handleAnalyzeFile = useCallback(async (media: Media, force = false) => {
+    if (!videoAnalysisEnabled) {
+      toast.warning(videoAnalysisDisabledReason || '视频分析服务未启用或配置无效')
+      return
+    }
+    if (force) {
+      const ok = await dialog.confirm({
+        title: '重新分析视频',
+        message: '将创建一个新的历史分析任务重新执行，不会覆盖原有任务记录。确定继续吗？',
+        confirmText: '重新分析',
+        variant: 'warning',
+      })
+      if (!ok) return
+    }
     try {
       const res = await videoAnalysisApi.submit({ media_id: media.id, force })
       if (res.data.reused) toast.success('已复用现有视频分析任务')
@@ -345,6 +379,20 @@ export default function FileManagerPage() {
       setSearchParams(nextParams, { replace: true })
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '视频分析提交失败')
+    }
+  }, [dialog, searchParams, setSearchParams, toast, videoAnalysisDisabledReason, videoAnalysisEnabled])
+
+  const handleRetryAnalysisTask = useCallback(async (taskId: string) => {
+    try {
+      await videoAnalysisApi.retryTask(taskId)
+      toast.success('已从失败阶段重新排队视频分析任务')
+      setActiveTab('analysis')
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.set('tab', 'analysis')
+      nextParams.set('analysisTaskId', taskId)
+      setSearchParams(nextParams, { replace: true })
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || '重新分析失败')
     }
   }, [searchParams, setSearchParams, toast])
 
@@ -603,6 +651,8 @@ export default function FileManagerPage() {
           onScrapeSourceChange={setScrapeSource}
           onBatchScrape={handleBatchScrape}
           onBatchAnalyze={handleBatchAnalyze}
+          videoAnalysisEnabled={videoAnalysisEnabled}
+          videoAnalysisDisabledReason={videoAnalysisDisabledReason}
           onBatchRename={() => setActiveDialog('rename')}
           onBatchDelete={handleBatchDelete}
           onClearSelection={() => setSelectedIds(new Set())}
@@ -750,14 +800,36 @@ export default function FileManagerPage() {
           onClose={() => setActiveDialog('none')}
           onEdit={() => { setEditMedia(detailMedia); setActiveDialog('edit') }}
           onScrape={() => { handleScrapeFile(detailMedia.id); setActiveDialog('none') }}
-          onAnalyze={() => { handleAnalyzeFile(detailMedia); setActiveDialog('none') }}
-          onViewAnalysis={() => {
+          onAnalyze={(force) => {
+            void handleAnalyzeFile(detailMedia, Boolean(force))
+            setActiveDialog('none')
+          }}
+          onRetryAnalysis={(task) => {
+            void handleRetryAnalysisTask(task.id)
+            setActiveDialog('none')
+          }}
+          onViewAnalysis={(task) => {
             const nextParams = new URLSearchParams(searchParams)
             nextParams.set('tab', 'analysis')
             nextParams.set('analysisKeyword', detailMedia.title || '')
             nextParams.delete('analysisPage')
+            if (task?.id) nextParams.set('analysisTaskId', task.id)
+            else nextParams.delete('analysisTaskId')
             setSearchParams(nextParams, { replace: true })
             setActiveTab('analysis')
+            setActiveDialog('none')
+          }}
+        />
+      )}
+
+      {activeDialog === 'batchAnalyze' && (
+        <BatchAnalyzeModal
+          selectedCount={selectedIds.size}
+          videoAnalysisEnabled={videoAnalysisEnabled}
+          disabledReason={videoAnalysisDisabledReason}
+          onClose={() => setActiveDialog('none')}
+          onConfirm={({ force }) => {
+            void submitBatchAnalyze(force)
             setActiveDialog('none')
           }}
         />

@@ -47,6 +47,8 @@ interface FileToolbarProps {
   onScrapeSourceChange: (val: string) => void
   onBatchScrape: () => void
   onBatchAnalyze: () => void
+  videoAnalysisEnabled?: boolean
+  videoAnalysisDisabledReason?: string
   onBatchRename: () => void
   onBatchDelete: () => void
   onClearSelection: () => void
@@ -67,7 +69,8 @@ export default function FileToolbar({
   viewMode, onViewModeChange,
   selectedCount,
   scrapeSource, onScrapeSourceChange,
-  onBatchScrape, onBatchAnalyze, onBatchRename, onBatchDelete, onClearSelection,
+  onBatchScrape, onBatchAnalyze, videoAnalysisEnabled = true, videoAnalysisDisabledReason,
+  onBatchRename, onBatchDelete, onClearSelection,
   children,
 }: FileToolbarProps) {
   return (
@@ -171,9 +174,23 @@ export default function FileToolbar({
           <button onClick={onBatchScrape} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-blue-400 hover:bg-blue-400/10">
             <Sparkles size={14} /> 批量刮削
           </button>
-          <button onClick={onBatchAnalyze} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-cyan-400 hover:bg-cyan-400/10">
+          <button
+            onClick={onBatchAnalyze}
+            disabled={!videoAnalysisEnabled}
+            title={!videoAnalysisEnabled ? (videoAnalysisDisabledReason || '视频分析服务未启用') : undefined}
+            className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-cyan-400 hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          >
             <ScanSearch size={14} /> 分析视频
           </button>
+          {!videoAnalysisEnabled && (
+            <button
+              onClick={() => { window.location.href = '/admin#ai' }}
+              className="rounded px-2 py-1 text-[11px] text-amber-300 transition-colors hover:bg-amber-400/10"
+              title={videoAnalysisDisabledReason || '前往视频分析相关配置'}
+            >
+              前往配置
+            </button>
+          )}
           <button onClick={onBatchRename} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-purple-400 hover:bg-purple-400/10">
             <Wand2 size={14} /> 批量重命名
           </button>

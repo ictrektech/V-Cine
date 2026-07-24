@@ -168,3 +168,28 @@ func TestVideoAnalysisServiceRetriesStructureWithoutRepeatingDetect(t *testing.T
 		t.Fatalf("retried=%+v", retried)
 	}
 }
+
+func TestVideoAnalysisServiceGetsLatestTaskByMediaID(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	first, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.Status = model.VideoAnalysisStatusSucceeded
+	first.Stage = model.VideoAnalysisStageDone
+	if err := tasks.Update(first); err != nil {
+		t.Fatal(err)
+	}
+	second, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{Force: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest, err := service.GetLatestTaskByMediaID(mediaID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if latest.ID != second.ID {
+		t.Fatalf("latest task = %q, want %q", latest.ID, second.ID)
+	}
+}

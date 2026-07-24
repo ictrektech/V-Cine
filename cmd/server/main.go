@@ -945,6 +945,7 @@ func main() {
 		admin.POST("/video-analysis/tasks", handlers.VideoAnalysis.SubmitMedia)
 		admin.POST("/video-analysis/tasks/batch", handlers.VideoAnalysis.BatchSubmit)
 		admin.GET("/video-analysis/tasks", handlers.VideoAnalysis.ListTasks)
+		admin.GET("/video-analysis/tasks/latest", handlers.VideoAnalysis.GetLatestTaskByMedia)
 		admin.GET("/video-analysis/tasks/:id", handlers.VideoAnalysis.GetTask)
 		admin.POST("/video-analysis/tasks/:id/retry", handlers.VideoAnalysis.RetryTask)
 		admin.GET("/video-analysis/statistics", handlers.VideoAnalysis.Statistics)

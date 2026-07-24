@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Media, Library, ScannedFile, FileImportRequest, FileOperationLog, RenamePreview, RenameTemplate } from '@/types'
-import { fileManagerApi } from '@/api'
+import { fileManagerApi, videoAnalysisApi } from '@/api'
+import type { VideoAnalysisTask } from '@/types/videoAnalysis'
 import { useToast } from '@/components/Toast'
 import {
   Plus, Upload, Search, Loader2, Check, X, Eye, Edit3,
@@ -305,11 +306,61 @@ interface FileDetailModalProps {
   onClose: () => void
   onEdit: () => void
   onScrape: () => void
-  onAnalyze: () => void
-  onViewAnalysis: () => void
+  onAnalyze: (force?: boolean) => void
+  onRetryAnalysis: (task: VideoAnalysisTask) => void
+  onViewAnalysis: (task?: VideoAnalysisTask | null) => void
 }
 
-export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, onViewAnalysis }: FileDetailModalProps) {
+export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
+  const toast = useToast()
+  const [analysisTask, setAnalysisTask] = useState<VideoAnalysisTask | null>(null)
+  const [loadingAnalysis, setLoadingAnalysis] = useState(true)
+  const [analysisUnavailable, setAnalysisUnavailable] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoadingAnalysis(true)
+    setAnalysisUnavailable(false)
+    videoAnalysisApi.getLatestTaskByMedia(media.id)
+      .then((res) => {
+        if (cancelled) return
+        setAnalysisTask(res.data.data || null)
+      })
+      .catch((err: any) => {
+        if (cancelled) return
+        if (err?.response?.status === 503) {
+          setAnalysisUnavailable(true)
+          setAnalysisTask(null)
+        } else {
+          toast.error(err?.response?.data?.error || '读取视频分析状态失败')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAnalysis(false)
+      })
+    return () => { cancelled = true }
+  }, [media.id, toast])
+
+  const analysisMeta = useMemo(() => {
+    if (!analysisTask) return null
+    switch (analysisTask.status) {
+      case 'queued':
+        return { label: '排队中', tone: 'text-surface-300 bg-surface-600/30', action: 'progress' as const }
+      case 'running':
+        return { label: '分析中', tone: 'text-amber-300 bg-amber-500/10', action: 'progress' as const }
+      case 'succeeded':
+        return { label: '已完成', tone: 'text-emerald-300 bg-emerald-500/10', action: 'result' as const }
+      case 'partial':
+        return { label: '部分完成', tone: 'text-amber-300 bg-amber-500/10', action: 'retry' as const }
+      case 'failed':
+        return { label: '失败', tone: 'text-red-300 bg-red-500/10', action: 'retry' as const }
+      case 'skipped':
+        return { label: '已跳过', tone: 'text-surface-400 bg-surface-600/20', action: 'analyze' as const }
+      default:
+        return null
+    }
+  }, [analysisTask])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -358,15 +409,56 @@ export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, o
           </div>
           <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>{media.file_path}</div>
         </div>
+        <div className="mt-4 p-3 rounded-lg border" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-default)' }}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>视频分析状态</div>
+              {loadingAnalysis ? (
+                <div className="inline-flex items-center gap-2 text-sm text-surface-400"><ScanLine size={14} className="animate-pulse" /> 正在读取任务状态…</div>
+              ) : analysisUnavailable ? (
+                <div className="space-y-2">
+                  <div className="text-sm text-amber-300">视频分析服务未启用或配置无效</div>
+                  <button
+                    onClick={() => { window.location.href = '/admin#ai' }}
+                    className="inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-400/10"
+                  >
+                    前往系统配置
+                  </button>
+                </div>
+              ) : analysisMeta ? (
+                <div className="space-y-1">
+                  <span className={clsx('inline-flex items-center rounded-md px-2 py-1 text-xs', analysisMeta.tone)}>{analysisMeta.label}</span>
+                  <div className="text-xs text-surface-400">
+                    当前阶段：{analysisTask?.stage || '—'} · 进度 {Math.round(analysisTask?.progress || 0)}%
+                  </div>
+                  {analysisTask?.error_message && <div className="text-xs text-red-300 max-w-xl break-words">{analysisTask.error_message}</div>}
+                </div>
+              ) : (
+                <div className="text-sm text-surface-400">尚未提交视频分析任务</div>
+              )}
+            </div>
+            {!loadingAnalysis && !analysisUnavailable && (
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => onViewAnalysis(analysisTask)} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
+                  <ListTodo size={14} /> {analysisMeta?.action === 'result' ? '查看结果' : analysisMeta?.action === 'progress' ? '查看进度' : '查看分析任务'}
+                </button>
+                {(analysisMeta?.action === 'retry') && analysisTask && (
+                  <button onClick={() => onRetryAnalysis(analysisTask)} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-amber-300 hover:bg-amber-400/10">
+                    <ScanSearch size={14} /> 重新分析
+                  </button>
+                )}
+                {(!analysisMeta || analysisMeta.action === 'analyze' || analysisMeta.action === 'retry') && (
+                  <button onClick={() => onAnalyze()} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-cyan-300 hover:bg-cyan-400/10">
+                    <ScanSearch size={14} /> 分析视频
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         <div className="flex flex-wrap justify-end gap-2 mt-4">
-          <button onClick={onViewAnalysis} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
-            <ListTodo size={14} /> 查看分析任务
-          </button>
           <button onClick={onEdit} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
             <Edit3 size={14} /> 编辑
-          </button>
-          <button onClick={onAnalyze} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-cyan-300 hover:bg-cyan-400/10">
-            <ScanSearch size={14} /> 分析视频
           </button>
           <button onClick={onScrape} className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
             <Sparkles size={14} /> 刮削元数据
@@ -378,6 +470,71 @@ export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, o
 }
 
 // ==================== 重命名对话框 ====================
+interface BatchAnalyzeModalProps {
+  selectedCount: number
+  videoAnalysisEnabled: boolean
+  disabledReason?: string
+  onClose: () => void
+  onConfirm: (options: { force: boolean }) => void
+}
+
+export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
+  const [force, setForce] = useState(false)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+          <ScanSearch className="inline-block mr-2 mb-0.5" size={20} /> 批量分析视频
+        </h3>
+        <p className="text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
+          将为选中的 <span className="text-neon font-medium">{selectedCount}</span> 个视频提交场景检测与结构分析任务。
+          已有进行中任务会自动复用，已完成且文件未变化的任务默认会跳过。
+        </p>
+
+        <label className="mt-4 flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-secondary)' }}>
+          <input
+            type="checkbox"
+            checked={force}
+            onChange={e => setForce(e.target.checked)}
+            className="mt-0.5 accent-[var(--neon-blue)]"
+            disabled={!videoAnalysisEnabled}
+          />
+          <div>
+            <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>强制重新分析</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              即使已有成功结果，也创建新的历史任务重新执行；不会覆盖旧任务记录。
+            </div>
+          </div>
+        </label>
+
+        {!videoAnalysisEnabled && (
+          <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            <div>{disabledReason || '视频分析服务未启用或配置无效'}</div>
+            <button
+              onClick={() => { window.location.href = '/admin#ai' }}
+              className="mt-3 inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-400/10"
+            >
+              前往系统配置
+            </button>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
+          <button
+            onClick={() => onConfirm({ force })}
+            disabled={!videoAnalysisEnabled}
+            className="btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            开始分析
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface RenameModalProps {
   selectedCount: number
   selectedIds: Set<string>

@@ -90,6 +90,28 @@ func (h *VideoAnalysisHandler) GetTask(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": task})
 }
 
+func (h *VideoAnalysisHandler) GetLatestTaskByMedia(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
+		return
+	}
+	mediaID := c.Query("media_id")
+	if mediaID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 media_id"})
+		return
+	}
+	task, err := h.service.GetLatestTaskByMediaID(mediaID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusOK, gin.H{"data": nil})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询最新任务失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": task})
+}
+
 func (h *VideoAnalysisHandler) ListTasks(c *gin.Context) {
 	if h.service == nil || !h.service.IsAvailable() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})

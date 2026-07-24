@@ -16,6 +16,9 @@ export const videoAnalysisApi = {
   listTasks: (params: { page?: number; page_size?: number; status?: string; library_id?: string; keyword?: string }) =>
     api.get<{ data: VideoAnalysisTaskPage }>('/admin/video-analysis/tasks', { params }),
 
+  getLatestTaskByMedia: (mediaId: string) =>
+    api.get<{ data: VideoAnalysisTask | null }>('/admin/video-analysis/tasks/latest', { params: { media_id: mediaId } }),
+
   getTask: (id: string) =>
     api.get<{ data: VideoAnalysisTask }>(`/admin/video-analysis/tasks/${id}`),
 
