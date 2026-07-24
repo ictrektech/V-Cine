@@ -17,6 +17,8 @@ import (
 
 const videoAnalysisTaskUpdateEvent = "video_analysis_task_update"
 
+var ErrVideoAnalysisTaskActive = repository.ErrVideoAnalysisTaskActive
+
 type videoAnalysisExternalClient interface {
 	SubmitDetectJob(context.Context, DetectJobRequest) (*ExternalJobRef, error)
 	GetDetectJob(context.Context, string) (*ExternalJob, error)
@@ -28,6 +30,26 @@ type VideoAnalysisSubmitOptions struct {
 	Trigger             string
 	Force               bool
 	IncludeDescriptions bool
+}
+
+type VideoAnalysisSubmitOutcome struct {
+	Task    *model.VideoAnalysisTask
+	Result  string
+	Message string
+}
+
+type VideoAnalysisBatchError struct {
+	MediaID string `json:"media_id"`
+	Message string `json:"message"`
+}
+
+type VideoAnalysisBatchResult struct {
+	Created int                        `json:"created"`
+	Reused  int                        `json:"reused"`
+	Skipped int                        `json:"skipped"`
+	Errors  []VideoAnalysisBatchError  `json:"errors"`
+	TaskIDs []string                   `json:"task_ids"`
+	Tasks   []*model.VideoAnalysisTask `json:"tasks"`
 }
 
 type VideoAnalysisService struct {
@@ -67,42 +89,61 @@ func (s *VideoAnalysisService) IsAvailable() bool {
 }
 
 func (s *VideoAnalysisService) SubmitMedia(mediaID string, options VideoAnalysisSubmitOptions) (*model.VideoAnalysisTask, bool, error) {
-	if s == nil || s.client == nil || s.tasks == nil || s.media == nil {
-		return nil, false, errors.New("video analysis service is not configured")
+	outcome, err := s.SubmitMediaWithOutcome(mediaID, options)
+	if err != nil {
+		return nil, false, err
+	}
+	return outcome.Task, outcome.Result == "reused", nil
+}
+
+func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options VideoAnalysisSubmitOptions) (*VideoAnalysisSubmitOutcome, error) {
+	if !s.IsAvailable() {
+		return nil, errors.New("video analysis service is not configured")
 	}
 	if options.IncludeDescriptions {
-		return nil, false, errors.New("scene descriptions are not enabled in the current video analysis worker")
+		return nil, errors.New("scene descriptions are not enabled in the current video analysis worker")
 	}
 	if active, err := s.tasks.FindActiveByMediaID(mediaID); err == nil {
-		return active, true, nil
+		return &VideoAnalysisSubmitOutcome{Task: active, Result: "reused"}, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, false, err
+		return nil, err
 	}
 
 	media, err := s.media.FindByID(mediaID)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	if media.StreamURL != "" {
-		return nil, false, errors.New("remote STRM media is not supported by video analysis")
+		return nil, errors.New("remote STRM media is not supported by video analysis")
 	}
 	mappedPath, err := s.pathMapper.Map(media.FilePath)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	fileInfo, err := os.Stat(media.FilePath)
 	if err != nil {
-		return nil, false, fmt.Errorf("stat video file: %w", err)
+		return nil, fmt.Errorf("stat video file: %w", err)
 	}
 	if !fileInfo.Mode().IsRegular() {
-		return nil, false, errors.New("video path is not a regular file")
+		return nil, errors.New("video path is not a regular file")
 	}
 	trigger := options.Trigger
 	if trigger == "" {
 		trigger = model.VideoAnalysisTriggerManual
 	}
 	if trigger != model.VideoAnalysisTriggerManual && trigger != model.VideoAnalysisTriggerAuto {
-		return nil, false, errors.New("invalid video analysis trigger")
+		return nil, errors.New("invalid video analysis trigger")
+	}
+	if !options.Force {
+		if latest, latestErr := s.tasks.FindLatestByMediaID(mediaID); latestErr == nil &&
+			latest.Status == model.VideoAnalysisStatusSucceeded &&
+			latest.FileSize == fileInfo.Size() && latest.FileMTime == fileInfo.ModTime().Unix() {
+			return &VideoAnalysisSubmitOutcome{
+				Task: latest, Result: "skipped", Message: "video already has a current successful analysis",
+			}, nil
+		} else if latestErr != nil && !errors.Is(latestErr, gorm.ErrRecordNotFound) {
+			return nil, latestErr
+		}
 	}
 
 	task := &model.VideoAnalysisTask{
@@ -115,12 +156,50 @@ func (s *VideoAnalysisService) SubmitMedia(mediaID string, options VideoAnalysis
 	if err := s.tasks.CreateIfNoActive(task); err != nil {
 		if errors.Is(err, repository.ErrVideoAnalysisTaskActive) {
 			active, findErr := s.tasks.FindActiveByMediaID(mediaID)
-			return active, true, findErr
+			if findErr != nil {
+				return nil, findErr
+			}
+			return &VideoAnalysisSubmitOutcome{Task: active, Result: "reused"}, nil
 		}
-		return nil, false, err
+		return nil, err
 	}
 	s.broadcast(task)
-	return task, false, nil
+	return &VideoAnalysisSubmitOutcome{Task: task, Result: "created"}, nil
+}
+
+func (s *VideoAnalysisService) BatchSubmit(mediaIDs []string, options VideoAnalysisSubmitOptions) VideoAnalysisBatchResult {
+	result := VideoAnalysisBatchResult{Errors: []VideoAnalysisBatchError{}, TaskIDs: []string{}, Tasks: []*model.VideoAnalysisTask{}}
+	seen := make(map[string]struct{}, len(mediaIDs))
+	for _, mediaID := range mediaIDs {
+		mediaID = strings.TrimSpace(mediaID)
+		if mediaID == "" {
+			result.Errors = append(result.Errors, VideoAnalysisBatchError{Message: "media_id is required"})
+			continue
+		}
+		if _, exists := seen[mediaID]; exists {
+			result.Reused++
+			continue
+		}
+		seen[mediaID] = struct{}{}
+		outcome, err := s.SubmitMediaWithOutcome(mediaID, options)
+		if err != nil {
+			result.Errors = append(result.Errors, VideoAnalysisBatchError{MediaID: mediaID, Message: err.Error()})
+			continue
+		}
+		switch outcome.Result {
+		case "created":
+			result.Created++
+		case "reused":
+			result.Reused++
+		case "skipped":
+			result.Skipped++
+		}
+		if outcome.Task != nil {
+			result.TaskIDs = append(result.TaskIDs, outcome.Task.ID)
+			result.Tasks = append(result.Tasks, outcome.Task)
+		}
+	}
+	return result
 }
 
 func (s *VideoAnalysisService) GetTask(taskID string) (*model.VideoAnalysisTask, error) {
@@ -130,11 +209,64 @@ func (s *VideoAnalysisService) GetTask(taskID string) (*model.VideoAnalysisTask,
 	return s.tasks.FindByID(taskID)
 }
 
-func (s *VideoAnalysisService) ListTasks(page, pageSize int, status, libraryID string) ([]model.VideoAnalysisTask, int64, error) {
+func (s *VideoAnalysisService) ListTasks(page, pageSize int, status, libraryID, keyword string) ([]model.VideoAnalysisTask, int64, error) {
 	if !s.IsAvailable() {
 		return nil, 0, errors.New("video analysis service is not configured")
 	}
-	return s.tasks.List(page, pageSize, status, libraryID)
+	return s.tasks.List(page, pageSize, status, libraryID, strings.TrimSpace(keyword))
+}
+
+func (s *VideoAnalysisService) RetryTask(taskID string) (*model.VideoAnalysisTask, error) {
+	if !s.IsAvailable() {
+		return nil, errors.New("video analysis service is not configured")
+	}
+	task, err := s.tasks.FindByID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	if task.Status != model.VideoAnalysisStatusFailed && task.Status != model.VideoAnalysisStatusPartial {
+		return nil, errors.New("only failed or partial video analysis tasks can be retried")
+	}
+	if active, activeErr := s.tasks.FindActiveByMediaID(task.MediaID); activeErr == nil {
+		return active, repository.ErrVideoAnalysisTaskActive
+	} else if !errors.Is(activeErr, gorm.ErrRecordNotFound) {
+		return nil, activeErr
+	}
+	if err := s.verifyFileSnapshot(task); err != nil {
+		return nil, err
+	}
+
+	// Keep completed upstream work and clear only the failed stage and below.
+	switch task.Stage {
+	case model.VideoAnalysisStageStructure:
+		task.StructureJobID = ""
+		task.DescribeJobID = ""
+		task.ResultJSON = ""
+		task.VideoHash = ""
+		task.Progress = 50
+	case model.VideoAnalysisStageDescribe:
+		task.DescribeJobID = ""
+		task.Progress = 90
+	default:
+		task.Stage = model.VideoAnalysisStageDetect
+		task.DetectJobID = ""
+		task.StructureJobID = ""
+		task.DescribeJobID = ""
+		task.ResultJSON = ""
+		task.VideoHash = ""
+		task.FallbackUsed = false
+		task.Progress = 0
+	}
+	task.Status = model.VideoAnalysisStatusQueued
+	task.ErrorCode = ""
+	task.ErrorMessage = ""
+	task.StartedAt = nil
+	task.FinishedAt = nil
+	if err := s.tasks.RequeueFailed(task); err != nil {
+		return nil, err
+	}
+	s.broadcast(task)
+	return task, nil
 }
 
 func (s *VideoAnalysisService) Statistics() (map[string]int64, error) {

@@ -81,6 +81,23 @@ cache:
   auto_cleanup: false
   cleanup_interval_min: 60
 
+# ==================== 视频分析（场景检测与结构化）====================
+# 默认关闭。Scene 和 Structure 必须能通过 target 路径读取与 Nowen source
+# 对应的同一视频。多条规则按最长 source 前缀匹配，无匹配时任务不会提交。
+video_analysis:
+  enabled: false
+  scene_base_url: http://localhost:8910
+  structure_base_url: http://localhost:8911
+  path_mappings:
+    - source: /media
+      target: /photos
+  # Structure 缓存卷在 Nowen 内的只读挂载路径，用于鉴权代理九宫格
+  cache_root: /analysis-cache
+  max_concurrent: 2
+  poll_interval_seconds: 2
+  job_timeout_minutes: 120
+  describe_enabled: false
+
 # ==================== Emby / Jellyfin 兼容层配置 ====================
 # 用于移动端 Emby/Infuse/Jellyfin 客户端登录与播放。无需客户端额外配置，
 # 将手机客户端的"服务器地址"填为 http://<server-ip>:8080 即可登录。

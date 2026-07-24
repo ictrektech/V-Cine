@@ -124,3 +124,47 @@ func TestVideoAnalysisServiceReusesActiveTask(t *testing.T) {
 		t.Fatalf("second=%+v reused=%v err=%v", second, reused, err)
 	}
 }
+
+func TestVideoAnalysisServiceSkipsCurrentSuccessUnlessForced(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, _, mediaID := setupVideoAnalysisService(t, client)
+	first, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), first.ID); err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := service.SubmitMediaWithOutcome(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil || outcome.Result != "skipped" || outcome.Task.ID != first.ID {
+		t.Fatalf("outcome=%+v err=%v", outcome, err)
+	}
+	forced, err := service.SubmitMediaWithOutcome(mediaID, VideoAnalysisSubmitOptions{Force: true})
+	if err != nil || forced.Result != "created" || forced.Task.ID == first.ID {
+		t.Fatalf("forced=%+v err=%v", forced, err)
+	}
+}
+
+func TestVideoAnalysisServiceRetriesStructureWithoutRepeatingDetect(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task.Status = model.VideoAnalysisStatusFailed
+	task.Stage = model.VideoAnalysisStageStructure
+	task.DetectJobID = "detect-complete"
+	task.StructureJobID = "structure-failed"
+	task.ErrorCode = "STRUCTURE_FAILED"
+	if err := tasks.Update(task); err != nil {
+		t.Fatal(err)
+	}
+	retried, err := service.RetryTask(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retried.Status != model.VideoAnalysisStatusQueued || retried.DetectJobID != "detect-complete" || retried.StructureJobID != "" || retried.Stage != model.VideoAnalysisStageStructure {
+		t.Fatalf("retried=%+v", retried)
+	}
+}

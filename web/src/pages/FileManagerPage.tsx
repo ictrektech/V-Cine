@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
-import { fileManagerApi, libraryApi } from '@/api'
+import { fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
@@ -9,6 +9,7 @@ import ScrapeManagerPage from '@/pages/ScrapeManagerPage'
 import AdultScraperSection from '@/components/admin/AdultScraperTab'
 import AdultScraperProSection from '@/components/admin/AdultScraperPro'
 import STRMConfigSection from '@/components/admin/STRMConfigSection'
+import VideoAnalysisTaskTab from '@/components/video-analysis/VideoAnalysisTaskTab'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
 import {
@@ -19,6 +20,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ShieldAlert,
+  ScanLine,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -51,6 +53,7 @@ export default function FileManagerPage() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const tab = searchParams.get('tab')
     if (tab === 'scrape') return 'scrape'
+    if (tab === 'analysis') return 'analysis'
     if (tab === 'adult') return 'adult'
     return 'files'
   })
@@ -292,6 +295,59 @@ export default function FileManagerPage() {
     } catch { toast.error('批量刮削失败') }
   }
 
+  const showVideoAnalysisResultToast = useCallback((result: { created: number; reused: number; skipped: number; errors: Array<{ media_id: string; message: string }> }) => {
+    const parts: string[] = []
+    if (result.created) parts.push(`新建 ${result.created}`)
+    if (result.reused) parts.push(`复用 ${result.reused}`)
+    if (result.skipped) parts.push(`跳过 ${result.skipped}`)
+    if (result.errors.length) parts.push(`失败 ${result.errors.length}`)
+    if (parts.length === 0) {
+      toast.info('没有可提交的视频分析任务')
+      return
+    }
+    const summary = `视频分析：${parts.join('，')}`
+    if (result.created > 0 || result.reused > 0) toast.success(summary)
+    else if (result.errors.length > 0) toast.warning(summary)
+    else toast.info(summary)
+  }, [toast])
+
+  const handleBatchAnalyze = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    const ok = await dialog.confirm({
+      title: '批量分析视频',
+      message: `确定对选中的 ${selectedIds.size} 个视频提交场景检测与结构分析任务吗？已有进行中任务会自动复用。`,
+      confirmText: '开始分析',
+    })
+    if (!ok) return
+    try {
+      const res = await videoAnalysisApi.batchSubmit({ media_ids: Array.from(selectedIds) })
+      const result = res.data.data
+      showVideoAnalysisResultToast(result)
+      if (result.created > 0 || result.reused > 0) {
+        setActiveTab('analysis')
+        const nextParams = new URLSearchParams(searchParams)
+        nextParams.set('tab', 'analysis')
+        setSearchParams(nextParams, { replace: true })
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || '批量视频分析提交失败')
+    }
+  }, [dialog, selectedIds, showVideoAnalysisResultToast, searchParams, setSearchParams, toast])
+
+  const handleAnalyzeFile = useCallback(async (media: Media, force = false) => {
+    try {
+      const res = await videoAnalysisApi.submit({ media_id: media.id, force })
+      if (res.data.reused) toast.success('已复用现有视频分析任务')
+      else toast.success(force ? '已重新提交视频分析任务' : '视频分析任务已提交')
+      setActiveTab('analysis')
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.set('tab', 'analysis')
+      setSearchParams(nextParams, { replace: true })
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || '视频分析提交失败')
+    }
+  }, [searchParams, setSearchParams, toast])
+
   const refreshData = () => { fetchFiles(); fetchStats(); fetchFolderTree() }
 
   const totalPages = Math.ceil(total / pageSize)
@@ -469,6 +525,18 @@ export default function FileManagerPage() {
           刮削任务
         </button>
         <button
+          onClick={() => handleTabChange('analysis')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+            activeTab === 'analysis'
+              ? 'bg-neon-blue/10 text-neon shadow-sm'
+              : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
+          )}
+        >
+          <ScanLine size={16} />
+          视频分析
+        </button>
+        <button
           onClick={() => handleTabChange('adult')}
           className={clsx(
             'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
@@ -490,6 +558,9 @@ export default function FileManagerPage() {
           <ScrapeManagerPage embedded />
         </div>
       )}
+
+      {/* ==================== 视频分析任务 Tab ==================== */}
+      {activeTab === 'analysis' && <VideoAnalysisTaskTab />}
 
       {/* ==================== 成人刮削 Tab ==================== */}
       {activeTab === 'adult' && (
@@ -531,6 +602,7 @@ export default function FileManagerPage() {
           scrapeSource={scrapeSource}
           onScrapeSourceChange={setScrapeSource}
           onBatchScrape={handleBatchScrape}
+          onBatchAnalyze={handleBatchAnalyze}
           onBatchRename={() => setActiveDialog('rename')}
           onBatchDelete={handleBatchDelete}
           onClearSelection={() => setSelectedIds(new Set())}
@@ -678,6 +750,16 @@ export default function FileManagerPage() {
           onClose={() => setActiveDialog('none')}
           onEdit={() => { setEditMedia(detailMedia); setActiveDialog('edit') }}
           onScrape={() => { handleScrapeFile(detailMedia.id); setActiveDialog('none') }}
+          onAnalyze={() => { handleAnalyzeFile(detailMedia); setActiveDialog('none') }}
+          onViewAnalysis={() => {
+            const nextParams = new URLSearchParams(searchParams)
+            nextParams.set('tab', 'analysis')
+            nextParams.set('analysisKeyword', detailMedia.title || '')
+            nextParams.delete('analysisPage')
+            setSearchParams(nextParams, { replace: true })
+            setActiveTab('analysis')
+            setActiveDialog('none')
+          }}
         />
       )}
 

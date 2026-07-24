@@ -89,7 +89,31 @@ func (r *VideoAnalysisTaskRepo) ListRunning() ([]model.VideoAnalysisTask, error)
 	return tasks, err
 }
 
-func (r *VideoAnalysisTaskRepo) List(page, pageSize int, status, libraryID string) ([]model.VideoAnalysisTask, int64, error) {
+func (r *VideoAnalysisTaskRepo) RequeueFailed(task *model.VideoAnalysisTask) error {
+	task.SyncActiveKey()
+	result := r.db.Model(&model.VideoAnalysisTask{}).
+		Where("id = ? AND status IN ?", task.ID, []string{model.VideoAnalysisStatusFailed, model.VideoAnalysisStatusPartial}).
+		Updates(map[string]any{
+			"status": task.Status, "stage": task.Stage, "progress": task.Progress,
+			"active_key": task.ActiveKey, "detect_job_id": task.DetectJobID,
+			"structure_job_id": task.StructureJobID, "describe_job_id": task.DescribeJobID,
+			"result_json": task.ResultJSON, "video_hash": task.VideoHash,
+			"fallback_used": task.FallbackUsed, "error_code": "", "error_message": "",
+			"started_at": nil, "finished_at": nil,
+		})
+	if isUniqueConstraintError(result.Error) {
+		return ErrVideoAnalysisTaskActive
+	}
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("video analysis task is not retryable")
+	}
+	return nil
+}
+
+func (r *VideoAnalysisTaskRepo) List(page, pageSize int, status, libraryID, keyword string) ([]model.VideoAnalysisTask, int64, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -106,6 +130,9 @@ func (r *VideoAnalysisTaskRepo) List(page, pageSize int, status, libraryID strin
 	}
 	if libraryID != "" {
 		query = query.Where("library_id = ?", libraryID)
+	}
+	if keyword != "" {
+		query = query.Where("LOWER(media_title) LIKE ?", "%"+strings.ToLower(keyword)+"%")
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {

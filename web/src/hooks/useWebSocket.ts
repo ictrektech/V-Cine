@@ -37,6 +37,8 @@ export const WS_EVENTS = {
   TRANSLATE_PROGRESS: 'translate_progress',
   TRANSLATE_COMPLETED: 'translate_completed',
   TRANSLATE_FAILED: 'translate_failed',
+  // 视频分析（场景检测与结构化）
+  VIDEO_ANALYSIS_TASK_UPDATE: 'video_analysis_task_update',
   // 视频预处理事件
   PREPROCESS_STARTED: 'preprocess_started',
   PREPROCESS_PROGRESS: 'preprocess_progress',

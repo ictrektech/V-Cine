@@ -93,3 +93,4 @@ desktop/src-tauri/resources/yt-dlp.exe
 # 临时下载的二进制包
 ffmpeg.zip
 *.zip
+.pi/

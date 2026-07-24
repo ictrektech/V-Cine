@@ -78,7 +78,7 @@ func TestVideoAnalysisRepoListsAndCountsTasks(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	tasks, total, err := repo.List(1, 2, "", "library-1")
+	tasks, total, err := repo.List(1, 2, "", "library-1", "")
 	if err != nil {
 		t.Fatal(err)
 	}

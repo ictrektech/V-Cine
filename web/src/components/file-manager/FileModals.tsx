@@ -5,7 +5,7 @@ import { useToast } from '@/components/Toast'
 import {
   Plus, Upload, Search, Loader2, Check, X, Eye, Edit3,
   FileVideo, Sparkles, Wand2, ScanLine, CheckSquare, Square,
-  HardDrive, History, Languages, ChevronsUpDown, Trash2,
+  HardDrive, History, Languages, ChevronsUpDown, Trash2, ScanSearch, ListTodo,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { formatFileSize, LANGUAGE_OPTIONS } from './constants'
@@ -305,9 +305,11 @@ interface FileDetailModalProps {
   onClose: () => void
   onEdit: () => void
   onScrape: () => void
+  onAnalyze: () => void
+  onViewAnalysis: () => void
 }
 
-export function FileDetailModal({ media, onClose, onEdit, onScrape }: FileDetailModalProps) {
+export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, onViewAnalysis }: FileDetailModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -356,9 +358,15 @@ export function FileDetailModal({ media, onClose, onEdit, onScrape }: FileDetail
           </div>
           <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>{media.file_path}</div>
         </div>
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="flex flex-wrap justify-end gap-2 mt-4">
+          <button onClick={onViewAnalysis} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
+            <ListTodo size={14} /> 查看分析任务
+          </button>
           <button onClick={onEdit} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
             <Edit3 size={14} /> 编辑
+          </button>
+          <button onClick={onAnalyze} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-cyan-300 hover:bg-cyan-400/10">
+            <ScanSearch size={14} /> 分析视频
           </button>
           <button onClick={onScrape} className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
             <Sparkles size={14} /> 刮削元数据

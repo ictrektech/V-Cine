@@ -25,6 +25,7 @@ export { seriesApi } from './series'
 // 管理模块
 export { adminApi } from './admin'
 export { scrapeApi, fileManagerApi } from './scrape'
+export { videoAnalysisApi } from './videoAnalysis'
 export { notificationApi, batchMetadataApi, importExportApi } from './backup'
 export { embyCompatApi } from './emby'
 

@@ -14,6 +14,7 @@ import {
   Sparkles,
   Wand2,
   Trash2,
+  ScanSearch,
 } from 'lucide-react'
 
 interface FileToolbarProps {
@@ -45,6 +46,7 @@ interface FileToolbarProps {
   scrapeSource: string
   onScrapeSourceChange: (val: string) => void
   onBatchScrape: () => void
+  onBatchAnalyze: () => void
   onBatchRename: () => void
   onBatchDelete: () => void
   onClearSelection: () => void
@@ -65,7 +67,7 @@ export default function FileToolbar({
   viewMode, onViewModeChange,
   selectedCount,
   scrapeSource, onScrapeSourceChange,
-  onBatchScrape, onBatchRename, onBatchDelete, onClearSelection,
+  onBatchScrape, onBatchAnalyze, onBatchRename, onBatchDelete, onClearSelection,
   children,
 }: FileToolbarProps) {
   return (
@@ -168,6 +170,9 @@ export default function FileToolbar({
           </select>
           <button onClick={onBatchScrape} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-blue-400 hover:bg-blue-400/10">
             <Sparkles size={14} /> 批量刮削
+          </button>
+          <button onClick={onBatchAnalyze} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-cyan-400 hover:bg-cyan-400/10">
+            <ScanSearch size={14} /> 分析视频
           </button>
           <button onClick={onBatchRename} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-purple-400 hover:bg-purple-400/10">
             <Wand2 size={14} /> 批量重命名
