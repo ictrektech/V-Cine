@@ -89,6 +89,7 @@ export interface Library {
   allow_adult_content: boolean
   auto_download_sub: boolean
   auto_scrape_metadata: boolean
+  auto_analyze_video: boolean
   /**
    * AI 自动整理模式（随扫描/重建索引执行：识别 + 归类 + 命名 + 可选硬链接）
    *   - off          关闭：扫描后不做任何后处理
@@ -138,6 +139,7 @@ export interface LibraryAdvancedSettings {
   allow_adult_content: boolean
   auto_download_sub: boolean
   auto_scrape_metadata: boolean
+  auto_analyze_video: boolean
   /** AI 自动整理模式（默认 ai_assisted） */
   auto_organize_mode: AutoOrganizeMode
   /** 硬链接输出目录（为空=不创建硬链接） */
@@ -160,6 +162,7 @@ export interface CreateLibraryRequest {
   allow_adult_content?: boolean
   auto_download_sub?: boolean
   auto_scrape_metadata?: boolean
+  auto_analyze_video?: boolean
   /** AI 自动整理模式（默认由后端取 ai_assisted） */
   auto_organize_mode?: AutoOrganizeMode
   /** 硬链接输出目录（为空=不创建硬链接） */

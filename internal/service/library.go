@@ -30,10 +30,12 @@ type LibraryService struct {
 	collectionService      *CollectionService      // 电影系列合集服务（用于扫描后自动匹配）
 	scanPostProcess        *ScanPostProcessService // AI 自动整理：虚拟归类与命名（扫描后同步执行）
 	logger                 *zap.SugaredLogger
-	scanning               sync.Map            // 记录正在扫描的媒体库ID
-	scanStates             sync.Map            // 持久化当前扫描阶段：libraryID -> *ScanPhaseData
-	wsHub                  *WSHub              // WebSocket事件广播
-	fileWatcher            *FileWatcherService // 文件监听服务
+	scanning               sync.Map              // 记录正在扫描的媒体库ID
+	scanStates             sync.Map              // 持久化当前扫描阶段：libraryID -> *ScanPhaseData
+	wsHub                  *WSHub                // WebSocket事件广播
+	fileWatcher            *FileWatcherService   // 文件监听服务
+	videoAnalysis          *VideoAnalysisService // 外部视频分析服务（可选）
+	videoAnalysisWorker    *VideoAnalysisWorker  // 视频分析任务 worker（可选）
 }
 
 func NewLibraryService(
@@ -72,6 +74,12 @@ func (s *LibraryService) SetWSHub(hub *WSHub) {
 // SetFileWatcher 设置文件监听服务（延迟注入）
 func (s *LibraryService) SetFileWatcher(fw *FileWatcherService) {
 	s.fileWatcher = fw
+}
+
+// SetVideoAnalysis 设置视频分析服务与 worker（延迟注入，不影响未启用场景）
+func (s *LibraryService) SetVideoAnalysis(va *VideoAnalysisService, worker *VideoAnalysisWorker) {
+	s.videoAnalysis = va
+	s.videoAnalysisWorker = worker
 }
 
 // SetSeriesService 设置剧集合集服务（延迟注入，用于扫描后自动合并重复剧集）
@@ -304,6 +312,8 @@ func (s *LibraryService) Scan(id string) error {
 			}
 		}
 
+		scanStartedAt := time.Now()
+
 		// 第一步：扫描文件。scan_completed / onScanComplete 由完整多阶段流程结束时统一发送，避免前端提前刷新。
 		broadcastPhase("scanning", fmt.Sprintf("正在扫描媒体文件: %s", lib.Name))
 		count, err := s.scanner.ScanLibraryWithOptions(lib, ScanLibraryOptions{SuppressCompletedEvent: true, SuppressCompletionCallback: true})
@@ -407,6 +417,12 @@ func (s *LibraryService) Scan(id string) error {
 			}
 		}
 
+		analysisResult := s.enqueueAutoVideoAnalysis(lib, scanStartedAt, count)
+		completedMessage := fmt.Sprintf("媒体库 %s 处理完成，新增 %d 个媒体", lib.Name, count)
+		if analysisResult != nil {
+			completedMessage = fmt.Sprintf("%s；视频分析：新建 %d，复用 %d，跳过 %d，失败 %d", completedMessage, analysisResult.Created, analysisResult.Reused, analysisResult.Skipped, len(analysisResult.Errors))
+		}
+
 		// 广播全部完成事件
 		if s.wsHub != nil {
 			s.wsHub.BroadcastEvent(EventScanPhase, &ScanPhaseData{
@@ -417,15 +433,22 @@ func (s *LibraryService) Scan(id string) error {
 				StepTotal:   stepTotal,
 				Message:     fmt.Sprintf("媒体库 %s 处理完成", lib.Name),
 			})
-			s.wsHub.BroadcastEvent(EventScanCompleted, &ScanProgressData{
+			completed := &ScanProgressData{
 				LibraryID:   id,
 				LibraryName: lib.Name,
 				Phase:       "scanning",
 				NewFound:    count,
-				Message:     fmt.Sprintf("媒体库 %s 处理完成，新增 %d 个媒体", lib.Name, count),
-			})
+				Message:     completedMessage,
+			}
+			if analysisResult != nil {
+				completed.VideoAnalysisCreated = analysisResult.Created
+				completed.VideoAnalysisReused = analysisResult.Reused
+				completed.VideoAnalysisSkipped = analysisResult.Skipped
+				completed.VideoAnalysisErrors = len(analysisResult.Errors)
+			}
+			s.wsHub.BroadcastEvent(EventScanCompleted, completed)
 		}
-		s.logger.Infof("媒体库 %s 处理完成，共新增 %d 个媒体", lib.Name, count)
+		s.logger.Infof("%s", completedMessage)
 		s.scanner.NotifyScanComplete(id)
 	}()
 
@@ -770,6 +793,8 @@ func (s *LibraryService) Reindex(id string) error {
 		}
 		s.logger.Infof("已清除媒体库 %s 的旧索引数据（含媒体、合集、分类、演职员、收藏和播放历史关联）", lib.Name)
 
+		scanStartedAt := time.Now()
+
 		// 第一步：重新扫描文件。scan_completed / onScanComplete 由完整重建流程结束时统一发送，避免前端提前刷新。
 		broadcastPhase("scanning", fmt.Sprintf("正在扫描媒体文件: %s", lib.Name))
 		count, err := s.scanner.ScanLibraryWithOptions(lib, ScanLibraryOptions{SuppressCompletedEvent: true, SuppressCompletionCallback: true})
@@ -872,6 +897,12 @@ func (s *LibraryService) Reindex(id string) error {
 			}
 		}
 
+		analysisResult := s.enqueueAutoVideoAnalysis(lib, scanStartedAt, count)
+		completedMessage := fmt.Sprintf("媒体库 %s 重建索引完成，共 %d 个媒体", lib.Name, count)
+		if analysisResult != nil {
+			completedMessage = fmt.Sprintf("%s；视频分析：新建 %d，复用 %d，跳过 %d，失败 %d", completedMessage, analysisResult.Created, analysisResult.Reused, analysisResult.Skipped, len(analysisResult.Errors))
+		}
+
 		// 广播全部完成事件
 		if s.wsHub != nil {
 			s.wsHub.BroadcastEvent(EventScanPhase, &ScanPhaseData{
@@ -882,19 +913,65 @@ func (s *LibraryService) Reindex(id string) error {
 				StepTotal:   stepTotal,
 				Message:     fmt.Sprintf("媒体库 %s 重建索引完成", lib.Name),
 			})
-			s.wsHub.BroadcastEvent(EventScanCompleted, &ScanProgressData{
+			completed := &ScanProgressData{
 				LibraryID:   id,
 				LibraryName: lib.Name,
 				Phase:       "scanning",
 				NewFound:    count,
-				Message:     fmt.Sprintf("媒体库 %s 重建索引完成，共 %d 个媒体", lib.Name, count),
-			})
+				Message:     completedMessage,
+			}
+			if analysisResult != nil {
+				completed.VideoAnalysisCreated = analysisResult.Created
+				completed.VideoAnalysisReused = analysisResult.Reused
+				completed.VideoAnalysisSkipped = analysisResult.Skipped
+				completed.VideoAnalysisErrors = len(analysisResult.Errors)
+			}
+			s.wsHub.BroadcastEvent(EventScanCompleted, completed)
 		}
-		s.logger.Infof("媒体库 %s 重建索引完成，共 %d 个媒体", lib.Name, count)
+		s.logger.Infof("%s", completedMessage)
 		s.scanner.NotifyScanComplete(id)
 	}()
 
 	return nil
+}
+
+func (s *LibraryService) enqueueAutoVideoAnalysis(lib *model.Library, since time.Time, newCount int) *VideoAnalysisBatchResult {
+	if s == nil || lib == nil || !lib.AutoAnalyzeVideo || newCount <= 0 {
+		return nil
+	}
+	if s.videoAnalysis == nil || !s.videoAnalysis.IsAvailable() {
+		s.logger.Warnf("媒体库 %s 已开启自动视频分析，但视频分析服务不可用，已跳过自动入队", lib.Name)
+		return nil
+	}
+	mediaList, err := s.mediaRepo.ListByLibraryCreatedSince(lib.ID, since)
+	if err != nil {
+		s.logger.Warnf("媒体库 %s 自动视频分析获取本次新增媒体失败: %v", lib.Name, err)
+		return nil
+	}
+	if len(mediaList) == 0 {
+		s.logger.Infof("媒体库 %s 本次扫描无新增视频分析媒体，已跳过自动入队", lib.Name)
+		return &VideoAnalysisBatchResult{}
+	}
+	mediaIDs := make([]string, 0, len(mediaList))
+	for _, item := range mediaList {
+		if strings.TrimSpace(item.ID) == "" {
+			continue
+		}
+		mediaIDs = append(mediaIDs, item.ID)
+	}
+	if len(mediaIDs) == 0 {
+		return &VideoAnalysisBatchResult{}
+	}
+	result := s.videoAnalysis.BatchSubmit(mediaIDs, VideoAnalysisSubmitOptions{Trigger: model.VideoAnalysisTriggerAuto})
+	if s.videoAnalysisWorker != nil && result.Created > 0 {
+		s.videoAnalysisWorker.Notify()
+	}
+	if len(result.Errors) > 0 {
+		s.logger.Warnf("媒体库 %s 自动视频分析入队完成(本次新增): created=%d reused=%d skipped=%d errors=%d", lib.Name, result.Created, result.Reused, result.Skipped, len(result.Errors))
+		return &result
+	}
+	s.logger.Infof("媒体库 %s 自动视频分析入队完成(本次新增): created=%d reused=%d skipped=%d", lib.Name, result.Created, result.Reused, result.Skipped)
+	return &result
 }
 
 // ==================== 重复媒体检测 ====================

@@ -36,6 +36,7 @@ export default function VideoAnalysisTaskTab() {
   const urlStatus = searchParams.get('analysisStatus')
   const urlKeyword = searchParams.get('analysisKeyword') || ''
   const urlTaskId = searchParams.get('analysisTaskId') || ''
+  const urlLastSkipped = searchParams.get('analysisLastSkipped') || ''
   const urlPage = Math.max(1, Number(searchParams.get('analysisPage') || '1') || 1)
   const [status, setStatus] = useState<'' | VideoAnalysisStatus>((urlStatus as '' | VideoAnalysisStatus) || '')
   const [keyword, setKeyword] = useState(urlKeyword)
@@ -123,6 +124,18 @@ export default function VideoAnalysisTaskTab() {
           <div className="rounded-lg bg-red-500/10 px-3 py-2"><strong className="block text-base text-red-300">{statistics.failed || 0}</strong>失败</div>
         </div>
       </div>
+
+      {urlLastSkipped && (
+        <div className="glass-panel rounded-xl border border-amber-400/20 bg-amber-500/5 p-3 text-sm">
+          <div className="flex items-start gap-2">
+            <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+            <div>
+              <div className="font-medium text-amber-200">最近一次批量提交包含自动跳过</div>
+              <p className="mt-1 text-surface-300">{urlLastSkipped}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="glass-panel rounded-xl p-3 flex flex-col gap-3 sm:flex-row">
         <form className="relative flex-1" onSubmit={(event) => { event.preventDefault(); const nextKeyword = keyword.trim(); setPage(1); setQuery(nextKeyword); syncUrl({ keyword: nextKeyword, page: 1 }) }}>

@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/nowen-video/nowen-video/internal/model"
 	"gorm.io/gorm"
@@ -284,6 +285,16 @@ func (r *MediaRepo) ListHighRated(limit int, minRating float64) ([]model.Media, 
 func (r *MediaRepo) ListByLibraryID(libraryID string) ([]model.Media, error) {
 	var media []model.Media
 	err := r.db.Where("library_id = ?", libraryID).Find(&media).Error
+	return media, err
+}
+
+func (r *MediaRepo) ListByLibraryCreatedSince(libraryID string, since time.Time) ([]model.Media, error) {
+	var media []model.Media
+	query := r.db.Where("library_id = ?", libraryID)
+	if !since.IsZero() {
+		query = query.Where("created_at >= ?", since)
+	}
+	err := query.Order("created_at ASC").Find(&media).Error
 	return media, err
 }
 

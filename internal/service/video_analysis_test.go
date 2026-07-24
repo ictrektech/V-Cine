@@ -193,3 +193,39 @@ func TestVideoAnalysisServiceGetsLatestTaskByMediaID(t *testing.T) {
 		t.Fatalf("latest task = %q, want %q", latest.ID, second.ID)
 	}
 }
+
+func TestVideoAnalysisBatchSubmitSkipsUnsupportedSTRM(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, _, mediaID := setupVideoAnalysisService(t, client)
+	if err := service.media.DB().Model(&model.Media{}).Where("id = ?", mediaID).Update("stream_url", "https://example.com/test.m3u8").Error; err != nil {
+		t.Fatal(err)
+	}
+
+	result := service.BatchSubmit([]string{mediaID}, VideoAnalysisSubmitOptions{Trigger: model.VideoAnalysisTriggerAuto})
+	if result.Created != 0 || result.Reused != 0 || result.Skipped != 1 || len(result.Errors) != 0 || len(result.SkippedErrors) != 1 {
+		t.Fatalf("result = %+v", result)
+	}
+	if result.SkippedErrors[0].Kind != "unsupported_strm" {
+		t.Fatalf("skip kind = %q", result.SkippedErrors[0].Kind)
+	}
+}
+
+func TestVideoAnalysisBatchSubmitSkipsUnreadableFile(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, _, mediaID := setupVideoAnalysisService(t, client)
+	media, err := service.media.FindByID(mediaID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(media.FilePath); err != nil {
+		t.Fatal(err)
+	}
+
+	result := service.BatchSubmit([]string{mediaID}, VideoAnalysisSubmitOptions{Trigger: model.VideoAnalysisTriggerAuto})
+	if result.Created != 0 || result.Reused != 0 || result.Skipped != 1 || len(result.Errors) != 0 || len(result.SkippedErrors) != 1 {
+		t.Fatalf("result = %+v", result)
+	}
+	if result.SkippedErrors[0].Kind != "unreadable_file" {
+		t.Fatalf("skip kind = %q", result.SkippedErrors[0].Kind)
+	}
+}

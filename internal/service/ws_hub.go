@@ -47,14 +47,18 @@ type WSEvent struct {
 
 // ScanProgressData 扫描进度数据
 type ScanProgressData struct {
-	LibraryID   string `json:"library_id"`
-	LibraryName string `json:"library_name"`
-	Phase       string `json:"phase"`     // scanning / scraping / cleaning
-	Current     int    `json:"current"`   // 当前处理数
-	Total       int    `json:"total"`     // 总数
-	NewFound    int    `json:"new_found"` // 新发现的文件数
-	Cleaned     int    `json:"cleaned"`   // 清理的已删除文件数
-	Message     string `json:"message"`   // 描述信息
+	LibraryID            string `json:"library_id"`
+	LibraryName          string `json:"library_name"`
+	Phase                string `json:"phase"`     // scanning / scraping / cleaning
+	Current              int    `json:"current"`   // 当前处理数
+	Total                int    `json:"total"`     // 总数
+	NewFound             int    `json:"new_found"` // 新发现的文件数
+	Cleaned              int    `json:"cleaned"`   // 清理的已删除文件数
+	VideoAnalysisCreated int    `json:"video_analysis_created,omitempty"`
+	VideoAnalysisReused  int    `json:"video_analysis_reused,omitempty"`
+	VideoAnalysisSkipped int    `json:"video_analysis_skipped,omitempty"`
+	VideoAnalysisErrors  int    `json:"video_analysis_errors,omitempty"`
+	Message              string `json:"message"` // 描述信息
 }
 
 // ScanPhaseData 扫描阶段变更数据（用于多步骤流程的阶段通知）

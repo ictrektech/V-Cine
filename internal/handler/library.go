@@ -59,6 +59,7 @@ type CreateLibraryRequest struct {
 	AutoDownloadSub   *bool   `json:"auto_download_sub"`
 	// 扫描行为设置
 	AutoScrapeMetadata *bool `json:"auto_scrape_metadata"`
+	AutoAnalyzeVideo   *bool `json:"auto_analyze_video"`
 	// AI 自动整理：off / rule_only / ai_assisted
 	AutoOrganizeMode *string `json:"auto_organize_mode"`
 	// 硬链接整理输出目录（为空=不落盘）
@@ -83,6 +84,7 @@ type UpdateLibraryRequest struct {
 	AutoDownloadSub   *bool   `json:"auto_download_sub"`
 	// 扫描行为设置
 	AutoScrapeMetadata *bool `json:"auto_scrape_metadata"`
+	AutoAnalyzeVideo   *bool `json:"auto_analyze_video"`
 	// AI 自动整理：off / rule_only / ai_assisted
 	AutoOrganizeMode *string `json:"auto_organize_mode"`
 	// 硬链接整理输出目录（为空=不落盘）
@@ -171,6 +173,9 @@ func (h *LibraryHandler) Create(c *gin.Context) {
 	if req.AutoScrapeMetadata != nil {
 		lib.AutoScrapeMetadata = *req.AutoScrapeMetadata
 	}
+	if req.AutoAnalyzeVideo != nil {
+		lib.AutoAnalyzeVideo = *req.AutoAnalyzeVideo
+	}
 	if req.AutoOrganizeMode != nil {
 		if !model.IsValidAutoOrganizeMode(*req.AutoOrganizeMode) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "auto_organize_mode 取值非法（应为 off / rule_only / ai_assisted）"})
@@ -188,7 +193,7 @@ func (h *LibraryHandler) Create(c *gin.Context) {
 	// 如果有高级设置需要更新，则再次保存
 	needUpdate := req.PreferLocalNFO != nil || req.EnableFileFilter != nil || req.MinFileSize != nil ||
 		req.MetadataLang != nil || req.AllowAdultContent != nil || req.AutoDownloadSub != nil ||
-		req.AutoScrapeMetadata != nil || req.AutoOrganizeMode != nil || req.OrganizeOutputDir != nil || req.EnableFileWatch != nil
+		req.AutoScrapeMetadata != nil || req.AutoAnalyzeVideo != nil || req.AutoOrganizeMode != nil || req.OrganizeOutputDir != nil || req.EnableFileWatch != nil
 	if needUpdate {
 		h.libService.Update(lib)
 	}
@@ -333,6 +338,9 @@ func (h *LibraryHandler) Update(c *gin.Context) {
 	}
 	if req.AutoScrapeMetadata != nil {
 		lib.AutoScrapeMetadata = *req.AutoScrapeMetadata
+	}
+	if req.AutoAnalyzeVideo != nil {
+		lib.AutoAnalyzeVideo = *req.AutoAnalyzeVideo
 	}
 	if req.AutoOrganizeMode != nil {
 		if !model.IsValidAutoOrganizeMode(*req.AutoOrganizeMode) {

@@ -40,16 +40,18 @@ type VideoAnalysisSubmitOutcome struct {
 
 type VideoAnalysisBatchError struct {
 	MediaID string `json:"media_id"`
+	Kind    string `json:"kind,omitempty"`
 	Message string `json:"message"`
 }
 
 type VideoAnalysisBatchResult struct {
-	Created int                        `json:"created"`
-	Reused  int                        `json:"reused"`
-	Skipped int                        `json:"skipped"`
-	Errors  []VideoAnalysisBatchError  `json:"errors"`
-	TaskIDs []string                   `json:"task_ids"`
-	Tasks   []*model.VideoAnalysisTask `json:"tasks"`
+	Created       int                        `json:"created"`
+	Reused        int                        `json:"reused"`
+	Skipped       int                        `json:"skipped"`
+	SkippedErrors []VideoAnalysisBatchError  `json:"skipped_errors,omitempty"`
+	Errors        []VideoAnalysisBatchError  `json:"errors"`
+	TaskIDs       []string                   `json:"task_ids"`
+	Tasks         []*model.VideoAnalysisTask `json:"tasks"`
 }
 
 type VideoAnalysisService struct {
@@ -168,12 +170,12 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 }
 
 func (s *VideoAnalysisService) BatchSubmit(mediaIDs []string, options VideoAnalysisSubmitOptions) VideoAnalysisBatchResult {
-	result := VideoAnalysisBatchResult{Errors: []VideoAnalysisBatchError{}, TaskIDs: []string{}, Tasks: []*model.VideoAnalysisTask{}}
+	result := VideoAnalysisBatchResult{Errors: []VideoAnalysisBatchError{}, SkippedErrors: []VideoAnalysisBatchError{}, TaskIDs: []string{}, Tasks: []*model.VideoAnalysisTask{}}
 	seen := make(map[string]struct{}, len(mediaIDs))
 	for _, mediaID := range mediaIDs {
 		mediaID = strings.TrimSpace(mediaID)
 		if mediaID == "" {
-			result.Errors = append(result.Errors, VideoAnalysisBatchError{Message: "media_id is required"})
+			result.Errors = append(result.Errors, VideoAnalysisBatchError{Kind: "invalid_input", Message: "media_id is required"})
 			continue
 		}
 		if _, exists := seen[mediaID]; exists {
@@ -183,7 +185,12 @@ func (s *VideoAnalysisService) BatchSubmit(mediaIDs []string, options VideoAnaly
 		seen[mediaID] = struct{}{}
 		outcome, err := s.SubmitMediaWithOutcome(mediaID, options)
 		if err != nil {
-			result.Errors = append(result.Errors, VideoAnalysisBatchError{MediaID: mediaID, Message: err.Error()})
+			if skipKind, skipReason, ok := classifyVideoAnalysisSkip(err); ok {
+				result.Skipped++
+				result.SkippedErrors = append(result.SkippedErrors, VideoAnalysisBatchError{MediaID: mediaID, Kind: skipKind, Message: skipReason})
+				continue
+			}
+			result.Errors = append(result.Errors, VideoAnalysisBatchError{MediaID: mediaID, Kind: "submit_failed", Message: err.Error()})
 			continue
 		}
 		switch outcome.Result {
@@ -200,6 +207,25 @@ func (s *VideoAnalysisService) BatchSubmit(mediaIDs []string, options VideoAnaly
 		}
 	}
 	return result
+}
+
+func classifyVideoAnalysisSkip(err error) (kind, message string, ok bool) {
+	if err == nil {
+		return "", "", false
+	}
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "remote STRM media is not supported"):
+		return "unsupported_strm", "STRM/远程流媒体暂不支持视频分析", true
+	case strings.Contains(msg, "stat video file"):
+		return "unreadable_file", "视频文件不存在或不可读取", true
+	case strings.Contains(msg, "video path is not a regular file"):
+		return "unreadable_file", "视频路径不是普通文件", true
+	case strings.Contains(msg, "no video path mapping") || strings.Contains(msg, "path escapes mapping target") || strings.Contains(msg, "source path must be absolute") || strings.Contains(msg, "target path must be absolute"):
+		return "path_mapping_failed", "视频路径映射失败，无法提交到视频分析服务", true
+	default:
+		return "", "", false
+	}
 }
 
 func (s *VideoAnalysisService) GetTask(taskID string) (*model.VideoAnalysisTask, error) {

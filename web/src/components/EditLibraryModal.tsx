@@ -158,6 +158,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
     allow_adult_content: false,
     auto_download_sub: false,
     auto_scrape_metadata: true,
+    auto_analyze_video: false,
     auto_organize_mode: 'ai_assisted',
     organize_output_dir: '',
     enable_file_watch: false,
@@ -185,6 +186,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
         allow_adult_content: library.allow_adult_content,
         auto_download_sub: library.auto_download_sub,
         auto_scrape_metadata: library.auto_scrape_metadata,
+        auto_analyze_video: library.auto_analyze_video,
         auto_organize_mode: library.auto_organize_mode || 'ai_assisted',
         organize_output_dir: library.organize_output_dir || '',
         enable_file_watch: library.enable_file_watch,
@@ -708,7 +710,28 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
 
                   <div style={{ borderTop: '1px solid var(--border-default)' }} />
 
-                  {/* ———— 7. AI 自动整理 ———— */}
+                  {/* ———— 7. 扫描后自动视频分析 ———— */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={16} style={{ color: 'var(--neon-blue)' }} />
+                        <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          扫描后自动视频分析
+                        </h4>
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                        新视频入库后自动提交视频分析任务，按顺序执行场景检测与结构分析。关闭后仍可在文件管理中手动发起分析。
+                      </p>
+                    </div>
+                    <ToggleSwitch
+                      checked={advanced.auto_analyze_video}
+                      onChange={(v) => updateAdvanced('auto_analyze_video', v)}
+                    />
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-default)' }} />
+
+                  {/* ———— 8. AI 自动整理 ———— */}
                   <div className="space-y-3">
                     <div className="flex items-start gap-2">
                       <Sparkles size={16} style={{ color: 'var(--neon-purple)', marginTop: 2 }} />

@@ -18,15 +18,17 @@ import (
 // FileWatcherService 文件系统实时监听服务
 // 监听媒体库目录下的文件变更（新增/删除/重命名），自动触发增量扫描
 type FileWatcherService struct {
-	cfg             *config.Config
-	logger          *zap.SugaredLogger
-	libRepo         *repository.LibraryRepo
-	mediaRepo       *repository.MediaRepo
-	seriesRepo      *repository.SeriesRepo
-	scanner         *ScannerService
-	metadata        *MetadataService
-	scanPostProcess *ScanPostProcessService
-	wsHub           *WSHub
+	cfg                 *config.Config
+	logger              *zap.SugaredLogger
+	libRepo             *repository.LibraryRepo
+	mediaRepo           *repository.MediaRepo
+	seriesRepo          *repository.SeriesRepo
+	scanner             *ScannerService
+	metadata            *MetadataService
+	scanPostProcess     *ScanPostProcessService
+	videoAnalysis       *VideoAnalysisService
+	videoAnalysisWorker *VideoAnalysisWorker
+	wsHub               *WSHub
 
 	watcher  *fsnotify.Watcher
 	mu       sync.Mutex
@@ -67,6 +69,12 @@ func (fw *FileWatcherService) SetWSHub(hub *WSHub) {
 // SetScanPostProcessService 设置扫描后处理服务，用于增量扫描后同步执行 AI 整理。
 func (fw *FileWatcherService) SetScanPostProcessService(spp *ScanPostProcessService) {
 	fw.scanPostProcess = spp
+}
+
+// SetVideoAnalysis 设置视频分析服务与 worker（延迟注入，不影响未启用场景）
+func (fw *FileWatcherService) SetVideoAnalysis(va *VideoAnalysisService, worker *VideoAnalysisWorker) {
+	fw.videoAnalysis = va
+	fw.videoAnalysisWorker = worker
 }
 
 // Start 启动文件监听服务
@@ -331,6 +339,8 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 		})
 	}
 
+	scanStartedAt := time.Now()
+
 	// 执行扫描（复用已有的扫描逻辑）。增量链路会在 AI 整理/刮削结束后再通知刷新。
 	count, err := fw.scanner.ScanLibraryWithOptions(lib, ScanLibraryOptions{SuppressCompletedEvent: true, SuppressCompletionCallback: true})
 	if err != nil {
@@ -374,6 +384,12 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 				}
 			}
 
+			analysisResult := fw.enqueueAutoVideoAnalysis(lib, scanStartedAt, count)
+			completedMessage := fmt.Sprintf("增量扫描完成: %s, 新增 %d 个媒体", lib.Name, count)
+			if analysisResult != nil {
+				completedMessage = fmt.Sprintf("%s；视频分析：新建 %d，复用 %d，跳过 %d，失败 %d", completedMessage, analysisResult.Created, analysisResult.Reused, analysisResult.Skipped, len(analysisResult.Errors))
+			}
+
 			// 通知前端刷新
 			if fw.wsHub != nil {
 				fw.wsHub.BroadcastEvent(EventLibraryUpdated, &LibraryChangedData{
@@ -382,14 +398,22 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 					Action:      "updated",
 					Message:     "增量扫描与刮削已完成",
 				})
-				fw.wsHub.BroadcastEvent(EventScanCompleted, &ScanProgressData{
+				completed := &ScanProgressData{
 					LibraryID:   libraryID,
 					LibraryName: lib.Name,
 					Phase:       "scanning",
 					NewFound:    count,
-					Message:     fmt.Sprintf("增量扫描完成: %s, 新增 %d 个媒体", lib.Name, count),
-				})
+					Message:     completedMessage,
+				}
+				if analysisResult != nil {
+					completed.VideoAnalysisCreated = analysisResult.Created
+					completed.VideoAnalysisReused = analysisResult.Reused
+					completed.VideoAnalysisSkipped = analysisResult.Skipped
+					completed.VideoAnalysisErrors = len(analysisResult.Errors)
+				}
+				fw.wsHub.BroadcastEvent(EventScanCompleted, completed)
 			}
+			fw.logger.Infof("%s", completedMessage)
 			fw.scanner.NotifyScanComplete(libraryID)
 		}()
 	} else {
@@ -409,6 +433,46 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 	fw.mu.Lock()
 	delete(fw.debounce, libraryID)
 	fw.mu.Unlock()
+}
+
+// GetWatchingCount 获取当前监听的媒体库数量
+func (fw *FileWatcherService) enqueueAutoVideoAnalysis(lib *model.Library, since time.Time, newCount int) *VideoAnalysisBatchResult {
+	if fw == nil || lib == nil || !lib.AutoAnalyzeVideo || newCount <= 0 {
+		return nil
+	}
+	if fw.videoAnalysis == nil || !fw.videoAnalysis.IsAvailable() {
+		fw.logger.Warnf("媒体库 %s 已开启自动视频分析，但视频分析服务不可用，已跳过自动入队", lib.Name)
+		return nil
+	}
+	mediaList, err := fw.mediaRepo.ListByLibraryCreatedSince(lib.ID, since)
+	if err != nil {
+		fw.logger.Warnf("媒体库 %s 增量自动视频分析获取本次新增媒体失败: %v", lib.Name, err)
+		return nil
+	}
+	if len(mediaList) == 0 {
+		fw.logger.Infof("媒体库 %s 本次增量扫描无新增视频分析媒体，已跳过自动入队", lib.Name)
+		return &VideoAnalysisBatchResult{}
+	}
+	mediaIDs := make([]string, 0, len(mediaList))
+	for _, item := range mediaList {
+		if strings.TrimSpace(item.ID) == "" {
+			continue
+		}
+		mediaIDs = append(mediaIDs, item.ID)
+	}
+	if len(mediaIDs) == 0 {
+		return &VideoAnalysisBatchResult{}
+	}
+	result := fw.videoAnalysis.BatchSubmit(mediaIDs, VideoAnalysisSubmitOptions{Trigger: model.VideoAnalysisTriggerAuto})
+	if fw.videoAnalysisWorker != nil && result.Created > 0 {
+		fw.videoAnalysisWorker.Notify()
+	}
+	if len(result.Errors) > 0 {
+		fw.logger.Warnf("媒体库 %s 增量自动视频分析入队完成: created=%d reused=%d skipped=%d errors=%d", lib.Name, result.Created, result.Reused, result.Skipped, len(result.Errors))
+		return &result
+	}
+	fw.logger.Infof("媒体库 %s 增量自动视频分析入队完成: created=%d reused=%d skipped=%d", lib.Name, result.Created, result.Reused, result.Skipped)
+	return &result
 }
 
 // GetWatchingCount 获取当前监听的媒体库数量

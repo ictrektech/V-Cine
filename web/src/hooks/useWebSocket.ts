@@ -89,6 +89,10 @@ export interface ScanProgressData {
   current: number
   total: number
   new_found: number
+  video_analysis_created?: number
+  video_analysis_reused?: number
+  video_analysis_skipped?: number
+  video_analysis_errors?: number
   message: string
 }
 

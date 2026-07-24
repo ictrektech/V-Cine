@@ -35,11 +35,18 @@ export interface VideoAnalysisTaskPage {
   page_size: number
 }
 
+export interface VideoAnalysisBatchIssue {
+  media_id: string
+  kind?: string
+  message: string
+}
+
 export interface VideoAnalysisBatchResult {
   created: number
   reused: number
   skipped: number
-  errors: Array<{ media_id: string; message: string }>
+  skipped_errors?: VideoAnalysisBatchIssue[]
+  errors: VideoAnalysisBatchIssue[]
   task_ids: string[]
   tasks: VideoAnalysisTask[]
 }

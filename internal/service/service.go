@@ -449,6 +449,10 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	svcs.Library.SetScanPostProcessService(svcs.ScanPostProcess)
 	fileWatcher.SetScanPostProcessService(svcs.ScanPostProcess)
 
+	// 延迟注入：LibraryService / FileWatcher 需要 VideoAnalysisService（用于扫描结束后自动入队视频分析）
+	svcs.Library.SetVideoAnalysis(svcs.VideoAnalysis, svcs.VideoAnalysisWorker)
+	fileWatcher.SetVideoAnalysis(svcs.VideoAnalysis, svcs.VideoAnalysisWorker)
+
 	// 延迟注入：StreamService 需要 PreprocessService（用于自动选择预处理内容）
 	svcs.Stream.SetPreprocessService(preprocessService)
 

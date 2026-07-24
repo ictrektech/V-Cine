@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
+import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
+import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/videoAnalysis'
 import { fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
@@ -314,11 +316,52 @@ export default function FileManagerPage() {
     } catch { toast.error('批量刮削失败') }
   }
 
-  const showVideoAnalysisResultToast = useCallback((result: { created: number; reused: number; skipped: number; errors: Array<{ media_id: string; message: string }> }) => {
+  const showVideoAnalysisBatchIssues = useCallback(async (title: string, issues: VideoAnalysisBatchIssue[], variant: 'warning' | 'error') => {
+    if (issues.length === 0) return
+    const grouped = issues.reduce<Record<string, number>>((acc, issue) => {
+      const key = issue.kind || issue.message || 'unknown'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
+    const kindLabel = (kind?: string) => {
+      switch (kind) {
+        case 'unsupported_strm': return 'STRM / 远程流媒体'
+        case 'unreadable_file': return '文件不可读'
+        case 'path_mapping_failed': return '路径映射失败'
+        case 'invalid_input': return '请求参数无效'
+        case 'submit_failed': return '提交失败'
+        default: return '其他原因'
+      }
+    }
+    const summaryItems = Object.entries(grouped)
+      .slice(0, 5)
+      .map(([kind, count]) => <li key={kind}>{kindLabel(kind)}：{count} 个</li>)
+    const detailItems = issues.slice(0, 8).map((issue, index) => (
+      <li key={`${issue.media_id || 'unknown'}-${index}`} className="break-all">
+        <span className="font-medium">{issue.media_id || '未知媒体'}</span>
+        <span className="text-surface-400"> · {issue.message}</span>
+      </li>
+    ))
+    let message: ReactNode = <div className="space-y-3 text-sm">
+      <div>
+        <div className="font-medium mb-1">原因汇总</div>
+        <ul className="list-disc space-y-1 pl-5 text-surface-300">{summaryItems}</ul>
+      </div>
+      <div>
+        <div className="font-medium mb-1">示例明细{issues.length > 8 ? `（前 8 条，共 ${issues.length} 条）` : ''}</div>
+        <ul className="list-disc space-y-1 pl-5 text-surface-300">{detailItems}</ul>
+      </div>
+    </div>
+    await dialog.alert({ title, message, variant })
+  }, [dialog])
+
+  const showVideoAnalysisResultToast = useCallback(async (result: VideoAnalysisBatchResult) => {
     const parts: string[] = []
+    const skippedReasonCount = result.skipped_errors?.length || 0
     if (result.created) parts.push(`新建 ${result.created}`)
     if (result.reused) parts.push(`复用 ${result.reused}`)
     if (result.skipped) parts.push(`跳过 ${result.skipped}`)
+    if (skippedReasonCount) parts.push(`含原因 ${skippedReasonCount}`)
     if (result.errors.length) parts.push(`失败 ${result.errors.length}`)
     if (parts.length === 0) {
       toast.info('没有可提交的视频分析任务')
@@ -326,19 +369,36 @@ export default function FileManagerPage() {
     }
     const summary = `视频分析：${parts.join('，')}`
     if (result.created > 0 || result.reused > 0) toast.success(summary)
-    else if (result.errors.length > 0) toast.warning(summary)
+    else if (result.errors.length > 0 || skippedReasonCount > 0) toast.warning(summary)
     else toast.info(summary)
-  }, [toast])
+
+    if (result.skipped_errors?.length) {
+      await showVideoAnalysisBatchIssues('部分视频已跳过', result.skipped_errors, 'warning')
+    }
+    if (result.errors.length) {
+      await showVideoAnalysisBatchIssues('部分视频分析提交失败', result.errors, 'error')
+    }
+  }, [dialog, showVideoAnalysisBatchIssues, toast])
 
   const submitBatchAnalyze = useCallback(async (force = false) => {
     try {
       const res = await videoAnalysisApi.batchSubmit({ media_ids: Array.from(selectedIds), force })
       const result = res.data.data
-      showVideoAnalysisResultToast(result)
+      await showVideoAnalysisResultToast(result)
       if (result.created > 0 || result.reused > 0) {
         setActiveTab('analysis')
         const nextParams = new URLSearchParams(searchParams)
         nextParams.set('tab', 'analysis')
+        if ((result.skipped_errors?.length || 0) > 0) {
+          const skippedSummary = result.skipped_errors!
+            .slice(0, 3)
+            .map(issue => issue.message)
+            .filter(Boolean)
+            .join('；')
+          nextParams.set('analysisLastSkipped', skippedSummary || `本次有 ${result.skipped_errors!.length} 个视频被自动跳过`)
+        } else {
+          nextParams.delete('analysisLastSkipped')
+        }
         setSearchParams(nextParams, { replace: true })
       }
     } catch (err: any) {

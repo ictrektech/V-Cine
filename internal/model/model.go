@@ -130,6 +130,7 @@ type Library struct {
 	AutoDownloadSub   bool   `json:"auto_download_sub" gorm:"default:false"`       // 自动下载字幕
 	// 扫描行为设置
 	AutoScrapeMetadata bool `json:"auto_scrape_metadata" gorm:"default:true"` // 扫描后自动刮削元数据
+	AutoAnalyzeVideo   bool `json:"auto_analyze_video" gorm:"default:false"`  // 扫描后自动提交视频分析任务
 	// AI 自动整理（扫描后处理：识别 + 虚拟归类 + 命名映射，仅写 DB）
 	//   off          - 关闭，不做任何后处理
 	//   rule_only    - 仅规则识别+归类+命名（禁止调 AI）
@@ -970,11 +971,11 @@ func ensureSQLiteColumns(db *gorm.DB) {
 			{Column: "tagline", DDL: "ALTER TABLE `series` ADD COLUMN `tagline` text DEFAULT ''"},
 		},
 		"people": {
-				{Column: "tmdb_id", DDL: "ALTER TABLE `people` ADD COLUMN `tmdb_id` integer DEFAULT 0"},
-				{Column: "orig_name", DDL: "ALTER TABLE `people` ADD COLUMN `orig_name` text DEFAULT ''"},
-				{Column: "profile_url", DDL: "ALTER TABLE `people` ADD COLUMN `profile_url` text DEFAULT ''"},
-			},
-			"watch_histories": {
+			{Column: "tmdb_id", DDL: "ALTER TABLE `people` ADD COLUMN `tmdb_id` integer DEFAULT 0"},
+			{Column: "orig_name", DDL: "ALTER TABLE `people` ADD COLUMN `orig_name` text DEFAULT ''"},
+			{Column: "profile_url", DDL: "ALTER TABLE `people` ADD COLUMN `profile_url` text DEFAULT ''"},
+		},
+		"watch_histories": {
 			{Column: "profile_id", DDL: "ALTER TABLE `watch_histories` ADD COLUMN `profile_id` text DEFAULT ''"},
 		},
 		"favorites": {
@@ -982,6 +983,9 @@ func ensureSQLiteColumns(db *gorm.DB) {
 		},
 		"movie_collections": {
 			{Column: "file_count", DDL: "ALTER TABLE `movie_collections` ADD COLUMN `file_count` integer DEFAULT 0"},
+		},
+		"libraries": {
+			{Column: "auto_analyze_video", DDL: "ALTER TABLE `libraries` ADD COLUMN `auto_analyze_video` numeric DEFAULT 0"},
 		},
 	}
 
