@@ -119,6 +119,25 @@ type CacheConfig struct {
 	CleanupIntervalMin int `mapstructure:"cleanup_interval_min"`
 }
 
+// VideoAnalysisPathMapping 将 Nowen 可见的视频路径映射为分析服务可见路径。
+type VideoAnalysisPathMapping struct {
+	Source string `mapstructure:"source" yaml:"source" json:"source"`
+	Target string `mapstructure:"target" yaml:"target" json:"target"`
+}
+
+// VideoAnalysisConfig 场景检测和视频结构化服务配置。
+type VideoAnalysisConfig struct {
+	Enabled             bool                       `mapstructure:"enabled" yaml:"enabled" json:"enabled"`
+	SceneBaseURL        string                     `mapstructure:"scene_base_url" yaml:"scene_base_url" json:"scene_base_url"`
+	StructureBaseURL    string                     `mapstructure:"structure_base_url" yaml:"structure_base_url" json:"structure_base_url"`
+	PathMappings        []VideoAnalysisPathMapping `mapstructure:"path_mappings" yaml:"path_mappings" json:"path_mappings"`
+	CacheRoot           string                     `mapstructure:"cache_root" yaml:"cache_root" json:"cache_root"`
+	MaxConcurrent       int                        `mapstructure:"max_concurrent" yaml:"max_concurrent" json:"max_concurrent"`
+	PollIntervalSeconds int                        `mapstructure:"poll_interval_seconds" yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
+	JobTimeoutMinutes   int                        `mapstructure:"job_timeout_minutes" yaml:"job_timeout_minutes" json:"job_timeout_minutes"`
+	DescribeEnabled     bool                       `mapstructure:"describe_enabled" yaml:"describe_enabled" json:"describe_enabled"`
+}
+
 // ==================== 主配置结构体 ====================
 
 // AIProviderProfile 单个 LLM 提供商的配置档案
@@ -570,17 +589,18 @@ type Config struct {
 	mu sync.RWMutex `mapstructure:"-"`
 
 	// 子模块配置
-	Database     DatabaseConfig     `mapstructure:"database"`
-	Secrets      SecretsConfig      `mapstructure:"secrets"`
-	App          AppConfig          `mapstructure:"app"`
-	Logging      LoggingConfig      `mapstructure:"logging"`
-	Cache        CacheConfig        `mapstructure:"cache"`
-	AI           AIConfig           `mapstructure:"ai"`
-	Registration RegistrationConfig `mapstructure:"registration"`
-	Storage      StorageConfig      `mapstructure:"storage"`
-	Emby         EmbyConfig         `mapstructure:"emby"`
-	AdultScraper AdultScraperConfig `mapstructure:"adult_scraper"`
-	STRM         STRMConfig         `mapstructure:"strm"`
+	Database      DatabaseConfig      `mapstructure:"database"`
+	Secrets       SecretsConfig       `mapstructure:"secrets"`
+	App           AppConfig           `mapstructure:"app"`
+	Logging       LoggingConfig       `mapstructure:"logging"`
+	Cache         CacheConfig         `mapstructure:"cache"`
+	VideoAnalysis VideoAnalysisConfig `mapstructure:"video_analysis"`
+	AI            AIConfig            `mapstructure:"ai"`
+	Registration  RegistrationConfig  `mapstructure:"registration"`
+	Storage       StorageConfig       `mapstructure:"storage"`
+	Emby          EmbyConfig          `mapstructure:"emby"`
+	AdultScraper  AdultScraperConfig  `mapstructure:"adult_scraper"`
+	STRM          STRMConfig          `mapstructure:"strm"`
 
 	// ==================== 兼容性字段（向后兼容旧的扁平配置） ====================
 	// 以下字段用于兼容旧版 config.yaml 中的扁平 key，
@@ -689,6 +709,21 @@ func Load() (*Config, error) {
 		cfg.AI.Failover.AutoRecoverAfterMin = 0
 	}
 
+	// 10. 视频分析配置采用安全的保守兜底。URL 和路径的严格校验在创建
+	// 外部客户端/路径映射器时执行，使功能关闭时不会阻断现有服务启动。
+	cfg.VideoAnalysis.SceneBaseURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.SceneBaseURL), "/")
+	cfg.VideoAnalysis.StructureBaseURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.StructureBaseURL), "/")
+	cfg.VideoAnalysis.CacheRoot = filepath.Clean(strings.TrimSpace(cfg.VideoAnalysis.CacheRoot))
+	if cfg.VideoAnalysis.MaxConcurrent <= 0 {
+		cfg.VideoAnalysis.MaxConcurrent = 2
+	}
+	if cfg.VideoAnalysis.PollIntervalSeconds <= 0 {
+		cfg.VideoAnalysis.PollIntervalSeconds = 2
+	}
+	if cfg.VideoAnalysis.JobTimeoutMinutes <= 0 {
+		cfg.VideoAnalysis.JobTimeoutMinutes = 120
+	}
+
 	return cfg, nil
 }
 
@@ -753,6 +788,17 @@ func setDefaults() {
 	viper.SetDefault("logging.max_size_mb", 100)
 	viper.SetDefault("logging.max_age_days", 30)
 	viper.SetDefault("logging.max_backups", 10)
+
+	// ---- 视频分析（默认关闭，避免升级后自动消耗计算资源） ----
+	viper.SetDefault("video_analysis.enabled", false)
+	viper.SetDefault("video_analysis.scene_base_url", "http://localhost:8910")
+	viper.SetDefault("video_analysis.structure_base_url", "http://localhost:8911")
+	viper.SetDefault("video_analysis.path_mappings", []VideoAnalysisPathMapping{})
+	viper.SetDefault("video_analysis.cache_root", "/analysis-cache")
+	viper.SetDefault("video_analysis.max_concurrent", 2)
+	viper.SetDefault("video_analysis.poll_interval_seconds", 2)
+	viper.SetDefault("video_analysis.job_timeout_minutes", 120)
+	viper.SetDefault("video_analysis.describe_enabled", false)
 
 	// ---- AI ----
 	viper.SetDefault("ai.enabled", false)
@@ -918,6 +964,7 @@ func mergeConfigDir() error {
 			{name: "app", prefix: "app"},
 			{name: "logging", prefix: "logging"},
 			{name: "cache", prefix: "cache"},
+			{name: "video_analysis", prefix: "video_analysis"},
 			{name: "ai", prefix: "ai"},
 			{name: "storage", prefix: "storage"},
 		}

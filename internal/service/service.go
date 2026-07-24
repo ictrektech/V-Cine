@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/repository"
@@ -61,10 +62,12 @@ type Services struct {
 	// V5: Pulse 数据中心
 	Pulse *PulseService
 	// V6: P1~P3 新增功能
-	ASR                *ASRService
-	Preprocess         *PreprocessService
-	SubtitlePreprocess *SubtitlePreprocessService
-	GPUMonitor         *GPUMonitor
+	ASR                 *ASRService
+	Preprocess          *PreprocessService
+	SubtitlePreprocess  *SubtitlePreprocessService
+	VideoAnalysis       *VideoAnalysisService
+	VideoAnalysisWorker *VideoAnalysisWorker
+	GPUMonitor          *GPUMonitor
 	// 电影系列合集
 	Collection *CollectionService
 	// 番号刮削服务（混合架构：Go 原生爬虫 + Python 微服务）
@@ -397,6 +400,30 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 		DefaultLazyIngestConfig(), logger,
 	)
 	svcs.LazyIngest.SetWSHub(wsHub)
+
+	// 外部场景检测与视频结构化。默认关闭；配置无效时仅禁用该功能，
+	// 不影响 Nowen 的现有扫描、刮削和播放流程。
+	if cfg.VideoAnalysis.Enabled {
+		analysisClient, clientErr := NewVideoAnalysisClient(
+			cfg.VideoAnalysis.SceneBaseURL,
+			cfg.VideoAnalysis.StructureBaseURL,
+			nil,
+		)
+		pathMapper, mappingErr := NewVideoPathMapper(cfg.VideoAnalysis.PathMappings)
+		if clientErr != nil || mappingErr != nil {
+			logger.Errorf("视频分析配置无效，功能未启动: client=%v mapping=%v", clientErr, mappingErr)
+		} else {
+			svcs.VideoAnalysis = NewVideoAnalysisService(
+				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, wsHub, logger,
+				time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,
+				time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,
+			)
+			svcs.VideoAnalysisWorker = NewVideoAnalysisWorker(
+				svcs.VideoAnalysis, repos.VideoAnalysis, logger, cfg.VideoAnalysis.MaxConcurrent,
+			)
+			svcs.VideoAnalysisWorker.Start()
+		}
+	}
 
 	// AI 成本估算服务（无状态，仅依赖 AIService 取累计 token）
 	svcs.AICost = NewAICostService(aiService)

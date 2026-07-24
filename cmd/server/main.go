@@ -941,6 +941,12 @@ func main() {
 		// 候选影视列表（供用户手动勾选预处理）
 		admin.GET("/preprocess/candidates", handlers.Preprocess.ListCandidateMedia)
 
+		// ==================== 视频分析（场景检测与结构化）====================
+		admin.POST("/video-analysis/tasks", handlers.VideoAnalysis.SubmitMedia)
+		admin.GET("/video-analysis/tasks", handlers.VideoAnalysis.ListTasks)
+		admin.GET("/video-analysis/tasks/:id", handlers.VideoAnalysis.GetTask)
+		admin.GET("/video-analysis/statistics", handlers.VideoAnalysis.Statistics)
+
 		// ==================== 字幕预处理管理 ====================
 		admin.POST("/subtitle-preprocess/submit", handlers.SubtitlePreprocess.SubmitMedia)
 		admin.POST("/subtitle-preprocess/batch", handlers.SubtitlePreprocess.BatchSubmit)
@@ -1091,6 +1097,9 @@ func main() {
 	// 停止扫描后处理 worker（避免正在 AI 识别 / DB 写入时被中断造成数据不一致）
 	if services != nil && services.ScanPostProcess != nil {
 		services.ScanPostProcess.Stop()
+	}
+	if services != nil && services.VideoAnalysisWorker != nil {
+		services.VideoAnalysisWorker.Stop()
 	}
 
 	// 停止 Python 番号刮削微服务子进程

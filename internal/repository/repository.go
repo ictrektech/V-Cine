@@ -41,6 +41,7 @@ type Repositories struct {
 	// V6: P1~P3 新增功能
 	Preprocess         *PreprocessRepo
 	SubtitlePreprocess *SubtitlePreprocessRepo
+	VideoAnalysis      *VideoAnalysisTaskRepo
 	// 电影系列合集
 	MovieCollection *MovieCollectionRepo
 	// 多用户安全（审计 / 登录日志 / 邀请码）
@@ -96,6 +97,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		// V6: P1~P3 新增功能
 		Preprocess:         &PreprocessRepo{db: db},
 		SubtitlePreprocess: &SubtitlePreprocessRepo{db: db},
+		VideoAnalysis:      NewVideoAnalysisTaskRepo(db),
 		// 电影系列合集
 		MovieCollection: &MovieCollectionRepo{db: db},
 		// 多用户安全

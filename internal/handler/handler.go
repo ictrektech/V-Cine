@@ -51,6 +51,8 @@ type Handlers struct {
 	Preprocess *PreprocessHandler
 	// 字幕预处理
 	SubtitlePreprocess *SubtitlePreprocessHandler
+	// 外部场景检测与视频结构化
+	VideoAnalysis *VideoAnalysisHandler
 	// 电影系列合集
 	Collection *CollectionHandler
 	// V2.1: WebDAV 存储管理
@@ -137,6 +139,8 @@ func NewHandlers(services *service.Services, repos *repository.Repositories, cfg
 		Preprocess: NewPreprocessHandler(services.Preprocess),
 		// 字幕预处理
 		SubtitlePreprocess: NewSubtitlePreprocessHandler(services.SubtitlePreprocess),
+		// 外部场景检测与视频结构化
+		VideoAnalysis: NewVideoAnalysisHandler(services.VideoAnalysis, services.VideoAnalysisWorker),
 		// 电影系列合集
 		Collection: &CollectionHandler{collectionService: services.Collection, streamService: services.Stream, logger: logger},
 		// V2.1: WebDAV 存储管理
