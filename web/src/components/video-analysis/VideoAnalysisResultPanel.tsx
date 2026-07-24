@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, ExternalLink, FileVideo, Loader2 } from 'lucide-react'
 import { videoAnalysisApi } from '@/api'
 import type { VideoAnalysisResult, VideoAnalysisSceneResult, VideoAnalysisTask } from '@/types/videoAnalysis'
@@ -18,41 +18,46 @@ export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysi
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
   const [gridMap, setGridMap] = useState<Record<number, VideoAnalysisSceneGridState>>({})
+  // Tracks which scene indexes already started a grid fetch. Must not live in effect deps
+  // (putting gridMap there re-runs cleanup with cancelled=true and freezes the spinner).
+  const requestedGridScenesRef = useRef<Set<number>>(new Set())
+  const gridFetchGenerationRef = useRef(0)
 
   useEffect(() => {
     setPage(1)
-    setGridMap({})
+    setResult(null)
+    setError('')
+    gridFetchGenerationRef.current += 1
+    requestedGridScenesRef.current = new Set()
+    setGridMap((prev) => {
+      Object.values(prev).forEach((item) => {
+        if (item.url) URL.revokeObjectURL(item.url)
+      })
+      return {}
+    })
     if (!task) {
-      setResult(null)
-      setError('')
       setLoading(false)
       return
     }
     let cancelled = false
+    const generation = gridFetchGenerationRef.current
     setLoading(true)
-    setError('')
     videoAnalysisApi.getResult(task.media_id, task.id)
       .then((res) => {
-        if (cancelled) return
+        if (cancelled || generation !== gridFetchGenerationRef.current) return
         setResult(res.data.data)
       })
       .catch((err: any) => {
-        if (cancelled) return
+        if (cancelled || generation !== gridFetchGenerationRef.current) return
         if (err?.response?.status === 404) setError('当前任务还没有可展示的结果，请稍后再试。')
         else setError(err?.response?.data?.error || '加载分析结果失败')
         setResult(null)
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && generation === gridFetchGenerationRef.current) setLoading(false)
       })
     return () => {
       cancelled = true
-      setGridMap((prev) => {
-        Object.values(prev).forEach((item) => {
-          if (item.url) URL.revokeObjectURL(item.url)
-        })
-        return {}
-      })
     }
   }, [task])
 
@@ -69,13 +74,19 @@ export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysi
 
   useEffect(() => {
     if (!task || !result) return
-    let cancelled = false
+    const generation = gridFetchGenerationRef.current
+    const mediaId = task.media_id
+    const taskId = task.id
+
     visibleScenes.forEach((scene) => {
-      if (!scene.grid_available || gridMap[scene.scene_index]?.loading || gridMap[scene.scene_index]?.url || gridMap[scene.scene_index]?.error) return
+      if (!scene.grid_available) return
+      if (requestedGridScenesRef.current.has(scene.scene_index)) return
+      requestedGridScenesRef.current.add(scene.scene_index)
+
       setGridMap((prev) => ({ ...prev, [scene.scene_index]: { loading: true } }))
-      videoAnalysisApi.getSceneGridBlob(task.media_id, scene.scene_index, task.id)
+      videoAnalysisApi.getSceneGridBlob(mediaId, scene.scene_index, taskId)
         .then((res) => {
-          if (cancelled) return
+          if (generation !== gridFetchGenerationRef.current) return
           const objectUrl = URL.createObjectURL(res.data)
           setGridMap((prev) => {
             if (prev[scene.scene_index]?.url) URL.revokeObjectURL(prev[scene.scene_index].url!)
@@ -83,14 +94,13 @@ export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysi
           })
         })
         .catch(() => {
-          if (cancelled) return
+          if (generation !== gridFetchGenerationRef.current) return
+          // Allow a later remount/page visit to retry this scene.
+          requestedGridScenesRef.current.delete(scene.scene_index)
           setGridMap((prev) => ({ ...prev, [scene.scene_index]: { loading: false, error: '加载图片失败' } }))
         })
     })
-    return () => {
-      cancelled = true
-    }
-  }, [gridMap, result, task, visibleScenes])
+  }, [result, task, visibleScenes])
 
   if (!task) {
     return (
