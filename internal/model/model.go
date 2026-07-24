@@ -967,7 +967,12 @@ func ensureSQLiteColumns(db *gorm.DB) {
 			{Column: "studio", DDL: "ALTER TABLE `series` ADD COLUMN `studio` text DEFAULT ''"},
 			{Column: "tagline", DDL: "ALTER TABLE `series` ADD COLUMN `tagline` text DEFAULT ''"},
 		},
-		"watch_histories": {
+		"people": {
+				{Column: "tmdb_id", DDL: "ALTER TABLE `people` ADD COLUMN `tmdb_id` integer DEFAULT 0"},
+				{Column: "orig_name", DDL: "ALTER TABLE `people` ADD COLUMN `orig_name` text DEFAULT ''"},
+				{Column: "profile_url", DDL: "ALTER TABLE `people` ADD COLUMN `profile_url` text DEFAULT ''"},
+			},
+			"watch_histories": {
 			{Column: "profile_id", DDL: "ALTER TABLE `watch_histories` ADD COLUMN `profile_id` text DEFAULT ''"},
 		},
 		"favorites": {

@@ -1,4 +1,4 @@
-api_base: https://api.deepseek.com/v1
+api_base: http://0.0.0.0:31536/v1
 api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
 auto_pilot: true
 auto_subtitle_preprocess: false
@@ -16,7 +16,7 @@ failover:
     enabled: false
     last_switched_at: 0
 max_concurrent: 1
-model: deepseek-v4-flash
+model: qwen3:0.6b
 monthly_budget: 0
 monthly_token_budget: 0
 ocr_dpi: 150
@@ -24,17 +24,32 @@ ocr_enabled: false
 prefer_existing_subtitle: true
 prefer_local_whisper: false
 profiles:
+    custom:
+        api_base: http://0.0.0.0:31536/v1
+        api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
+        enabled: true
+        model: qwen3:0.6b
     deepseek:
         api_base: https://api.deepseek.com/v1
-        api_key: ENC:87yzha16/Thal6RQymtpFu/Yn0zXPXUsks9qE9tS8n8iZLb39nV8hH1THxSw4Y81tysIcJ99VJJIqTQyFUmL
+        api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
         enabled: true
-        model: deepseek-v4-flash
+        model: deepseek-chat
+    ollama:
+        api_base: http://localhost:11434/v1
+        api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
+        enabled: true
+        model: llama3
+    openai:
+        api_base: https://api.openai.com/v1
+        api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
+        enabled: true
+        model: gpt-4o-mini
     qwen:
         api_base: https://dashscope.aliyuncs.com/compatible-mode/v1
-        api_key: ENC:fZ4FItOMsXl6viZHErGZ7aYVhBQTnyhoQX/xI7MszR1/WRYDaewhtMoDN64cUnl0XeUQ3eEJkX4IuQHI+EKN
+        api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
         enabled: true
-        model: deepseek-v3.1
-provider: deepseek
+        model: qwen-turbo
+provider: custom
 request_interval_ms: 1100
 sub_clean_backup: true
 sub_clean_enabled: false

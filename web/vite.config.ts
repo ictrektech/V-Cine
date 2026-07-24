@@ -16,6 +16,7 @@ export default defineConfig({
   },
   server: {
     port: devPort,
+    host: true, // 监听所有网络接口
     proxy: {
       '/api': {
         target: apiProxyTarget,
