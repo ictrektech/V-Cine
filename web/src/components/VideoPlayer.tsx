@@ -84,6 +84,7 @@ export default function VideoPlayer({
     isMuted,
     isFullscreen,
     showControls,
+    seekRequest,
     setPlaying,
     setCurrentTime,
     setDuration,
@@ -91,6 +92,7 @@ export default function VideoPlayer({
     setMuted,
     setFullscreen,
     setShowControls,
+    clearSeekRequest,
     reset,
   } = usePlayerStore()
 
@@ -798,26 +800,39 @@ export default function VideoPlayer({
   // Remux 时间偏移：记录 Seek 的起始时间，用于计算真实播放位置
   const remuxOffsetRef = useRef(0)
 
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const seekTo = useCallback((targetTime: number) => {
     const video = videoRef.current
     if (!video) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const pos = (e.clientX - rect.left) / rect.width
-    const targetTime = pos * displayDuration
+    const clamped = Math.max(0, Math.min(displayDuration || targetTime, targetTime))
 
     // Remux 模式：通过重新请求带 ?start= 参数的 URL 实现 Seek
     if (mode === 'remux') {
-      remuxSeek(targetTime)
+      remuxSeek(clamped)
       return
     }
 
     // 如果目标时间超出已加载范围，限制到当前可 seek 的最大位置
-    if (video.duration > 0 && targetTime <= video.duration) {
-      video.currentTime = targetTime
+    if (video.duration > 0 && clamped <= video.duration) {
+      video.currentTime = clamped
     } else if (video.duration > 0) {
       // 超出已转码范围，跳转到已转码的最末尾
-      video.currentTime = video.duration - 0.5
+      video.currentTime = Math.max(0, video.duration - 0.5)
+    } else {
+      video.currentTime = clamped
     }
+  }, [displayDuration, mode, remuxSeek])
+
+  // 外部场景面板等通过 store.requestSeek 请求绝对时间跳转
+  useEffect(() => {
+    if (!seekRequest) return
+    seekTo(seekRequest.time)
+    clearSeekRequest()
+  }, [seekRequest, seekTo, clearSeekRequest])
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pos = (e.clientX - rect.left) / rect.width
+    seekTo(pos * displayDuration)
   }
 
   const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {

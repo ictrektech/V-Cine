@@ -78,6 +78,8 @@ export default function WebCodecsPlayerShell({
 
   const setStoreTime = usePlayerStore(s => s.setCurrentTime)
   const setStoreDuration = usePlayerStore(s => s.setDuration)
+  const seekRequest = usePlayerStore(s => s.seekRequest)
+  const clearSeekRequest = usePlayerStore(s => s.clearSeekRequest)
 
   const displayDuration = (knownDuration && knownDuration > duration) ? knownDuration : duration
   const progress = displayDuration > 0 ? (currentTime / displayDuration) * 100 : 0
@@ -123,6 +125,20 @@ export default function WebCodecsPlayerShell({
     const target = Math.max(0, Math.min(displayDuration || p.getDuration(), currentTime + seconds))
     p.seek(target)
   }, [currentTime, displayDuration])
+
+  const seekTo = useCallback((targetTime: number) => {
+    const p = playerRef.current
+    if (!p) return
+    const max = displayDuration || p.getDuration() || targetTime
+    p.seek(Math.max(0, Math.min(max, targetTime)))
+  }, [displayDuration])
+
+  // 外部场景面板等通过 store.requestSeek 请求绝对时间跳转
+  useEffect(() => {
+    if (!seekRequest) return
+    seekTo(seekRequest.time)
+    clearSeekRequest()
+  }, [seekRequest, seekTo, clearSeekRequest])
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const p = playerRef.current

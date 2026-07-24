@@ -21,6 +21,8 @@ interface PlayerState {
   // 新增：手势控制
   gestureEnabled: boolean
   gestureOverlay: { type: string; value: number } | null
+  // 外部请求跳转到绝对时间（秒）；播放器消费后应 clearSeekRequest
+  seekRequest: { time: number; token: number } | null
 
   // 动作
   setPlaying: (isPlaying: boolean) => void
@@ -35,6 +37,8 @@ interface PlayerState {
   setPiP: (isPiP: boolean) => void
   setGestureEnabled: (enabled: boolean) => void
   setGestureOverlay: (overlay: { type: string; value: number } | null) => void
+  requestSeek: (time: number) => void
+  clearSeekRequest: () => void
   reset: () => void
 }
 
@@ -51,6 +55,7 @@ const initialState = {
   isPiP: false,
   gestureEnabled: true,
   gestureOverlay: null as { type: string; value: number } | null,
+  seekRequest: null as { time: number; token: number } | null,
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -70,6 +75,13 @@ export const usePlayerStore = create<PlayerState>()(
       setPiP: (isPiP) => set({ isPiP }),
       setGestureEnabled: (gestureEnabled) => set({ gestureEnabled }),
       setGestureOverlay: (gestureOverlay) => set({ gestureOverlay }),
+      requestSeek: (time) => set({
+        seekRequest: {
+          time: Math.max(0, Number.isFinite(time) ? time : 0),
+          token: Date.now(),
+        },
+      }),
+      clearSeekRequest: () => set({ seekRequest: null }),
       reset: () => set({ ...initialState }),
     }),
     {
