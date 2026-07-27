@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/nowen-video/nowen-video/internal/model"
-	"gorm.io/gorm"
 
 	"github.com/nowen-video/nowen-video/internal/testutil")
 

@@ -14,7 +14,6 @@ import (
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/service"
-	"gorm.io/gorm"
 
 	"github.com/nowen-video/nowen-video/internal/testutil")
 

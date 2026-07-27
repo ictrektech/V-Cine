@@ -10,7 +10,6 @@ import (
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 
 	"github.com/nowen-video/nowen-video/internal/testutil")
 

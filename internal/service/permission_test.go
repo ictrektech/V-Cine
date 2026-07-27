@@ -5,13 +5,14 @@ import (
 
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/testutil"
 	"go.uber.org/zap"
 )
 
 // setupPermissionService 创建测试用的PermissionService
 func setupPermissionService(t *testing.T) (*PermissionService, *repository.Repositories) {
 	t.Helper()
-	db := setupTestDB(t)
+	db := testutil.NewTestDB(t)
 	repos := repository.NewRepositories(db)
 	logger, _ := zap.NewDevelopment()
 	permService := NewPermissionService(
