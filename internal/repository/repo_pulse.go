@@ -100,7 +100,7 @@ type TopContentItem struct {
 // 电影按 media 维度聚合；电视剧按 series（剧集合集）维度聚合，显示剧集合集的名称和海报，
 // 同一部剧的所有集观看时长/次数/观看人数会合并统计，避免显示单集文件名。
 // 返回的 media_type 为 'series'（电视剧）或 'movie'（电影），便于前端选择对应的海报接口。
-// 使用子查询计算聚合维度，避免子查询中外层 GROUP BY 时因 m.title 与 s.title 同名导致
+// 使用子查询计算聚合维度，避免子查询中外层 GROUP BY 时因列名同名导致
 // "ambiguous column name: title" 错误。
 func (r *PulseRepo) GetTopContent(days, limit int) ([]TopContentItem, error) {
 	startDate := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
