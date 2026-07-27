@@ -649,7 +649,7 @@ func (s *TranscodeService) parseFFmpegProgress(stderr io.ReadCloser, job *Transc
 		job.transcodedPos.Store(uint64((ev.CurrentSec + job.startOffset) * 100))
 
 		progress := ev.Progress
-		// DB 持久化：每 5% 才写一次（减少 SQLite 写锁竞争，避免 SLOW SQL）
+		// DB 持久化：每 5% 才写一次（减少写锁竞争，避免 SLOW SQL）
 		// WS 广播仍然每 1% 触发，前端进度条不受影响
 		job.Task.Progress = progress
 		if progress-lastDBProgress >= 5 || progress >= 99.5 {

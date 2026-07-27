@@ -1,38 +1,7 @@
 # ==================== 数据库配置 ====================
 # 文件: config/database.yaml
-# 说明: 数据库连接参数配置，支持 SQLite 和 PostgreSQL 双驱动
+# 说明: PostgreSQL 数据库连接参数配置
 # 提示: 修改后需重启服务生效
-
-# 数据库驱动: sqlite / postgresql
-# 默认: sqlite
-driver: postgresql
-
-# ==================== SQLite 专属配置 ====================
-# 以下配置仅在 driver=sqlite 时生效
-
-# 数据库文件路径
-# 相对路径将基于 app.data_dir 解析
-# 默认: ./data/nowen.db
-db_path: ./data/nowen.db
-
-# 是否启用 WAL (Write-Ahead Logging) 模式
-# WAL 模式提供更好的并发读写性能，强烈建议保持开启
-# 默认: true
-wal_mode: true
-
-# SQLite 繁忙超时（毫秒）
-# 当数据库被锁定时，等待释放的最大时间
-# 默认: 5000
-busy_timeout: 5000
-
-# SQLite 页面缓存大小
-# 负数表示以 KB 为单位（如 -20000 表示 ~20MB 缓存）
-# 正数表示页面数量
-# 默认: -20000
-cache_size: -20000
-
-# ==================== PostgreSQL 专属配置 ====================
-# 以下配置仅在 driver=postgresql 时生效
 
 # 数据库主机地址
 # 默认: 127.0.0.1
@@ -61,18 +30,14 @@ sslmode: disable
 # 默认: Asia/Shanghai
 timezone: Asia/Shanghai
 
-# ==================== 通用连接池配置 ====================
-# 按 driver 取不同默认值（SQLite: 1/1, PostgreSQL: 25/10/1800s）
-# 设置为 0 时使用驱动默认值
-
 # 最大打开连接数
-# SQLite 默认: 1, PostgreSQL 默认: 25
+# 默认: 25
 max_open_conns: 25
 
 # 最大空闲连接数
-# SQLite 默认: 1, PostgreSQL 默认: 10
+# 默认: 10
 max_idle_conns: 10
 
 # 连接最大存活时间（秒）
-# SQLite 默认: 0（不限）, PostgreSQL 默认: 1800（30分钟）
+# 默认: 1800（30分钟）
 conn_max_lifetime: 1800

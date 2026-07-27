@@ -1,6 +1,7 @@
 // Package testutil 提供测试基础设施工具函数。
 // NewTestDB() 创建内存 SQLite 数据库并自动迁移所有模型，供单元测试统一调用。
-// 未来如需切换到 PostgreSQL 测试容器，只需修改此文件，调用方无需感知。
+// 注意：测试代码仍然使用 SQLite :memory: 以保证测试隔离性和速度，
+// 生产环境已全面转向 PostgreSQL。
 package testutil
 
 import (

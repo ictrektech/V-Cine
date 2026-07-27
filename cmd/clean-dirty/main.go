@@ -691,7 +691,6 @@ func main() {
 		apply         = flag.Bool("apply", false, "真正应用清理（会与 dry-run 互斥）")
 		jsonOut       = flag.Bool("json", false, "输出 JSON 报告（用于程序化处理）")
 		verbose       = flag.Bool("v", false, "应用清理时打印每条动作")
-		dbPath        = flag.String("db", "", "覆盖数据库路径（默认从 config.Load 读取，未配置则用 ./data/nowen.db）")
 	)
 	flag.Parse()
 
@@ -702,12 +701,8 @@ func main() {
 	// 加载配置
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[warn] 加载配置失败: %v；将使用默认数据库路径\n", err)
+		fmt.Fprintf(os.Stderr, "[warn] 加载配置失败: %v；将使用默认配置\n", err)
 		cfg = &config.Config{}
-		cfg.Database.DBPath = "./data/nowen.db"
-	}
-	if *dbPath != "" {
-		cfg.Database.DBPath = *dbPath
 	}
 
 	logger, _ := zap.NewProduction()

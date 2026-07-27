@@ -51,7 +51,7 @@ func (r *MediaRepo) ListByLibraryAndFileSize(libraryID string, fileSize int64) (
 // 用途：SmartRename / LazyIngest 等场景需要一次性把"路径→Media"映射拉齐，
 // 避免在循环内逐条 SQL（N+1）。空切片会直接返回空 map，不会发起查询。
 //
-// 注意：分批限制 GORM/SQLite 的 IN 子句参数数量上限（默认 999），故每批 800。
+// 分批限制 GORM 的 IN 子句参数数量上限（默认 999），故每批 800。
 func (r *MediaRepo) ListByFilePaths(filePaths []string) (map[string]*model.Media, error) {
 	out := make(map[string]*model.Media, len(filePaths))
 	if len(filePaths) == 0 {
@@ -670,7 +670,7 @@ func (r *MediaRepo) ListByFolderPath(folderPath string, page, size int, libraryI
 
 	// 使用 LIKE 匹配指定目录下的直接子文件（不含子目录中的文件）
 	// folderPath 末尾需要加分隔符
-	// SQLite 中使用 file_path LIKE 'folder/%' AND file_path NOT LIKE 'folder/%/%'
+	// 使用 file_path LIKE 'folder/%' AND file_path NOT LIKE 'folder/%/%'
 	if folderPath != "" {
 		// 标准化路径分隔符
 		normalizedPath := strings.ReplaceAll(folderPath, "\\", "/")
@@ -765,7 +765,7 @@ func (r *MediaRepo) GetAllFilePathsByLibrary(libraryID string) (map[string]bool,
 	return pathSet, nil
 }
 
-// BatchCreate 批量创建媒体记录（减少 SQLite 写锁竞争，每批 100 条）
+// BatchCreate 批量创建媒体记录（每批 100 条）
 func (r *MediaRepo) BatchCreate(mediaList []*model.Media) error {
 	if len(mediaList) == 0 {
 		return nil
@@ -773,7 +773,7 @@ func (r *MediaRepo) BatchCreate(mediaList []*model.Media) error {
 	return r.db.CreateInBatches(mediaList, 100).Error
 }
 
-// UpdateFields 仅更新指定字段（减少写锁争用，提高 SQLite 并发性能）
+// UpdateFields 仅更新指定字段（减少写锁争用）
 func (r *MediaRepo) UpdateFields(id string, fields map[string]interface{}) error {
 	return r.db.Model(&model.Media{}).Where("id = ?", id).Updates(fields).Error
 }

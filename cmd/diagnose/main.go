@@ -608,9 +608,8 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Printf("加载配置失败: %v\n", err)
-		fmt.Println("尝试使用默认数据库路径 ./data/nowen.db")
+		fmt.Println("尝试使用默认配置")
 		cfg = &config.Config{}
-		cfg.Database.DBPath = "./data/nowen.db"
 	}
 
 	// 连接数据库
