@@ -112,6 +112,30 @@ func (s *VideoAnalysisService) IsAvailable() bool {
 	return s != nil && s.client != nil && s.tasks != nil && s.media != nil && s.pathMapper != nil
 }
 
+// SearchScenesByText 通过文本 embedding 搜索场景
+func (s *VideoAnalysisService) SearchScenesByText(embedding []float32, limit int) ([]repository.SceneSearchResult, error) {
+	if s.sceneRepo == nil {
+		return nil, errors.New("scene repo is not available")
+	}
+	return s.sceneRepo.SearchByText(embedding, limit)
+}
+
+// SearchScenesByImage 通过图片 embedding 搜索场景
+func (s *VideoAnalysisService) SearchScenesByImage(embedding []float32, limit int) ([]repository.SceneSearchResult, error) {
+	if s.sceneRepo == nil {
+		return nil, errors.New("scene repo is not available")
+	}
+	return s.sceneRepo.SearchByImage(embedding, limit)
+}
+
+// GetScenesByTaskID 获取某次分析的所有场景
+func (s *VideoAnalysisService) GetScenesByTaskID(taskID string) ([]model.Scene, error) {
+	if s.sceneRepo == nil {
+		return nil, errors.New("scene repo is not available")
+	}
+	return s.sceneRepo.GetByTaskID(taskID)
+}
+
 func (s *VideoAnalysisService) SubmitMedia(mediaID string, options VideoAnalysisSubmitOptions) (*model.VideoAnalysisTask, bool, error) {
 	outcome, err := s.SubmitMediaWithOutcome(mediaID, options)
 	if err != nil {

@@ -275,3 +275,40 @@ func (h *VideoAnalysisHandler) ServeSceneGrid(c *gin.Context) {
 	c.Header("X-Content-Type-Options", "nosniff")
 	http.ServeContent(c.Writer, c.Request, filepath.Base(file.Name()), modTime, file)
 }
+
+// SearchScenes 搜索场景（文本 / 图片）
+func (h *VideoAnalysisHandler) SearchScenes(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	query := c.Query("q")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少查询参数 q（文本查询）"})
+		return
+	}
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "文本向量检索需集成 CLIP 编码服务，即将上线"})
+}
+
+// ListScenesByTask 获取某次视频分析的所有场景
+func (h *VideoAnalysisHandler) ListScenesByTask(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	taskID := c.Param("taskId")
+	if taskID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "taskId 是必填参数"})
+		return
+	}
+	scenes, err := h.service.GetScenesByTaskID(taskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询场景失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"scenes": scenes})
+}

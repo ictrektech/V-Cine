@@ -352,6 +352,8 @@ func main() {
 		// 视频分析结果（媒体权限守卫）
 		api.GET("/media/:id/video-analysis", guardByMediaID, handlers.VideoAnalysis.GetMediaResult)
 		api.GET("/media/:id/video-analysis/scenes/:sceneIndex/grid", guardByMediaID, handlers.VideoAnalysis.ServeSceneGrid)
+		api.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
+		api.GET("/video-analysis/tasks/:taskId/scenes", handlers.VideoAnalysis.ListScenesByTask)
 
 		// 用户
 		api.GET("/users/me", handlers.User.Profile)
@@ -919,6 +921,8 @@ func main() {
 		admin.GET("/video-analysis/statistics", handlers.VideoAnalysis.Statistics)
 		admin.GET("/video-analysis/statistics/detailed", handlers.VideoAnalysis.DetailedStatistics)
 		admin.POST("/video-analysis/cleanup", handlers.VideoAnalysis.Cleanup)
+			admin.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
+			admin.GET("/video-analysis/tasks/:taskId/scenes", handlers.VideoAnalysis.ListScenesByTask)
 
 		// ==================== 字幕预处理管理 ====================
 		admin.POST("/subtitle-preprocess/submit", handlers.SubtitlePreprocess.SubmitMedia)
