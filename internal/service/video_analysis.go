@@ -11,6 +11,7 @@ import (
 
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	pgvector "github.com/pgvector/pgvector-go"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -73,6 +74,7 @@ type VideoAnalysisService struct {
 	media           *repository.MediaRepo
 	client          videoAnalysisExternalClient
 	pathMapper      *VideoPathMapper
+	sceneRepo       *repository.SceneRepo
 	cacheRoot       string
 	describeEnabled bool
 	wsHub           *WSHub
@@ -86,6 +88,7 @@ func NewVideoAnalysisService(
 	media *repository.MediaRepo,
 	client videoAnalysisExternalClient,
 	pathMapper *VideoPathMapper,
+	sceneRepo *repository.SceneRepo,
 	cacheRoot string,
 	describeEnabled bool,
 	wsHub *WSHub,
@@ -99,7 +102,8 @@ func NewVideoAnalysisService(
 		jobTimeout = 2 * time.Hour
 	}
 	return &VideoAnalysisService{
-		tasks: tasks, media: media, client: client, pathMapper: pathMapper, cacheRoot: strings.TrimSpace(cacheRoot),
+		tasks: tasks, media: media, client: client, pathMapper: pathMapper, sceneRepo: sceneRepo,
+		cacheRoot: strings.TrimSpace(cacheRoot),
 		describeEnabled: describeEnabled, wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
 	}
 }
@@ -562,6 +566,17 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 	}
 	task.VideoHash = resultHeader.VideoHash
 
+	// Phase 2: 将 Structure 结果中的场景写入 Scene 表（含图片 embedding）
+	if err := s.saveScenesFromStructure(task, structureResult); err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("Video analysis save scenes failed (non-fatal)",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"error", err,
+			)
+		}
+	}
+
 	if task.IncludeDescriptions {
 		task.Stage = model.VideoAnalysisStageDescribe
 		task.Progress = 90
@@ -589,6 +604,17 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 			return s.completeDescribePartial(task, err, "DESCRIBE_MERGE_ERROR")
 		}
 		task.ResultJSON = mergedResult
+
+			// Phase 3: 更新 Scene 描述和描述 embedding
+			if err := s.updateSceneDescriptionsFromDescribe(task, describeResult); err != nil {
+				if s.logger != nil {
+					s.logger.Warnw("Video analysis update scene descriptions failed (non-fatal)",
+						"task_id", task.ID,
+						"media_id", task.MediaID,
+						"error", err,
+					)
+				}
+			}
 
 		if s.logger != nil {
 			s.logger.Infow("Video analysis describe stage completed",
@@ -894,4 +920,108 @@ func analysisErrorCode(err error) string {
 		return jobErr.Code
 	}
 	return "VIDEO_ANALYSIS_ERROR"
+}
+
+// saveScenesFromStructure 将 Structure 结果写入 Scene 表（Phase 2）
+func (s *VideoAnalysisService) saveScenesFromStructure(task *model.VideoAnalysisTask, structureResult *ExternalJob) error {
+	if s.sceneRepo == nil {
+		return nil
+	}
+	var result videoAnalysisStructureResult
+	if err := json.Unmarshal(structureResult.Result, &result); err != nil {
+		return fmt.Errorf("decode structure result for scene save: %w", err)
+	}
+	if len(result.Scenes) == 0 {
+		return nil
+	}
+
+	scenes := make([]model.Scene, 0, len(result.Scenes))
+	for _, scene := range result.Scenes {
+		if scene.Status == "error" {
+			continue
+		}
+		s := model.Scene{
+			SceneIndex: scene.SceneIndex,
+			StartTime:  scene.StartTime,
+			EndTime:    scene.EndTime,
+			ImagePath:  scene.GridImage,
+			Status:     "ok",
+		}
+		// 转换 []float64 → []float32 → pgvector.Vector
+		if len(scene.Embedding) > 0 {
+			vec := make([]float32, len(scene.Embedding))
+			for i, v := range scene.Embedding {
+				vec[i] = float32(v)
+			}
+			s.Embedding = pgvector.NewVector(vec)
+		}
+		scenes = append(scenes, s)
+	}
+
+	if len(scenes) == 0 {
+		return nil
+	}
+
+	if err := s.sceneRepo.BatchCreate(task.ID, scenes); err != nil {
+		return fmt.Errorf("batch create scenes: %w", err)
+	}
+	if s.logger != nil {
+		s.logger.Infow("Saved scenes from structure result",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"count", len(scenes),
+		)
+	}
+	return nil
+}
+
+// updateSceneDescriptionsFromDescribe 更新 Scene 描述和描述 embedding（Phase 3）
+func (s *VideoAnalysisService) updateSceneDescriptionsFromDescribe(task *model.VideoAnalysisTask, describeJob *ExternalJob) error {
+	if s.sceneRepo == nil {
+		return nil
+	}
+	var result videoAnalysisDescribeResult
+	if err := json.Unmarshal(describeJob.Result, &result); err != nil {
+		return fmt.Errorf("decode describe result for scene update: %w", err)
+	}
+	if len(result.Descriptions) == 0 {
+		return nil
+	}
+
+	updates := make([]repository.SceneDescriptionUpdate, 0, len(result.Descriptions))
+	for _, d := range result.Descriptions {
+		if d.Status != "ok" || d.Description == "" {
+			continue
+		}
+		update := repository.SceneDescriptionUpdate{
+			SceneIndex:  d.SceneIndex,
+			Description: d.Description,
+		}
+		// 转换 []float64 → []float32 → pgvector.Vector
+		if len(d.DescriptionEmbedding) > 0 {
+			vec := make([]float32, len(d.DescriptionEmbedding))
+			for i, v := range d.DescriptionEmbedding {
+				vec[i] = float32(v)
+			}
+			v := pgvector.NewVector(vec)
+			update.DescriptionEmbedding = &v
+		}
+		updates = append(updates, update)
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	if err := s.sceneRepo.UpdateDescriptions(task.ID, updates); err != nil {
+		return fmt.Errorf("update scene descriptions: %w", err)
+	}
+	if s.logger != nil {
+		s.logger.Infow("Updated scene descriptions from describe result",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"count", len(updates),
+		)
+	}
+	return nil
 }
