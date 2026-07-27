@@ -18,12 +18,25 @@
 
 # ==================== 新版嵌套格式示例 ====================
 
-# 数据库配置
+# 数据库配置（支持 SQLite / PostgreSQL 双驱动）
 database:
+  driver: sqlite           # 数据库驱动: sqlite / postgresql
   db_path: ./data/nowen.db
   wal_mode: true
   busy_timeout: 5000
   cache_size: -20000
+  # PostgreSQL 专属配置（仅 driver=postgresql 时生效）
+  # host: 127.0.0.1
+  # port: 5432
+  # user: postgres
+  # password: your_password_here
+  # dbname: nowen_video
+  # sslmode: disable
+  # timezone: Asia/Shanghai
+  # 通用连接池
+  # max_open_conns: 25
+  # max_idle_conns: 10
+  # conn_max_lifetime: 1800
 
 # 敏感信息（建议迁移到 config/secrets.yaml）
 secrets:

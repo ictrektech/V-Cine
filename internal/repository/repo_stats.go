@@ -21,7 +21,7 @@ func (r *TranscodeRepo) Update(task *model.TranscodeTask) error {
 	return r.db.Save(task).Error
 }
 
-// UpdateProgress 仅更新进度字段（避免全量 Save 导致 SQLite 写锁竞争）
+// UpdateProgress 仅更新进度字段（避免全量 Save 导致写锁竞争）
 func (r *TranscodeRepo) UpdateProgress(taskID string, progress float64) error {
 	return r.db.Model(&model.TranscodeTask{}).Where("id = ?", taskID).
 		Updates(map[string]interface{}{"progress": progress, "updated_at": time.Now()}).Error
