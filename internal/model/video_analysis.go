@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	pgvector "github.com/pgvector/pgvector-go"
 	"gorm.io/gorm"
 )
 
@@ -99,4 +100,41 @@ func IsVideoAnalysisTerminalStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+// Scene 视频场景结构化分析结果，包含图片 embedding 和描述 embedding
+// 用于后续的向量检索（以图搜图 / 自然语言搜索）
+type Scene struct {
+	ID                  string           `json:"id" gorm:"primaryKey;type:text"`
+	VideoAnalysisTaskID string           `json:"video_analysis_task_id" gorm:"index;type:text;not null"`
+	SceneIndex          int              `json:"scene_index" gorm:"not null"`
+	StartTime           float64          `json:"start_time"`
+	EndTime             float64          `json:"end_time"`
+	ImagePath           string           `json:"image_path" gorm:"type:text"`
+	// Embedding 场景图片的 CLIP 视觉 embedding（ViT-B-16-SigLIP2, 768 维）
+	Embedding pgvector.Vector `json:"embedding" gorm:"type:vector(768)"`
+	// Description 场景描述文本（由 VL 模型生成）
+	Description string `json:"description" gorm:"type:text"`
+	// DescriptionEmbedding 场景描述的 CLIP 文本 embedding（ViT-B-16-SigLIP2, 768 维）
+	DescriptionEmbedding pgvector.Vector `json:"description_embedding" gorm:"type:vector(768)"`
+	// Status 场景状态：ok / error
+	Status string `json:"status" gorm:"type:text;default:ok"`
+	// Error 错误信息
+	Error string `json:"error" gorm:"type:text"`
+
+	CreatedAt time.Time `json:"created_at"`
+
+	VideoAnalysisTask VideoAnalysisTask `json:"-" gorm:"foreignKey:VideoAnalysisTaskID"`
+}
+
+func (s *Scene) BeforeCreate(tx *gorm.DB) error {
+	if s.ID == "" {
+		s.ID = uuid.New().String()
+	}
+	return nil
+}
+
+// TableName 指定 Scene 的表名
+func (Scene) TableName() string {
+	return "scenes"
 }

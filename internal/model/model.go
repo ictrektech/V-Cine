@@ -881,6 +881,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&SubtitlePreprocessTask{},
 		// 外部场景检测与视频结构化
 		&VideoAnalysisTask{},
+		// 场景图片向量化存储（pgvector）
+		&Scene{},
 		// 电影系列合集
 		&MovieCollection{},
 		// 系统日志

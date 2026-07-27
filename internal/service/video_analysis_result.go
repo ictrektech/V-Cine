@@ -111,6 +111,8 @@ type videoAnalysisScene struct {
 	Description string  `json:"description"`
 	Status      string  `json:"status"`
 	Error       string  `json:"error"`
+	// Embedding 场景图片的 CLIP 视觉 embedding（由外部 ML 服务返回）
+	Embedding []float64 `json:"embedding,omitempty"`
 }
 
 type videoAnalysisSceneDescribe struct {
@@ -119,6 +121,8 @@ type videoAnalysisSceneDescribe struct {
 	Description string `json:"description"`
 	Status      string `json:"status"`
 	Error       string `json:"error"`
+	// DescriptionEmbedding 场景描述的 CLIP 文本 embedding（由外部 ML 服务返回）
+	DescriptionEmbedding []float64 `json:"description_embedding,omitempty"`
 }
 
 func (s *VideoAnalysisService) GetResultByMedia(mediaID, taskID string) (*VideoAnalysisResult, error) {
