@@ -607,8 +607,9 @@ func (r *MediaRepo) SumFileSizeByScope(libraryID, folderPath string) (int64, err
 // CountRecentImportsByScope 作用域化的近 N 天导入数
 func (r *MediaRepo) CountRecentImportsByScope(days int, libraryID, folderPath string) (int64, error) {
 	var count int64
+	since := time.Now().AddDate(0, 0, -days)
 	query := r.db.Model(&model.Media{}).
-		Where("created_at >= datetime('now', ?)", fmt.Sprintf("-%d days", days))
+		Where("created_at >= ?", since)
 	if libraryID != "" {
 		query = query.Where("library_id = ?", libraryID)
 	}
@@ -631,8 +632,9 @@ func (r *MediaRepo) SumFileSize() (int64, error) {
 
 func (r *MediaRepo) CountRecentImports(days int) (int64, error) {
 	var count int64
+	since := time.Now().AddDate(0, 0, -days)
 	err := r.db.Model(&model.Media{}).
-		Where("created_at >= datetime('now', ?)", fmt.Sprintf("-%d days", days)).
+		Where("created_at >= ?", since).
 		Count(&count).Error
 	return count, err
 }
@@ -795,13 +797,13 @@ func (r *MediaRepo) ListNeedScrape(libraryID string, skipRecentFailedDays int) (
 	// 跳过最近 N 天内已失败的记录（避免重复无效请求）
 	if skipRecentFailedDays > 0 {
 		query = query.Where(
-			"NOT (scrape_status = 'failed' AND last_scrape_at IS NOT NULL AND last_scrape_at >= datetime('now', ?))",
-			fmt.Sprintf("-%d days", skipRecentFailedDays),
+			"NOT (scrape_status = 'failed' AND last_scrape_at IS NOT NULL AND last_scrape_at >= ?)",
+			time.Now().AddDate(0, 0, -skipRecentFailedDays),
 		)
 	}
 	// partial 节流：最近 1 小时不重试（避免图片 CDN 短时抖动反复请求）
 	query = query.Where(
-		"NOT (scrape_status = 'partial' AND last_scrape_at IS NOT NULL AND last_scrape_at >= datetime('now', '-1 hours'))",
+		"NOT (scrape_status = 'partial' AND last_scrape_at IS NOT NULL AND last_scrape_at >= ?)",
 	)
 	err := query.Order("created_at DESC").Find(&media).Error
 	return media, err

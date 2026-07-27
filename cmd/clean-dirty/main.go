@@ -43,7 +43,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/glebarez/sqlite"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/nowen-video/nowen-video/internal/config"
@@ -710,7 +710,9 @@ func main() {
 		cfg.Database.DBPath = *dbPath
 	}
 
-	db, err := gorm.Open(sqlite.Open(cfg.GetDBDSN()), &gorm.Config{})
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+	db, err := config.OpenDB(cfg, logger)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "连接数据库失败: %v\n", err)
 		os.Exit(1)

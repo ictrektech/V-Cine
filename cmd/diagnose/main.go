@@ -1,5 +1,6 @@
 package main
 
+
 import (
 	"encoding/json"
 	"fmt"
@@ -10,12 +11,12 @@ import (
 	"text/tabwriter"
 	"unicode"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/matcher"
 	"github.com/nowen-video/nowen-video/internal/model"
-
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
 )
 
 // ==================== 诊断报告结构 ====================
@@ -613,7 +614,9 @@ func main() {
 	}
 
 	// 连接数据库
-	db, err := gorm.Open(sqlite.Open(cfg.GetDBDSN()), &gorm.Config{})
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+	db, err := config.OpenDB(cfg, logger)
 	if err != nil {
 		fmt.Printf("连接数据库失败: %v\n", err)
 		os.Exit(1)

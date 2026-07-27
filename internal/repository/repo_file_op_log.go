@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/nowen-video/nowen-video/internal/model"
 	"gorm.io/gorm"
 )
@@ -43,10 +45,11 @@ func (r *FileOpLogRepo) Count() (int64, error) {
 }
 
 // CountSince 获取指定时间点之后的日志条数
-func (r *FileOpLogRepo) CountSince(sqliteInterval string) (int64, error) {
+func (r *FileOpLogRepo) CountSince(d time.Duration) (int64, error) {
 	var count int64
+	since := time.Now().Add(-d)
 	err := r.db.Model(&model.FileOperationLog{}).
-		Where("created_at >= datetime('now', ?)", sqliteInterval).
+		Where("created_at >= ?", since).
 		Count(&count).Error
 	return count, err
 }

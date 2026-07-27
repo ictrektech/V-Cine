@@ -1141,7 +1141,7 @@ func (s *FileManagerService) GetStats(libraryID, folderPath string) (*FileManage
 
 	// 最近30天操作数（持久化日志，不再受服务重启影响）
 	if s.opLogRepo != nil {
-		if c, err := s.opLogRepo.CountSince("-30 days"); err == nil {
+		if c, err := s.opLogRepo.CountSince(30 * 24 * time.Hour); err == nil {
 			stats.RecentOperations = c
 		}
 	} else {
