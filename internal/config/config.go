@@ -3,31 +3,56 @@ package config
 import (
 	cryptoRand "crypto/rand"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
+	"github.com/glebarez/sqlite"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // ==================== 子配置结构体 ====================
 
 // DatabaseConfig 数据库连接参数
 type DatabaseConfig struct {
-	// 数据库文件路径，默认 ./data/nowen.db
+	// 数据库驱动: sqlite / postgresql，默认 sqlite
+	Driver string `mapstructure:"driver"`
+	// [SQLite] 数据库文件路径，默认 ./data/nowen.db
 	DBPath string `mapstructure:"db_path"`
-	// SQLite WAL 模式，默认 true
+	// [SQLite] WAL 模式，默认 true
 	WALMode bool `mapstructure:"wal_mode"`
-	// 繁忙超时（毫秒），默认 5000
+	// [SQLite] 繁忙超时（毫秒），默认 5000
 	BusyTimeout int `mapstructure:"busy_timeout"`
-	// 缓存大小（负数为KB），默认 -20000
+	// [SQLite] 缓存大小（负数为KB），默认 -20000
 	CacheSize int `mapstructure:"cache_size"`
-	// 最大打开连接数，默认 1（SQLite 建议）
+	// [PostgreSQL] 主机地址，默认 127.0.0.1
+	Host string `mapstructure:"host"`
+	// [PostgreSQL] 端口，默认 5432
+	Port int `mapstructure:"port"`
+	// [PostgreSQL] 用户名，默认 postgres
+	User string `mapstructure:"user"`
+	// [PostgreSQL] 密码
+	Password string `mapstructure:"password"`
+	// [PostgreSQL] 数据库名，默认 nowen_video
+	DBName string `mapstructure:"dbname"`
+	// [PostgreSQL] SSL 模式，默认 disable
+	SSLMode string `mapstructure:"sslmode"`
+	// [PostgreSQL] 时区，默认 Asia/Shanghai
+	TimeZone string `mapstructure:"timezone"`
+	// 最大打开连接数（SQLite: 1, PostgreSQL: 25）
 	MaxOpenConns int `mapstructure:"max_open_conns"`
-	// 最大空闲连接数，默认 1
+	// 最大空闲连接数（SQLite: 1, PostgreSQL: 10）
 	MaxIdleConns int `mapstructure:"max_idle_conns"`
+	// 连接最大存活时间（秒），PostgreSQL 专用，默认 1800（30分钟）
+	ConnMaxLifetime int `mapstructure:"conn_max_lifetime"`
 }
 
 // SecretsConfig 敏感信息/第三方服务 API 密钥
@@ -750,12 +775,24 @@ func loadOrCreatePersistedSecret(dataDir string) string {
 // setDefaults 设置所有默认值
 func setDefaults() {
 	// ---- 数据库 ----
+	viper.SetDefault("database.driver", "sqlite")
+	// SQLite 默认值
 	viper.SetDefault("database.db_path", "./data/nowen.db")
 	viper.SetDefault("database.wal_mode", true)
 	viper.SetDefault("database.busy_timeout", 5000)
 	viper.SetDefault("database.cache_size", -20000)
-	viper.SetDefault("database.max_open_conns", 4)
-	viper.SetDefault("database.max_idle_conns", 2)
+	// PostgreSQL 默认值
+	viper.SetDefault("database.host", "127.0.0.1")
+	viper.SetDefault("database.port", 5432)
+	viper.SetDefault("database.user", "postgres")
+	viper.SetDefault("database.password", "")
+	viper.SetDefault("database.dbname", "nowen_video")
+	viper.SetDefault("database.sslmode", "disable")
+	viper.SetDefault("database.timezone", "Asia/Shanghai")
+	// 通用连接池（按 driver 在 OpenDB 中取不同默认值）
+	viper.SetDefault("database.max_open_conns", 0)
+	viper.SetDefault("database.max_idle_conns", 0)
+	viper.SetDefault("database.conn_max_lifetime", 0)
 
 	// ---- 密钥 ----
 	viper.SetDefault("secrets.jwt_secret", "nowen-video-secret-change-me")
@@ -1509,18 +1546,28 @@ func generateRandomSecret(length int) string {
 	return string(b)
 }
 
-// GetDBDSN 返回 SQLite 连接字符串（含优化参数）
+// ==================== 数据库连接 ====================
+
+// GetDBDSN 根据 driver 配置返回对应的数据库连接字符串
+func (c *Config) GetDBDSN() string {
+	switch c.Database.Driver {
+	case "postgresql":
+		return c.getPgDSN()
+	default:
+		return c.getSQLiteDSN()
+	}
+}
+
+// getSQLiteDSN 返回 SQLite 连接字符串（含优化参数）
 //
 // 注意：项目使用的是 glebarez/sqlite（基于纯 Go 的 modernc.org/sqlite），
-// 其 DSN 参数语法与 mattn/go-sqlite3 不同——必须使用 _pragma=name(value) 形式，
-// 以前的 _journal_mode=WAL / _busy_timeout=5000 在该驱动下不会生效。
-func (c *Config) GetDBDSN() string {
+// 其 DSN 参数语法与 mattn/go-sqlite3 不同——必须使用 _pragma=name(value) 形式。
+func (c *Config) getSQLiteDSN() string {
 	dsn := c.Database.DBPath
 	params := []string{}
 
 	if c.Database.WALMode {
 		params = append(params, "_pragma=journal_mode(WAL)")
-		// WAL 下推荐 NORMAL，性能与持久性折中
 		params = append(params, "_pragma=synchronous(NORMAL)")
 	}
 	if c.Database.BusyTimeout > 0 {
@@ -1534,4 +1581,92 @@ func (c *Config) GetDBDSN() string {
 		dsn += "?" + strings.Join(params, "&")
 	}
 	return dsn
+}
+
+// getPgDSN 返回 PostgreSQL 连接字符串
+func (c *Config) getPgDSN() string {
+	return fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=%s",
+		c.Database.Host,
+		c.Database.User,
+		c.Database.Password,
+		c.Database.DBName,
+		c.Database.Port,
+		c.Database.SSLMode,
+		c.Database.TimeZone,
+	)
+}
+
+// OpenDB 根据配置中的 driver 分派打开对应的数据库连接
+// SQLite 模式下会设置 PRAGMA 和单连接池；PostgreSQL 模式下使用连接池。
+func OpenDB(cfg *Config, logger *zap.Logger) (*gorm.DB, error) {
+	sugar := logger.Sugar()
+
+	gormLog := gormlogger.New(
+		log.Default(),
+		gormlogger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  gormlogger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
+
+	var dialector gorm.Dialector
+	switch cfg.Database.Driver {
+	case "postgresql":
+		dialector = postgres.Open(cfg.GetDBDSN())
+	default:
+		dialector = sqlite.Open(cfg.GetDBDSN())
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{Logger: gormLog})
+	if err != nil {
+		return nil, fmt.Errorf("连接数据库失败: %w", err)
+	}
+
+	// 按 driver 配置连接池
+	if sqlDB, dbErr := db.DB(); dbErr == nil {
+		switch cfg.Database.Driver {
+		case "postgresql":
+			maxOpen := cfg.Database.MaxOpenConns
+			if maxOpen <= 0 {
+				maxOpen = 25
+			}
+			maxIdle := cfg.Database.MaxIdleConns
+			if maxIdle <= 0 {
+				maxIdle = 10
+			}
+			lifetime := cfg.Database.ConnMaxLifetime
+			if lifetime <= 0 {
+				lifetime = 1800
+			}
+			sqlDB.SetMaxOpenConns(maxOpen)
+			sqlDB.SetMaxIdleConns(maxIdle)
+			sqlDB.SetConnMaxLifetime(time.Duration(lifetime) * time.Second)
+			sugar.Infof("PostgreSQL 连接池: max_open=%d, max_idle=%d, lifetime=%ds", maxOpen, maxIdle, lifetime)
+		default:
+			// SQLite: 单写连接 + WAL 是最佳实践
+			sqlDB.SetMaxOpenConns(1)
+			sqlDB.SetMaxIdleConns(1)
+			sqlDB.SetConnMaxLifetime(0)
+
+			// 双保险：通过 PRAGMA 显式打开关键开关
+			if err := db.Exec("PRAGMA journal_mode=WAL").Error; err != nil {
+				sugar.Warnf("设置 PRAGMA journal_mode=WAL 失败: %v", err)
+			}
+			if cfg.Database.BusyTimeout > 0 {
+				if err := db.Exec(fmt.Sprintf("PRAGMA busy_timeout=%d", cfg.Database.BusyTimeout)).Error; err != nil {
+					sugar.Warnf("设置 PRAGMA busy_timeout 失败: %v", err)
+				}
+			}
+			if err := db.Exec("PRAGMA synchronous=NORMAL").Error; err != nil {
+				sugar.Warnf("设置 PRAGMA synchronous=NORMAL 失败: %v", err)
+			}
+		}
+	} else {
+		sugar.Warnf("获取底层 sql.DB 失败: %v", dbErr)
+	}
+
+	return db, nil
 }
