@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"gorm.io/gorm"
-)
+
+	"github.com/nowen-video/nowen-video/internal/testutil")
 
 type fakeVideoAnalysisClient struct {
 	detectSubmits    []DetectJobRequest
@@ -66,10 +66,7 @@ func (f *fakeVideoAnalysisClient) GetDescribeJob(context.Context, string) (*Exte
 
 func setupVideoAnalysisService(t *testing.T, client videoAnalysisExternalClient) (*VideoAnalysisService, *repository.VideoAnalysisTaskRepo, string) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.NewTestDB(t)
 	if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}); err != nil {
 		t.Fatal(err)
 	}

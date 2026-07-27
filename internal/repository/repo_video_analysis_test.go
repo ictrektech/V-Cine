@@ -4,17 +4,14 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/glebarez/sqlite"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"gorm.io/gorm"
-)
+
+	"github.com/nowen-video/nowen-video/internal/testutil")
 
 func setupVideoAnalysisRepo(t *testing.T) *VideoAnalysisTaskRepo {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.NewTestDB(t)
 	if err := db.AutoMigrate(&model.VideoAnalysisTask{}); err != nil {
 		t.Fatal(err)
 	}
