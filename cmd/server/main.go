@@ -921,8 +921,8 @@ func main() {
 		admin.GET("/video-analysis/statistics", handlers.VideoAnalysis.Statistics)
 		admin.GET("/video-analysis/statistics/detailed", handlers.VideoAnalysis.DetailedStatistics)
 		admin.POST("/video-analysis/cleanup", handlers.VideoAnalysis.Cleanup)
-			admin.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
-			admin.GET("/video-analysis/tasks/:taskId/scenes", handlers.VideoAnalysis.ListScenesByTask)
+		admin.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
+		admin.GET("/video-analysis/tasks/:taskId/scenes", handlers.VideoAnalysis.ListScenesByTask)
 
 		// ==================== 字幕预处理管理 ====================
 		admin.POST("/subtitle-preprocess/submit", handlers.SubtitlePreprocess.SubmitMedia)

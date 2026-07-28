@@ -310,5 +310,33 @@ func (h *VideoAnalysisHandler) ListScenesByTask(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询场景失败: " + err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"scenes": scenes})
+	// 列表接口排除 embedding 向量（768维 float32 → ~3KB/个，避免响应过大）
+	type sceneListItem struct {
+		ID                  string  `json:"id"`
+		VideoAnalysisTaskID string  `json:"video_analysis_task_id"`
+		SceneIndex          int     `json:"scene_index"`
+		StartTime           float64 `json:"start_time"`
+		EndTime             float64 `json:"end_time"`
+		ImagePath           string  `json:"image_path"`
+		Description         string  `json:"description"`
+		Status              string  `json:"status"`
+		Error               string  `json:"error"`
+		CreatedAt           string  `json:"created_at"`
+	}
+	items := make([]sceneListItem, 0, len(scenes))
+	for _, s := range scenes {
+		items = append(items, sceneListItem{
+			ID:                  s.ID,
+			VideoAnalysisTaskID: s.VideoAnalysisTaskID,
+			SceneIndex:          s.SceneIndex,
+			StartTime:           s.StartTime,
+			EndTime:             s.EndTime,
+			ImagePath:           s.ImagePath,
+			Description:         s.Description,
+			Status:              s.Status,
+			Error:               s.Error,
+			CreatedAt:           s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"scenes": items})
 }

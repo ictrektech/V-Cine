@@ -97,7 +97,7 @@ func (r *SceneRepo) SearchByText(embedding []float32, limit int) ([]SceneSearchR
 	err := r.db.Raw(`
 		SELECT s.id, s.video_analysis_task_id, s.scene_index, s.start_time, s.end_time,
 			s.image_path, s.description,
-			s.embedding <=> ? AS distance,
+			s.description_embedding <=> ? AS distance,
 			t.media_id, m.title AS media_title
 		FROM scenes s
 		JOIN video_analysis_tasks t ON t.id = s.video_analysis_task_id
@@ -178,7 +178,7 @@ func (r *SceneRepo) EnsureHNSWIndexes() error {
 		if err := r.db.Exec(`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_scenes_embedding
 			ON scenes USING hnsw (embedding vector_cosine_ops)
 			WITH (m = 16, ef_construction = 300)`).Error; err != nil {
-			// 非并发创建（并发模式在事务中不支持）
+			// CONCURRENTLY 在事务内或某些环境中不可用，降级为普通创建
 			if strings.Contains(err.Error(), "CONCURRENTLY") {
 				return r.db.Exec(`CREATE INDEX IF NOT EXISTS idx_scenes_embedding
 					ON scenes USING hnsw (embedding vector_cosine_ops)
