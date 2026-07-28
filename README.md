@@ -7,7 +7,7 @@
 <p>
   <img src="https://img.shields.io/badge/Go-1.22-00ADD8?style=flat-square&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react" alt="React">
-  <img src="https://img.shields.io/badge/SQLite-WAL-003B57?style=flat-square&logo=sqlite" alt="SQLite">
+  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=flat-squareSQLite%20%2F%20PostgreSQL-003B57?style=flat-square&logo=postgresqllogo=postgresql" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Docker-Alpine-2496ED?style=flat-square&logo=docker" alt="Docker">
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" alt="License">
 </p>
@@ -25,7 +25,7 @@
 ---
 
 基于 **Go + React** 构建的轻量级家庭媒体服务器，类似 Jellyfin / Emby，专为 NAS 部署优化。
-**单二进制 + SQLite**，Docker 一键启动，零配置即可使用。
+**单二进制，PostgreSQL**，Docker 一键启动，零配置即可使用。
 
 > 🖥️ **PC 桌面客户端** 已上线，支持 **MKV / HEVC / HDR / 杜比视界 / DTS / Atmos 零转码播放** → 详见 [desktop/README.md](./desktop/README.md)
 
@@ -52,7 +52,7 @@
 - 💓 **Pulse 动态** — 社区活动流，点赞与评论
 - 🛡️ **安全** — JWT、bcrypt、CORS、安全响应头、限流、访问日志
 - 🌐 **国际化** — 简体中文 / English / 日本語
-- 🪶 **轻量** — 单二进制 + SQLite (WAL)，Alpine Docker 镜像，健康检查，PUID/PGID
+- 🪶 **轻量** — 单二进制，PostgreSQL 可选，Alpine Docker 镜像，健康检查，PUID/PGID
 
 ## 🚀 快速开始
 
@@ -136,7 +136,7 @@ make build
 | 文件 | 用途 |
 |---|---|
 | `app.yaml` | 端口、调试、路径、FFmpeg 位置 |
-| `database.yaml` | SQLite 路径、WAL、连接池 |
+| `database.yaml` | 数据库配置（PostgreSQL） |
 | `secrets.yaml` | JWT 密钥、第三方 API Key（⚠️ 切勿提交到 Git） |
 | `logging.yaml` | 日志级别、格式、轮转 |
 | `cache.yaml` | 转码缓存目录与清理策略 |
@@ -159,7 +159,7 @@ ai: { provider: ollama,   api_base: http://localhost:11434/v1,                  
 
 ## 🏗️ 技术栈
 
-**后端** Go 1.22 · Gin · GORM + SQLite (WAL) · Zap · Viper · gorilla/websocket · fsnotify · FFmpeg
+**后端** Go 1.22 · Gin · GORM + PostgreSQL · Zap · Viper · gorilla/websocket · fsnotify · FFmpeg
 
 **前端** React 18 · TypeScript · Vite · Tailwind CSS · Zustand · HLS.js · React Router · Framer Motion
 

@@ -4,17 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/nowen-video/nowen-video/internal/model"
-	"gorm.io/gorm"
-)
+
+	"github.com/nowen-video/nowen-video/internal/testutil")
 
 func setupMediaRepo(t *testing.T) *MediaRepo {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.NewTestDB(t)
 	if err := db.AutoMigrate(&model.Media{}); err != nil {
 		t.Fatal(err)
 	}

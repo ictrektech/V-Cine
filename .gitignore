@@ -94,3 +94,4 @@ desktop/src-tauri/resources/yt-dlp.exe
 ffmpeg.zip
 *.zip
 .pi/
+tasks/

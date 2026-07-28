@@ -22,10 +22,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/version"
 
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
-	gormlogger "gorm.io/gorm/logger"
 )
 
 func main() {
@@ -46,43 +43,9 @@ func main() {
 	sugar := logger.Sugar()
 
 	// 初始化数据库
-	// 配置 GORM Logger：忽略 RecordNotFound 日志噪音，保留慢 SQL 警告
-	gormLog := gormlogger.New(
-		log.Default(),
-		gormlogger.Config{
-			SlowThreshold:             200 * time.Millisecond,
-			LogLevel:                  gormlogger.Warn,
-			IgnoreRecordNotFoundError: true, // 消除正常业务查询的 "record not found" 噪音
-			Colorful:                  false,
-		},
-	)
-	db, err := gorm.Open(sqlite.Open(cfg.GetDBDSN()), &gorm.Config{
-		Logger: gormLog,
-	})
+	db, err := config.OpenDB(cfg, logger)
 	if err != nil {
 		sugar.Fatalf("连接数据库失败: %v", err)
-	}
-
-	// SQLite 写入是排他锁，多连接只会增加 SQLITE_BUSY 概率。
-	// 强制单写连接 + WAL（读不阻塞写），是 SQLite 单文件场景的最佳实践。
-	if sqlDB, dbErr := db.DB(); dbErr == nil {
-		sqlDB.SetMaxOpenConns(1)
-		sqlDB.SetMaxIdleConns(1)
-		sqlDB.SetConnMaxLifetime(0)
-	} else {
-		sugar.Warnf("获取底层 sql.DB 失败: %v", dbErr)
-	}
-	// 双保险：即便 DSN 参数被驱动忽略，这里也会通过 PRAGMA 显式打开关键开关
-	if err := db.Exec("PRAGMA journal_mode=WAL").Error; err != nil {
-		sugar.Warnf("设置 PRAGMA journal_mode=WAL 失败: %v", err)
-	}
-	if cfg.Database.BusyTimeout > 0 {
-		if err := db.Exec(fmt.Sprintf("PRAGMA busy_timeout=%d", cfg.Database.BusyTimeout)).Error; err != nil {
-			sugar.Warnf("设置 PRAGMA busy_timeout 失败: %v", err)
-		}
-	}
-	if err := db.Exec("PRAGMA synchronous=NORMAL").Error; err != nil {
-		sugar.Warnf("设置 PRAGMA synchronous=NORMAL 失败: %v", err)
 	}
 
 	// 自动迁移

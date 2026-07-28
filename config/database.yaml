@@ -1,34 +1,43 @@
 # ==================== 数据库配置 ====================
 # 文件: config/database.yaml
-# 说明: 数据库连接参数配置
+# 说明: PostgreSQL 数据库连接参数配置
 # 提示: 修改后需重启服务生效
 
-# 数据库文件路径
-# 相对路径将基于 app.data_dir 解析
-# 默认: ./data/nowen.db
-db_path: ./data/nowen.db
+# 数据库主机地址
+# 默认: 127.0.0.1
+host: 10.144.144.232
 
-# 是否启用 WAL (Write-Ahead Logging) 模式
-# WAL 模式提供更好的并发读写性能，强烈建议保持开启
-# 默认: true
-wal_mode: true
+# 数据库端口
+# 默认: 5432
+port: 35432
 
-# SQLite 繁忙超时（毫秒）
-# 当数据库被锁定时，等待释放的最大时间
-# 默认: 5000
-busy_timeout: 5000
+# 数据库用户名
+# 默认: postgres
+user: postgres
 
-# SQLite 页面缓存大小
-# 负数表示以 KB 为单位（如 -20000 表示 ~20MB 缓存）
-# 正数表示页面数量
-# 默认: -20000
-cache_size: -20000
+# 数据库密码
+password: postgres
+
+# 数据库名称
+# 默认: nowen_video
+dbname: nowen_video
+
+# SSL 模式: disable / require / verify-ca / verify-full
+# 默认: disable
+sslmode: disable
+
+# 时区
+# 默认: Asia/Shanghai
+timezone: Asia/Shanghai
 
 # 最大打开连接数
-# SQLite 建议设为 1，避免并发写入冲突
-# 默认: 1
-max_open_conns: 1
+# 默认: 25
+max_open_conns: 25
 
 # 最大空闲连接数
-# 默认: 1
-max_idle_conns: 1
+# 默认: 10
+max_idle_conns: 10
+
+# 连接最大存活时间（秒）
+# 默认: 1800（30分钟）
+conn_max_lifetime: 1800

@@ -3,31 +3,16 @@ package service
 import (
 	"testing"
 
-	"github.com/glebarez/sqlite"
 	"github.com/nowen-video/nowen-video/internal/config"
-	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/testutil"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
-
-// setupTestDB 创建内存SQLite测试数据库
-func setupTestDB(t *testing.T) *gorm.DB {
-	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("打开测试数据库失败: %v", err)
-	}
-	if err := model.AutoMigrate(db); err != nil {
-		t.Fatalf("迁移测试数据库失败: %v", err)
-	}
-	return db
-}
 
 // setupAuthService 创建测试用的AuthService
 func setupAuthService(t *testing.T) *AuthService {
 	t.Helper()
-	db := setupTestDB(t)
+	db := testutil.NewTestDB(t)
 	repos := repository.NewRepositories(db)
 	logger, _ := zap.NewDevelopment()
 	cfg := &config.Config{}

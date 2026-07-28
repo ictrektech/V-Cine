@@ -3,31 +3,45 @@ package config
 import (
 	cryptoRand "crypto/rand"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // ==================== 子配置结构体 ====================
 
 // DatabaseConfig 数据库连接参数
 type DatabaseConfig struct {
-	// 数据库文件路径，默认 ./data/nowen.db
-	DBPath string `mapstructure:"db_path"`
-	// SQLite WAL 模式，默认 true
-	WALMode bool `mapstructure:"wal_mode"`
-	// 繁忙超时（毫秒），默认 5000
-	BusyTimeout int `mapstructure:"busy_timeout"`
-	// 缓存大小（负数为KB），默认 -20000
-	CacheSize int `mapstructure:"cache_size"`
-	// 最大打开连接数，默认 1（SQLite 建议）
+	// 数据库主机地址
+	Host string `mapstructure:"host"`
+	// 数据库端口
+	Port int `mapstructure:"port"`
+	// 数据库用户名
+	User string `mapstructure:"user"`
+	// 数据库密码
+	Password string `mapstructure:"password"`
+	// 数据库名称
+	DBName string `mapstructure:"dbname"`
+	// SSL 模式: disable / require / verify-ca / verify-full
+	SSLMode string `mapstructure:"sslmode"`
+	// 时区
+	TimeZone string `mapstructure:"timezone"`
+	// 最大打开连接数
 	MaxOpenConns int `mapstructure:"max_open_conns"`
-	// 最大空闲连接数，默认 1
+	// 最大空闲连接数
 	MaxIdleConns int `mapstructure:"max_idle_conns"`
+	// 连接最大存活时间（秒）
+	ConnMaxLifetime int `mapstructure:"conn_max_lifetime"`
 }
 
 // SecretsConfig 敏感信息/第三方服务 API 密钥
@@ -606,8 +620,6 @@ type Config struct {
 	// 以下字段用于兼容旧版 config.yaml 中的扁平 key，
 	// 加载后会自动合并到对应的子模块中。
 
-	// 旧版兼容 - 数据库
-	DBPath string `mapstructure:"db_path"`
 	// 旧版兼容 - 密钥
 	JWTSecret  string `mapstructure:"jwt_secret"`
 	TMDbAPIKey string `mapstructure:"tmdb_api_key"`
@@ -668,11 +680,6 @@ func Load() (*Config, error) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return nil, fmt.Errorf("创建目录 %s 失败: %w", dir, err)
 		}
-	}
-
-	// 6. 处理 db_path 相对路径
-	if !filepath.IsAbs(cfg.Database.DBPath) {
-		cfg.Database.DBPath = filepath.Join(cfg.App.DataDir, filepath.Base(cfg.Database.DBPath))
 	}
 
 	// 7. 自动生成 JWT Secret（如果仍为默认值）
@@ -750,12 +757,16 @@ func loadOrCreatePersistedSecret(dataDir string) string {
 // setDefaults 设置所有默认值
 func setDefaults() {
 	// ---- 数据库 ----
-	viper.SetDefault("database.db_path", "./data/nowen.db")
-	viper.SetDefault("database.wal_mode", true)
-	viper.SetDefault("database.busy_timeout", 5000)
-	viper.SetDefault("database.cache_size", -20000)
-	viper.SetDefault("database.max_open_conns", 4)
-	viper.SetDefault("database.max_idle_conns", 2)
+	viper.SetDefault("database.host", "127.0.0.1")
+	viper.SetDefault("database.port", 5432)
+	viper.SetDefault("database.user", "postgres")
+	viper.SetDefault("database.password", "")
+	viper.SetDefault("database.dbname", "nowen_video")
+	viper.SetDefault("database.sslmode", "disable")
+	viper.SetDefault("database.timezone", "Asia/Shanghai")
+	viper.SetDefault("database.max_open_conns", 25)
+	viper.SetDefault("database.max_idle_conns", 10)
+	viper.SetDefault("database.conn_max_lifetime", 1800)
 
 	// ---- 密钥 ----
 	viper.SetDefault("secrets.jwt_secret", "nowen-video-secret-change-me")
@@ -1018,14 +1029,6 @@ func isEmptyValue(v interface{}) bool {
 // migrateFromFlatConfig 将旧版扁平字段值合并到子模块配置中
 // 规则：如果旧版字段有值且子模块字段为默认值，则使用旧版字段的值
 func (c *Config) migrateFromFlatConfig() {
-	// 数据库
-	if c.DBPath != "" && c.DBPath != "./data/nowen.db" {
-		c.Database.DBPath = c.DBPath
-	}
-	if c.Database.DBPath == "" {
-		c.Database.DBPath = "./data/nowen.db"
-	}
-
 	// 密钥
 	if c.JWTSecret != "" && c.JWTSecret != "nowen-video-secret-change-me" {
 		c.Secrets.JWTSecret = c.JWTSecret
@@ -1509,29 +1512,64 @@ func generateRandomSecret(length int) string {
 	return string(b)
 }
 
-// GetDBDSN 返回 SQLite 连接字符串（含优化参数）
-//
-// 注意：项目使用的是 glebarez/sqlite（基于纯 Go 的 modernc.org/sqlite），
-// 其 DSN 参数语法与 mattn/go-sqlite3 不同——必须使用 _pragma=name(value) 形式，
-// 以前的 _journal_mode=WAL / _busy_timeout=5000 在该驱动下不会生效。
+// ==================== 数据库连接 ====================
+
+// GetDBDSN 返回 PostgreSQL 连接字符串
 func (c *Config) GetDBDSN() string {
-	dsn := c.Database.DBPath
-	params := []string{}
+	return c.getPgDSN()
+}
 
-	if c.Database.WALMode {
-		params = append(params, "_pragma=journal_mode(WAL)")
-		// WAL 下推荐 NORMAL，性能与持久性折中
-		params = append(params, "_pragma=synchronous(NORMAL)")
-	}
-	if c.Database.BusyTimeout > 0 {
-		params = append(params, fmt.Sprintf("_pragma=busy_timeout(%d)", c.Database.BusyTimeout))
-	}
-	if c.Database.CacheSize != 0 {
-		params = append(params, fmt.Sprintf("_pragma=cache_size(%d)", c.Database.CacheSize))
+// getPgDSN 返回 PostgreSQL 连接字符串
+func (c *Config) getPgDSN() string {
+	return fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=%s",
+		c.Database.Host, c.Database.User, c.Database.Password, c.Database.DBName,
+		c.Database.Port, c.Database.SSLMode, c.Database.TimeZone,
+	)
+}
+
+// OpenDB 打开 PostgreSQL 数据库连接
+func OpenDB(cfg *Config, logger *zap.Logger) (*gorm.DB, error) {
+	sugar := logger.Sugar()
+
+	gormLog := gormlogger.New(
+		log.Default(),
+		gormlogger.Config{
+			SlowThreshold:            200 * time.Millisecond,
+			LogLevel:                  gormlogger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
+
+	dialector := postgres.Open(cfg.GetDBDSN())
+
+	db, err := gorm.Open(dialector, &gorm.Config{Logger: gormLog})
+	if err != nil {
+		return nil, fmt.Errorf("连接 PostgreSQL 失败: %w", err)
 	}
 
-	if len(params) > 0 {
-		dsn += "?" + strings.Join(params, "&")
+	// 配置 PostgreSQL 连接池
+	if sqlDB, dbErr := db.DB(); dbErr == nil {
+		maxOpen := cfg.Database.MaxOpenConns
+		if maxOpen <= 0 {
+			maxOpen = 25
+		}
+		maxIdle := cfg.Database.MaxIdleConns
+		if maxIdle <= 0 {
+			maxIdle = 10
+		}
+		lifetime := cfg.Database.ConnMaxLifetime
+		if lifetime <= 0 {
+			lifetime = 1800
+		}
+		sqlDB.SetMaxOpenConns(maxOpen)
+		sqlDB.SetMaxIdleConns(maxIdle)
+		sqlDB.SetConnMaxLifetime(time.Duration(lifetime) * time.Second)
+		sugar.Infof("PostgreSQL 连接池: max_open=%d, max_idle=%d, lifetime=%ds", maxOpen, maxIdle, lifetime)
+	} else {
+		sugar.Warnf("获取底层 sql.DB 失败: %v", dbErr)
 	}
-	return dsn
+
+	return db, nil
 }

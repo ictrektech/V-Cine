@@ -10,21 +10,17 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/service"
-	"gorm.io/gorm"
-)
+
+	"github.com/nowen-video/nowen-video/internal/testutil")
 
 func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repository.VideoAnalysisTaskRepo, string, string) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.NewTestDB(t)
 	if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}); err != nil {
 		t.Fatal(err)
 	}

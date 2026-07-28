@@ -3,18 +3,14 @@ package service
 import (
 	"testing"
 
-	"github.com/glebarez/sqlite"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
-)
+
+	"github.com/nowen-video/nowen-video/internal/testutil")
 
 func TestFileManagerDeleteCleansVideoAnalysisTasks(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.NewTestDB(t)
 	if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}, &model.FileOperationLog{}); err != nil {
 		t.Fatal(err)
 	}
@@ -69,10 +65,7 @@ func TestFileManagerDeleteCleansVideoAnalysisTasks(t *testing.T) {
 }
 
 func TestFileManagerDeleteWithoutVideoAnalysisRepo(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.NewTestDB(t)
 	if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}, &model.FileOperationLog{}); err != nil {
 		t.Fatal(err)
 	}

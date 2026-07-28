@@ -6,7 +6,7 @@
 #       -t nowen-video:latest .
 # 说明：
 #   - 前端阶段固定在构建机架构，产物是纯静态文件，与运行架构无关
-#   - 后端走 Go 原生交叉编译（纯 Go SQLite，CGO=0）
+#   - 后端走 Go 原生交叉编译（纯 Go pgx，CGO=0）
 #   - 运行阶段按架构条件安装硬件加速驱动 / Python 刮削微服务依赖
 #   - Python 依赖全部来自 Alpine 官方仓库的预编译 wheel（py3-lxml / py3-flask 等），
 #     不走 pip 编译，ARM 下也秒装
@@ -40,7 +40,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/dist ./web/dist
-# 使用纯 Go SQLite (glebarez/sqlite)，可以 CGO_ENABLED=0 直接交叉编译
+# 使用纯 Go SQLite (glebarez/sqlite) 和 pgx (gorm.io/driver/postgres)，
+# 可以 CGO_ENABLED=0 直接交叉编译
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${NOWEN_VERSION}" -o nowen-video ./cmd/server
 

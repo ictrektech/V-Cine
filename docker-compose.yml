@@ -1,6 +1,32 @@
 version: '3.8'
 
 services:
+  # PostgreSQL 16 数据库（可选，用于 driver=postgresql 模式）
+  # 如需独立使用数据库，可直接连接本地的 postgres 服务
+  #
+  postgres:
+    image: postgres:16-alpine
+    container_name: nowen-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-nowen_password}
+      POSTGRES_DB: nowen_video
+      TZ: Asia/Shanghai
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
   nowen-video:
     build:
       context: .
@@ -104,7 +130,20 @@ services:
       # Python 微服务 API Key（留空则不鉴权；多节点部署建议填写）
       # - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_API_KEY=your-random-key
       - TZ=Asia/Shanghai
+      # 数据库连接配置
+      # - NOWEN_DATABASE_DRIVER=postgresql
+      # - NOWEN_DATABASE_HOST=postgres
+      # - NOWEN_DATABASE_PORT=5432
+      # - NOWEN_DATABASE_USER=postgres
+      # - NOWEN_DATABASE_PASSWORD=${PG_PASSWORD:-nowen_password}
+      # - NOWEN_DATABASE_DBNAME=nowen_video
+      # - NOWEN_DATABASE_SSLMODE=disable
     restart: unless-stopped
+    # depends_on 确保 PostgreSQL 就绪后才启动 nowen-video
+    # 注释掉 postgres 服务时，这行也需注释
+    depends_on:
+      postgres:
+        condition: service_healthy
     # 健康检查：给足启动时间，避免 ARM NAS 首次扫盘慢被误判不健康
     # 如果探测失败仍会让 restart 策略生效；但容器刚启动的 120s 内一律视为"启动中"，不计失败次数
     healthcheck:
@@ -133,7 +172,7 @@ services:
 #   4. 之后再开放注册/配置邀请码控制普通用户
 #
 # 如需把现有普通用户提权为 admin，可直接改数据库：
-#   docker exec -it nowen-video sqlite3 /data/nowen.db \
+#   docker exec -it nowen-postgres psql -U postgres -d nowen_video -c \
 #     "UPDATE users SET role='admin' WHERE username='yourname';"
 # ==========================================================
 
@@ -145,3 +184,6 @@ services:
 #     -t yourname/nowen-video:latest \
 #     --push .
 # =============================================================
+
+volumes:
+  pgdata:

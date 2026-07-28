@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -154,7 +153,7 @@ func TestParseEpisodeInfo(t *testing.T) {
 			if ep.EpisodeTitle != tt.wantTitle {
 				t.Errorf("文件名: %s\n  标题: 期望 %q, 得到 %q", tt.filename, tt.wantTitle, ep.EpisodeTitle)
 			}
-			fmt.Printf("  ✓ %s → S%02dE%02d (title=%q)\n", tt.filename, ep.SeasonNum, ep.EpisodeNum, ep.EpisodeTitle)
+			t.Logf("  ✓ %s → S%02dE%02d (title=%q)", tt.filename, ep.SeasonNum, ep.EpisodeNum, ep.EpisodeTitle)
 		})
 	}
 }
@@ -186,7 +185,7 @@ func TestNormalizeSeriesName(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("目录名: %q\n  期望: %q, 得到: %q", tt.dirName, tt.want, got)
 			}
-			fmt.Printf("  ✓ %q → %q\n", tt.dirName, got)
+			t.Logf("  ✓ %q → %q", tt.dirName, got)
 		})
 	}
 }
@@ -217,7 +216,7 @@ func TestExtractSeasonFromDirName(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("目录名: %q\n  季号: 期望 %d, 得到 %d", tt.dirName, tt.want, got)
 			}
-			fmt.Printf("  ✓ %q → 季号 %d\n", tt.dirName, got)
+			t.Logf("  ✓ %q → 季号 %d", tt.dirName, got)
 		})
 	}
 }
@@ -322,7 +321,7 @@ func TestExtractTitleEnhanced(t *testing.T) {
 			if tmdbID != tt.wantTMDbID {
 				t.Errorf("文件名: %s\n  TMDbID: 期望 %d, 得到 %d", tt.filename, tt.wantTMDbID, tmdbID)
 			}
-			fmt.Printf("  ✓ %s → title=%q year=%d tmdbID=%d\n", tt.filename, title, year, tmdbID)
+			t.Logf("  ✓ %s → title=%q year=%d tmdbID=%d", tt.filename, title, year, tmdbID)
 		})
 	}
 }
@@ -380,7 +379,7 @@ func TestMultiEpisodeDetection(t *testing.T) {
 			if ep.SeasonNum != tt.wantSeasonNum {
 				t.Errorf("文件名: %s\n  季号: 期望 %d, 得到 %d", tt.filename, tt.wantSeasonNum, ep.SeasonNum)
 			}
-			fmt.Printf("  ✓ %s → S%02dE%02d-E%02d\n", tt.filename, ep.SeasonNum, ep.EpisodeNum, ep.EpisodeNumEnd)
+			t.Logf("  ✓ %s → S%02dE%02d-E%02d", tt.filename, ep.SeasonNum, ep.EpisodeNum, ep.EpisodeNumEnd)
 		})
 	}
 }
@@ -424,7 +423,7 @@ func TestDateEpisodeDetection(t *testing.T) {
 			if ep.EpisodeNum != tt.wantEpNum {
 				t.Errorf("文件名: %s\n  集号: 期望 %d, 得到 %d", tt.filename, tt.wantEpNum, ep.EpisodeNum)
 			}
-			fmt.Printf("  ✓ %s → AirDate=%q EpNum=%d\n", tt.filename, ep.AirDate, ep.EpisodeNum)
+			t.Logf("  ✓ %s → AirDate=%q EpNum=%d", tt.filename, ep.AirDate, ep.EpisodeNum)
 		})
 	}
 }
@@ -452,7 +451,7 @@ func TestIsExtrasPath(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("路径: %s\n  期望 %v, 得到 %v", tt.path, tt.want, got)
 			}
-			fmt.Printf("  ✓ %s → isExtras=%v\n", tt.path, got)
+			t.Logf("  ✓ %s → isExtras=%v", tt.path, got)
 		})
 	}
 }
@@ -480,7 +479,7 @@ func TestIsExtrasFile(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("文件名: %s\n  期望 %v, 得到 %v", tt.filename, tt.want, got)
 			}
-			fmt.Printf("  ✓ %s → isExtrasFile=%v\n", tt.filename, got)
+			t.Logf("  ✓ %s → isExtrasFile=%v", tt.filename, got)
 		})
 	}
 }
@@ -508,7 +507,7 @@ func TestSeasonZeroSupport(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("目录名: %q\n  季号: 期望 %d, 得到 %d", tt.dirName, tt.want, got)
 			}
-			fmt.Printf("  ✓ %q → 季号 %d\n", tt.dirName, got)
+			t.Logf("  ✓ %q → 季号 %d", tt.dirName, got)
 		})
 	}
 }

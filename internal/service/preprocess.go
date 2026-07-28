@@ -372,7 +372,7 @@ func applyFilterToQuery(db *gorm.DB, f *PreprocessFilter) *gorm.DB {
 		q = q.Where("resolution IN ?", f.Resolutions)
 	}
 	if len(f.Containers) > 0 {
-		// 按 file_path 后缀做不区分大小写匹配；SQLite 用 LOWER 兼容
+		// 按 file_path 后缀做不区分大小写匹配；用 LOWER 兼容
 		var clauses []string
 		var args []any
 		for _, ext := range f.Containers {

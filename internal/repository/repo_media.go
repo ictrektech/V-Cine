@@ -51,7 +51,7 @@ func (r *MediaRepo) ListByLibraryAndFileSize(libraryID string, fileSize int64) (
 // 用途：SmartRename / LazyIngest 等场景需要一次性把"路径→Media"映射拉齐，
 // 避免在循环内逐条 SQL（N+1）。空切片会直接返回空 map，不会发起查询。
 //
-// 注意：分批限制 GORM/SQLite 的 IN 子句参数数量上限（默认 999），故每批 800。
+// 分批限制 GORM 的 IN 子句参数数量上限（默认 999），故每批 800。
 func (r *MediaRepo) ListByFilePaths(filePaths []string) (map[string]*model.Media, error) {
 	out := make(map[string]*model.Media, len(filePaths))
 	if len(filePaths) == 0 {
@@ -607,8 +607,9 @@ func (r *MediaRepo) SumFileSizeByScope(libraryID, folderPath string) (int64, err
 // CountRecentImportsByScope 作用域化的近 N 天导入数
 func (r *MediaRepo) CountRecentImportsByScope(days int, libraryID, folderPath string) (int64, error) {
 	var count int64
+	since := time.Now().AddDate(0, 0, -days)
 	query := r.db.Model(&model.Media{}).
-		Where("created_at >= datetime('now', ?)", fmt.Sprintf("-%d days", days))
+		Where("created_at >= ?", since)
 	if libraryID != "" {
 		query = query.Where("library_id = ?", libraryID)
 	}
@@ -631,8 +632,9 @@ func (r *MediaRepo) SumFileSize() (int64, error) {
 
 func (r *MediaRepo) CountRecentImports(days int) (int64, error) {
 	var count int64
+	since := time.Now().AddDate(0, 0, -days)
 	err := r.db.Model(&model.Media{}).
-		Where("created_at >= datetime('now', ?)", fmt.Sprintf("-%d days", days)).
+		Where("created_at >= ?", since).
 		Count(&count).Error
 	return count, err
 }
@@ -668,7 +670,7 @@ func (r *MediaRepo) ListByFolderPath(folderPath string, page, size int, libraryI
 
 	// 使用 LIKE 匹配指定目录下的直接子文件（不含子目录中的文件）
 	// folderPath 末尾需要加分隔符
-	// SQLite 中使用 file_path LIKE 'folder/%' AND file_path NOT LIKE 'folder/%/%'
+	// 使用 file_path LIKE 'folder/%' AND file_path NOT LIKE 'folder/%/%'
 	if folderPath != "" {
 		// 标准化路径分隔符
 		normalizedPath := strings.ReplaceAll(folderPath, "\\", "/")
@@ -763,7 +765,7 @@ func (r *MediaRepo) GetAllFilePathsByLibrary(libraryID string) (map[string]bool,
 	return pathSet, nil
 }
 
-// BatchCreate 批量创建媒体记录（减少 SQLite 写锁竞争，每批 100 条）
+// BatchCreate 批量创建媒体记录（每批 100 条）
 func (r *MediaRepo) BatchCreate(mediaList []*model.Media) error {
 	if len(mediaList) == 0 {
 		return nil
@@ -771,7 +773,7 @@ func (r *MediaRepo) BatchCreate(mediaList []*model.Media) error {
 	return r.db.CreateInBatches(mediaList, 100).Error
 }
 
-// UpdateFields 仅更新指定字段（减少写锁争用，提高 SQLite 并发性能）
+// UpdateFields 仅更新指定字段（减少写锁争用）
 func (r *MediaRepo) UpdateFields(id string, fields map[string]interface{}) error {
 	return r.db.Model(&model.Media{}).Where("id = ?", id).Updates(fields).Error
 }
@@ -795,13 +797,13 @@ func (r *MediaRepo) ListNeedScrape(libraryID string, skipRecentFailedDays int) (
 	// 跳过最近 N 天内已失败的记录（避免重复无效请求）
 	if skipRecentFailedDays > 0 {
 		query = query.Where(
-			"NOT (scrape_status = 'failed' AND last_scrape_at IS NOT NULL AND last_scrape_at >= datetime('now', ?))",
-			fmt.Sprintf("-%d days", skipRecentFailedDays),
+			"NOT (scrape_status = 'failed' AND last_scrape_at IS NOT NULL AND last_scrape_at >= ?)",
+			time.Now().AddDate(0, 0, -skipRecentFailedDays),
 		)
 	}
 	// partial 节流：最近 1 小时不重试（避免图片 CDN 短时抖动反复请求）
 	query = query.Where(
-		"NOT (scrape_status = 'partial' AND last_scrape_at IS NOT NULL AND last_scrape_at >= datetime('now', '-1 hours'))",
+		"NOT (scrape_status = 'partial' AND last_scrape_at IS NOT NULL AND last_scrape_at >= ?)",
 	)
 	err := query.Order("created_at DESC").Find(&media).Error
 	return media, err

@@ -7,7 +7,7 @@
 <p>
   <img src="https://img.shields.io/badge/Go-1.22-00ADD8?style=flat-square&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react" alt="React">
-  <img src="https://img.shields.io/badge/SQLite-WAL-003B57?style=flat-square&logo=sqlite" alt="SQLite">
+  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=flat-squareSQLite%20%2F%20PostgreSQL-003B57?style=flat-square&logo=postgresqllogo=postgresql" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Docker-Alpine-2496ED?style=flat-square&logo=docker" alt="Docker">
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" alt="License">
 </p>
@@ -25,7 +25,7 @@
 ---
 
 A lightweight home media server built with **Go + React**, similar to Jellyfin / Emby, optimized for NAS deployment.
-**Single binary + SQLite**, one-click Docker startup, zero configuration required.
+**Single binary with PostgreSQL support**, one-click Docker startup, zero configuration required.
 
 > 🖥️ **Desktop client** is available with **MKV / HEVC / HDR / Dolby Vision / DTS / Atmos zero-transcode playback** → see [desktop/README.md](./desktop/README.md)
 
@@ -52,7 +52,7 @@ A lightweight home media server built with **Go + React**, similar to Jellyfin /
 - 💓 **Pulse feed** — community activity stream, likes & comments
 - 🛡️ **Security** — JWT, bcrypt, CORS, security headers, rate limiting, access log
 - 🌐 **i18n** — Chinese / English / Japanese
-- 🪶 **Lightweight** — single binary + SQLite (WAL), Alpine Docker image, healthcheck, PUID/PGID
+- 🪶 **Lightweight** — single binary, PostgreSQL optional, Alpine Docker image, healthcheck, PUID/PGID
 
 ## 🚀 Quick Start
 
@@ -134,7 +134,7 @@ Common split files under `config/`:
 | File | Purpose |
 |---|---|
 | `app.yaml` | port, debug, paths, FFmpeg location |
-| `database.yaml` | SQLite path, WAL, connection pool |
+| `database.yaml` | Database config (PostgreSQL) |
 | `secrets.yaml` | JWT secret, third-party API keys (⚠️ do **not** commit) |
 | `logging.yaml` | level, format, rotation |
 | `cache.yaml` | transcode cache directory & cleanup |
@@ -157,7 +157,7 @@ ai: { provider: ollama,   api_base: http://localhost:11434/v1,                  
 
 ## 🏗️ Tech Stack
 
-**Backend** Go 1.22 · Gin · GORM + SQLite (WAL) · Zap · Viper · gorilla/websocket · fsnotify · FFmpeg
+**Backend** Go 1.22 · Gin · GORM + PostgreSQL · Zap · Viper · gorilla/websocket · fsnotify · FFmpeg
 
 **Frontend** React 18 · TypeScript · Vite · Tailwind CSS · Zustand · HLS.js · React Router · Framer Motion
 

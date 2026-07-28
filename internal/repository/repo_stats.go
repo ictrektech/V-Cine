@@ -21,7 +21,7 @@ func (r *TranscodeRepo) Update(task *model.TranscodeTask) error {
 	return r.db.Save(task).Error
 }
 
-// UpdateProgress 仅更新进度字段（避免全量 Save 导致 SQLite 写锁竞争）
+// UpdateProgress 仅更新进度字段（避免全量 Save 导致写锁竞争）
 func (r *TranscodeRepo) UpdateProgress(taskID string, progress float64) error {
 	return r.db.Model(&model.TranscodeTask{}).Where("id = ?", taskID).
 		Updates(map[string]interface{}{"progress": progress, "updated_at": time.Now()}).Error
@@ -193,7 +193,7 @@ func (r *PlaybackStatsRepo) GetMediaStats(mediaID string) (totalMinutes float64,
 func (r *PlaybackStatsRepo) GetMostWatchedMedia(userID string, limit int) ([]map[string]interface{}, error) {
 	var results []map[string]interface{}
 	// 使用子查询先计算出聚合维度（media_id/title/poster_path/media_type），
-	// 外层再按这些别名进行 GROUP BY，避免 SQLite 在 GROUP BY 时因 m.title 与 s.title
+	// 外层再按这些别名进行 GROUP BY，避免子查询中外层 GROUP BY 时因 m.title 与 s.title
 	// 同名而报 "ambiguous column name: title" 的错误。
 	err := r.db.Raw(`
 		SELECT media_id, title, poster_path, media_type, SUM(watch_minutes) as total_minutes
