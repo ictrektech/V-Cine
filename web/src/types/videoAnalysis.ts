@@ -1,5 +1,6 @@
 export type VideoAnalysisStatus = 'queued' | 'running' | 'succeeded' | 'partial' | 'failed' | 'skipped'
 export type VideoAnalysisStage = 'detect' | 'structure' | 'describe' | 'done'
+export type VideoAnalysisStageStatus = '' | 'running' | 'succeeded' | 'failed' | 'skipped'
 
 export interface VideoAnalysisTask {
   id: string
@@ -22,10 +23,30 @@ export interface VideoAnalysisTask {
   include_descriptions: boolean
   force: boolean
   fallback_used: boolean
+  detect_status: VideoAnalysisStageStatus
+  structure_status: VideoAnalysisStageStatus
+  describe_status: VideoAnalysisStageStatus
   started_at: string | null
   finished_at: string | null
   created_at: string
   updated_at: string
+}
+
+export interface VideoAnalysisWorkflow {
+  task_id: string
+  media_id: string
+  media_title: string
+  status: VideoAnalysisStatus
+  stage: VideoAnalysisStage
+  progress: number
+  detect_status: VideoAnalysisStageStatus
+  structure_status: VideoAnalysisStageStatus
+  describe_status: VideoAnalysisStageStatus
+  error_code?: string
+  error_message?: string
+  started_at?: string | null
+  finished_at?: string | null
+  created_at: string
 }
 
 export interface VideoAnalysisTaskPage {

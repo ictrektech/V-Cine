@@ -6,6 +6,7 @@ import type {
   VideoAnalysisStatistics,
   VideoAnalysisTask,
   VideoAnalysisTaskPage,
+  VideoAnalysisWorkflow,
 } from '@/types/videoAnalysis'
 
 export const videoAnalysisApi = {
@@ -44,4 +45,16 @@ export const videoAnalysisApi = {
       params: taskId ? { task_id: taskId } : undefined,
       responseType: 'blob',
     }),
+    // Workflow
+  getWorkflow: (taskId: string) =>
+    api.get<{ data: VideoAnalysisWorkflow }>(`/video-analysis/tasks/${taskId}/workflow`),
+
+  runStage: (taskId: string, stage: string) =>
+    api.post<{ message: string }>(`/video-analysis/tasks/${taskId}/run-stage`, { stage }),
+
+  runAll: (taskId: string) =>
+    api.post<{ message: string }>(`/video-analysis/tasks/${taskId}/run-all`),
+
+  runMissing: (taskId: string) =>
+    api.post<{ message: string }>(`/video-analysis/tasks/${taskId}/run-missing`),
 }
