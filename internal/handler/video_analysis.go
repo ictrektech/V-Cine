@@ -300,7 +300,7 @@ func (h *VideoAnalysisHandler) ListScenesByTask(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
 		return
 	}
-	taskID := c.Param("taskId")
+	taskID := c.Param("id")
 	if taskID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "taskId 是必填参数"})
 		return

@@ -56,6 +56,13 @@ func main() {
 
 	// 初始化各层
 	repos := repository.NewRepositories(db)
+
+	// 确保 pgvector HNSW 索引存在（仅 PostgreSQL）
+	if repos.Scene != nil {
+		if err := repos.Scene.EnsureHNSWIndexes(); err != nil {
+			sugar.Warnf("创建 HNSW 索引失败: %v", err)
+		}
+	}
 	services := service.NewServices(repos, cfg, sugar)
 	handlers := handler.NewHandlers(services, repos, cfg, sugar)
 
@@ -353,7 +360,7 @@ func main() {
 		api.GET("/media/:id/video-analysis", guardByMediaID, handlers.VideoAnalysis.GetMediaResult)
 		api.GET("/media/:id/video-analysis/scenes/:sceneIndex/grid", guardByMediaID, handlers.VideoAnalysis.ServeSceneGrid)
 		api.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
-		api.GET("/video-analysis/tasks/:taskId/scenes", handlers.VideoAnalysis.ListScenesByTask)
+		api.GET("/video-analysis/tasks/:id/scenes", handlers.VideoAnalysis.ListScenesByTask)
 
 		// 用户
 		api.GET("/users/me", handlers.User.Profile)
@@ -922,7 +929,7 @@ func main() {
 		admin.GET("/video-analysis/statistics/detailed", handlers.VideoAnalysis.DetailedStatistics)
 		admin.POST("/video-analysis/cleanup", handlers.VideoAnalysis.Cleanup)
 		admin.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
-		admin.GET("/video-analysis/tasks/:taskId/scenes", handlers.VideoAnalysis.ListScenesByTask)
+		admin.GET("/video-analysis/tasks/:id/scenes", handlers.VideoAnalysis.ListScenesByTask)
 
 		// ==================== 字幕预处理管理 ====================
 		admin.POST("/subtitle-preprocess/submit", handlers.SubtitlePreprocess.SubmitMedia)
