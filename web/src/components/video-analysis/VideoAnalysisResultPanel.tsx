@@ -5,6 +5,7 @@ import type { VideoAnalysisResult, VideoAnalysisSceneResult, VideoAnalysisTask }
 import VideoAnalysisResultInsights from './VideoAnalysisResultInsights'
 import VideoAnalysisResultSummary from './VideoAnalysisResultSummary'
 import VideoAnalysisSceneGrid, { type VideoAnalysisSceneGridState } from './VideoAnalysisSceneGrid'
+import VideoAnalysisWorkflow from './VideoAnalysisWorkflow'
 import { VIDEO_ANALYSIS_SCENES_PER_PAGE } from './videoAnalysisResultUtils'
 
 interface VideoAnalysisResultPanelProps {
@@ -139,6 +140,8 @@ export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysi
           </button>
         </div>
       </div>
+
+      <VideoAnalysisWorkflow taskId={task.id} />
 
       {loading ? (
         <div className="rounded-xl border border-white/5 bg-black/10 py-16 text-center">
