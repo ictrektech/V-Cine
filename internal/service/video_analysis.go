@@ -1049,3 +1049,268 @@ func (s *VideoAnalysisService) updateSceneDescriptionsFromDescribe(task *model.V
 	}
 	return nil
 }
+
+// GetWorkflow 返回任务的工作流状态详情
+func (s *VideoAnalysisService) GetWorkflow(taskID string) (*WorkflowStatus, error) {
+	if !s.IsAvailable() {
+		return nil, errors.New("video analysis service is not configured")
+	}
+	task, err := s.tasks.FindByID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	return &WorkflowStatus{
+		TaskID:          task.ID,
+		MediaID:         task.MediaID,
+		MediaTitle:      task.MediaTitle,
+		Status:          task.Status,
+		Stage:           task.Stage,
+		Progress:        task.Progress,
+		DetectStatus:    task.DetectStatus,
+		StructureStatus: task.StructureStatus,
+		DescribeStatus:  task.DescribeStatus,
+		ErrorCode:       task.ErrorCode,
+		ErrorMessage:    task.ErrorMessage,
+		StartedAt:       task.StartedAt,
+		FinishedAt:      task.FinishedAt,
+		CreatedAt:       task.CreatedAt,
+	}, nil
+}
+
+// RunStage 执行单个阶段（自动检查前置依赖）
+func (s *VideoAnalysisService) RunStage(ctx context.Context, taskID, stage string) error {
+	if !s.IsAvailable() {
+		return errors.New("video analysis service is not configured")
+	}
+	task, err := s.tasks.FindByID(taskID)
+	if err != nil {
+		return err
+	}
+	if ok, reason := task.CanRunStage(stage); !ok {
+		return errors.New(reason)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, s.jobTimeout)
+	defer cancel()
+
+	task.SetStageStatus(stage, model.VideoAnalysisStageStatusRunning)
+	task.Status = model.VideoAnalysisStatusRunning
+	task.Stage = stage
+	if task.StartedAt == nil {
+		now := time.Now()
+		task.StartedAt = &now
+	}
+	if err := s.persist(task); err != nil {
+		return err
+	}
+
+	var stageErr error
+	switch stage {
+	case model.VideoAnalysisStageDetect:
+		stageErr = s.runDetectStage(ctx, task)
+	case model.VideoAnalysisStageStructure:
+		stageErr = s.runStructureStage(ctx, task)
+	case model.VideoAnalysisStageDescribe:
+		stageErr = s.runDescribeStage(ctx, task)
+	}
+
+	if stageErr != nil {
+		task.SetStageStatus(stage, model.VideoAnalysisStageStatusFailed)
+		task.Status = model.VideoAnalysisStatusFailed
+		task.ErrorCode = analysisErrorCode(stageErr)
+		task.ErrorMessage = stageErr.Error()
+		finished := time.Now()
+		task.FinishedAt = &finished
+		s.persist(task)
+		return stageErr
+	}
+
+	task.SetStageStatus(stage, model.VideoAnalysisStageStatusSucceeded)
+	if stage == model.VideoAnalysisStageDescribe || (!task.IncludeDescriptions && stage == model.VideoAnalysisStageStructure) {
+		task.Status = model.VideoAnalysisStatusSucceeded
+		task.Stage = model.VideoAnalysisStageDone
+		task.Progress = 100
+		finished := time.Now()
+		task.FinishedAt = &finished
+	}
+	s.persist(task)
+	return nil
+}
+
+// RunAll 从第一个未完成的阶段开始，一路跑到尾
+func (s *VideoAnalysisService) RunAll(ctx context.Context, taskID string) error {
+	if !s.IsAvailable() {
+		return errors.New("video analysis service is not configured")
+	}
+	task, err := s.tasks.FindByID(taskID)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, s.jobTimeout)
+	defer cancel()
+	return s.run(ctx, task)
+}
+
+// RunMissing 自动检测缺失阶段，按顺序补齐
+func (s *VideoAnalysisService) RunMissing(ctx context.Context, taskID string) error {
+	if !s.IsAvailable() {
+		return errors.New("video analysis service is not configured")
+	}
+	task, err := s.tasks.FindByID(taskID)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, s.jobTimeout)
+	defer cancel()
+	for {
+		stage := task.NextPendingStage()
+		if stage == model.VideoAnalysisStageDone {
+			return nil
+		}
+		if err := s.runStageByTask(ctx, task, stage); err != nil {
+			return err
+		}
+	}
+}
+
+// runStageByTask 内部执行单个阶段（直接操作 task 对象）
+func (s *VideoAnalysisService) runStageByTask(ctx context.Context, task *model.VideoAnalysisTask, stage string) error {
+	task.SetStageStatus(stage, model.VideoAnalysisStageStatusRunning)
+	task.Status = model.VideoAnalysisStatusRunning
+	task.Stage = stage
+	if task.StartedAt == nil {
+		now := time.Now()
+		task.StartedAt = &now
+	}
+	if err := s.persist(task); err != nil {
+		return err
+	}
+	var stageErr error
+	switch stage {
+	case model.VideoAnalysisStageDetect:
+		stageErr = s.runDetectStage(ctx, task)
+	case model.VideoAnalysisStageStructure:
+		stageErr = s.runStructureStage(ctx, task)
+	case model.VideoAnalysisStageDescribe:
+		stageErr = s.runDescribeStage(ctx, task)
+	}
+	if stageErr != nil {
+		task.SetStageStatus(stage, model.VideoAnalysisStageStatusFailed)
+		if stage == model.VideoAnalysisStageDescribe {
+			_ = s.completeDescribePartial(task, stageErr, "")
+			s.persist(task)
+			return nil
+		}
+		task.ErrorCode = analysisErrorCode(stageErr)
+		task.ErrorMessage = stageErr.Error()
+		s.persist(task)
+		return stageErr
+	}
+	task.SetStageStatus(stage, model.VideoAnalysisStageStatusSucceeded)
+	return s.persist(task)
+}
+
+// runDetectStage 执行 Detect 阶段
+func (s *VideoAnalysisService) runDetectStage(ctx context.Context, task *model.VideoAnalysisTask) error {
+	detectJob, err := s.ensureDetectJob(ctx, task)
+	if err != nil {
+		return err
+	}
+	_, err = s.waitForJob(ctx, detectJob, s.client.GetDetectJob)
+	if err != nil {
+		return fmt.Errorf("detect stage: %w", err)
+	}
+	task.Progress = 50
+	return nil
+}
+
+// runStructureStage 执行 Structure 阶段
+func (s *VideoAnalysisService) runStructureStage(ctx context.Context, task *model.VideoAnalysisTask) error {
+	detectJob, err := s.ensureDetectJob(ctx, task)
+	if err != nil {
+		return err
+	}
+	detectResult, err := s.waitForJob(ctx, detectJob, s.client.GetDetectJob)
+	if err != nil {
+		return fmt.Errorf("get detect result for structure: %w", err)
+	}
+	structureJob, err := s.ensureStructureJob(ctx, task, detectResult)
+	if err != nil {
+		return err
+	}
+	structureResult, err := s.waitForJob(ctx, structureJob, s.client.GetStructureJob)
+	if err != nil && !task.FallbackUsed && shouldFallbackToScenes(err) {
+		task.FallbackUsed = true
+		task.StructureJobID = ""
+		if persistErr := s.persist(task); persistErr != nil {
+			return persistErr
+		}
+		structureJob, err = s.submitStructureWithScenes(ctx, task, detectResult)
+		if err == nil {
+			structureResult, err = s.waitForJob(ctx, structureJob, s.client.GetStructureJob)
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("structure stage: %w", err)
+	}
+	task.ResultJSON = string(structureResult.Result)
+	var resultHeader struct {
+		VideoHash string `json:"video_hash"`
+	}
+	if err := json.Unmarshal(structureResult.Result, &resultHeader); err != nil || resultHeader.VideoHash == "" {
+		return errors.New("structure result is missing video_hash")
+	}
+	task.VideoHash = resultHeader.VideoHash
+	if err := s.saveScenesFromStructure(task, structureResult); err != nil && s.logger != nil {
+		s.logger.Warnw("Video analysis save scenes failed (non-fatal)",
+			"task_id", task.ID, "media_id", task.MediaID, "error", err)
+	}
+	return nil
+}
+
+// runDescribeStage 执行 Describe 阶段
+func (s *VideoAnalysisService) runDescribeStage(ctx context.Context, task *model.VideoAnalysisTask) error {
+	if !task.IncludeDescriptions {
+		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSkipped)
+		return nil
+	}
+	if task.ResultJSON == "" {
+		return errors.New("structure result is required before describe")
+	}
+	describeJob, err := s.ensureDescribeJob(ctx, task)
+	if err != nil {
+		return s.completeDescribePartial(task, err, "")
+	}
+	describeResult, err := s.waitForJob(ctx, describeJob, s.client.GetDescribeJob)
+	if err != nil {
+		return s.completeDescribePartial(task, err, "")
+	}
+	mergedResult, err := mergeDescribeResult(task.ResultJSON, describeResult.Result)
+	if err != nil {
+		return s.completeDescribePartial(task, err, "DESCRIBE_MERGE_ERROR")
+	}
+	task.ResultJSON = mergedResult
+	if err := s.updateSceneDescriptionsFromDescribe(task, describeResult); err != nil && s.logger != nil {
+		s.logger.Warnw("Video analysis update scene descriptions failed (non-fatal)",
+			"task_id", task.ID, "media_id", task.MediaID, "error", err)
+	}
+	return nil
+}
+
+// WorkflowStatus 工作流状态详情
+type WorkflowStatus struct {
+	TaskID          string     `json:"task_id"`
+	MediaID         string     `json:"media_id"`
+	MediaTitle      string     `json:"media_title"`
+	Status          string     `json:"status"`
+	Stage           string     `json:"stage"`
+	Progress        float64    `json:"progress"`
+	DetectStatus    string     `json:"detect_status"`
+	StructureStatus string     `json:"structure_status"`
+	DescribeStatus  string     `json:"describe_status"`
+	ErrorCode       string     `json:"error_code,omitempty"`
+	ErrorMessage    string     `json:"error_message,omitempty"`
+	StartedAt       *time.Time `json:"started_at,omitempty"`
+	FinishedAt      *time.Time `json:"finished_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+}

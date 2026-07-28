@@ -361,6 +361,10 @@ func main() {
 		api.GET("/media/:id/video-analysis/scenes/:sceneIndex/grid", guardByMediaID, handlers.VideoAnalysis.ServeSceneGrid)
 		api.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
 		api.GET("/video-analysis/tasks/:id/scenes", handlers.VideoAnalysis.ListScenesByTask)
+		api.GET("/video-analysis/tasks/:id/workflow", handlers.VideoAnalysis.GetWorkflow)
+		api.POST("/video-analysis/tasks/:id/run-stage", handlers.VideoAnalysis.RunStage)
+		api.POST("/video-analysis/tasks/:id/run-all", handlers.VideoAnalysis.RunAll)
+		api.POST("/video-analysis/tasks/:id/run-missing", handlers.VideoAnalysis.RunMissing)
 
 		// 用户
 		api.GET("/users/me", handlers.User.Profile)
@@ -930,6 +934,10 @@ func main() {
 		admin.POST("/video-analysis/cleanup", handlers.VideoAnalysis.Cleanup)
 		admin.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
 		admin.GET("/video-analysis/tasks/:id/scenes", handlers.VideoAnalysis.ListScenesByTask)
+		admin.GET("/video-analysis/tasks/:id/workflow", handlers.VideoAnalysis.GetWorkflow)
+		admin.POST("/video-analysis/tasks/:id/run-stage", handlers.VideoAnalysis.RunStage)
+		admin.POST("/video-analysis/tasks/:id/run-all", handlers.VideoAnalysis.RunAll)
+		admin.POST("/video-analysis/tasks/:id/run-missing", handlers.VideoAnalysis.RunMissing)
 
 		// ==================== 字幕预处理管理 ====================
 		admin.POST("/subtitle-preprocess/submit", handlers.SubtitlePreprocess.SubmitMedia)

@@ -340,3 +340,63 @@ func (h *VideoAnalysisHandler) ListScenesByTask(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"scenes": items})
 }
+
+// GetWorkflow 获取任务工作流状态
+func (h *VideoAnalysisHandler) GetWorkflow(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	workflow, err := h.service.GetWorkflow(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询工作流状态失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": workflow})
+}
+
+// RunStage 执行单个阶段
+func (h *VideoAnalysisHandler) RunStage(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	var request struct {
+		Stage string `json:"stage" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 stage 参数 (detect/structure/describe)"})
+		return
+	}
+	if err := h.service.RunStage(c.Request.Context(), c.Param("id"), request.Stage); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "阶段已启动"})
+}
+
+// RunAll 从第一个未完成阶段跑到尾
+func (h *VideoAnalysisHandler) RunAll(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	if err := h.service.RunAll(c.Request.Context(), c.Param("id")); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "任务已全部执行完成"})
+}
+
+// RunMissing 自动补齐缺失阶段
+func (h *VideoAnalysisHandler) RunMissing(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	if err := h.service.RunMissing(c.Request.Context(), c.Param("id")); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "缺失阶段已补齐"})
+}
