@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, CheckCircle2, Loader2, Play, SkipForward } from 'lucide-react'
 import { videoAnalysisApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import type { VideoAnalysisStageStatus, VideoAnalysisWorkflow as WorkflowData } from '@/types/videoAnalysis'
+
+const POLL_INTERVAL = 3000
+const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'skipped', 'partial'])
 
 const stageMeta: Record<string, { label: string; icon: string }> = {
   detect: { label: '场景检测', icon: '🔍' },
@@ -40,6 +43,8 @@ export default function VideoAnalysisWorkflow({ taskId }: Props) {
   const [loading, setLoading] = useState(true)
   const [stages, setStages] = useState<Array<{ key: string; status: VideoAnalysisStageStatus }>>([])
   const [running, setRunning] = useState<string | null>(null)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fetchRef = useRef<() => void>()
 
   const fetch = useCallback(async () => {
     try {
@@ -58,14 +63,84 @@ export default function VideoAnalysisWorkflow({ taskId }: Props) {
     }
   }, [taskId])
 
+  // Store fetch in ref so polling closure always gets the latest
+  fetchRef.current = fetch
+
   useEffect(() => { fetch() }, [fetch])
+
+  // Poll while the workflow status is not terminal
+  useEffect(() => {
+    if (!workflow || TERMINAL_STATUSES.has(workflow.status)) {
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current)
+        pollTimerRef.current = null
+      }
+      return
+    }
+    const poll = () => {
+      pollTimerRef.current = setTimeout(() => {
+        fetchRef.current?.()
+        poll()
+      }, POLL_INTERVAL)
+    }
+    poll()
+    return () => {
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current)
+        pollTimerRef.current = null
+      }
+    }
+  }, [workflow?.status])
+
+  // 执行完成后拉取最新状态，根据实际结果显示准确的 toast
+  const fetchAndToast = useCallback(async (prefix?: string) => {
+    try {
+      const res = await videoAnalysisApi.getWorkflow(taskId)
+      const wf = res.data.data
+      setWorkflow(wf)
+      setStages([
+        { key: 'detect', status: wf.detect_status },
+        { key: 'structure', status: wf.structure_status },
+        { key: 'describe', status: wf.describe_status },
+      ])
+      setLoading(false)
+
+      const allSucceeded = ['detect', 'structure', 'describe'].every(
+        (k) => wf[`${k}_status` as keyof typeof wf] === 'succeeded',
+      )
+      const anyRunning = ['detect', 'structure', 'describe'].some(
+        (k) => wf[`${k}_status` as keyof typeof wf] === 'running',
+      )
+      const anyFailed = ['detect', 'structure', 'describe'].some(
+        (k) => wf[`${k}_status` as keyof typeof wf] === 'failed',
+      )
+      const anySkipped = ['detect', 'structure', 'describe'].some(
+        (k) => wf[`${k}_status` as keyof typeof wf] === 'skipped',
+      )
+
+      if (wf.status === 'failed') {
+        toast.error(wf.error_message || '工作流执行失败')
+      } else if (anyRunning) {
+        toast.info(prefix ? `${prefix}，分析执行中…` : '分析执行中…')
+      } else if (allSucceeded) {
+        toast.success('场景分析与结构化已完成')
+      } else if (anyFailed) {
+        toast.warning('部分阶段执行失败，可重试')
+      } else if (anySkipped && allSucceeded === false) {
+        toast.info('场景描述功能未启用，已跳过')
+      } else {
+        toast.success('工作流执行完毕')
+      }
+    } catch {
+      // 若刷新失败，仍然保持之前的 toast（不额外干扰）
+    }
+  }, [taskId, toast])
 
   const runStage = async (stage: string) => {
     setRunning(stage)
     try {
       await videoAnalysisApi.runStage(taskId, stage)
-      toast.success(`${stageMeta[stage]?.label || stage} 已启动`)
-      setTimeout(fetch, 1000)
+      await fetchAndToast()
     } catch (e: any) {
       toast.error(e?.response?.data?.error || e?.message || '操作失败')
     } finally {
@@ -77,8 +152,7 @@ export default function VideoAnalysisWorkflow({ taskId }: Props) {
     setRunning('all')
     try {
       await videoAnalysisApi.runAll(taskId)
-      toast.success('全部阶段已执行完成')
-      setTimeout(fetch, 1000)
+      await fetchAndToast()
     } catch (e: any) {
       toast.error(e?.response?.data?.error || e?.message || '操作失败')
     } finally {
@@ -90,8 +164,7 @@ export default function VideoAnalysisWorkflow({ taskId }: Props) {
     setRunning('missing')
     try {
       await videoAnalysisApi.runMissing(taskId)
-      toast.success('缺失阶段已补齐')
-      setTimeout(fetch, 1000)
+      await fetchAndToast()
     } catch (e: any) {
       toast.error(e?.response?.data?.error || e?.message || '操作失败')
     } finally {
@@ -111,7 +184,7 @@ export default function VideoAnalysisWorkflow({ taskId }: Props) {
     <div className="bg-surface-800 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-surface-200">工作流状态</h3>
-        <span className={`text-xs px-2 py-0.5 rounded ${workflow.status === 'succeeded' ? 'bg-emerald-500/10 text-emerald-300' : workflow.status === 'failed' ? 'bg-red-500/10 text-red-300' : workflow.status === 'running' ? 'bg-amber-500/10 text-amber-300' : 'bg-surface-600/30 text-surface-300'}`}>
+        <span className={`text-xs px-2 py-0.5 rounded ${workflow.status === 'succeeded' ? 'bg-emerald-500/10 text-emerald-300' : workflow.status === 'failed' ? 'bg-red-500/10 text-red-300' : workflow.status === 'running' ? 'bg-amber-500/10 text-amber-300' : workflow.status === 'partial' ? 'bg-amber-500/10 text-amber-300' : 'bg-surface-600/30 text-surface-300'}`}>
           {workflow.status === 'succeeded' ? '已完成' : workflow.status === 'failed' ? '失败' : workflow.status === 'running' ? '运行中' : workflow.status === 'partial' ? '部分完成' : '排队中'}
         </span>
       </div>

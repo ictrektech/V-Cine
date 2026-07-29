@@ -530,6 +530,8 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		)
 	}
 
+	task.SetStageStatus(model.VideoAnalysisStageDetect, model.VideoAnalysisStageStatusSucceeded)
+
 	task.Stage = model.VideoAnalysisStageStructure
 	task.Progress = 50
 	if err := s.persist(task); err != nil {
@@ -581,6 +583,8 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		)
 	}
 
+
+	task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusSucceeded)
 	task.ResultJSON = string(structureResult.Result)
 	var resultHeader struct {
 		VideoHash string `json:"video_hash"`
@@ -647,6 +651,9 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 				"describe_job_id", describeJob,
 			)
 		}
+		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSucceeded)
+	} else {
+		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSkipped)
 	}
 
 	task.Status = model.VideoAnalysisStatusSucceeded
@@ -820,6 +827,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 }
 
 func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysisTask, err error, errorCode string) error {
+	task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusFailed)
 	task.Status = model.VideoAnalysisStatusPartial
 	task.Progress = 90
 	finished := time.Now()
@@ -884,6 +892,8 @@ func (s *VideoAnalysisService) failTask(task *model.VideoAnalysisTask, err error
 	if task.Status != model.VideoAnalysisStatusPartial {
 		task.Status = model.VideoAnalysisStatusFailed
 	}
+	// Mark the current stage as failed so the workflow UI reflects it
+	task.SetStageStatus(task.Stage, model.VideoAnalysisStageStatusFailed)
 	task.ErrorCode = analysisErrorCode(err)
 	task.ErrorMessage = err.Error()
 	finished := time.Now()
