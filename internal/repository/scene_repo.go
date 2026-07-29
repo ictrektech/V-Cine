@@ -88,6 +88,30 @@ func (r *SceneRepo) DeleteByTaskID(taskID string) error {
 }
 
 // SearchByText 通过文本 embedding 搜索场景（余弦距离）
+
+// SceneEmbeddingUpdate 场景图片 embedding 更新参数
+type SceneEmbeddingUpdate struct {
+	SceneIndex int
+	Embedding  *pgvector.Vector
+}
+
+// UpdateEmbeddings 更新场景图片 embedding
+func (r *SceneRepo) UpdateEmbeddings(taskID string, updates []SceneEmbeddingUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for _, u := range updates {
+			if err := tx.Model(&model.Scene{}).
+				Where("video_analysis_task_id = ? AND scene_index = ?", taskID, u.SceneIndex).
+				Update("embedding", u.Embedding).Error; err != nil {
+				return fmt.Errorf("update scene %d embedding: %w", u.SceneIndex, err)
+			}
+		}
+		return nil
+	})
+}
+
 func (r *SceneRepo) SearchByText(embedding []float32, limit int) ([]SceneSearchResult, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20

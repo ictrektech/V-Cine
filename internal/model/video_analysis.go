@@ -209,11 +209,11 @@ type Scene struct {
 	EndTime             float64          `json:"end_time"`
 	ImagePath           string           `json:"image_path" gorm:"type:text"`
 	// Embedding 场景图片的 CLIP 视觉 embedding（ViT-B-16-SigLIP2, 768 维）
-	Embedding pgvector.Vector `json:"embedding" gorm:"type:vector(768)"`
+	Embedding *pgvector.Vector `json:"embedding" gorm:"type:vector(768)"`
 	// Description 场景描述文本（由 VL 模型生成）
 	Description string `json:"description" gorm:"type:text"`
 	// DescriptionEmbedding 场景描述的 CLIP 文本 embedding（ViT-B-16-SigLIP2, 768 维）
-	DescriptionEmbedding pgvector.Vector `json:"description_embedding" gorm:"type:vector(768)"`
+	DescriptionEmbedding *pgvector.Vector `json:"description_embedding" gorm:"type:vector(768)"`
 	// Status 场景状态：ok / error
 	Status string `json:"status" gorm:"type:text;default:ok"`
 	// Error 错误信息

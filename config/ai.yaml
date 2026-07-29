@@ -1,5 +1,9 @@
 api_base: http://0.0.0.0:31536/v1
 api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
+embedding_ai:
+    enabled: true
+    api_base: http://172.17.0.1:18005
+    model: vit-b-16-siglip2__webli
 auto_pilot: true
 auto_subtitle_preprocess: false
 block_local_ai: true

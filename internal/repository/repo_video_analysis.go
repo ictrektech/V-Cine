@@ -227,7 +227,15 @@ func (r *VideoAnalysisTaskRepo) CleanupOldTasks(keepRecent int) (int64, error) {
 		return 0, err
 	}
 
-	// 删除不在保留列表中的已完成任务
+	// 先删除对应场景记录
+		if err := r.db.Where("video_analysis_task_id NOT IN ? AND video_analysis_task_id IN (SELECT id FROM video_analysis_tasks WHERE status IN ?)",
+			keepIDs,
+			[]string{model.VideoAnalysisStatusSucceeded, model.VideoAnalysisStatusPartial, model.VideoAnalysisStatusFailed, model.VideoAnalysisStatusSkipped},
+		).Delete(&model.Scene{}).Error; err != nil {
+			return 0, err
+		}
+
+		// 删除不在保留列表中的已完成任务
 	result := r.db.Where("status IN ? AND id NOT IN ?",
 		[]string{model.VideoAnalysisStatusSucceeded, model.VideoAnalysisStatusPartial, model.VideoAnalysisStatusFailed, model.VideoAnalysisStatusSkipped},
 		keepIDs,

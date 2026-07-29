@@ -84,7 +84,7 @@ func setupVideoAnalysisService(t *testing.T, client videoAnalysisExternalClient)
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, client, mapper, nil, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second)
+	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, client, mapper, nil, nil, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second)
 	return service, repos.VideoAnalysis, media.ID
 }
 

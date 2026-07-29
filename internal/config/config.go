@@ -213,6 +213,14 @@ type AIFailoverConfig struct {
 }
 
 // AIConfig AI 功能配置
+// EmbeddingAIConfig 图片/文本 embedding 服务配置
+// 对接 emb_server，计算 CLIP 图片 embedding 用于向量检索
+type EmbeddingAIConfig struct {
+	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
+	APIBase string `mapstructure:"api_base" yaml:"api_base"`
+	Model   string `mapstructure:"model" yaml:"model"`
+}
+
 type AIConfig struct {
 	// 是否启用 AI 功能（总开关）
 	Enabled bool `mapstructure:"enabled"`
@@ -257,6 +265,9 @@ type AIConfig struct {
 
 	// Failover 智能切换 / 故障转移配置（V7）
 	Failover AIFailoverConfig `mapstructure:"failover" yaml:"failover,omitempty"`
+
+	// ==================== Embedding 服务配置（emb_server） ====================
+	EmbeddingAI EmbeddingAIConfig `mapstructure:"embedding_ai" yaml:"embedding_ai"`
 
 	// ==================== ASR / Whisper 云端 API 独立配置 ====================
 	// Whisper API 独立地址（留空则复用 APIBase）
@@ -831,6 +842,9 @@ func setDefaults() {
 	// 免费档 60 QPM 上限，避免 429。用户可在前端 AI 高级设置里手动调高。
 	viper.SetDefault("ai.max_concurrent", 1)
 	viper.SetDefault("ai.request_interval_ms", 1100)
+	viper.SetDefault("ai.embedding_ai.enabled", false)
+	viper.SetDefault("ai.embedding_ai.api_base", "http://172.17.0.1:18005")
+	viper.SetDefault("ai.embedding_ai.model", "vit-b-16-siglip2__webli")
 
 	// ---- 字幕预处理（ASR/OCR/清洗）默认值 ----
 	viper.SetDefault("ai.subtitle_preprocess_workers", 1)
@@ -1535,7 +1549,7 @@ func OpenDB(cfg *Config, logger *zap.Logger) (*gorm.DB, error) {
 	gormLog := gormlogger.New(
 		log.Default(),
 		gormlogger.Config{
-			SlowThreshold:            200 * time.Millisecond,
+			SlowThreshold:             200 * time.Millisecond,
 			LogLevel:                  gormlogger.Warn,
 			IgnoreRecordNotFoundError: true,
 			Colorful:                  false,

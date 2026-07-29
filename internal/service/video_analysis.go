@@ -75,6 +75,7 @@ type VideoAnalysisService struct {
 	client          videoAnalysisExternalClient
 	pathMapper      *VideoPathMapper
 	sceneRepo       *repository.SceneRepo
+	embeddingClient *EmbeddingClient
 	cacheRoot       string
 	describeEnabled bool
 	wsHub           *WSHub
@@ -89,6 +90,7 @@ func NewVideoAnalysisService(
 	client videoAnalysisExternalClient,
 	pathMapper *VideoPathMapper,
 	sceneRepo *repository.SceneRepo,
+	embeddingClient *EmbeddingClient,
 	cacheRoot string,
 	describeEnabled bool,
 	wsHub *WSHub,
@@ -102,7 +104,7 @@ func NewVideoAnalysisService(
 		jobTimeout = 2 * time.Hour
 	}
 	return &VideoAnalysisService{
-		tasks: tasks, media: media, client: client, pathMapper: pathMapper, sceneRepo: sceneRepo,
+		tasks: tasks, media: media, client: client, pathMapper: pathMapper, sceneRepo: sceneRepo, embeddingClient: embeddingClient,
 		cacheRoot: strings.TrimSpace(cacheRoot),
 		describeEnabled: describeEnabled, wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
 	}
@@ -435,7 +437,12 @@ func (s *VideoAnalysisService) DeleteTask(taskID string) error {
 	if err != nil {
 		return err
 	}
-	// running 拒绝逻辑在 repo.DeleteByID，这里只取 media_id 用于广播。
+	// running 拒绝逻辑在 repo.DeleteByID，这里先删场景再删任务
+	if s.sceneRepo != nil {
+		if delErr := s.sceneRepo.DeleteByTaskID(taskID); delErr != nil && s.logger != nil {
+			s.logger.Warnw("删除场景记录失败", "task_id", taskID, "error", delErr)
+		}
+	}
 	if err := s.tasks.DeleteByID(taskID); err != nil {
 		return err
 	}
@@ -981,13 +988,8 @@ func (s *VideoAnalysisService) saveScenesFromStructure(task *model.VideoAnalysis
 			ImagePath:  scene.GridImage,
 			Status:     "ok",
 		}
-		// 转换 []float64 → []float32 → pgvector.Vector
 		if len(scene.Embedding) > 0 {
-			vec := make([]float32, len(scene.Embedding))
-			for i, v := range scene.Embedding {
-				vec[i] = float32(v)
-			}
-			s.Embedding = pgvector.NewVector(vec)
+			s.Embedding = float64sToVector(scene.Embedding)
 		}
 		scenes = append(scenes, s)
 	}
@@ -1006,10 +1008,124 @@ func (s *VideoAnalysisService) saveScenesFromStructure(task *model.VideoAnalysis
 			"count", len(scenes),
 		)
 	}
-	return nil
-}
 
-// updateSceneDescriptionsFromDescribe 更新 Scene 描述和描述 embedding（Phase 3）
+		// Phase 2b: 计算并回写图片 CLIP embedding
+		if s.embeddingClient != nil && s.embeddingClient.IsAvailable() && len(result.Scenes) > 0 {
+			if s.logger != nil {
+				s.logger.Infow("Starting scene embedding computation",
+					"task_id", task.ID,
+					"media_id", task.MediaID,
+					"scene_count", len(result.Scenes),
+					"cache_root", s.cacheRoot,
+					"grid_base", result.GridBasePath,
+				)
+			}
+			if err := s.computeSceneEmbeddings(task, &result); err != nil && s.logger != nil {
+				s.logger.Warnw("Compute scene embeddings failed (non-fatal)",
+					"task_id", task.ID,
+					"media_id", task.MediaID,
+					"error", err,
+				)
+			}
+		} else if s.logger != nil && len(result.Scenes) > 0 {
+			if s.embeddingClient == nil {
+				s.logger.Infow("Embedding client not configured, skipping scene embeddings",
+					"task_id", task.ID,
+					"media_id", task.MediaID,
+				)
+			} else if !s.embeddingClient.IsAvailable() {
+				s.logger.Warnw("Embedding client not available, skipping scene embeddings",
+					"task_id", task.ID,
+					"media_id", task.MediaID,
+					"base_url", s.embeddingClient.baseURL,
+				)
+			}
+		}
+		return nil
+	}
+
+// computeSceneEmbeddings 遍历场景九宫格图片，调用 emb_server 计算 CLIP embedding 并回写
+func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisTask, result *videoAnalysisStructureResult) error {
+		if s.embeddingClient == nil || s.sceneRepo == nil {
+			return nil
+		}
+		log := s.logger
+
+		updates := make([]repository.SceneEmbeddingUpdate, 0, len(result.Scenes))
+		for _, scene := range result.Scenes {
+			if scene.Status == "error" || strings.TrimSpace(scene.GridImage) == "" {
+				continue
+			}
+
+			gridPath, err := resolveVideoAnalysisGridPath(s.cacheRoot, result.GridBasePath, scene.GridImage)
+			if err != nil {
+				if log != nil {
+					log.Debugw("Skip embedding for scene: resolve path failed",
+						"task_id", task.ID,
+						"scene_index", scene.SceneIndex,
+						"error", err,
+					)
+				}
+				continue
+			}
+
+			emb, err := s.embeddingClient.ComputeImageEmbedding(context.Background(), gridPath)
+			if err != nil {
+				if log != nil {
+					log.Warnw("Compute scene embedding failed",
+						"task_id", task.ID,
+						"scene_index", scene.SceneIndex,
+						"error", err,
+					)
+				}
+				continue
+			}
+
+			if len(emb) > 0 {
+				v := float64sToVector(emb)
+				updates = append(updates, repository.SceneEmbeddingUpdate{
+					SceneIndex: scene.SceneIndex,
+					Embedding:  v,
+				})
+			}
+		}
+
+		if len(updates) == 0 {
+			if log != nil {
+				log.Warnw("computeSceneEmbeddings: no valid scenes for embedding",
+					"task_id", task.ID,
+					"total_scenes", len(result.Scenes),
+				)
+			}
+			return nil
+		}
+
+		if err := s.sceneRepo.UpdateEmbeddings(task.ID, updates); err != nil {
+			return fmt.Errorf("update scene embeddings: %w", err)
+		}
+
+		if log != nil {
+			log.Infow("Computed and saved scene embeddings",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"count", len(updates),
+			)
+		}
+		return nil
+	}
+
+// float64sToVector 将 []float64 转为 *pgvector.Vector（nil 时返回 nil）
+func float64sToVector(emb []float64) *pgvector.Vector {
+	if len(emb) == 0 {
+		return nil
+	}
+	vec := make([]float32, len(emb))
+	for i, v := range emb {
+		vec[i] = float32(v)
+	}
+	v := pgvector.NewVector(vec)
+	return &v
+}
 func (s *VideoAnalysisService) updateSceneDescriptionsFromDescribe(task *model.VideoAnalysisTask, describeJob *ExternalJob) error {
 	if s.sceneRepo == nil {
 		return nil
@@ -1044,7 +1160,13 @@ func (s *VideoAnalysisService) updateSceneDescriptionsFromDescribe(task *model.V
 	}
 
 	if len(updates) == 0 {
-		return nil
+		if s.logger != nil {
+			s.logger.Warnw("updateSceneDescriptionsFromDescribe: no descriptions",
+					"task_id", task.ID,
+				"total_descriptions", len(result.Descriptions),
+				)
+			}
+			return nil
 	}
 
 	if err := s.sceneRepo.UpdateDescriptions(task.ID, updates); err != nil {
