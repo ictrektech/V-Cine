@@ -46,17 +46,31 @@ func (r *ApiKeyRepo) ListByUser(ctx context.Context, userID string) ([]model.Api
 
 // Revoke 撤销一条 Key（软删除，校验归属）
 func (r *ApiKeyRepo) Revoke(ctx context.Context, id, userID string) error {
-	return r.db.WithContext(ctx).
+	res := r.db.WithContext(ctx).
 		Model(&model.ApiKey{}).
 		Where("id = ? AND user_id = ?", id, userID).
-		Update("is_revoked", true).Error
+		Update("is_revoked", true)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // Delete 物理删除一条 Key（校验归属）
 func (r *ApiKeyRepo) Delete(ctx context.Context, id, userID string) error {
-	return r.db.WithContext(ctx).
+	res := r.db.WithContext(ctx).
 		Where("id = ? AND user_id = ?", id, userID).
-		Delete(&model.ApiKey{}).Error
+		Delete(&model.ApiKey{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // TouchLastUsed 更新最近使用时间
