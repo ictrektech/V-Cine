@@ -29,11 +29,6 @@
 
 > 🖥️ **PC 桌面客户端** 已上线，支持 **MKV / HEVC / HDR / 杜比视界 / DTS / Atmos 零转码播放** → 详见 [desktop/README.md](./desktop/README.md)
 
-## 📸 功能截图
-
-![截图1](1.png)
-![截图2](2.png)
-
 ## ✨ 核心特性
 
 - 🎬 **媒体库** — 自动扫描（MKV/MP4/AVI/MOV/WebM/TS/RMVB 等），FFprobe 元数据提取，外挂字幕，NFO 兼容（Kodi/Emby/Jellyfin），fsnotify 实时监控
@@ -171,24 +166,3 @@ ai: { provider: ollama,   api_base: http://localhost:11434/v1,                  
 - ✅ **v0.9.5** 完整 Emby API 兼容层（Infuse / Kodi / Emby 原生客户端）
 - 🔄 **v1.0** ABR 无缝码率切换、FFmpeg 节流、移动端响应式、PWA、测试覆盖率 > 60%、Prometheus 监控
 - 🚀 **v1.1+** 移动原生 App、4K/HDR、WebDAV、分布式转码、AV1、插件市场
-
-## 💬 交流与反馈
-
-- **QQ 群**：`1093473044`
-- **Issues**：欢迎在 GitHub 上提交问题与建议
-
-## ☕ 赞赏支持
-
-如果这个项目对你有帮助，欢迎请作者喝杯咖啡 / 买个键盘 / 修个 Bug 🙏
-
-<p align="center">
-  <img src="./weixin.jpg" alt="微信赞赏码" width="260">
-  <br>
-  <i>Drug 的赞赏码 — "支持作者买键盘 / 修 Bug"</i>
-</p>
-
-## 📜 开源协议
-
-本项目采用 [GNU General Public License v3.0](./LICENSE)（GPL-3.0）开源协议发布。
-
-你可以自由地运行、研究、修改和分发本软件。基于本项目的任何派生作品在对外分发时，**必须同样以 GPL-3.0 协议开源**，并保留原作者版权声明。本软件按"原样"提供，不附带任何明示或默示的担保。
