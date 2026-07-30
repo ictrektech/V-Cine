@@ -18,10 +18,17 @@ class DetailMode:
     def handle(self, args, config, api):
         media_id = args.id
 
-        if args.enhanced:
-            resp = api.media_detail_enhanced(media_id)
-        else:
-            resp = api.media_detail(media_id)
+        try:
+            if args.enhanced:
+                resp = api.media_detail_enhanced(media_id)
+            else:
+                resp = api.media_detail(media_id)
+        except SystemExit:
+            return toon_encode({
+                "mode": "detail",
+                "id": media_id,
+                "error": "media not found",
+            })
 
         data = resp.get("data", resp)
         if not data or not isinstance(data, dict):

@@ -29,7 +29,7 @@ python3 scripts/nowen_media_search <模式> [选项]
 
 所有输出为 **TOON** 格式——一种面向 LLM 的紧凑结构化数据格式（相比 JSON 节省 30-60% token）。
 
-## 5 种搜索模式
+## 7 种搜索模式
 
 | 模式 | 用途 |
 |------|------|
@@ -39,7 +39,9 @@ python3 scripts/nowen_media_search <模式> [选项]
 | `search --smart "找一部诺兰的太空电影"` | AI 智能自然语言搜索 |
 | `stats` | 统计媒体数量（按类型/条件） |
 | `detail --id <uuid>` | 单条媒体完整元数据 |
-| `explore --mode series` | 浏览剧集/演员作品 |
+| `explore --mode series` | 浏览剧集列表 |
+| `explore --mode collections` | 浏览电影系列合集 |
+| `explore --mode series --id <uuid>` | 查看剧集详情 |
 | `config --test` | 测试 nowen-video 连通性 |
 
 ### 通用选项
@@ -55,6 +57,8 @@ python3 scripts/nowen_media_search <模式> [选项]
 1. **搜索 → 详情**：先 `search --keyword "星际穿越"` 找到媒体，再 `detail --id <uuid>` 获取完整信息
 2. **统计 → 深入**：先 `stats` 查看全库概览，再 `search --advanced --type movie --genre 科幻` 查看具体内容
 3. **演员作品**：先 `explore --mode persons` 浏览演员，再 `search --advanced --genre 动作` 精确筛选
+4. **浏览 → 详情**：先 `explore --mode series` 列出剧集，再用 `detail --id <uuid>` 获取媒体详情
+5. **统计 → 分类型**：先 `stats` 查看全库，再 `stats --type movie --genre 科幻` 深入细分
 
 ## 输出格式
 
