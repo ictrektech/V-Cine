@@ -45,6 +45,7 @@ func (h *ApiKeyHandler) Create(c *gin.Context) {
 		return
 	}
 
+	h.logger.Infow("API Key 已创建", "name", req.Name, "key_prefix", result.KeyPrefix)
 	c.JSON(http.StatusCreated, gin.H{"data": result})
 }
 
@@ -89,6 +90,7 @@ func (h *ApiKeyHandler) Revoke(c *gin.Context) {
 		return
 	}
 
+	h.logger.Infow("API Key 已撤销", "key_id", keyID, "user_id", userID)
 	c.JSON(http.StatusOK, gin.H{"message": "已撤销"})
 }
 
@@ -112,5 +114,6 @@ func (h *ApiKeyHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	h.logger.Infow("API Key 已删除", "key_id", keyID, "user_id", userID)
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }

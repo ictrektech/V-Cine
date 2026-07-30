@@ -128,6 +128,7 @@ func main() {
 		cfg.Secrets.JWTSecret,
 		services.Auth.ValidateTokenVersion,
 		services.ApiKey.Validate,
+		sugar,
 	)
 
 	// Refresh 专用中间件：允许"签名合法但已过期"的 token 进行一次续签，

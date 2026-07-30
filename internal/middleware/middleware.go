@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"go.uber.org/zap"
 )
 
 // CORS 跨域中间件
@@ -206,7 +207,7 @@ func JWTAuthAllowExpired(secret string, validator TokenVersionProvider) gin.Hand
 // JWTAuthWithAPIKeyFallback JWT 认证中间件 + API Key 兜底
 // 先尝试 JWT，失败后若 token 以 "nk_" 开头则走 API Key 验证通道
 // 对业务 handler 透明，始终可以通过 c.Get("user_id") 获取用户 ID
-func JWTAuthWithAPIKeyFallback(secret string, jwtValidator TokenVersionProvider, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
+func JWTAuthWithAPIKeyFallback(secret string, jwtValidator TokenVersionProvider, apiKeyValidator ApiKeyValidator, logger *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tokenStr string
 
@@ -271,9 +272,31 @@ func JWTAuthWithAPIKeyFallback(secret string, jwtValidator TokenVersionProvider,
 				c.Next()
 				return
 			}
+			// API Key 认证失败 — 记录安全事件
+			if logger != nil {
+				prefix := tokenStr
+				if len(tokenStr) > 11 {
+					prefix = tokenStr[:11]
+				}
+				logger.Warnw("API Key 认证失败",
+					"key_prefix", prefix,
+					"reason", verr.Error(),
+					"client_ip", c.ClientIP(),
+					"user_agent", c.GetHeader("User-Agent"),
+				)
+			}
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "API Key 无效或已被撤销"})
+			c.Abort()
+			return
 		}
 
-		// 两个通道都失败
+		// 两个通道都失败（非 nk_ 前缀的认证失败，如无效/过期 JWT）
+		if logger != nil {
+			logger.Warnw("认证失败（无效令牌）",
+				"client_ip", c.ClientIP(),
+				"user_agent", c.GetHeader("User-Agent"),
+			)
+		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "认证失败，请提供有效的登录令牌或 API Key"})
 		c.Abort()
 	}
