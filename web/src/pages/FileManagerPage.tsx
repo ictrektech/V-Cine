@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
 import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/videoAnalysis'
-import { fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
+import { aiApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
@@ -122,6 +122,7 @@ export default function FileManagerPage() {
   const [scrapeSource, setScrapeSource] = useState('')
   const [videoAnalysisEnabled, setVideoAnalysisEnabled] = useState(true)
   const [videoAnalysisDisabledReason, setVideoAnalysisDisabledReason] = useState('')
+  const [videoAnalysisDescribeEnabled, setVideoAnalysisDescribeEnabled] = useState(false)
 
   // ==================== 数据加载 ====================
 
@@ -191,6 +192,17 @@ export default function FileManagerPage() {
       await videoAnalysisApi.statistics()
       setVideoAnalysisEnabled(true)
       setVideoAnalysisDisabledReason('')
+      // 获取配置信息（独立错误处理，不影响主功能）
+      // 优先从视频分析服务读取，失败时从 AI 状态读取（用户可能在管理页刚更新）
+      try {
+        const configRes = await videoAnalysisApi.getConfig()
+        setVideoAnalysisDescribeEnabled(configRes.data.data.describe_enabled)
+      } catch {
+        try {
+          const statusRes = await aiApi.getStatus()
+          setVideoAnalysisDescribeEnabled(statusRes.data.data.describe_enabled ?? false)
+        } catch { /* 保持默认值 false */ }
+      }
     } catch (err: any) {
       if (err?.response?.status === 503) {
         setVideoAnalysisEnabled(false)
@@ -205,6 +217,22 @@ export default function FileManagerPage() {
   useEffect(() => { fetchFiles() }, [fetchFiles])
   useEffect(() => { fetchStats(); fetchLibraries(); checkVideoAnalysisAvailability() }, [fetchStats, fetchLibraries, checkVideoAnalysisAvailability])
   useEffect(() => { fetchFolderTree() }, [fetchFolderTree])
+
+  // 页面可见性变化时重新检查视频分析配置（用户从管理页切回后自动刷新）
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkVideoAnalysisAvailability()
+      }
+    }
+    const handleFocus = () => checkVideoAnalysisAvailability()
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [checkVideoAnalysisAvailability])
 
   // WebSocket 实时更新
   useEffect(() => {
@@ -858,6 +886,7 @@ export default function FileManagerPage() {
       {activeDialog === 'detail' && detailMedia && (
         <FileDetailModal
           media={detailMedia}
+          videoAnalysisDescribeEnabled={videoAnalysisDescribeEnabled}
           onClose={() => setActiveDialog('none')}
           onEdit={() => { setEditMedia(detailMedia); setActiveDialog('edit') }}
           onScrape={() => { handleScrapeFile(detailMedia.id); setActiveDialog('none') }}
@@ -893,6 +922,7 @@ export default function FileManagerPage() {
         <BatchAnalyzeModal
           selectedCount={selectedIds.size}
           videoAnalysisEnabled={videoAnalysisEnabled}
+          videoAnalysisDescribeEnabled={videoAnalysisDescribeEnabled}
           disabledReason={videoAnalysisDisabledReason}
           onClose={() => setActiveDialog('none')}
           onConfirm={({ force, includeDescriptions }) => {

@@ -207,6 +207,16 @@ func (h *VideoAnalysisHandler) DetailedStatistics(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
+// GetConfig 返回视频分析服务配置（供前端判断功能可用性）
+func (h *VideoAnalysisHandler) GetConfig(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
+		return
+	}
+	config := h.service.GetConfig()
+	c.JSON(http.StatusOK, gin.H{"data": config})
+}
+
 func (h *VideoAnalysisHandler) Cleanup(c *gin.Context) {
 	if h.service == nil || !h.service.IsAvailable() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})

@@ -30,6 +30,8 @@ export const aiApi = {
     enable_smart_search: boolean
     enable_recommend_reason: boolean
     enable_metadata_enhance: boolean
+    describe_enabled: boolean
+    scene_describe_ai: { api_base: string; api_key?: string; model: string }
     monthly_budget: number
     cache_ttl_hours: number
     max_concurrent: number

@@ -931,6 +931,7 @@ func main() {
 		admin.DELETE("/video-analysis/tasks/:id", handlers.VideoAnalysis.DeleteTask)
 		admin.GET("/video-analysis/statistics", handlers.VideoAnalysis.Statistics)
 		admin.GET("/video-analysis/statistics/detailed", handlers.VideoAnalysis.DetailedStatistics)
+		admin.GET("/video-analysis/config", handlers.VideoAnalysis.GetConfig)
 		admin.POST("/video-analysis/cleanup", handlers.VideoAnalysis.Cleanup)
 		admin.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
 		admin.GET("/video-analysis/tasks/:id/scenes", handlers.VideoAnalysis.ListScenesByTask)

@@ -109,7 +109,7 @@ video_analysis:
   max_concurrent: 2
   poll_interval_seconds: 2
   job_timeout_minutes: 120
-  describe_enabled: false
+  describe_enabled: true
 
 # ==================== Emby / Jellyfin 兼容层配置 ====================
 # 用于移动端 Emby/Infuse/Jellyfin 客户端登录与播放。无需客户端额外配置，

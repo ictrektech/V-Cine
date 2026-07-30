@@ -428,7 +428,11 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 				cfg.VideoAnalysis.DescribeEnabled, wsHub, logger,
 				time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,
 				time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,
+				cfg,
 			)
+			// 注入 describe_enabled 动态更新回调
+			aiService.SetDescribeEnabledCallback(svcs.VideoAnalysis.SetDescribeEnabled)
+
 			svcs.VideoAnalysisWorker = NewVideoAnalysisWorker(
 				svcs.VideoAnalysis, repos.VideoAnalysis, logger, cfg.VideoAnalysis.MaxConcurrent,
 			)

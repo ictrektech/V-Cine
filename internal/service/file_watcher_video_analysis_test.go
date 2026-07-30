@@ -29,7 +29,7 @@ func setupFileWatcherVideoAnalysisTest(t *testing.T) (*FileWatcherService, *repo
 	if err != nil {
 		t.Fatal(err)
 	}
-	vaSvc := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, vaClient, mapper, nil, filepath.Join(dir, "cache"), false, nil, logger, 0, 0)
+	vaSvc := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, vaClient, mapper, nil, nil, filepath.Join(dir, "cache"), false, nil, logger, 0, 0, nil)
 	vaWorker := NewVideoAnalysisWorker(vaSvc, repos.VideoAnalysis, logger, 1)
 	fw.videoAnalysis = vaSvc
 	fw.videoAnalysisWorker = vaWorker

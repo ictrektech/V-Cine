@@ -37,6 +37,9 @@ export const videoAnalysisApi = {
   detailedStatistics: () =>
     api.get<{ data: VideoAnalysisDetailedStats }>('/admin/video-analysis/statistics/detailed'),
 
+  getConfig: () =>
+    api.get<{ data: { describe_enabled: boolean } }>('/admin/video-analysis/config'),
+
   getResult: (mediaId: string, taskId?: string) =>
     api.get<{ data: VideoAnalysisResult }>(`/media/${mediaId}/video-analysis`, { params: taskId ? { task_id: taskId } : undefined }),
 

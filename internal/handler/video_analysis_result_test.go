@@ -39,7 +39,7 @@ func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repo
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, nil, cacheRoot, false, nil, nil, time.Millisecond, time.Second)
+	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, nil, nil, cacheRoot, false, nil, nil, time.Millisecond, time.Second, nil)
 	return NewVideoAnalysisHandler(vaService, nil), repos.VideoAnalysis, media.ID, cacheRoot
 }
 

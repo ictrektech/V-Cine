@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	pgvector "github.com/pgvector/pgvector-go"
@@ -82,6 +83,9 @@ type VideoAnalysisService struct {
 	logger          *zap.SugaredLogger
 	pollInterval    time.Duration
 	jobTimeout      time.Duration
+
+	// appCfg 全局配置引用（用于读取 LLM 配置，动态注入 describe 阶段）
+	appCfg *config.Config
 }
 
 func NewVideoAnalysisService(
@@ -96,6 +100,7 @@ func NewVideoAnalysisService(
 	wsHub *WSHub,
 	logger *zap.SugaredLogger,
 	pollInterval, jobTimeout time.Duration,
+	appCfg *config.Config,
 ) *VideoAnalysisService {
 	if pollInterval <= 0 {
 		pollInterval = 2 * time.Second
@@ -107,11 +112,28 @@ func NewVideoAnalysisService(
 		tasks: tasks, media: media, client: client, pathMapper: pathMapper, sceneRepo: sceneRepo, embeddingClient: embeddingClient,
 		cacheRoot: strings.TrimSpace(cacheRoot),
 		describeEnabled: describeEnabled, wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
+		appCfg: appCfg,
 	}
+}
+
+func (s *VideoAnalysisService) SetDescribeEnabled(enabled bool) {
+	s.describeEnabled = enabled
 }
 
 func (s *VideoAnalysisService) IsAvailable() bool {
 	return s != nil && s.client != nil && s.tasks != nil && s.media != nil && s.pathMapper != nil
+}
+
+// VideoAnalysisConfig 视频分析服务配置（供前端读取）
+type VideoAnalysisConfig struct {
+	DescribeEnabled bool `json:"describe_enabled"`
+}
+
+// GetConfig 返回视频分析服务配置
+func (s *VideoAnalysisService) GetConfig() VideoAnalysisConfig {
+	return VideoAnalysisConfig{
+		DescribeEnabled: s.describeEnabled,
+	}
 }
 
 // SearchScenesByText 通过文本 embedding 搜索场景
@@ -151,7 +173,7 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 		return nil, errors.New("video analysis service is not configured")
 	}
 	if options.IncludeDescriptions && !s.describeEnabled {
-		return nil, errors.New("scene descriptions are not enabled by server configuration")
+		return nil, errors.New("场景描述功能未启用，请联系管理员在配置文件中开启 describe_enabled 选项")
 	}
 	if active, err := s.tasks.FindActiveByMediaID(mediaID); err == nil {
 		return &VideoAnalysisSubmitOutcome{Task: active, Result: "reused"}, nil
@@ -651,6 +673,17 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 				}
 			}
 
+			// Phase 3b: 计算描述文本的 CLIP embedding（本地调用 emb_server）
+			if err := s.computeDescriptionEmbeddings(task); err != nil {
+				if s.logger != nil {
+					s.logger.Warnw("Video analysis compute description embeddings failed (non-fatal)",
+						"task_id", task.ID,
+						"media_id", task.MediaID,
+						"error", err,
+					)
+				}
+			}
+
 		if s.logger != nil {
 			s.logger.Infow("Video analysis describe stage completed",
 				"task_id", task.ID,
@@ -808,7 +841,20 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 	if strings.TrimSpace(task.VideoHash) == "" {
 		return "", errors.New("video_hash is required before describe")
 	}
-	job, err := s.client.SubmitDescribeJob(ctx, DescribeJobRequest{VideoHash: task.VideoHash, Force: task.Force})
+	req := DescribeJobRequest{
+		VideoHash: task.VideoHash,
+		Force:     task.Force,
+	}
+	// 注入视觉 LLM 配置（场景描述需要视觉模型，使用独立的 scene_describe_ai 配置）
+	if s.appCfg != nil && s.appCfg.AI.SceneDescribeAI.APIBase != "" {
+		req.ModelCfg = &DescribeModelCfg{
+			BaseURL:        s.appCfg.AI.SceneDescribeAI.APIBase,
+			APIKey:         s.appCfg.AI.SceneDescribeAI.APIKey,
+			ModelName:      s.appCfg.AI.SceneDescribeAI.Model,
+			MaxConcurrency: 3,
+		}
+	}
+	job, err := s.client.SubmitDescribeJob(ctx, req)
 	if err != nil {
 		if s.logger != nil {
 			s.logger.Warnw("Video analysis describe job submission failed",
@@ -1113,6 +1159,72 @@ func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisT
 		}
 		return nil
 	}
+
+// computeDescriptionEmbeddings 计算场景描述的文本 CLIP embedding 并回写
+// 在描述写入 DB 后调用，读取描述文本并调用 emb_server 计算文本 embedding
+func (s *VideoAnalysisService) computeDescriptionEmbeddings(task *model.VideoAnalysisTask) error {
+	if s.embeddingClient == nil || !s.embeddingClient.IsAvailable() || s.sceneRepo == nil {
+		return nil
+	}
+
+	scenes, err := s.sceneRepo.GetByTaskID(task.ID)
+	if err != nil {
+		return fmt.Errorf("get scenes for description embedding: %w", err)
+	}
+
+	updates := make([]repository.SceneDescriptionUpdate, 0, len(scenes))
+	for _, scene := range scenes {
+		if strings.TrimSpace(scene.Description) == "" {
+			continue
+		}
+		// 跳过已有 embedding 的场景
+		if scene.DescriptionEmbedding != nil {
+			continue
+		}
+
+		emb, err := s.embeddingClient.ComputeTextEmbedding(context.Background(), scene.Description)
+		if err != nil {
+			if s.logger != nil {
+				s.logger.Warnw("Compute description embedding failed",
+					"task_id", task.ID,
+					"scene_index", scene.SceneIndex,
+					"error", err,
+				)
+			}
+			continue
+		}
+
+		if len(emb) > 0 {
+			descriptionUpdate := repository.SceneDescriptionUpdate{
+				SceneIndex:          scene.SceneIndex,
+				Description:         scene.Description,
+				DescriptionEmbedding: float64sToVector(emb),
+			}
+			updates = append(updates, descriptionUpdate)
+		}
+	}
+
+	if len(updates) == 0 {
+		if s.logger != nil {
+			s.logger.Infow("computeDescriptionEmbeddings: no scenes need description embedding",
+				"task_id", task.ID,
+			)
+		}
+		return nil
+	}
+
+	if err := s.sceneRepo.UpdateDescriptions(task.ID, updates); err != nil {
+		return fmt.Errorf("update description embeddings: %w", err)
+	}
+
+	if s.logger != nil {
+		s.logger.Infow("Computed and saved description embeddings",
+			"task_id", task.ID,
+			"count", len(updates),
+		)
+	}
+	return nil
+}
 
 // float64sToVector 将 []float64 转为 *pgvector.Vector（nil 时返回 nil）
 func float64sToVector(emb []float64) *pgvector.Vector {
