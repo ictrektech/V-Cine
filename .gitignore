@@ -95,3 +95,4 @@ ffmpeg.zip
 *.zip
 .pi/
 tasks/
+tmp/

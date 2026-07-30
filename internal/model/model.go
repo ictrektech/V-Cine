@@ -900,6 +900,8 @@ func AutoMigrate(db *gorm.DB) error {
 		// V7: AI 用量记录与故障转移日志
 		&AIUsageRecord{},
 		&AIFailoverLog{},
+		// API Key 管理
+		&ApiKey{},
 	); err != nil {
 		return err
 	}

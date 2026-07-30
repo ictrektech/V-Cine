@@ -44,6 +44,8 @@ type Handlers struct {
 	Federation      *FederationHandler
 	// V3: 新增处理器
 	AIScene *AISceneHandler
+	// API Key 管理
+	ApiKey *ApiKeyHandler
 	// V5: Pulse 数据中心
 	Pulse *PulseHandler
 	// V6: P1~P3 新增处理器
@@ -130,6 +132,7 @@ func NewHandlers(services *service.Services, repos *repository.Repositories, cfg
 		Music:           &MusicHandler{musicService: services.Music, logger: logger},
 		Photo:           &PhotoHandler{photoService: services.Photo, logger: logger},
 		Federation:      &FederationHandler{federationService: services.Federation, logger: logger},
+		ApiKey:          NewApiKeyHandler(services.ApiKey, logger),
 		// V3
 		AIScene: &AISceneHandler{sceneService: services.AIScene, logger: logger},
 		// V5: Pulse 数据中心

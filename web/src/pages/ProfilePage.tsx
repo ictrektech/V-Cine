@@ -13,6 +13,7 @@ import {
   AtSign,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import ApiKeyManager from '@/components/profile/ApiKeyManager'
 
 export default function ProfilePage() {
   const { user, setAuth, updateUser, logout } = useAuthStore()
@@ -243,6 +244,8 @@ toast.error(t('profile.passwordMismatch'))
           </button>
         </form>
       </section>
+
+      <ApiKeyManager />
 
       {/* 登出 */}
       <section>

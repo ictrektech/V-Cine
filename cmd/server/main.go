@@ -122,10 +122,12 @@ func main() {
 		sugar.Infof("ℹ️  使用自动生成的 JWT Secret，已持久化到 %s/.jwt_secret（重启不会导致登录失效）。如需自定义请在配置文件中设置 secrets.jwt_secret。", cfg.App.DataDir)
 	}
 
-	// 带服务端校验的 JWT 中间件：支持 TokenVersion 吸销 + 封禁账号拦截
-	jwtMiddleware := middleware.JWTAuthWithValidator(
+	// 带服务端校验的 JWT 中间件（支持 API Key 兜底）：
+	// 先尝试 JWT（TokenVersion 校验 + 封禁拦截），失败后若 token 以 nk_ 开头则走 API Key
+	jwtMiddleware := middleware.JWTAuthWithAPIKeyFallback(
 		cfg.Secrets.JWTSecret,
 		services.Auth.ValidateTokenVersion,
+		services.ApiKey.Validate,
 	)
 
 	// Refresh 专用中间件：允许"签名合法但已过期"的 token 进行一次续签，
@@ -381,6 +383,12 @@ func main() {
 		api.GET("/users/me/history", handlers.User.History)
 		api.DELETE("/users/me/history/:mediaId", handlers.User.DeleteHistory)
 		api.DELETE("/users/me/history", handlers.User.ClearHistory)
+
+		// API Key 管理
+		api.GET("/users/me/api-keys", handlers.ApiKey.List)
+		api.POST("/users/me/api-keys", handlers.ApiKey.Create)
+		api.DELETE("/users/me/api-keys/:id", handlers.ApiKey.Revoke)
+		api.DELETE("/users/me/api-keys/:id/hard", handlers.ApiKey.Delete)
 
 		// 播放列表
 		api.GET("/playlists", handlers.Playlist.List)

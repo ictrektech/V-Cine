@@ -61,6 +61,8 @@ type Repositories struct {
 	// V7: AI 用量记录与故障转移日志
 	AIUsage    *AIUsageRepo
 	AIFailover *AIFailoverLogRepo
+	// API Key
+	ApiKey *ApiKeyRepo
 }
 
 func NewRepositories(db *gorm.DB) *Repositories {
@@ -119,6 +121,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		// V7: AI 用量记录与故障转移日志
 		AIUsage:    NewAIUsageRepo(db),
 		AIFailover: NewAIFailoverLogRepo(db),
+		ApiKey:     NewApiKeyRepo(db),
 	}
 }
 

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -54,6 +55,10 @@ type Claims struct {
 // TokenVersionProvider 令牌版本号提供者（解耦，避免中间件依赖 repository）
 // 返回 (当前版本号, 是否被禁用, 错误)
 type TokenVersionProvider func(userID string) (version int, disabled bool, err error)
+
+// ApiKeyValidator API Key 验证器（解耦，避免中间件依赖 service）
+// 返回 (userID, error)
+type ApiKeyValidator func(ctx context.Context, key string) (string, error)
 
 // JWTAuth JWT认证中间件（基础版：只验签、不检查版本号）
 func JWTAuth(secret string) gin.HandlerFunc {
@@ -195,6 +200,82 @@ func JWTAuthAllowExpired(secret string, validator TokenVersionProvider) gin.Hand
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
 		c.Next()
+	}
+}
+
+// JWTAuthWithAPIKeyFallback JWT 认证中间件 + API Key 兜底
+// 先尝试 JWT，失败后若 token 以 "nk_" 开头则走 API Key 验证通道
+// 对业务 handler 透明，始终可以通过 c.Get("user_id") 获取用户 ID
+func JWTAuthWithAPIKeyFallback(secret string, jwtValidator TokenVersionProvider, apiKeyValidator ApiKeyValidator) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var tokenStr string
+
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" {
+			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+			if tokenStr == authHeader {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "认证令牌格式错误"})
+				c.Abort()
+				return
+			}
+		} else {
+			tokenStr = c.Query("token")
+		}
+
+		if tokenStr == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "缺少认证凭证"})
+			c.Abort()
+			return
+		}
+
+		// 通道 1：尝试 JWT（session token）
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(secret), nil
+		})
+		if err == nil && token.Valid {
+			// 服务端校验：用户状态 + 令牌版本号
+			if jwtValidator != nil {
+				curVersion, disabled, verr := jwtValidator(claims.UserID)
+				if verr != nil {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "用户不存在或已被删除"})
+					c.Abort()
+					return
+				}
+				if disabled {
+					c.JSON(http.StatusForbidden, gin.H{"error": "账号已被禁用，请联系管理员"})
+					c.Abort()
+					return
+				}
+				if claims.TokenVersion < curVersion {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "登录凭证已失效，请重新登录"})
+					c.Abort()
+					return
+				}
+			}
+			c.Set("user_id", claims.UserID)
+			c.Set("username", claims.Username)
+			c.Set("role", claims.Role)
+			c.Next()
+			return
+		}
+
+		// 通道 2：尝试 API Key（以 nk_ 开头）
+		if strings.HasPrefix(tokenStr, "nk_") && apiKeyValidator != nil {
+			userID, verr := apiKeyValidator(c.Request.Context(), tokenStr)
+			if verr == nil {
+				c.Set("user_id", userID)
+				c.Set("username", "")
+				c.Set("role", "")
+				c.Set("auth_method", "api_key")
+				c.Next()
+				return
+			}
+		}
+
+		// 两个通道都失败
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "认证失败，请提供有效的登录令牌或 API Key"})
+		c.Abort()
 	}
 }
 

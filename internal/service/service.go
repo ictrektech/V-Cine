@@ -59,6 +59,8 @@ type Services struct {
 	Federation      *FederationService
 	// V3: 新增服务
 	AIScene *AISceneService
+	// 用户 API Key 管理
+	ApiKey *ApiKeyService
 	// V5: Pulse 数据中心
 	Pulse *PulseService
 	// V6: P1~P3 新增功能
@@ -448,6 +450,8 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	svcs.AIRouter = NewAIRouter(aiService, svcs.AICost, repos.AIUsage, repos.AIFailover, cfg, logger)
 	// 启动时从库里装载当月已用 token（报表连续性）
 	svcs.AIRouter.LoadMonthUsage()
+
+	svcs.ApiKey = NewApiKeyService(repos.ApiKey, logger)
 
 	// 启动调度器（后台循环，默认未启用，需配置开启）
 	adultScheduler.Start()
