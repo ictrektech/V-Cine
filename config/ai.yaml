@@ -4,6 +4,10 @@ auto_pilot: true
 auto_subtitle_preprocess: false
 block_local_ai: true
 cache_ttl_hours: 168
+embedding_ai:
+    api_base: http://172.17.0.1:18005
+    enabled: true
+    model: vit-b-16-siglip2__webli
 enable_metadata_enhance: true
 enable_recommend_reason: true
 enable_smart_search: true
@@ -51,6 +55,10 @@ profiles:
         model: qwen-turbo
 provider: custom
 request_interval_ms: 1100
+scene_describe_ai:
+    api_base: http://10.144.144.232:31536/v1
+    api_key: ENC:FBFIhdcshJM+RtFWFQ4N7mehHyl1vXWORrYwym2tqw/q6FY=
+    model: minicpm-v:latest
 sub_clean_backup: true
 sub_clean_enabled: false
 sub_clean_fallback_enc: gbk

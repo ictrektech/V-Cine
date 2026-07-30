@@ -207,6 +207,16 @@ func (h *VideoAnalysisHandler) DetailedStatistics(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
+// GetConfig 返回视频分析服务配置（供前端判断功能可用性）
+func (h *VideoAnalysisHandler) GetConfig(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
+		return
+	}
+	config := h.service.GetConfig()
+	c.JSON(http.StatusOK, gin.H{"data": config})
+}
+
 func (h *VideoAnalysisHandler) Cleanup(c *gin.Context) {
 	if h.service == nil || !h.service.IsAvailable() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
@@ -274,4 +284,129 @@ func (h *VideoAnalysisHandler) ServeSceneGrid(c *gin.Context) {
 	c.Header("Cache-Control", "private, max-age=300")
 	c.Header("X-Content-Type-Options", "nosniff")
 	http.ServeContent(c.Writer, c.Request, filepath.Base(file.Name()), modTime, file)
+}
+
+// SearchScenes 搜索场景（文本 / 图片）
+func (h *VideoAnalysisHandler) SearchScenes(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	query := c.Query("q")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少查询参数 q（文本查询）"})
+		return
+	}
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "文本向量检索需集成 CLIP 编码服务，即将上线"})
+}
+
+// ListScenesByTask 获取某次视频分析的所有场景
+func (h *VideoAnalysisHandler) ListScenesByTask(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	taskID := c.Param("id")
+	if taskID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "taskId 是必填参数"})
+		return
+	}
+	scenes, err := h.service.GetScenesByTaskID(taskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询场景失败: " + err.Error()})
+		return
+	}
+	// 列表接口排除 embedding 向量（768维 float32 → ~3KB/个，避免响应过大）
+	type sceneListItem struct {
+		ID                  string  `json:"id"`
+		VideoAnalysisTaskID string  `json:"video_analysis_task_id"`
+		SceneIndex          int     `json:"scene_index"`
+		StartTime           float64 `json:"start_time"`
+		EndTime             float64 `json:"end_time"`
+		ImagePath           string  `json:"image_path"`
+		Description         string  `json:"description"`
+		Status              string  `json:"status"`
+		Error               string  `json:"error"`
+		CreatedAt           string  `json:"created_at"`
+	}
+	items := make([]sceneListItem, 0, len(scenes))
+	for _, s := range scenes {
+		items = append(items, sceneListItem{
+			ID:                  s.ID,
+			VideoAnalysisTaskID: s.VideoAnalysisTaskID,
+			SceneIndex:          s.SceneIndex,
+			StartTime:           s.StartTime,
+			EndTime:             s.EndTime,
+			ImagePath:           s.ImagePath,
+			Description:         s.Description,
+			Status:              s.Status,
+			Error:               s.Error,
+			CreatedAt:           s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"scenes": items})
+}
+
+// GetWorkflow 获取任务工作流状态
+func (h *VideoAnalysisHandler) GetWorkflow(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	workflow, err := h.service.GetWorkflow(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询工作流状态失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": workflow})
+}
+
+// RunStage 执行单个阶段
+func (h *VideoAnalysisHandler) RunStage(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	var request struct {
+		Stage string `json:"stage" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 stage 参数 (detect/structure/describe)"})
+		return
+	}
+	if err := h.service.RunStage(c.Request.Context(), c.Param("id"), request.Stage); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "阶段已启动"})
+}
+
+// RunAll 从第一个未完成阶段跑到尾
+func (h *VideoAnalysisHandler) RunAll(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	if err := h.service.RunAll(c.Request.Context(), c.Param("id")); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "任务已全部执行完成"})
+}
+
+// RunMissing 自动补齐缺失阶段
+func (h *VideoAnalysisHandler) RunMissing(c *gin.Context) {
+	if h.service == nil || !h.service.IsAvailable() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
+		return
+	}
+	if err := h.service.RunMissing(c.Request.Context(), c.Param("id")); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "缺失阶段已补齐"})
 }

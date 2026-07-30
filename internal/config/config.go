@@ -213,6 +213,22 @@ type AIFailoverConfig struct {
 }
 
 // AIConfig AI 功能配置
+// EmbeddingAIConfig 图片/文本 embedding 服务配置
+// 对接 emb_server，计算 CLIP 图片 embedding 用于向量检索
+type EmbeddingAIConfig struct {
+	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
+	APIBase string `mapstructure:"api_base" yaml:"api_base"`
+	Model   string `mapstructure:"model" yaml:"model"`
+}
+
+// SceneDescribeAIConfig 场景描述调用的视觉 LLM 配置
+// 与主 AI LLM 分离，因为场景描述需要视觉模型（如 minicpm-v、gpt-4o-vision）
+type SceneDescribeAIConfig struct {
+	APIBase string `mapstructure:"api_base" yaml:"api_base"`
+	APIKey  string `mapstructure:"api_key" yaml:"api_key"`
+	Model   string `mapstructure:"model" yaml:"model"`
+}
+
 type AIConfig struct {
 	// 是否启用 AI 功能（总开关）
 	Enabled bool `mapstructure:"enabled"`
@@ -257,6 +273,12 @@ type AIConfig struct {
 
 	// Failover 智能切换 / 故障转移配置（V7）
 	Failover AIFailoverConfig `mapstructure:"failover" yaml:"failover,omitempty"`
+
+	// ==================== Embedding 服务配置（emb_server） ====================
+	EmbeddingAI EmbeddingAIConfig `mapstructure:"embedding_ai" yaml:"embedding_ai"`
+
+	// ==================== 场景描述视觉模型配置 ====================
+	SceneDescribeAI SceneDescribeAIConfig `mapstructure:"scene_describe_ai" yaml:"scene_describe_ai"`
 
 	// ==================== ASR / Whisper 云端 API 独立配置 ====================
 	// Whisper API 独立地址（留空则复用 APIBase）
@@ -694,6 +716,9 @@ func Load() (*Config, error) {
 	if dec, err := secretcrypto.Decrypt(cfg.AI.APIKey); err == nil {
 		cfg.AI.APIKey = dec
 	}
+	if dec, err := secretcrypto.Decrypt(cfg.AI.SceneDescribeAI.APIKey); err == nil {
+		cfg.AI.SceneDescribeAI.APIKey = dec
+	}
 	if cfg.AI.Profiles != nil {
 		decProfiles := make(map[string]AIProviderProfile, len(cfg.AI.Profiles))
 		for k, p := range cfg.AI.Profiles {
@@ -831,6 +856,12 @@ func setDefaults() {
 	// 免费档 60 QPM 上限，避免 429。用户可在前端 AI 高级设置里手动调高。
 	viper.SetDefault("ai.max_concurrent", 1)
 	viper.SetDefault("ai.request_interval_ms", 1100)
+	viper.SetDefault("ai.embedding_ai.enabled", false)
+	viper.SetDefault("ai.embedding_ai.api_base", "http://172.17.0.1:18005")
+	viper.SetDefault("ai.embedding_ai.model", "vit-b-16-siglip2__webli")
+	viper.SetDefault("ai.scene_describe_ai.api_base", "")
+	viper.SetDefault("ai.scene_describe_ai.api_key", "")
+	viper.SetDefault("ai.scene_describe_ai.model", "")
 
 	// ---- 字幕预处理（ASR/OCR/清洗）默认值 ----
 	viper.SetDefault("ai.subtitle_preprocess_workers", 1)
@@ -1330,10 +1361,13 @@ func (c *Config) SaveAIConfig() error {
 
 	ac := c.AI
 
-	// 加密顶层 / profiles 中的 api_key（幂等：已加密的不会重复加密）
+	// 加密顶层 / profiles / scene_describe_ai 中的 api_key（幂等：已加密的不会重复加密）
 	// 错误仅记录不阻断过程，退而存明文以保证设置不丢失
 	if enc, err := secretcrypto.Encrypt(ac.APIKey); err == nil {
 		ac.APIKey = enc
+	}
+	if enc, err := secretcrypto.Encrypt(ac.SceneDescribeAI.APIKey); err == nil {
+		ac.SceneDescribeAI.APIKey = enc
 	}
 	if ac.Profiles != nil {
 		encProfiles := make(map[string]AIProviderProfile, len(ac.Profiles))
@@ -1371,6 +1405,12 @@ func (c *Config) SaveAIConfig() error {
 	viper.Set("ai.failover.consecutive_error_threshold", ac.Failover.ConsecutiveErrorThreshold)
 	viper.Set("ai.failover.current_active", ac.Failover.CurrentActive)
 	viper.Set("ai.failover.last_switched_at", ac.Failover.LastSwitchedAt)
+	viper.Set("ai.scene_describe_ai", map[string]interface{}{
+		"api_base": ac.SceneDescribeAI.APIBase,
+		"api_key":  ac.SceneDescribeAI.APIKey,
+		"model":    ac.SceneDescribeAI.Model,
+	})
+
 	if ac.Profiles != nil {
 		// 转换为可被 yaml 序列化的 map[string]map[string]interface{} 形式
 		profilesMap := make(map[string]map[string]interface{}, len(ac.Profiles))
@@ -1387,6 +1427,7 @@ func (c *Config) SaveAIConfig() error {
 
 	// 同步加密后的值到内存双向（避免后续液态读到明文）
 	c.AI.APIKey = ac.APIKey
+	c.AI.SceneDescribeAI.APIKey = ac.SceneDescribeAI.APIKey
 	c.AI.Profiles = ac.Profiles
 
 	// 2. 优先写入 config/ai.yaml 分片文件（保持原架构，不污染主 config.yaml）
@@ -1441,6 +1482,11 @@ func (c *Config) writeAIYaml() error {
 	subViper.Set("monthly_token_budget", ac.MonthlyTokenBudget)
 	subViper.Set("warning_threshold_pct", ac.WarningThresholdPct)
 	subViper.Set("failover.enabled", ac.Failover.Enabled)
+
+	// 场景描述视觉模型配置
+	subViper.Set("scene_describe_ai.api_base", ac.SceneDescribeAI.APIBase)
+	subViper.Set("scene_describe_ai.api_key", ac.SceneDescribeAI.APIKey)
+	subViper.Set("scene_describe_ai.model", ac.SceneDescribeAI.Model)
 	subViper.Set("failover.chain", ac.Failover.Chain)
 	subViper.Set("failover.auto_recover_after_min", ac.Failover.AutoRecoverAfterMin)
 	subViper.Set("failover.consecutive_error_threshold", ac.Failover.ConsecutiveErrorThreshold)
@@ -1535,7 +1581,7 @@ func OpenDB(cfg *Config, logger *zap.Logger) (*gorm.DB, error) {
 	gormLog := gormlogger.New(
 		log.Default(),
 		gormlogger.Config{
-			SlowThreshold:            200 * time.Millisecond,
+			SlowThreshold:             200 * time.Millisecond,
 			LogLevel:                  gormlogger.Warn,
 			IgnoreRecordNotFoundError: true,
 			Colorful:                  false,

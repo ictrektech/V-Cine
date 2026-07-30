@@ -110,6 +110,8 @@ type AIService struct {
 
 	// V7: 可选的智能路由（由 NewAIRouter 注入。为 nil 时边路以原逻辑走）
 	router *AIRouter
+
+	describeEnabledSetter func(bool)
 }
 
 // aiCacheEntry 缓存条目
@@ -694,6 +696,12 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"enable_smart_search":     cfg.EnableSmartSearch,
 		"enable_recommend_reason": cfg.EnableRecommendReason,
 		"enable_metadata_enhance": cfg.EnableMetadataEnhance,
+		"describe_enabled":          s.appCfg.VideoAnalysis.DescribeEnabled,
+		"scene_describe_ai": map[string]interface{}{
+			"api_base": cfg.SceneDescribeAI.APIBase,
+			"api_key":  cfg.SceneDescribeAI.APIKey,
+			"model":    cfg.SceneDescribeAI.Model,
+		},
 		"cache_ttl_hours":         cfg.CacheTTLHours,
 		"max_concurrent":          cfg.MaxConcurrent,
 		"request_interval_ms":     cfg.RequestIntervalMs,
@@ -738,6 +746,10 @@ func (s *AIService) GetStatus() map[string]interface{} {
 	s.cacheMu.RUnlock()
 
 	return status
+}
+
+func (s *AIService) SetDescribeEnabledCallback(fn func(bool)) {
+	s.describeEnabledSetter = fn
 }
 
 // ==================== 配置更新 ====================
@@ -811,6 +823,13 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 			if v, ok := val.(bool); ok {
 				s.cfg.EnableMetadataEnhance = v
 			}
+		case "describe_enabled":
+			if v, ok := val.(bool); ok {
+				s.appCfg.VideoAnalysis.DescribeEnabled = v
+				if s.describeEnabledSetter != nil {
+					s.describeEnabledSetter(v)
+				}
+			}
 		case "monthly_budget":
 			if v, ok := val.(float64); ok {
 				s.cfg.MonthlyBudget = int(v)
@@ -826,6 +845,18 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 		case "request_interval_ms":
 			if v, ok := val.(float64); ok {
 				s.cfg.RequestIntervalMs = int(v)
+			}
+		case "scene_describe_ai":
+			if v, ok := val.(map[string]interface{}); ok {
+				if baseURL, ok := v["api_base"].(string); ok {
+					s.cfg.SceneDescribeAI.APIBase = baseURL
+				}
+				if apiKey, ok := v["api_key"].(string); ok {
+					s.cfg.SceneDescribeAI.APIKey = apiKey
+				}
+				if model, ok := v["model"].(string); ok {
+					s.cfg.SceneDescribeAI.Model = model
+				}
 			}
 		case "profiles":
 			// 多 provider 配置档案合并

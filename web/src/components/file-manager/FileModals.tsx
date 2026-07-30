@@ -303,6 +303,7 @@ export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps)
 // ==================== 详情对话框 ====================
 interface FileDetailModalProps {
   media: Media
+  videoAnalysisDescribeEnabled?: boolean
   onClose: () => void
   onEdit: () => void
   onScrape: () => void
@@ -311,7 +312,7 @@ interface FileDetailModalProps {
   onViewAnalysis: (task?: VideoAnalysisTask | null) => void
 }
 
-export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
+export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
   const toast = useToast()
   const [analysisTask, setAnalysisTask] = useState<VideoAnalysisTask | null>(null)
   const [loadingAnalysis, setLoadingAnalysis] = useState(true)
@@ -452,7 +453,12 @@ export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, o
                     <button onClick={() => onAnalyze()} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-cyan-300 hover:bg-cyan-400/10">
                       <ScanSearch size={14} /> 分析视频
                     </button>
-                    <button onClick={() => onAnalyze(false, true)} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-violet-300 hover:bg-violet-400/10">
+                    <button
+                      onClick={() => onAnalyze(false, true)}
+                      className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${videoAnalysisDescribeEnabled ? 'text-violet-300 hover:bg-violet-400/10' : 'opacity-50 cursor-not-allowed'}`}
+                      disabled={!videoAnalysisDescribeEnabled}
+                      title={!videoAnalysisDescribeEnabled ? '需要在配置中开启场景描述功能（describe_enabled）' : ''}
+                    >
                       <Sparkles size={14} /> 分析并生成描述
                     </button>
                   </>
@@ -478,12 +484,13 @@ export function FileDetailModal({ media, onClose, onEdit, onScrape, onAnalyze, o
 interface BatchAnalyzeModalProps {
   selectedCount: number
   videoAnalysisEnabled: boolean
+  videoAnalysisDescribeEnabled: boolean
   disabledReason?: string
   onClose: () => void
   onConfirm: (options: { force: boolean; includeDescriptions: boolean }) => void
 }
 
-export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
+export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, videoAnalysisDescribeEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
   const [force, setForce] = useState(false)
   const [includeDescriptions, setIncludeDescriptions] = useState(false)
 
@@ -514,19 +521,25 @@ export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, disable
               </div>
             </div>
           </label>
-          <label className="flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-secondary)' }}>
+          <label className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${!videoAnalysisEnabled || !videoAnalysisDescribeEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} style={{ borderColor: 'var(--border-default)', background: 'var(--bg-secondary)' }}>
             <input
               type="checkbox"
               checked={includeDescriptions}
               onChange={e => setIncludeDescriptions(e.target.checked)}
               className="mt-0.5 accent-[var(--neon-purple)]"
-              disabled={!videoAnalysisEnabled}
+              disabled={!videoAnalysisEnabled || !videoAnalysisDescribeEnabled}
             />
             <div>
               <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>包含场景描述（可选）</div>
               <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                在结构分析成功后继续生成场景文字描述。若描述阶段失败，结构结果仍会保留并显示为“部分完成”。
+                在结构分析成功后继续生成场景文字描述。若描述阶段失败，结构结果仍会保留并显示为"部分完成"。
               </div>
+              {!videoAnalysisEnabled && (
+                <div className="text-xs mt-1 text-amber-300">需要先启用视频分析服务</div>
+              )}
+              {videoAnalysisEnabled && !videoAnalysisDescribeEnabled && (
+                <div className="text-xs mt-1 text-amber-300">需要在配置中开启场景描述功能（describe_enabled）</div>
+              )}
             </div>
           </label>
         </div>

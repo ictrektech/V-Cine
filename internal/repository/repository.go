@@ -42,6 +42,8 @@ type Repositories struct {
 	Preprocess         *PreprocessRepo
 	SubtitlePreprocess *SubtitlePreprocessRepo
 	VideoAnalysis      *VideoAnalysisTaskRepo
+	// 场景图片向量化存储（pgvector）
+	Scene *SceneRepo
 	// 电影系列合集
 	MovieCollection *MovieCollectionRepo
 	// 多用户安全（审计 / 登录日志 / 邀请码）
@@ -98,6 +100,8 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Preprocess:         &PreprocessRepo{db: db},
 		SubtitlePreprocess: &SubtitlePreprocessRepo{db: db},
 		VideoAnalysis:      NewVideoAnalysisTaskRepo(db),
+		// 场景图片向量化存储（pgvector）
+		Scene: NewSceneRepo(db),
 		// 电影系列合集
 		MovieCollection: &MovieCollectionRepo{db: db},
 		// 多用户安全

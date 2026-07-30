@@ -84,7 +84,7 @@ func setupVideoAnalysisService(t *testing.T, client videoAnalysisExternalClient)
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, client, mapper, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second)
+	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, client, mapper, nil, nil, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, nil)
 	return service, repos.VideoAnalysis, media.ID
 }
 
@@ -340,4 +340,129 @@ func TestVideoAnalysisServiceRejectsDescriptionsWhenDisabled(t *testing.T) {
 
 func mustMarshalJSONBytes(t *testing.T, value any) []byte {
 	return []byte(mustMarshalJSON(t, value))
+}
+
+func TestCanRunStage_DependencyChecks(t *testing.T) {
+	task := &model.VideoAnalysisTask{IncludeDescriptions: true}
+
+	ok, _ := task.CanRunStage(model.VideoAnalysisStageDetect)
+	if !ok {
+		t.Fatal("Detect should have no dependencies")
+	}
+
+	ok, _ = task.CanRunStage(model.VideoAnalysisStageStructure)
+	if ok {
+		t.Fatal("Structure should be rejected when Detect is not done")
+	}
+
+	ok, _ = task.CanRunStage(model.VideoAnalysisStageDescribe)
+	if ok {
+		t.Fatal("Describe should be rejected when Detect is not done")
+	}
+
+	task.DetectStatus = model.VideoAnalysisStageStatusSucceeded
+
+	ok, _ = task.CanRunStage(model.VideoAnalysisStageStructure)
+	if !ok {
+		t.Fatal("Structure should be allowed after Detect succeeded")
+	}
+
+	ok, _ = task.CanRunStage(model.VideoAnalysisStageDescribe)
+	if ok {
+		t.Fatal("Describe should be rejected when Structure is not done")
+	}
+
+	task.StructureStatus = model.VideoAnalysisStageStatusSucceeded
+
+	ok, _ = task.CanRunStage(model.VideoAnalysisStageDescribe)
+	if !ok {
+		t.Fatal("Describe should be allowed after both Detect and Structure succeeded")
+	}
+}
+
+func TestNextPendingStage(t *testing.T) {
+	task := &model.VideoAnalysisTask{IncludeDescriptions: true}
+	if stage := task.NextPendingStage(); stage != model.VideoAnalysisStageDetect {
+		t.Fatalf("expected detect, got %s", stage)
+	}
+
+	task.DetectStatus = model.VideoAnalysisStageStatusSucceeded
+	if stage := task.NextPendingStage(); stage != model.VideoAnalysisStageStructure {
+		t.Fatalf("expected structure, got %s", stage)
+	}
+
+	task.StructureStatus = model.VideoAnalysisStageStatusSucceeded
+	if stage := task.NextPendingStage(); stage != model.VideoAnalysisStageDescribe {
+		t.Fatalf("expected describe, got %s", stage)
+	}
+
+	task.DescribeStatus = model.VideoAnalysisStageStatusSucceeded
+	if stage := task.NextPendingStage(); stage != model.VideoAnalysisStageDone {
+		t.Fatalf("expected done, got %s", stage)
+	}
+
+	task2 := &model.VideoAnalysisTask{IncludeDescriptions: false}
+	task2.DetectStatus = model.VideoAnalysisStageStatusSucceeded
+	task2.StructureStatus = model.VideoAnalysisStageStatusSucceeded
+	if stage := task2.NextPendingStage(); stage != model.VideoAnalysisStageDone {
+		t.Fatalf("(no describe) expected done, got %s", stage)
+	}
+}
+
+func TestWorkflowRunStage(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	vaService, tasks, mediaID := setupVideoAnalysisService(t, client)
+	submitTask, _, err := vaService.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := vaService.RunStage(context.Background(), submitTask.ID, model.VideoAnalysisStageDetect); err != nil {
+		t.Fatal(err)
+	}
+	task, _ := tasks.FindByID(submitTask.ID)
+	if task.DetectStatus != model.VideoAnalysisStageStatusSucceeded {
+		t.Fatalf("Detect status should be succeeded, got %s", task.DetectStatus)
+	}
+
+	if err := vaService.RunStage(context.Background(), submitTask.ID, model.VideoAnalysisStageStructure); err != nil {
+		t.Fatal(err)
+	}
+	task, _ = tasks.FindByID(submitTask.ID)
+	if task.StructureStatus != model.VideoAnalysisStageStatusSucceeded {
+		t.Fatalf("Structure status should be succeeded, got %s", task.StructureStatus)
+	}
+}
+
+func TestWorkflowRunStage_DependencyRejected(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	vaService, tasks, mediaID := setupVideoAnalysisService(t, client)
+	submitTask, _, err := vaService.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = vaService.RunStage(context.Background(), submitTask.ID, model.VideoAnalysisStageStructure)
+	if err == nil {
+		t.Fatal("should reject Structure when Detect is not done")
+	}
+	_ = tasks
+}
+
+func TestWorkflowGetWorkflow(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	vaService, tasks, mediaID := setupVideoAnalysisService(t, client)
+	submitTask, _, err := vaService.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wf, err := vaService.GetWorkflow(submitTask.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wf.Status != model.VideoAnalysisStatusQueued {
+		t.Fatalf("expected queued, got %s", wf.Status)
+	}
+	_ = tasks
 }

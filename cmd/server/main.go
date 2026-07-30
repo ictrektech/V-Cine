@@ -56,6 +56,13 @@ func main() {
 
 	// 初始化各层
 	repos := repository.NewRepositories(db)
+
+	// 确保 pgvector HNSW 索引存在（仅 PostgreSQL）
+	if repos.Scene != nil {
+		if err := repos.Scene.EnsureHNSWIndexes(); err != nil {
+			sugar.Warnf("创建 HNSW 索引失败: %v", err)
+		}
+	}
 	services := service.NewServices(repos, cfg, sugar)
 	handlers := handler.NewHandlers(services, repos, cfg, sugar)
 
@@ -352,6 +359,12 @@ func main() {
 		// 视频分析结果（媒体权限守卫）
 		api.GET("/media/:id/video-analysis", guardByMediaID, handlers.VideoAnalysis.GetMediaResult)
 		api.GET("/media/:id/video-analysis/scenes/:sceneIndex/grid", guardByMediaID, handlers.VideoAnalysis.ServeSceneGrid)
+		api.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
+		api.GET("/video-analysis/tasks/:id/scenes", handlers.VideoAnalysis.ListScenesByTask)
+		api.GET("/video-analysis/tasks/:id/workflow", handlers.VideoAnalysis.GetWorkflow)
+		api.POST("/video-analysis/tasks/:id/run-stage", handlers.VideoAnalysis.RunStage)
+		api.POST("/video-analysis/tasks/:id/run-all", handlers.VideoAnalysis.RunAll)
+		api.POST("/video-analysis/tasks/:id/run-missing", handlers.VideoAnalysis.RunMissing)
 
 		// 用户
 		api.GET("/users/me", handlers.User.Profile)
@@ -918,7 +931,14 @@ func main() {
 		admin.DELETE("/video-analysis/tasks/:id", handlers.VideoAnalysis.DeleteTask)
 		admin.GET("/video-analysis/statistics", handlers.VideoAnalysis.Statistics)
 		admin.GET("/video-analysis/statistics/detailed", handlers.VideoAnalysis.DetailedStatistics)
+		admin.GET("/video-analysis/config", handlers.VideoAnalysis.GetConfig)
 		admin.POST("/video-analysis/cleanup", handlers.VideoAnalysis.Cleanup)
+		admin.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
+		admin.GET("/video-analysis/tasks/:id/scenes", handlers.VideoAnalysis.ListScenesByTask)
+		admin.GET("/video-analysis/tasks/:id/workflow", handlers.VideoAnalysis.GetWorkflow)
+		admin.POST("/video-analysis/tasks/:id/run-stage", handlers.VideoAnalysis.RunStage)
+		admin.POST("/video-analysis/tasks/:id/run-all", handlers.VideoAnalysis.RunAll)
+		admin.POST("/video-analysis/tasks/:id/run-missing", handlers.VideoAnalysis.RunMissing)
 
 		// ==================== 字幕预处理管理 ====================
 		admin.POST("/subtitle-preprocess/submit", handlers.SubtitlePreprocess.SubmitMedia)

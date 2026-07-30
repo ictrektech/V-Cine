@@ -30,6 +30,7 @@ import {
   Wifi,
   WifiOff,
   Rocket,
+  Film,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -106,10 +107,17 @@ export default function AITab() {
   const [editSmartSearch, setEditSmartSearch] = useState(true)
   const [editRecommendReason, setEditRecommendReason] = useState(true)
   const [editMetadataEnhance, setEditMetadataEnhance] = useState(true)
+  const [editDescribeEnabled, setEditDescribeEnabled] = useState(false)
   const [editMonthlyBudget, setEditMonthlyBudget] = useState(0)
   const [editCacheTTL, setEditCacheTTL] = useState(168)
   const [editMaxConcurrent, setEditMaxConcurrent] = useState(3)
   const [editRequestInterval, setEditRequestInterval] = useState(200)
+
+  const [editDescribeAPIBase, setEditDescribeAPIBase] = useState('')
+  const [editDescribeAPIKey, setEditDescribeAPIKey] = useState('')
+  const [editDescribeModel, setEditDescribeModel] = useState('')
+  const [showDescribeAPIKey, setShowDescribeAPIKey] = useState(false)
+  const [showDescribe, setShowDescribe] = useState(false)
 
   const [showApiKey, setShowApiKey] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -162,6 +170,11 @@ export default function AITab() {
       setEditSmartSearch(s.enable_smart_search)
       setEditRecommendReason(s.enable_recommend_reason)
       setEditMetadataEnhance(s.enable_metadata_enhance)
+      setEditDescribeEnabled(s.describe_enabled ?? false)
+      // 场景描述视觉模型配置
+      const sc = s.scene_describe_ai || {}
+      setEditDescribeAPIBase(sc.api_base || '')
+      setEditDescribeModel(sc.model || '')
       setEditMonthlyBudget(s.monthly_budget)
       setEditCacheTTL(s.cache_ttl_hours || 168)
       setEditMaxConcurrent(s.max_concurrent || 3)
@@ -251,6 +264,12 @@ export default function AITab() {
         enable_smart_search: editSmartSearch,
         enable_recommend_reason: editRecommendReason,
         enable_metadata_enhance: editMetadataEnhance,
+        describe_enabled: editDescribeEnabled,
+        scene_describe_ai: {
+          api_base: editDescribeAPIBase,
+          api_key: editDescribeAPIKey || undefined,
+          model: editDescribeModel,
+        },
         monthly_budget: editMonthlyBudget,
         cache_ttl_hours: editCacheTTL,
         max_concurrent: editMaxConcurrent,
@@ -776,6 +795,15 @@ export default function AITab() {
                   value: editMetadataEnhance,
                   setter: setEditMetadataEnhance,
                 },
+                // ── 视频分析（AI 驱动）──
+                {
+                  key: 'describe',
+                  label: '场景描述',
+                  desc: '视频场景检测后自动生成文字描述',
+                  icon: Film,
+                  value: editDescribeEnabled,
+                  setter: setEditDescribeEnabled,
+                },
               ].map((item) => {
                 const Icon = item.icon
                 return (
@@ -807,6 +835,74 @@ export default function AITab() {
                   </div>
                 )
               })}
+
+              {/* 场景描述视觉模型配置（仅在启用场景描述时显示） */}
+              {editDescribeEnabled && (
+                <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
+                  <button
+                    onClick={() => setShowDescribe(!showDescribe)}
+                    className="flex w-full items-center justify-between text-sm font-medium text-theme-secondary transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Film size={14} className="text-violet-400/60" />
+                      视觉模型配置
+                    </span>
+                    {showDescribe ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  <p className="mt-1 text-xs text-theme-muted">
+                    场景描述需要视觉模型（如 minicpm-v、gpt-4o-vision），与文字 LLM 分开配置。
+                  </p>
+
+                  {showDescribe && (
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-theme-secondary">
+                          API 地址
+                        </label>
+                        <input
+                          type="text"
+                          value={editDescribeAPIBase}
+                          onChange={(e) => setEditDescribeAPIBase(e.target.value)}
+                          className="input font-mono text-sm"
+                          placeholder="http://10.144.144.232:31536/v1"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-theme-secondary">
+                          API 密钥
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showDescribeAPIKey ? 'text' : 'password'}
+                            value={editDescribeAPIKey}
+                            onChange={(e) => setEditDescribeAPIKey(e.target.value)}
+                            className="input pr-10 font-mono text-sm"
+                            placeholder="sk-..."
+                          />
+                          <button
+                            onClick={() => setShowDescribeAPIKey(!showDescribeAPIKey)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300 transition-colors"
+                          >
+                            {showDescribeAPIKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-theme-secondary">
+                          模型名称
+                        </label>
+                        <input
+                          type="text"
+                          value={editDescribeModel}
+                          onChange={(e) => setEditDescribeModel(e.target.value)}
+                          className="input font-mono text-sm"
+                          placeholder="minicpm-v:latest"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

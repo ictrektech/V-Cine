@@ -413,12 +413,26 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 		if clientErr != nil || mappingErr != nil {
 			logger.Errorf("视频分析配置无效，功能未启动: client=%v mapping=%v", clientErr, mappingErr)
 		} else {
+			// 创建 embedding 客户端（可选，配置了 embedding_ai 才启用）
+			var embeddingClient *EmbeddingClient
+			if cfg.AI.EmbeddingAI.Enabled {
+				if ec, ecErr := NewEmbeddingClient(cfg.AI.EmbeddingAI.APIBase, cfg.AI.EmbeddingAI.Model); ecErr == nil {
+					embeddingClient = ec
+				} else {
+					logger.Warnf("创建 embedding 客户端失败（不影响视频分析）: %v", ecErr)
+				}
+			}
 			svcs.VideoAnalysis = NewVideoAnalysisService(
-				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, cfg.VideoAnalysis.CacheRoot,
+				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, repos.Scene, embeddingClient,
+				cfg.VideoAnalysis.CacheRoot,
 				cfg.VideoAnalysis.DescribeEnabled, wsHub, logger,
 				time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,
 				time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,
+				cfg,
 			)
+			// 注入 describe_enabled 动态更新回调
+			aiService.SetDescribeEnabledCallback(svcs.VideoAnalysis.SetDescribeEnabled)
+
 			svcs.VideoAnalysisWorker = NewVideoAnalysisWorker(
 				svcs.VideoAnalysis, repos.VideoAnalysis, logger, cfg.VideoAnalysis.MaxConcurrent,
 			)

@@ -42,9 +42,19 @@ type StructureJobRequest struct {
 	GridCols    int             `json:"grid_cols,omitempty"`
 }
 
+// DescribeModelCfg 场景描述阶段调用的 LLM 配置
+// 由 Nowen 的 AI 配置动态注入，不持久化到外部服务
+type DescribeModelCfg struct {
+	BaseURL        string `json:"base_url"`
+	APIKey         string `json:"api_key"`
+	ModelName      string `json:"model_name"`
+	MaxConcurrency int    `json:"max_concurrency"`
+}
+
 type DescribeJobRequest struct {
-	VideoHash string `json:"video_hash"`
-	Force     bool   `json:"force"`
+	VideoHash string          `json:"video_hash"`
+	Force     bool            `json:"force"`
+	ModelCfg  *DescribeModelCfg `json:"model_cfg,omitempty"`
 }
 
 type ExternalJobRef struct {
