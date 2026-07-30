@@ -1,0 +1,68 @@
+name: VOS Pull Package Release
+
+on:
+  push:
+    tags: ["vos-nowen-video-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Build pull-mode package
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
+          PACKAGE_VERSION="$VERSION" ./ictrek.app/scripts/package.sh
+          test -f "ictrek.app/dist/nowen-video_${VERSION}_pull.tar"
+      - name: Create release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
+          PUBLIC_TAG="v${VERSION}"
+          PREVIOUS="$(gh release list --limit 100 --json tagName,publishedAt --jq '[.[] | select(.tagName != env.PUBLIC_TAG) | select(.tagName | startswith("v"))] | sort_by(.publishedAt) | reverse | .[0].tagName // ""')"
+          if [[ -n "$PREVIOUS" ]]; then
+            {
+              echo "Pull-mode VOS app package for com.ictrek.nowen-video."
+              echo
+              echo "Changes since ${PREVIOUS}:"
+              git log --no-merges --pretty='- %s (%h)' "${PREVIOUS}..${GITHUB_REF_NAME}"
+            } > release-notes.md
+          else
+            printf '%s\n' "Initial VOS package release." > release-notes.md
+          fi
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
+          PUBLIC_TAG="v${VERSION}"
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${PUBLIC_TAG}" >/dev/null 2>&1; then
+            git tag "$PUBLIC_TAG" "$GITHUB_SHA"
+            git push origin "$PUBLIC_TAG"
+          fi
+          gh release create "$PUBLIC_TAG" "ictrek.app/dist/nowen-video_${VERSION}_pull.tar" \
+            --verify-tag --latest --title "v${VERSION}" --notes-file release-notes.md
+      - name: Publish package to VOS App Store
+        env:
+          APP_STORE: ${{ secrets.APP_STORE }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${APP_STORE:-}" ]]; then
+            echo "APP_STORE is not configured; skip VOS App Store publish."
+            exit 0
+          fi
+          VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
+          PACKAGE="ictrek.app/dist/nowen-video_${VERSION}_pull.tar"
+          base="${APP_STORE%/}"
+          base="${base%/store}"
+          base="${base%/api/apps/publish}"
+          curl -kfsS -F "package=@${PACKAGE}" -F "force=true" "${base}/api/apps/publish"

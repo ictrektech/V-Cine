@@ -1,0 +1,30 @@
+configs:
+  - name: NOWEN_WORKSPACE_PATH
+    type: path
+    title:
+      zh-CN: Nowen 数据目录
+      en: Nowen Workspace
+    description:
+      zh-CN: 保存数据库、缓存和 VOS 托管媒体目录的宿主机根目录。
+      en: Host root for the database, cache, and VOS-managed media directory.
+    default: /data/vos_workspace/nowen
+
+  - name: NOWEN_LOGGING_LEVEL
+    type: string
+    title:
+      zh-CN: 日志级别
+      en: Log Level
+    description:
+      zh-CN: Nowen Video 服务日志级别。
+      en: Log level for the Nowen Video service.
+    default: info
+
+  - name: NOWEN_ADULT_SCRAPER_ENABLED
+    type: boolean
+    title:
+      zh-CN: 启用番号刮削
+      en: Enable Adult Scraper
+    description:
+      zh-CN: 是否启用应用内的可选番号元数据刮削服务。
+      en: Enable the optional in-app adult metadata scraper.
+    default: false

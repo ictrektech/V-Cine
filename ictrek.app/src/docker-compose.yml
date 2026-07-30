@@ -1,0 +1,62 @@
+x-nowen-video-base: &nowen-video-base
+  image: ${NOWEN_VIDEO_IMAGE}
+  restart: unless-stopped
+  pull_policy: always
+  user: "0:0"
+  networks:
+    vos_default:
+      aliases:
+        - nowen-video
+  environment:
+    NOWEN_APP_PORT: "8080"
+    NOWEN_APP_DATA_DIR: /data
+    NOWEN_APP_WEB_DIR: /app/web/dist
+    NOWEN_DATABASE_DB_PATH: /data/nowen.db
+    NOWEN_CACHE_CACHE_DIR: /cache
+    NOWEN_LOGGING_LEVEL: "${NOWEN_LOGGING_LEVEL:-info}"
+    NOWEN_ADULT_SCRAPER_ENABLED: "${NOWEN_ADULT_SCRAPER_ENABLED:-false}"
+    NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON: "true"
+    NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE: /usr/bin/python3
+    NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR: /app/scripts/adult-scraper
+    TZ: "${TZ:-Asia/Shanghai}"
+  volumes:
+    - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/data:/data
+    - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/cache:/cache
+    - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/media:/media
+  labels:
+    - "traefik.enable=true"
+    - "traefik.docker.network=vos_default"
+    - "traefik.http.routers.nowen-video-top-open.rule=PathPrefix(`/app/com.ictrek.nowen-video`) && HeadersRegexp(`Sec-Fetch-Dest`, `document`)"
+    - "traefik.http.routers.nowen-video-top-open.priority=1000"
+    - "traefik.http.routers.nowen-video-top-open.service=nowen-video-web"
+    - "traefik.http.routers.nowen-video-top-open.middlewares=nowen-video-top-open-redirect"
+    - "traefik.http.middlewares.nowen-video-top-open-redirect.redirectregex.regex=^(https?://[^/]+)/app/com\\.ictrek\\.nowen-video/?(?:\\?.*)?$"
+    - "traefik.http.middlewares.nowen-video-top-open-redirect.redirectregex.replacement=$${1}/#/app/com.ictrek.nowen-video/com-ictrek-nowen-video/nowen-video"
+    - "traefik.http.middlewares.nowen-video-top-open-redirect.redirectregex.permanent=false"
+    - "traefik.http.routers.nowen-video-web.rule=PathPrefix(`/app/com.ictrek.nowen-video`)"
+    - "traefik.http.routers.nowen-video-web.service=nowen-video-web"
+    - "traefik.http.routers.nowen-video-web.middlewares=nowen-video-web-slash,nowen-video-web-strip"
+    - "traefik.http.middlewares.nowen-video-web-slash.redirectregex.regex=^(.*)/app/com\\.ictrek\\.nowen-video$"
+    - "traefik.http.middlewares.nowen-video-web-slash.redirectregex.replacement=$${1}/app/com.ictrek.nowen-video/"
+    - "traefik.http.middlewares.nowen-video-web-slash.redirectregex.permanent=true"
+    - "traefik.http.middlewares.nowen-video-web-strip.stripprefix.prefixes=/app/com.ictrek.nowen-video"
+    - "traefik.http.services.nowen-video-web.loadbalancer.server.port=8080"
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health > /dev/null 2>&1 || exit 1"]
+    interval: 30s
+    timeout: 10s
+    retries: 5
+    start_period: 120s
+
+services:
+  nowen-video-amd:
+    <<: *nowen-video-base
+    profiles: ["amd"]
+
+  nowen-video-arm:
+    <<: *nowen-video-base
+    profiles: ["arm"]
+
+networks:
+  vos_default:
+    external: true

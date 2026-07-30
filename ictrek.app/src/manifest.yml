@@ -1,0 +1,45 @@
+id: com.ictrek.nowen-video
+name:
+  zh-CN: Nowen Video
+  en: Nowen Video
+description:
+  zh-CN: 面向家庭媒体库的自托管影音中心。
+  en: A self-hosted home media center.
+version: __APP_VERSION__
+author: ictrek
+category: [media]
+arch: [amd64, arm64]
+
+frontend:
+  enabled: true
+  basePath: /app/com.ictrek.nowen-video
+
+platform:
+  version: ">=3.0.0"
+
+profiles:
+  - name: amd
+    title:
+      zh-CN: AMD64
+      en: AMD64
+    description:
+      zh-CN: 适用于 AMD64 VOS 主机。
+      en: For AMD64 VOS hosts.
+    conflicts: [arm]
+  - name: arm
+    title:
+      zh-CN: ARM64
+      en: ARM64
+    description:
+      zh-CN: 适用于 ARM64 VOS 主机。
+      en: For ARM64 VOS hosts.
+    conflicts: [amd]
+
+storage:
+  directories:
+    - path: data
+      mode: "0755"
+    - path: cache
+      mode: "0755"
+    - path: media
+      mode: "0755"
