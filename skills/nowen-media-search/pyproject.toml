@@ -1,0 +1,18 @@
+[project]
+name = "nowen-media-search"
+version = "0.1.0"
+description = "nowen-video media library search skill for AI Agents"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "pyyaml",
+    "toon",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
