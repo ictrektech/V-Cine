@@ -39,13 +39,20 @@ func envOr(key, fallback string) string {
 }
 
 // ensureTestDB 确保测试数据库存在，不存在则创建。
+// 同时检测 pgvector 扩展的"孤儿"损坏状态（扩展目录存在但所在 schema 已被 DROP，
+// 导致 vector 类型悬空不可用），此时 CREATE EXTENSION IF NOT EXISTS 会静默跳过，
+// 需重建整个测试数据库才能恢复。
 func ensureTestDB() error {
 	dsn := getTestDSN()
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err == nil {
-		sqlDB, _ := db.DB()
-		if sqlDB != nil {
-			sqlDB.Close()
+		defer func() {
+			if sqlDB, e := db.DB(); e == nil {
+				sqlDB.Close()
+			}
+		}()
+		if vectorOrphaned(db) {
+			return repairOrphanedVector()
 		}
 		return nil
 	}
@@ -69,6 +76,57 @@ func ensureTestDB() error {
 	if sqlDB, err := adminDB.DB(); err == nil {
 		sqlDB.Close()
 	}
+	return nil
+}
+
+// vectorOrphaned 判断 pgvector 扩展是否处于孤儿损坏状态：
+// 扩展已注册（pg_extension 中存在 vector），但其命名空间悬空（schema 已被 DROP），
+// 或 vector 类型已不存在。此时 CREATE EXTENSION IF NOT EXISTS 会静默跳过。
+func vectorOrphaned(db *gorm.DB) bool {
+	var orphaned bool
+	if err := db.Raw(`
+		SELECT EXISTS (
+			SELECT 1 FROM pg_extension e
+			WHERE e.extname = 'vector'
+			  AND (NOT EXISTS (SELECT 1 FROM pg_namespace n WHERE n.oid = e.extnamespace)
+			       OR NOT EXISTS (SELECT 1 FROM pg_type t WHERE t.typname = 'vector'))
+		)
+	`).Scan(&orphaned).Error; err != nil {
+		return false
+	}
+	return orphaned
+}
+
+// repairOrphanedVector 修复 pgvector 孤儿状态：重建整个测试数据库。
+// 不直接 DROP EXTENSION，因为损坏状态下删除 pgvector 扩展可能令 PostgreSQL 崩溃
+// （recovery 模式），而 DROP/CREATE DATABASE 已验证安全可靠。
+func repairOrphanedVector() error {
+	host, port, user, password, dbname, sslmode := dsnConfig()
+	adminConn := fmt.Sprintf("host=%s user=%s password=%s dbname=postgres port=%s sslmode=%s",
+		host, user, password, port, sslmode)
+	adminDB, adminErr := gorm.Open(postgres.Open(adminConn), &gorm.Config{})
+	if adminErr != nil {
+		return fmt.Errorf("连接 PostgreSQL 管理数据库失败: %w", adminErr)
+	}
+	defer func() {
+		if sqlDB, e := adminDB.DB(); e == nil {
+			sqlDB.Close()
+		}
+	}()
+
+	// 终止所有指向测试库的连接（含自身），否则无法 DROP DATABASE
+	if err := adminDB.Exec(fmt.Sprintf(
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s' AND pid <> pg_backend_pid()",
+		dbname)).Error; err != nil {
+		return fmt.Errorf("终止测试库连接失败: %w", err)
+	}
+	if err := adminDB.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbname)).Error; err != nil {
+		return fmt.Errorf("重建测试库失败（DROP DATABASE %s）: %w", dbname, err)
+	}
+	if err := adminDB.Exec(fmt.Sprintf("CREATE DATABASE %s", dbname)).Error; err != nil {
+		return fmt.Errorf("重建测试库失败（CREATE DATABASE %s）: %w", dbname, err)
+	}
+	fmt.Printf("检测到 pgvector 孤儿状态，已重建测试数据库: %s\n", dbname)
 	return nil
 }
 
@@ -106,7 +164,13 @@ func NewTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
 
-	// 重建 schema 确保隔离性
+	// 重建 schema 确保隔离性。
+	// 必须先显式删除 pgvector 扩展（此时其所在 schema 仍存在，可干净删除），
+	// 再删 schema；若直接 DROP SCHEMA 连带删除扩展，可能留下悬空目录项（孤儿状态），
+	// 使后续 CREATE EXTENSION IF NOT EXISTS 静默跳过、vector 类型不可用。
+	if err := db.Exec("DROP EXTENSION IF EXISTS vector CASCADE").Error; err != nil {
+		t.Fatalf("删除 pgvector 扩展失败: %v", err)
+	}
 	if err := db.Exec("DROP SCHEMA IF EXISTS public CASCADE").Error; err != nil {
 		t.Fatalf("删除 public schema 失败: %v", err)
 	}
@@ -115,6 +179,11 @@ func NewTestDB(t *testing.T) *gorm.DB {
 	}
 	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS vector").Error; err != nil {
 		t.Fatalf("安装 pgvector 扩展失败: %v", err)
+	}
+	// 验证 vector 类型真正可用（防止 IF NOT EXISTS 静默跳过 / 孤儿状态残留）
+	var vecType string
+	if err := db.Raw("SELECT to_regtype('vector')::text").Scan(&vecType).Error; err != nil || vecType == "" {
+		t.Fatalf("pgvector 未就绪：vector 类型不可用（服务器可能未安装 pgvector 或扩展状态损坏）")
 	}
 
 	if err := model.AutoMigrate(db); err != nil {
