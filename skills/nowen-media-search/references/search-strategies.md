@@ -106,6 +106,41 @@ search --advanced --type movie --size 50 --page 1
 search --advanced --type movie --size 50 --page 2
 ```
 
+## 场景搜索
+
+`scene` 用于语义检索视频分析生成的结构化场景数据：
+
+### 文搜图 vs 文搜文
+
+- `--mode image`（默认）：文字 → 场景视觉 embedding，适合按画面内容搜索
+- `--mode text`：文字 → 场景描述文本 embedding，适合按描述内容搜索
+
+### 使用场景
+
+```bash
+# 找特定画面（如雨夜、追逐、爆炸）
+scene "雨夜" --mode image
+scene "追逐" --mode image
+scene "爆炸" --mode image
+
+# 找特定描述内容
+scene "追逐" --mode text
+scene "会议" --mode text
+
+# 查看某次分析任务的所有场景
+scene --task-id <task-id>
+```
+
+### 场景搜索 → 媒体详情链式工作流
+
+```bash
+# Step 1: 搜索场景
+scene "雨夜追逐" --mode image --limit 5
+
+# Step 2: 从结果获取 media_id，查看媒体详情
+detail --id <media-uuid>
+```
+
 ## 空结果处理
 
 当搜索无匹配时，返回 `total: 0` 加空 `results` 数组。此时建议：

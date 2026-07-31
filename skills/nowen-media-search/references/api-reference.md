@@ -61,6 +61,31 @@ API Key 由 `feat/api_key` 模块管理，在 nowen-video 前端或通过 `POST 
 
 ---
 
+## 视频场景检索（结构化场景）
+
+> 场景数据由视频分析管线生成：镜头切分 → 九宫格图 → CLIP 视觉 embedding → VL 描述 → CLIP 文本 embedding。
+> 文本与图片向量同属 SigLIP2 模型空间，因此可用文字跨模态检索视觉画面。
+
+### `GET /api/video-analysis/scenes/search` — 场景语义检索
+
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `q` | string | 是 | 文本查询（如 "雨夜追逐"） |
+| `mode` | string | 否 | 检索目标：`text`（默认，文搜文，匹配场景描述） / `image`（文搜图，匹配场景画面） |
+| `limit` | int | 否 | 返回条数（默认 20，最大 100） |
+
+返回 `data` 数组，每项含 `scene_index, start_time, end_time, image_path, description, distance, media_id, media_title`。
+
+### `GET /api/video-analysis/tasks/:id/scenes` — 某次分析任务的全部场景
+
+返回 `scenes` 数组（不含 embedding 向量），每项含 `scene_index, start_time, end_time, image_path, description, status`。
+
+### `GET /api/media/:id/video-analysis/scenes/:sceneIndex/grid?task_id=` — 场景九宫格图
+
+返回 JPEG 图片，可直接用于前端展示/跳转。
+
+---
+
 ## 媒体
 
 ### `GET /api/media` — 媒体列表

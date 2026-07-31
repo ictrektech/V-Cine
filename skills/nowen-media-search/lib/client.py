@@ -102,6 +102,23 @@ class NowenAPI:
         """GET /api/ai/search — AI-powered natural language search."""
         return self._get("/ai/search", params={"q": q})
 
+    # ---- scene search (video analysis) ----
+
+    def scene_search(self, q, limit=20, mode="text"):
+        """GET /api/video-analysis/scenes/search — semantic scene search.
+
+        mode=text  （默认）文搜文：查询文本 vs 场景描述文本 embedding
+        mode=image 文搜图：查询文本 vs 场景视觉 embedding（同一 SigLIP2 模型空间）
+        """
+        params = {"q": q, "limit": limit}
+        if mode != "text":
+            params["mode"] = mode
+        return self._get("/video-analysis/scenes/search", params=params)
+
+    def scene_list(self, task_id):
+        """GET /api/video-analysis/tasks/:id/scenes — list all scenes of an analysis task."""
+        return self._get(f"/video-analysis/tasks/{task_id}/scenes")
+
     @staticmethod
     def _clean_filters(f):
         """Map Python-style filter names to API query parameters."""

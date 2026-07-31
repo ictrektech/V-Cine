@@ -69,7 +69,34 @@ search --advanced --type movie --genre 科幻 --rating 7 --sort-by rating_desc
 detail --id <uuid> --enhanced
 ```
 
-## 示例 6：Agent 对话集成
+## 示例 6：场景语义搜索
+
+用户："找一下有雨夜追逐的场景"
+
+Agent 工作流：
+```bash
+# 1. 用文搜图模式查找视觉相似的场景
+scene "雨夜追逐" --mode image --limit 10
+
+# 2. 也可用文搜文模式匹配场景描述
+scene "雨夜追逐" --mode text
+
+# 3. 结合 detail 定位到具体媒体
+detail --id <media-uuid>
+```
+
+Agent 回复：
+```markdown
+找到以下与"雨夜追逐"相关的场景：
+
+1. **肖申克的救赎** — 场景 4 (00:31-00:37)<cite idx="1" view_url="..."></cite>
+   - 最相关：雨中出狱的经典画面
+
+2. **肖申克的救赎** — 场景 10 (01:14-01:22)<cite idx="2" view_url="..."></cite>
+   - 相关：雨夜场景
+```
+
+## 示例 7：Agent 对话集成
 
 用户："帮我看看库里有什么好看的科幻片？"
 

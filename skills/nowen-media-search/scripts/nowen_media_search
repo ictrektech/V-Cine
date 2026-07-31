@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
@@ -25,8 +25,8 @@ Environment variables:
   NOWEN_DEBUG        Enable debug traceback on errors
 """
 
-import sys
 import os
+import sys
 
 # Ensure the lib directory is on the path
 _script_dir = os.path.dirname(os.path.abspath(__file__))

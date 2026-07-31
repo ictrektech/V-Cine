@@ -82,6 +82,28 @@ results[1,]{id,title,year,type,rating,genres}:
   uuid-xxx,Interstellar,2014,movie,9.3,"科幻,冒险"
 ```
 
+## 视频场景检索（结构化场景）
+
+> 场景数据由视频分析管线生成，文本与图片向量同属 SigLIP2 模型空间，支持跨模态检索。
+
+客户端方法（`lib/client.py`）：
+
+```python
+api.scene_search("雨夜追逐", limit=20, mode="image")  # 文搜图：文字 → 场景视觉 embedding
+api.scene_search("雨夜追逐", limit=20, mode="text")   # 文搜文（默认）：文字 → 场景描述文本 embedding
+api.scene_list(task_id)                                # 列出某次分析任务的全部场景
+```
+
+对应的 API：
+
+```
+GET /api/video-analysis/scenes/search?q=<文本>&mode=image|text&limit=<N>
+GET /api/video-analysis/tasks/<task_id>/scenes
+GET /api/media/<id>/video-analysis/scenes/<sceneIndex>/grid?task_id=<task_id>   # 九宫格图
+```
+
+场景搜索结果含 `scene_index, start_time, end_time, description, distance, media_id, media_title`，可结合 `detail --id` 定位到具体媒体。
+
 ## 配置
 
 | 变量 | 用途 | 默认值 |
