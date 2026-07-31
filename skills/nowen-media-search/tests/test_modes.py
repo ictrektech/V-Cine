@@ -129,6 +129,50 @@ class TestSearchMode:
         assert "mode: search_smart" in output
         mock_api.smart_search.assert_called_once_with("sci-fi movie")
 
+    def test_smart_search_inline_query(self, mock_api, config):
+        """--smart \"query\" should prefer the inline query over --keyword."""
+        mock_api.smart_search.return_value = {
+            "data": [{"id": "1", "title": "Inception"}]
+        }
+        handler = REGISTRY["search"]
+        args = MockArgs(keyword="fallback", advanced=False, mixed=False,
+                        smart="找一部诺兰的电影",
+                        type=None, genre=None, year_min=None, year_max=None,
+                        rating=None, sort_by="relevance", page=1, size=20)
+        output = handler.handle(args, config, mock_api)
+        assert "mode: search_smart" in output
+        mock_api.smart_search.assert_called_once_with("找一部诺兰的电影")
+
+    def test_smart_search_empty_inline_query(self, mock_api, config):
+        """--smart \"\" should stay in smart mode and fall back to --keyword."""
+        mock_api.smart_search.return_value = {
+            "data": [{"id": "1", "title": "Inception"}]
+        }
+        handler = REGISTRY["search"]
+        args = MockArgs(keyword="sci-fi", advanced=False, mixed=False, smart="",
+                        type=None, genre=None, year_min=None, year_max=None,
+                        rating=None, sort_by="relevance", page=1, size=20)
+        output = handler.handle(args, config, mock_api)
+        assert "mode: search_smart" in output
+        mock_api.smart_search.assert_called_once_with("sci-fi")
+
+    def test_mixed_search_inline_query(self, mock_api, config):
+        """--mixed \"query\" should prefer the inline query over --keyword."""
+        mock_api.search_mixed.return_value = {
+            "media": [{"id": "m1", "title": "Matrix"}],
+            "series": [],
+            "media_total": 1,
+            "series_total": 0,
+        }
+        handler = REGISTRY["search"]
+        args = MockArgs(keyword="fallback", advanced=False, mixed="matrix",
+                        smart=False, type=None, genre=None, year_min=None,
+                        year_max=None, rating=None, sort_by="relevance",
+                        page=1, size=20)
+        output = handler.handle(args, config, mock_api)
+        assert "mode: search_mixed" in output
+        mock_api.search_mixed.assert_called_once_with("matrix", page=1, size=20)
+
 
 class TestStatsMode:
     """stats mode: count media assets."""
@@ -194,6 +238,28 @@ class TestDetailMode:
         args = MockArgs(id="abc-123", enhanced=True)
         handler.handle(args, config, mock_api)
         mock_api.media_detail_enhanced.assert_called_once_with("abc-123")
+
+    def test_detail_enhanced_nested_media(self, mock_api, config, sample_media):
+        """--enhanced returning {"data": {"media": {...}}} should unwrap."""
+        mock_api.media_detail_enhanced.return_value = {
+            "data": {"media": sample_media}
+        }
+        handler = REGISTRY["detail"]
+        args = MockArgs(id="abc-123", enhanced=True)
+        output = handler.handle(args, config, mock_api)
+        assert "mode: detail" in output
+        assert "title: 肖申克的救赎" in output
+        assert "year: 1994" in output
+
+    def test_detail_enhanced_nested_media_missing(self, mock_api, config):
+        """Nested response without a usable media dict should not crash."""
+        mock_api.media_detail_enhanced.return_value = {
+            "data": {"media": None}
+        }
+        handler = REGISTRY["detail"]
+        args = MockArgs(id="abc-123", enhanced=True)
+        output = handler.handle(args, config, mock_api)
+        assert "error" in output
 
 
 class TestExploreMode:

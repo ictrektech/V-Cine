@@ -14,10 +14,12 @@ class SearchMode:
         sp.add_argument("--keyword", "-k", help="Search keyword")
         sp.add_argument("--advanced", "-a", action="store_true",
                         help="Advanced search with filters")
-        sp.add_argument("--mixed", "-m", action="store_true",
-                        help="Mixed search (media + collections)")
-        sp.add_argument("--smart", action="store_true",
-                        help="AI-powered natural language search")
+        sp.add_argument("--mixed", "-m", nargs="?", const=True, default=False,
+                        help="Mixed search (media + collections). "
+                             "Optional value: --mixed \"query\"")
+        sp.add_argument("--smart", nargs="?", const=True, default=False,
+                        help="AI-powered natural language search. "
+                             "Optional value: --smart \"query\"")
         sp.add_argument("--type", choices=["movie", "episode"],
                         help="Media type filter (advanced)")
         sp.add_argument("--genre", help="Genre filter (advanced)")
@@ -35,12 +37,21 @@ class SearchMode:
         page = args.page or 1
         size = min(args.size or config.page_size, config.max_page_size)
 
-        if args.smart:
-            return self._smart_search(api, args.keyword, page, size)
+        # --smart/--mixed accept an optional inline query: --smart "query".
+        # Falls back to --keyword when invoked bare: --smart --keyword "query".
+        # Enabled = flag passed (bare or with a value); a bare True or an empty
+        # inline query "" must still enter its branch and fall back below.
+        smart_enabled = args.smart is not False
+        mixed_enabled = args.mixed is not False
+        smart_q = args.smart if isinstance(args.smart, str) else None
+        mixed_q = args.mixed if isinstance(args.mixed, str) else None
+
+        if smart_enabled:
+            return self._smart_search(api, smart_q or args.keyword, page, size)
         if args.advanced:
             return self._advanced_search(api, args, page, size)
-        if args.mixed:
-            return self._mixed_search(api, args.keyword, page, size)
+        if mixed_enabled:
+            return self._mixed_search(api, mixed_q or args.keyword, page, size)
         return self._keyword_search(api, args.keyword, page, size)
 
     def _keyword_search(self, api, keyword, page, size):

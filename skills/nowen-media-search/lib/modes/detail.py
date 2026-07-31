@@ -31,6 +31,9 @@ class DetailMode:
             })
 
         data = resp.get("data", resp)
+        # enhanced 端点返回 {"data": {"media": {...}}}
+        if isinstance(data, dict) and "media" in data:
+            data = data["media"]
         if not data or not isinstance(data, dict):
             return toon_encode({
                 "mode": "detail",
