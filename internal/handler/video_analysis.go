@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/service"
 	"gorm.io/gorm"
 )
@@ -286,7 +287,12 @@ func (h *VideoAnalysisHandler) ServeSceneGrid(c *gin.Context) {
 	http.ServeContent(c.Writer, c.Request, filepath.Base(file.Name()), modTime, file)
 }
 
-// SearchScenes 搜索场景（文本 / 图片）
+// SearchScenes 搜索场景
+// q      文本查询（必需）
+// mode   检索目标：
+//        text  （默认）文搜文：查询文本 vs 场景描述文本 embedding
+//        image 文搜图：查询文本 vs 场景视觉 embedding（同一 SigLIP2 模型空间）
+// limit  返回条数（默认 20，最大 100）
 func (h *VideoAnalysisHandler) SearchScenes(c *gin.Context) {
 	if h.service == nil || !h.service.IsAvailable() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
@@ -297,11 +303,24 @@ func (h *VideoAnalysisHandler) SearchScenes(c *gin.Context) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
+	mode := c.DefaultQuery("mode", "text")
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少查询参数 q（文本查询）"})
 		return
 	}
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "文本向量检索需集成 CLIP 编码服务，即将上线"})
+	var results []repository.SceneSearchResult
+	var err error
+	switch mode {
+	case "image":
+		results, err = h.service.SearchScenesByTextToImage(query, limit)
+	default:
+		results, err = h.service.SearchScenesByTextQuery(query, limit)
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "场景搜索失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": results})
 }
 
 // ListScenesByTask 获取某次视频分析的所有场景
