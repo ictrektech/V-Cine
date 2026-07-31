@@ -4,7 +4,7 @@
 # dependencies = [
 #   "requests",
 #   "pyyaml",
-#   "toon",
+#   "python-toon",
 # ]
 # ///
 """nowen-media-search CLI — Search nowen-video media library.

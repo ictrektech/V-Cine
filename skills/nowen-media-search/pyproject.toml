@@ -6,7 +6,7 @@ requires-python = ">=3.10"
 dependencies = [
     "requests",
     "pyyaml",
-    "toon",
+    "python-toon",
 ]
 
 [project.optional-dependencies]

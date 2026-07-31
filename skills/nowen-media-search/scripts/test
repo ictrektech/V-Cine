@@ -5,7 +5,7 @@
 #   "pytest",
 #   "requests",
 #   "pyyaml",
-#   "toon",
+#   "python-toon",
 # ]
 # ///
 """Run nowen-media-search tests with pytest.
