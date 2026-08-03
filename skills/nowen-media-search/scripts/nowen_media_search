@@ -1,0 +1,40 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "requests",
+#   "pyyaml",
+#   "python-toon",
+# ]
+# ///
+"""nowen-media-search CLI — Search nowen-video media library.
+
+Usage:
+  uv run scripts/nowen_media_search config --test
+  uv run scripts/nowen_media_search search --keyword "星际穿越"
+  uv run scripts/nowen_media_search search --advanced --type movie --genre 科幻 --year-min 2020
+  uv run scripts/nowen_media_search search --mixed "matrix"
+  uv run scripts/nowen_media_search stats
+  uv run scripts/nowen_media_search detail --id <uuid>
+  uv run scripts/nowen_media_search explore --mode series
+
+Environment variables:
+  NOWEN_URL          Server URL (default: http://localhost:38080)
+  NOWEN_API_KEY      API key (required)
+  NOWEN_FRONTEND_URL Frontend URL (optional, for view_url generation)
+  NOWEN_DEBUG        Enable debug traceback on errors
+"""
+
+import os
+import sys
+
+# Ensure the lib directory is on the path
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_lib_dir = os.path.join(os.path.dirname(_script_dir), "lib")
+if _lib_dir not in sys.path:
+    sys.path.insert(0, os.path.dirname(_script_dir))
+
+from lib.router import main
+
+if __name__ == "__main__":
+    main()

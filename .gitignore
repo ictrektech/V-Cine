@@ -96,3 +96,6 @@ ffmpeg.zip
 .pi/
 tasks/
 tmp/
+.claude/
+__pycache__/
+.env.prod

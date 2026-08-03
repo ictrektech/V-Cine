@@ -160,6 +160,25 @@ ai: { provider: ollama,   api_base: http://localhost:11434/v1,                  
 
 **部署** Docker (Alpine 3.19) · docker-compose
 
+## 🤖 Agent Skills
+
+nowen-video 提供面向 AI Agent（Claude Code）的搜索技能，可通过 API Key 认证直接查询媒体库：
+
+| Skill | 路径 | 用途 |
+|-------|------|------|
+| **nowen-media-search** | `skills/nowen-media-search/` | 搜索、统计、详情、浏览媒体资产 |
+
+使用方式：
+```bash
+export NOWEN_API_KEY=nk_xxxx  # 在 Web UI 中创建
+cd skills/nowen-media-search
+python3 scripts/nowen_media_search config --test
+python3 scripts/nowen_media_search search --keyword "肖申克"
+python3 scripts/nowen_media_search stats
+```
+
+输出为 TOON 格式——面向 LLM 的紧凑结构化数据格式，比 JSON 节省 30-60% token。
+
 ## 🗺️ 路线图
 
 - ✅ **v0.1 – v0.9** 核心播放、刮削、多用户、AI 助手、文件管理、Pulse 动态、分享、标签

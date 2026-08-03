@@ -144,6 +144,48 @@ func (s *VideoAnalysisService) SearchScenesByText(embedding []float32, limit int
 	return s.sceneRepo.SearchByText(embedding, limit)
 }
 
+// SearchScenesByTextQuery 通过文本查询搜索场景：文本 → CLIP 文本向量 → 检索描述 embedding 列
+// 文搜文：查询文本向量 vs description_embedding（场景描述文本向量）
+func (s *VideoAnalysisService) SearchScenesByTextQuery(q string, limit int) ([]repository.SceneSearchResult, error) {
+	if s.sceneRepo == nil {
+		return nil, errors.New("scene repo is not available")
+	}
+	vec, err := s.textToEmbeddingVector(q)
+	if err != nil {
+		return nil, err
+	}
+	return s.sceneRepo.SearchByText(vec, limit)
+}
+
+// SearchScenesByTextToImage 文搜图：文本查询 → CLIP 文本向量 → 检索场景视觉 embedding 列
+// 文本与图片向量同属 SigLIP2 模型的同一 CLIP 空间，可跨模态直接做余弦检索
+func (s *VideoAnalysisService) SearchScenesByTextToImage(q string, limit int) ([]repository.SceneSearchResult, error) {
+	if s.sceneRepo == nil {
+		return nil, errors.New("scene repo is not available")
+	}
+	vec, err := s.textToEmbeddingVector(q)
+	if err != nil {
+		return nil, err
+	}
+	return s.sceneRepo.SearchByImage(vec, limit)
+}
+
+// textToEmbeddingVector 文本 → CLIP 文本向量（float32），文搜文/文搜图共用
+func (s *VideoAnalysisService) textToEmbeddingVector(q string) ([]float32, error) {
+	if s.embeddingClient == nil || !s.embeddingClient.IsAvailable() {
+		return nil, errors.New("embedding service is not available")
+	}
+	emb, err := s.embeddingClient.ComputeTextEmbedding(context.Background(), q)
+	if err != nil {
+		return nil, err
+	}
+	vec := make([]float32, len(emb))
+	for i, v := range emb {
+		vec[i] = float32(v)
+	}
+	return vec, nil
+}
+
 // SearchScenesByImage 通过图片 embedding 搜索场景
 func (s *VideoAnalysisService) SearchScenesByImage(embedding []float32, limit int) ([]repository.SceneSearchResult, error) {
 	if s.sceneRepo == nil {

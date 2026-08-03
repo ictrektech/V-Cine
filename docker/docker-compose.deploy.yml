@@ -52,9 +52,9 @@ services:
       # - "5000:5000"
     volumes:
       # 数据持久化
-      - ./data:/data
+      - ../data:/data
       # 转码缓存
-      - ./cache:/cache
+      - ../cache:/cache
       # ---- 媒体目录挂载（按你的 NAS 实际路径改）----
       # 飞牛 OS 的存储池一般挂在 /vol01 /vol02，按实际情况：
       # - /vol01/Media:/media

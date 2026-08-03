@@ -1,0 +1,121 @@
+# ============================================================
+# nowen-video Docker Compose
+# 用法：
+#   docker compose --env-file .env.dev  up -d   # 开发
+#   docker compose --env-file .env.prod up -d   # 生产
+#   docker compose              up -d            # 默认（.env）
+#
+# 要点：
+#   - config/ + config.yaml 是唯一事实源（端口/AI/DB/日志级别都由它们决定）
+#   - env 只能覆盖 config 文件里没写/为空的字段（如 video_analysis 开关、
+#     adult_scraper 开关、JWT secret）；写在 config/*.yaml 里的值会覆盖 env
+#   - 容器内 WORKDIR=/app，相对路径 data_dir=./data 等解析为 /app/data
+# ============================================================
+version: "3.8"
+
+services:
+  nowen-video:
+    build:
+      # context 指向项目根（要拿到 web/ cmd/ 等源码）；dockerfile 相对 context 解析
+      context: ..
+      dockerfile: docker/Dockerfile
+      # 多架构构建（buildx 时生效）
+      # platforms:
+      #   - linux/amd64
+      #   - linux/arm64
+    # 或直接拉镜像：
+    # image: cropflre/nowen-video:latest
+    container_name: nowen-video
+
+    # NAS 上以 root 运行，规避挂载目录权限问题
+    user: "0:0"
+    privileged: true
+    cap_add:
+      - SYS_ADMIN   # WebDAV/Alist 挂载
+      - NET_ADMIN
+      - SYS_PTRACE
+      - DAC_READ_SEARCH
+    security_opt:
+      - apparmor:unconfined
+      - seccomp:unconfined
+
+    # 端口与 config/app.yaml 的 port 一致（容器监听 38080）
+    ports:
+      - "38080:38080"
+
+    volumes:
+      # 应用数据 / 转码缓存（对应 data_dir=./data、cache_dir=./cache，即 /app 下）
+      - ../data:/app/data
+      - ../cache:/app/cache
+      # 宿主数据只读访问
+      - /data:/data:ro
+      # 配置必须持久化（含 .master.key，丢了解不开 ENC 密钥）
+      - ../config:/app/config
+      - ../config.yaml:/app/config.yaml
+      # 媒体目录（与 config.yaml 的 path_mappings 保持一致）
+      - /data/xjx/workspace/data/video:/data/xjx/workspace/data/video:ro
+      - /data/video-structure-cache:/data/video-structure-cache:ro
+
+    # 硬件加速（无需求可注释）
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/fuse:/dev/fuse
+
+    environment:
+      # 容器进程用户（配合上方 user）
+      - PUID=0
+      - PGID=0
+      - UMASK=000
+      - TZ=Asia/Shanghai
+      # Debug 开关 → 日志级别：false=info（默认/生产），true=debug（开发）
+      # .env.dev 设 NOWEN_DEBUG=true，.env.prod 不设（走默认 false=info）
+      - NOWEN_DEBUG=${NOWEN_DEBUG:-false}
+      # 番号刮削（config.yaml 已含，这里仅兜底；enabled 可用 env 切）
+      - NOWEN_ADULT_SCRAPER_ENABLED=${NOWEN_ADULT_SCRAPER_ENABLED:-false}
+      - NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON=true
+      - NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
+      - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
+      # 视频分析开关（config.yaml 已 enabled=true，可经 env 关）
+      - NOWEN_VIDEO_ANALYSIS_ENABLED=${NOWEN_VIDEO_ANALYSIS_ENABLED:-true}
+      # JWT Secret 留空则自动生成并持久化到 /app/data/.jwt_secret（重启不失效）
+      - NOWEN_SECRETS_JWT_SECRET=${NOWEN_SECRETS_JWT_SECRET:-}
+
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:38080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+# ================= 内置 PostgreSQL（可选）=================
+# 默认连外部库（见 config/database.yaml，当前 10.144.144.232:35432），无需本服务。
+# 自包含部署时取消注释，并打开 nowen-video 的 NOWEN_DATABASE_* 指向内置库。
+# 注意：场景搜索需要 pgvector，必须用 pgvector/pgvector 镜像，不能用官方 alpine。
+# ----------------------------------------------------------
+  # postgres:
+  #   image: pgvector/pgvector:pg16
+  #   container_name: nowen-postgres
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: ${PG_PASSWORD:-nowen_password}
+  #     POSTGRES_DB: nowen_video
+  #     TZ: Asia/Shanghai
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #     - ./postgres/init.sql:/docker-entrypoint-initdb.d/10-pgvector.sql:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+  #   restart: unless-stopped
+
+volumes:
+  pgdata:

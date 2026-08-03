@@ -172,7 +172,7 @@ export default function AITab() {
       setEditMetadataEnhance(s.enable_metadata_enhance)
       setEditDescribeEnabled(s.describe_enabled ?? false)
       // 场景描述视觉模型配置
-      const sc = s.scene_describe_ai || {}
+      const sc = s.scene_describe_ai || { api_base: '', model: '' }
       setEditDescribeAPIBase(sc.api_base || '')
       setEditDescribeModel(sc.model || '')
       setEditMonthlyBudget(s.monthly_budget)

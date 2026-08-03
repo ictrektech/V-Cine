@@ -1,0 +1,23 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "pytest",
+#   "requests",
+#   "pyyaml",
+#   "python-toon",
+# ]
+# ///
+"""Run nowen-media-search tests with pytest.
+
+Usage:
+  uv run scripts/test                         # 全部测试
+  uv run scripts/test -v                      # 详细输出
+  uv run scripts/test -k search               # 按关键词过滤
+  uv run scripts/test tests/test_modes.py     # 指定模块
+"""
+
+import sys
+import pytest
+
+sys.exit(pytest.main(sys.argv[1:] or ["tests/", "-v"]))
