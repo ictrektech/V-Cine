@@ -1028,6 +1028,12 @@ func mergeConfigDir() error {
 			// 避免 config/secrets.yaml 中的空 tmdb_api_key 覆盖 config.yaml 中用户已保存的值
 			for _, key := range subViper.AllKeys() {
 				fullKey := cf.prefix + "." + key
+				// 环境变量优先：若 NOWEN_<FULL_KEY 大写> 已设置且非空，则跳过 Set，
+				// 避免分片文件的 viper.Set 覆盖掉 env（viper.Set 优先级高于 env）。
+				// 空 env 不算覆盖——compose 的 ${VAR:-} 空占位会注入空字符串，不应误伤分片值。
+				if envVarSet(fullKey) {
+					continue
+				}
 				newVal := subViper.Get(key)
 				existingVal := viper.Get(fullKey)
 				// 仅当分片配置的值非空，或主配置中尚无该值时，才进行覆盖
@@ -1039,6 +1045,17 @@ func mergeConfigDir() error {
 	}
 
 	return nil
+}
+
+// envVarSet 判断某个配置 key 是否已有对应的环境变量（NOWEN_ 前缀）且值非空。
+// 用于 mergeConfigDir：分片文件的值不应覆盖显式设置的环境变量，
+// 因为 viper.Set 的优先级高于 env，直接 Set 会吞掉 env 的覆盖能力。
+// 注意空字符串不算"已设置"：compose 的 ${VAR:-} 空占位会注入空字符串，
+// 若把空 env 视为覆盖，会误伤 database.yaml / ai.yaml 等分片的真实值。
+func envVarSet(fullKey string) bool {
+	envKey := "NOWEN_" + strings.ToUpper(strings.NewReplacer(".", "_").Replace(fullKey))
+	v, ok := os.LookupEnv(envKey)
+	return ok && v != ""
 }
 
 // isEmptyValue 判断配置值是否为"空"（空字符串、nil、空切片等）
