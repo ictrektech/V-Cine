@@ -23,8 +23,11 @@ services:
       # platforms:
       #   - linux/amd64
       #   - linux/arm64
-    # 或直接拉镜像：
-    # image: cropflre/nowen-video:latest
+    # 构建产物镜像名（带 registry URL，make build 后打 BUILD_TAG 版本 tag，见 Makefile）
+    # 如需本地纯镜像名，把 IMAGE_URL 改成 nowen-video（Makefile 里同步）
+    image: ${IMAGE_URL:-nowen-video}:latest
+    # 或直接拉远程镜像（生产拉取）：
+    # image: swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:latest
     container_name: nowen-video
 
     # NAS 上以 root 运行，规避挂载目录权限问题
