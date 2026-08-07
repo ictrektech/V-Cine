@@ -34,7 +34,7 @@ func TestVideoAnalysisServiceGetResultByMediaBuildsDTO(t *testing.T) {
 			"has_audio":    true,
 			"total_frames": 3012,
 		},
-		"grid_base_path": "scenes/hash-1",
+		"staging_dir": "/staging/job-1",
 		"scenes": []map[string]any{{
 			"scene_id":    "scene_000",
 			"scene_index": 0,
@@ -74,10 +74,10 @@ func TestVideoAnalysisServiceGetResultByMediaUsesLatestTaskWithResult(t *testing
 	first.Status = model.VideoAnalysisStatusSucceeded
 	first.Stage = model.VideoAnalysisStageDone
 	first.ResultJSON = mustMarshalJSON(t, map[string]any{
-		"video_hash":     "hash-1",
-		"metadata":       map[string]any{"video_path": "/photos/movie.mp4"},
-		"grid_base_path": "scenes/hash-1",
-		"scenes":         []map[string]any{{"scene_index": 0, "start_time": 0.0, "end_time": 1.0, "start_frame": 0, "end_frame": 1}},
+		"video_hash":  "hash-1",
+		"metadata":    map[string]any{"video_path": "/photos/movie.mp4"},
+		"staging_dir": "/staging/job-1",
+		"scenes":      []map[string]any{{"scene_index": 0, "start_time": 0.0, "end_time": 1.0, "start_frame": 0, "end_frame": 1}},
 	})
 	if err := tasks.Update(first); err != nil {
 		t.Fatal(err)
@@ -119,8 +119,8 @@ func TestVideoAnalysisServiceOpenSceneGridByMedia(t *testing.T) {
 	task.Status = model.VideoAnalysisStatusSucceeded
 	task.Stage = model.VideoAnalysisStageDone
 	task.ResultJSON = mustMarshalJSON(t, map[string]any{
-		"video_hash": "hash-1",
-		"metadata":   map[string]any{"video_path": "/photos/movie.mp4"},
+		"video_hash":  "hash-1",
+		"metadata":    map[string]any{"video_path": "/photos/movie.mp4"},
 		"staging_dir": "/staging/job-1",
 		"scenes": []map[string]any{{
 			"scene_index": 0,
@@ -163,8 +163,8 @@ func TestVideoAnalysisServiceOpenSceneGridBySceneIndexValue(t *testing.T) {
 	task.Status = model.VideoAnalysisStatusSucceeded
 	task.Stage = model.VideoAnalysisStageDone
 	task.ResultJSON = mustMarshalJSON(t, map[string]any{
-		"video_hash": "hash-2",
-		"metadata":   map[string]any{"video_path": "/photos/movie.mp4"},
+		"video_hash":  "hash-2",
+		"metadata":    map[string]any{"video_path": "/photos/movie.mp4"},
 		"staging_dir": "/staging/job-2",
 		"scenes": []map[string]any{{
 			"scene_index": 10,
@@ -199,8 +199,8 @@ func TestVideoAnalysisServiceOpenSceneGridRejectsTraversal(t *testing.T) {
 	task.Status = model.VideoAnalysisStatusSucceeded
 	task.Stage = model.VideoAnalysisStageDone
 	task.ResultJSON = mustMarshalJSON(t, map[string]any{
-		"video_hash": "hash-1",
-		"metadata":   map[string]any{"video_path": "/photos/movie.mp4"},
+		"video_hash":  "hash-1",
+		"metadata":    map[string]any{"video_path": "/photos/movie.mp4"},
 		"staging_dir": "/staging/job-1",
 		"scenes": []map[string]any{{
 			"scene_index": 0,
@@ -231,10 +231,10 @@ func TestVideoAnalysisServiceGetResultByMediaRejectsForeignTask(t *testing.T) {
 	task.Status = model.VideoAnalysisStatusSucceeded
 	task.Stage = model.VideoAnalysisStageDone
 	task.ResultJSON = mustMarshalJSON(t, map[string]any{
-		"video_hash":     "hash-1",
-		"metadata":       map[string]any{"video_path": "/photos/movie.mp4"},
-		"grid_base_path": "scenes/hash-1",
-		"scenes":         []map[string]any{{"scene_index": 0, "start_time": 0.0, "end_time": 1.0, "start_frame": 0, "end_frame": 1}},
+		"video_hash":  "hash-1",
+		"metadata":    map[string]any{"video_path": "/photos/movie.mp4"},
+		"staging_dir": "/staging/job-1",
+		"scenes":      []map[string]any{{"scene_index": 0, "start_time": 0.0, "end_time": 1.0, "start_frame": 0, "end_frame": 1}},
 	})
 	if err := tasks.Update(task); err != nil {
 		t.Fatal(err)
@@ -249,9 +249,9 @@ func TestVideoAnalysisServiceGetResultByMediaRejectsForeignTask(t *testing.T) {
 func TestMergeDescribeResultMergesSceneDescriptions(t *testing.T) {
 	merged, err := mergeDescribeResult(
 		mustMarshalJSON(t, map[string]any{
-			"video_hash":     "hash-1",
-			"metadata":       map[string]any{"video_path": "/photos/movie.mp4"},
-			"grid_base_path": "scenes/hash-1",
+			"video_hash":  "hash-1",
+			"metadata":    map[string]any{"video_path": "/photos/movie.mp4"},
+			"staging_dir": "/staging/job-1",
 			"scenes": []map[string]any{{
 				"scene_index": 0,
 				"start_time":  0.0,
