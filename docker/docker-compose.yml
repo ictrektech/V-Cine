@@ -50,14 +50,16 @@ services:
       # 应用数据 / 转码缓存（对应 data_dir=./data、cache_dir=./cache，即 /app 下）
       - ../data:/app/data
       - ../cache:/app/cache
-      # 宿主数据只读访问
+      # 宿主数据只读访问（原生视频经此被 Nowen 读取并传给结构化）
       - /data:/data:ro
+      # 结构服务 staging 临时卷（可写子挂载覆盖父 ro；rename 需写父目录）
+      # 产物由 Nowen mv 搬走后即归 Nowen 所有，未搬走的由结构服务 TTL 清理
+      - /data/video-structure-cache:/data/video-structure-cache:rw
+      # Nowen 自己的结构化产物数据目录（asset_dir，与 staging 同 NFS 以保证 rename 原子）
+      - /data/nowen-video-structure:/data/video-structure:rw
       # 配置必须持久化（含 .master.key，丢了解不开 ENC 密钥）
       - ../config:/app/config
       - ../config.yaml:/app/config.yaml
-      # 媒体目录（与 config.yaml 的 path_mappings 保持一致）
-      - /data/xjx/workspace/data/video:/data/xjx/workspace/data/video:ro
-      - /data/video-structure-cache:/data/video-structure-cache:ro
 
     # 硬件加速（无需求可注释）
     devices:

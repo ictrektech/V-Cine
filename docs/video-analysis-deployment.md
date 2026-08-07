@@ -17,12 +17,14 @@ video_analysis:
   enabled: true
   scene_base_url: "http://localhost:8910"
   structure_base_url: "http://localhost:8911"
-  cache_root: "/analysis-cache"
+  asset_dir: "/data/video-structure"   # Nowen 自己的结构化产物数据目录
   max_concurrent: 2
   poll_interval_seconds: 2
   job_timeout_minutes: 120
   describe_enabled: false  # 场景描述功能，默认关闭
 ```
+
+**`asset_dir`（结构化产物数据目录）**：结构服务把产物暂存在 staging，Nowen 轮询到 succeeded 后把 `result.staging_dir` 整个 `mv` 到 `asset_dir/<hash>/`（搬走即归 Nowen 持久持有）。`asset_dir` 默认 `/data/video-structure`，部署时按需指定。
 
 ### 2. 路径映射
 
@@ -40,16 +42,21 @@ video_analysis:
 - 源路径和目标路径必须是绝对路径
 - 路径映射后不允许跳出目标根目录（防止路径穿越攻击）
 
-### 3. 共享缓存挂载
+### 3. staging 临时卷与 asset_dir 数据目录
 
-Structure 服务生成的九宫格图片存储在 `cache_base_path` 下。为了让 Nowen 能访问这些图片，需要共享挂载：
+结构服务采用无状态化契约：产物暂存于 **staging 目录**（`<staging_base>/<job_id>/`），Nowen 轮询到 succeeded 后把 `result.staging_dir` 整个 `mv` 到 **自己的 `asset_dir`**。因此两个卷都需要可写，且**必须在同一文件系统**（`os.Rename` 跨卷会 `EXDEV`）：
 
 ```yaml
 # docker-compose.yml 示例
 services:
   nowen:
     volumes:
-      - video-structure-cache:/analysis-cache:ro  # 只读挂载
+      # 原生视频只读（Nowen 读取并传给结构化）
+      - /media:/media:ro
+      # staging 临时卷（可写子挂载覆盖父 ro；rename 需写父目录）
+      - video-structure-cache:/data/video-structure-cache:rw
+      # asset_dir（Nowen 持久持有，与 staging 同文件系统）
+      - nowen-video-structure:/data/video-structure:rw
 
   video-structure:
     volumes:
@@ -57,12 +64,15 @@ services:
 
 volumes:
   video-structure-cache:
+  nowen-video-structure:
 ```
 
 **重要：**
-- Nowen 挂载为只读 (`ro`)，防止意外修改缓存文件
+- staging 是**临时**目录：Nowen `mv` 搬走后即归 Nowen 所有，未搬走的由结构服务 TTL（默认 6h）清理
+- `staging`（`video-structure-cache`）与 `asset_dir`（`nowen-video-structure`）**必须同一文件系统**，`os.Rename` 才原子
+- Docker 中子路径 `rw` 挂载会覆盖父路径 `ro`：`/data:/data:ro` 保留（媒体只读），staging/asset 子路径可写
 - 路径映射中的 `target` 必须与 Structure 服务看到的视频路径一致
-- `cache_root` 是 Nowen 挂载点的路径
+- `asset_dir` 是 Nowen 在容器内 `config.yaml` 里配置的路径
 
 ### 4. 配置验证
 
@@ -91,7 +101,8 @@ services:
     volumes:
       - ./config:/app/config
       - /media:/media:ro
-      - video-structure-cache:/analysis-cache:ro
+      - video-structure-cache:/data/video-structure-cache:rw   # staging 可写
+      - nowen-video-structure:/data/video-structure:rw         # asset_dir
     environment:
       - VIDEO_ANALYSIS_ENABLED=true
       - VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
@@ -114,6 +125,7 @@ services:
 
 volumes:
   video-structure-cache:
+  nowen-video-structure:
 ```
 
 对应的 Nowen 配置：
@@ -126,7 +138,7 @@ video_analysis:
   path_mappings:
     - source: "/media"
       target: "/photos"
-  cache_root: "/analysis-cache"
+  asset_dir: "/data/video-structure"
   max_concurrent: 2
 ```
 
@@ -159,22 +171,31 @@ video_analysis:
 - 验证路径映射是否正确（Structure 看到的视频路径必须存在）
 - 检查 Structure 服务日志
 
-### 4. 九宫格图片无法显示
+### 4. 任务失败，错误信息包含 "CLAIM_STAGING_FAILED"
 
-**原因：** 缓存挂载配置错误
+**原因：** staging 产物搬移失败（跨文件系统或权限问题）
 
 **解决：**
-- 确认 `cache_root` 与 Structure 的 `cache_base_path` 指向同一存储
-- 确认 Nowen 挂载为只读 (`ro`)
-- 检查图片文件是否存在
+- 确认 `asset_dir` 与 staging（`video-structure-cache`）在**同一文件系统**（`os.Rename` 跨卷返回 EXDEV）
+- 确认 Nowen 对 staging 父目录有写权限（`/data:/data:ro` 下需子路径 `rw` 挂载）
+- 重试任务：RetryTask 会从 structure 阶段重新提交并再次搬移
 
-### 5. STRM 文件无法分析
+### 5. 九宫格图片无法显示
+
+**原因：** asset_dir 挂载配置错误或产物未搬移
+
+**解决：**
+- 确认 `asset_dir` 与容器挂载点一致
+- 确认 staging/asset 子路径以 `rw` 挂载（覆盖父 `ro`）
+- 检查 `<asset_dir>/<hash>/grids/` 下图片文件是否存在
+
+### 6. STRM 文件无法分析
 
 **原因：** 远程流媒体文件不支持视频分析
 
 **说明：** 视频分析需要直接读取视频文件进行帧采样，STRM 等远程流媒体格式暂不支持。
 
-### 6. 任务一直卡在 "running" 状态
+### 7. 任务一直卡在 "running" 状态
 
 **原因：** 服务重启导致任务状态丢失
 

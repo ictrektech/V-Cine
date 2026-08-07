@@ -64,8 +64,9 @@ services:
       # 绿联 NAS 示例：
       # - /volume1/Media:/media
       # ---- 视频分析（可选）----
-      # Structure 九宫格缓存只读挂载；路径需与 video_analysis.cache_root 一致（默认 /data/video-structure-cache）。
-      # - video-structure-cache:/data/video-structure-cache:ro
+      # staging 临时卷（可写子挂载覆盖父 ro）+ asset_dir（与 staging 同文件系统）
+      # - video-structure-cache:/data/video-structure-cache:rw
+      # - nowen-video-structure:/data/video-structure:rw
     # 硬件加速设备（按 SoC 开启对应的）
     devices:
       # 通用 DRM 节点（Mali / 瑞芯微 / Amlogic / Intel 都会暴露这个）
@@ -101,7 +102,7 @@ services:
       # - NOWEN_VIDEO_ANALYSIS_ENABLED=true
       # - NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
       # - NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://video-structure:8911
-      # - NOWEN_VIDEO_ANALYSIS_CACHE_ROOT=/data/video-structure-cache
+      # - NOWEN_VIDEO_ANALYSIS_ASSET_DIR=/data/video-structure
       # ---- 番号刮削（默认关闭）----
       # 改为 true 后 Go 后端会自动拉起 /app/scripts/adult-scraper/app.py 子进程
       # 依赖已全部预装（python3 + flask + bs4 + lxml + requests），开箱即用
