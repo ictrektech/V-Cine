@@ -42,20 +42,23 @@ services:
       - apparmor:unconfined
       - seccomp:unconfined
 
-    # 端口与 config/app.yaml 的 port 一致（容器监听 38080）
+    # 容器内 nowen 监听 8080（Dockerfile NOWEN_APP_PORT=8080），
+    # 宿主侧暴露 38080；映射 38080:8080 对位。
     ports:
-      - "38080:38080"
+      - "38080:8080"
 
     volumes:
       # 应用数据 / 转码缓存（对应 data_dir=./data、cache_dir=./cache，即 /app 下）
       - ../data:/app/data
       - ../cache:/app/cache
-      # 宿主数据只读访问（原生视频经此被 Nowen 读取并传给结构化）
-      - /data:/data:ro
-      # 结构服务 staging 临时卷（可写子挂载覆盖父 ro；rename 需写父目录）
-      # 产物由 Nowen mv 搬走后即归 Nowen 所有，未搬走的由结构服务 TTL 清理
+      # 原生视频只读挂载（Nowen 读取并传给结构化）。
+      # 原生视频目录（raw_dir）必须是只读的，避免 Nowen 误删/误改原始视频。
+      # 注意：不能挂 /data:/data:ro —— docker 27 无法在只读 /data 下创建
+      # staging/asset 子挂载点（read-only file system），故只挂具体媒体目录。
+      - /data/nowen-video-raw:/data/nowen-video-raw:ro
+      # 结构服务 staging 临时卷（可写；产物由 Nowen mv 搬走后归 Nowen 所有）
       - /data/video-structure-cache:/data/video-structure-cache:rw
-      # Nowen 自己的结构化产物数据目录（asset_dir，与 staging 同 NFS 以保证 rename 原子）
+      # Nowen 自己的结构化产物数据目录（asset_dir，与 staging 同文件系统以保证 rename）
       - /data/nowen-video-structure:/data/video-structure:rw
       # 配置必须持久化（含 .master.key，丢了解不开 ENC 密钥）
       - ../config:/app/config
@@ -87,7 +90,7 @@ services:
 
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:38080/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
