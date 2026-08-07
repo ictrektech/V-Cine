@@ -59,7 +59,7 @@ func TestSubmitStructureJobValidatesInput(t *testing.T) {
 	}
 }
 
-func TestSubmitDescribeJobSendsVideoHash(t *testing.T) {
+func TestSubmitDescribeJobSendsStructureJobID(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v2/video/describe/jobs" {
 			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
@@ -68,7 +68,7 @@ func TestSubmitDescribeJobSendsVideoHash(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Fatal(err)
 		}
-		if request.VideoHash != "hash-1" || !request.Force {
+		if request.StructureJobID != "structure-1" || !request.Force {
 			t.Fatalf("unexpected request: %+v", request)
 		}
 		writeAnalysisResponse(t, w, http.StatusOK, 0, "操作成功", map[string]any{
@@ -81,7 +81,7 @@ func TestSubmitDescribeJobSendsVideoHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := client.SubmitDescribeJob(context.Background(), DescribeJobRequest{VideoHash: "hash-1", Force: true})
+	job, err := client.SubmitDescribeJob(context.Background(), DescribeJobRequest{StructureJobID: "structure-1", Force: true})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -301,7 +301,7 @@ func TestVideoAnalysisServiceProcessesDescribeWhenEnabled(t *testing.T) {
 	if stored.Status != model.VideoAnalysisStatusSucceeded || stored.Stage != model.VideoAnalysisStageDone || stored.DescribeJobID != "describe-1" {
 		t.Fatalf("unexpected task: %+v", stored)
 	}
-	if len(client.describeSubmits) != 1 || client.describeSubmits[0].VideoHash != "hash-1" {
+	if len(client.describeSubmits) != 1 || client.describeSubmits[0].StructureJobID != "structure-1" {
 		t.Fatalf("describe submits: %+v", client.describeSubmits)
 	}
 	if stored.IncludeDescriptions != true {

@@ -808,7 +808,7 @@ func (s *VideoAnalysisService) ensureStructureJob(ctx context.Context, task *mod
 	}
 	job, err := s.client.SubmitStructureJob(ctx, StructureJobRequest{
 		VideoPath: task.MappedVideoPath, DetectJobID: task.DetectJobID,
-		FrameGrid: true, Force: task.Force, GridRows: 3, GridCols: 3,
+		FrameGrid: true, GridRows: 3, GridCols: 3,
 	})
 	if err != nil && !task.FallbackUsed && shouldFallbackToScenes(err) {
 		if s.logger != nil {
@@ -857,7 +857,7 @@ func (s *VideoAnalysisService) submitStructureWithScenes(ctx context.Context, ta
 	}
 	job, err := s.client.SubmitStructureJob(ctx, StructureJobRequest{
 		VideoPath: task.MappedVideoPath, Scenes: result.Scenes,
-		FrameGrid: true, Force: task.Force, GridRows: 3, GridCols: 3,
+		FrameGrid: true, GridRows: 3, GridCols: 3,
 	})
 	if err != nil {
 		return "", fmt.Errorf("submit structure fallback job: %w", err)
@@ -879,12 +879,12 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		}
 		return task.DescribeJobID, nil
 	}
-	if strings.TrimSpace(task.VideoHash) == "" {
-		return "", errors.New("video_hash is required before describe")
+	if strings.TrimSpace(task.StructureJobID) == "" {
+		return "", errors.New("structure_job_id is required before describe")
 	}
 	req := DescribeJobRequest{
-		VideoHash: task.VideoHash,
-		Force:     task.Force,
+		StructureJobID: task.StructureJobID,
+		Force:          task.Force,
 	}
 	// 注入视觉 LLM 配置（场景描述需要视觉模型，使用独立的 scene_describe_ai 配置）
 	if s.appCfg != nil && s.appCfg.AI.SceneDescribeAI.APIBase != "" {
@@ -900,7 +900,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		if s.logger != nil {
 			s.logger.Warnw("Video analysis describe job submission failed",
 				"task_id", task.ID,
-				"video_hash", task.VideoHash,
+				"structure_job_id", task.StructureJobID,
 				"error", err,
 			)
 		}
@@ -914,7 +914,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		s.logger.Infow("Video analysis describe job submitted",
 			"task_id", task.ID,
 			"describe_job_id", job.JobID,
-			"video_hash", task.VideoHash,
+			"structure_job_id", task.StructureJobID,
 		)
 	}
 	return job.JobID, nil

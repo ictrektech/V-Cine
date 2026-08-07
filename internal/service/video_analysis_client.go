@@ -37,7 +37,6 @@ type StructureJobRequest struct {
 	DetectJobID string          `json:"detect_job_id,omitempty"`
 	Scenes      []SceneBoundary `json:"scenes,omitempty"`
 	FrameGrid   bool            `json:"frame_grid"`
-	Force       bool            `json:"force"`
 	GridRows    int             `json:"grid_rows,omitempty"`
 	GridCols    int             `json:"grid_cols,omitempty"`
 }
@@ -52,9 +51,9 @@ type DescribeModelCfg struct {
 }
 
 type DescribeJobRequest struct {
-	VideoHash string          `json:"video_hash"`
-	Force     bool            `json:"force"`
-	ModelCfg  *DescribeModelCfg `json:"model_cfg,omitempty"`
+	StructureJobID string            `json:"structure_job_id"`
+	Force          bool              `json:"force"`
+	ModelCfg       *DescribeModelCfg `json:"model_cfg,omitempty"`
 }
 
 type ExternalJobRef struct {
@@ -84,12 +83,6 @@ type ExternalJob struct {
 type VideoAnalysisHealth struct {
 	Status  string `json:"status"`
 	Service string `json:"service"`
-}
-
-type VideoAnalysisStorage struct {
-	DataBasePath  string `json:"data_base_path"`
-	CacheBasePath string `json:"cache_base_path"`
-	ScenesPath    string `json:"scenes_path"`
 }
 
 type VideoAnalysisAPIError struct {
@@ -166,8 +159,8 @@ func (c *VideoAnalysisClient) GetStructureJob(ctx context.Context, jobID string)
 }
 
 func (c *VideoAnalysisClient) SubmitDescribeJob(ctx context.Context, request DescribeJobRequest) (*ExternalJobRef, error) {
-	if strings.TrimSpace(request.VideoHash) == "" {
-		return nil, errors.New("video_hash is required")
+	if strings.TrimSpace(request.StructureJobID) == "" {
+		return nil, errors.New("structure_job_id is required")
 	}
 	var result ExternalJobRef
 	if err := c.doJSON(ctx, http.MethodPost, c.structureBase, "/api/v2/video/describe/jobs", request, &result); err != nil {
@@ -201,17 +194,6 @@ func (c *VideoAnalysisClient) CheckStructureHealth(ctx context.Context) (*VideoA
 	}
 	if result.Status == "" || result.Service == "" {
 		return nil, errors.New("structure health response is missing required fields")
-	}
-	return &result, nil
-}
-
-func (c *VideoAnalysisClient) GetStructureStorage(ctx context.Context) (*VideoAnalysisStorage, error) {
-	var result VideoAnalysisStorage
-	if err := c.doJSON(ctx, http.MethodGet, c.structureBase, "/api/v1/video/storage", nil, &result); err != nil {
-		return nil, err
-	}
-	if result.DataBasePath == "" || result.CacheBasePath == "" || result.ScenesPath == "" {
-		return nil, errors.New("structure storage response is missing required fields")
 	}
 	return &result, nil
 }
