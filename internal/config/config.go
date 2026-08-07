@@ -145,7 +145,7 @@ type VideoAnalysisConfig struct {
 	SceneBaseURL        string                     `mapstructure:"scene_base_url" yaml:"scene_base_url" json:"scene_base_url"`
 	StructureBaseURL    string                     `mapstructure:"structure_base_url" yaml:"structure_base_url" json:"structure_base_url"`
 	PathMappings        []VideoAnalysisPathMapping `mapstructure:"path_mappings" yaml:"path_mappings" json:"path_mappings"`
-	CacheRoot           string                     `mapstructure:"cache_root" yaml:"cache_root" json:"cache_root"`
+	AssetDir            string                     `mapstructure:"asset_dir" yaml:"asset_dir" json:"asset_dir"`
 	MaxConcurrent       int                        `mapstructure:"max_concurrent" yaml:"max_concurrent" json:"max_concurrent"`
 	PollIntervalSeconds int                        `mapstructure:"poll_interval_seconds" yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
 	JobTimeoutMinutes   int                        `mapstructure:"job_timeout_minutes" yaml:"job_timeout_minutes" json:"job_timeout_minutes"`
@@ -745,7 +745,7 @@ func Load() (*Config, error) {
 	// 外部客户端/路径映射器时执行，使功能关闭时不会阻断现有服务启动。
 	cfg.VideoAnalysis.SceneBaseURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.SceneBaseURL), "/")
 	cfg.VideoAnalysis.StructureBaseURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.StructureBaseURL), "/")
-	cfg.VideoAnalysis.CacheRoot = filepath.Clean(strings.TrimSpace(cfg.VideoAnalysis.CacheRoot))
+	cfg.VideoAnalysis.AssetDir = filepath.Clean(strings.TrimSpace(cfg.VideoAnalysis.AssetDir))
 	if cfg.VideoAnalysis.MaxConcurrent <= 0 {
 		cfg.VideoAnalysis.MaxConcurrent = 2
 	}
@@ -830,7 +830,7 @@ func setDefaults() {
 	viper.SetDefault("video_analysis.scene_base_url", "http://localhost:8910")
 	viper.SetDefault("video_analysis.structure_base_url", "http://localhost:8911")
 	viper.SetDefault("video_analysis.path_mappings", []VideoAnalysisPathMapping{})
-	viper.SetDefault("video_analysis.cache_root", "/data/video-structure-cache")
+	viper.SetDefault("video_analysis.asset_dir", "/data/video-structure")
 	viper.SetDefault("video_analysis.max_concurrent", 2)
 	viper.SetDefault("video_analysis.poll_interval_seconds", 2)
 	viper.SetDefault("video_analysis.job_timeout_minutes", 120)

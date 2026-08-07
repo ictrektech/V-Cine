@@ -426,7 +426,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			}
 			svcs.VideoAnalysis = NewVideoAnalysisService(
 				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, repos.Scene, embeddingClient,
-				cfg.VideoAnalysis.CacheRoot,
+				cfg.VideoAnalysis.AssetDir,
 				cfg.VideoAnalysis.DescribeEnabled, wsHub, logger,
 				time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,
 				time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,

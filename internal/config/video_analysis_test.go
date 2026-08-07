@@ -25,7 +25,7 @@ video_analysis:
   path_mappings:
     - source: /media
       target: /photos
-  cache_root: /data/video-structure-cache
+  asset_dir: /data/video-structure
   max_concurrent: 0
   poll_interval_seconds: 0
   job_timeout_minutes: 0
@@ -51,6 +51,9 @@ video_analysis:
 	}
 	if len(cfg.VideoAnalysis.PathMappings) != 1 || cfg.VideoAnalysis.PathMappings[0].Source != "/media" || cfg.VideoAnalysis.PathMappings[0].Target != "/photos" {
 		t.Fatalf("unexpected path mappings: %+v", cfg.VideoAnalysis.PathMappings)
+	}
+	if cfg.VideoAnalysis.AssetDir != "/data/video-structure" {
+		t.Fatalf("unexpected asset_dir: %+v", cfg.VideoAnalysis.AssetDir)
 	}
 	if cfg.VideoAnalysis.MaxConcurrent != 2 || cfg.VideoAnalysis.PollIntervalSeconds != 2 || cfg.VideoAnalysis.JobTimeoutMinutes != 120 {
 		t.Fatalf("defaults not applied: %+v", cfg.VideoAnalysis)
