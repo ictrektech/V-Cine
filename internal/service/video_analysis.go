@@ -19,7 +19,12 @@ import (
 
 const videoAnalysisTaskUpdateEvent = "video_analysis_task_update"
 
+// ErrVideoAnalysisTaskActive 表示媒体已有进行中的分析任务。
 var ErrVideoAnalysisTaskActive = repository.ErrVideoAnalysisTaskActive
+
+// errClaimStagingFailed 标记 staging 搬移失败（产物未落地），由编排层转为
+// CLAIM_STAGING_FAILED 错误码。
+var errClaimStagingFailed = errors.New("claim staging dir failed")
 
 type videoAnalysisExternalClient interface {
 	SubmitDetectJob(context.Context, DetectJobRequest) (*ExternalJobRef, error)
@@ -77,7 +82,7 @@ type VideoAnalysisService struct {
 	pathMapper      *VideoPathMapper
 	sceneRepo       *repository.SceneRepo
 	embeddingClient *EmbeddingClient
-	cacheRoot       string
+	assetDir        string
 	describeEnabled bool
 	wsHub           *WSHub
 	logger          *zap.SugaredLogger
@@ -95,7 +100,7 @@ func NewVideoAnalysisService(
 	pathMapper *VideoPathMapper,
 	sceneRepo *repository.SceneRepo,
 	embeddingClient *EmbeddingClient,
-	cacheRoot string,
+	assetDir string,
 	describeEnabled bool,
 	wsHub *WSHub,
 	logger *zap.SugaredLogger,
@@ -110,7 +115,7 @@ func NewVideoAnalysisService(
 	}
 	return &VideoAnalysisService{
 		tasks: tasks, media: media, client: client, pathMapper: pathMapper, sceneRepo: sceneRepo, embeddingClient: embeddingClient,
-		cacheRoot: strings.TrimSpace(cacheRoot),
+		assetDir:        strings.TrimSpace(assetDir),
 		describeEnabled: describeEnabled, wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
 		appCfg: appCfg,
 	}
@@ -654,7 +659,6 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		)
 	}
 
-
 	task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusSucceeded)
 	task.ResultJSON = string(structureResult.Result)
 	var resultHeader struct {
@@ -704,27 +708,27 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		}
 		task.ResultJSON = mergedResult
 
-			// Phase 3: 更新 Scene 描述和描述 embedding
-			if err := s.updateSceneDescriptionsFromDescribe(task, describeResult); err != nil {
-				if s.logger != nil {
-					s.logger.Warnw("Video analysis update scene descriptions failed (non-fatal)",
-						"task_id", task.ID,
-						"media_id", task.MediaID,
-						"error", err,
-					)
-				}
+		// Phase 3: 更新 Scene 描述和描述 embedding
+		if err := s.updateSceneDescriptionsFromDescribe(task, describeResult); err != nil {
+			if s.logger != nil {
+				s.logger.Warnw("Video analysis update scene descriptions failed (non-fatal)",
+					"task_id", task.ID,
+					"media_id", task.MediaID,
+					"error", err,
+				)
 			}
+		}
 
-			// Phase 3b: 计算描述文本的 CLIP embedding（本地调用 emb_server）
-			if err := s.computeDescriptionEmbeddings(task); err != nil {
-				if s.logger != nil {
-					s.logger.Warnw("Video analysis compute description embeddings failed (non-fatal)",
-						"task_id", task.ID,
-						"media_id", task.MediaID,
-						"error", err,
-					)
-				}
+		// Phase 3b: 计算描述文本的 CLIP embedding（本地调用 emb_server）
+		if err := s.computeDescriptionEmbeddings(task); err != nil {
+			if s.logger != nil {
+				s.logger.Warnw("Video analysis compute description embeddings failed (non-fatal)",
+					"task_id", task.ID,
+					"media_id", task.MediaID,
+					"error", err,
+				)
 			}
+		}
 
 		if s.logger != nil {
 			s.logger.Infow("Video analysis describe stage completed",
@@ -736,6 +740,23 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSucceeded)
 	} else {
 		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSkipped)
+	}
+
+	// Phase 4: 搬移 staging 产物到 asset_dir（describe 之后，staging 已含 descriptions.json）。
+	// 失败 = 产物未落地 = 任务实际未完成，标 failed，RetryTask 从 structure 阶段重跑。
+	if err := s.claimStagingForTask(task); err != nil {
+		task.Stage = model.VideoAnalysisStageStructure
+		s.failTask(task, err)
+		return err
+	}
+
+	// Phase 5: 搬移后计算图片 CLIP embedding（读取 asset_dir/<hash>/grids/，non-fatal）。
+	if err := s.computeSceneEmbeddings(task); err != nil && s.logger != nil {
+		s.logger.Warnw("Video analysis compute scene embeddings failed (non-fatal)",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"error", err,
+		)
 	}
 
 	task.Status = model.VideoAnalysisStatusSucceeded
@@ -809,7 +830,7 @@ func (s *VideoAnalysisService) ensureStructureJob(ctx context.Context, task *mod
 	}
 	job, err := s.client.SubmitStructureJob(ctx, StructureJobRequest{
 		VideoPath: task.MappedVideoPath, DetectJobID: task.DetectJobID,
-		FrameGrid: true, Force: task.Force, GridRows: 3, GridCols: 3,
+		FrameGrid: true, GridRows: 3, GridCols: 3,
 	})
 	if err != nil && !task.FallbackUsed && shouldFallbackToScenes(err) {
 		if s.logger != nil {
@@ -858,7 +879,7 @@ func (s *VideoAnalysisService) submitStructureWithScenes(ctx context.Context, ta
 	}
 	job, err := s.client.SubmitStructureJob(ctx, StructureJobRequest{
 		VideoPath: task.MappedVideoPath, Scenes: result.Scenes,
-		FrameGrid: true, Force: task.Force, GridRows: 3, GridCols: 3,
+		FrameGrid: true, GridRows: 3, GridCols: 3,
 	})
 	if err != nil {
 		return "", fmt.Errorf("submit structure fallback job: %w", err)
@@ -880,12 +901,12 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		}
 		return task.DescribeJobID, nil
 	}
-	if strings.TrimSpace(task.VideoHash) == "" {
-		return "", errors.New("video_hash is required before describe")
+	if strings.TrimSpace(task.StructureJobID) == "" {
+		return "", errors.New("structure_job_id is required before describe")
 	}
 	req := DescribeJobRequest{
-		VideoHash: task.VideoHash,
-		Force:     task.Force,
+		StructureJobID: task.StructureJobID,
+		Force:          task.Force,
 	}
 	// 注入视觉 LLM 配置（场景描述需要视觉模型，使用独立的 scene_describe_ai 配置）
 	if s.appCfg != nil && s.appCfg.AI.SceneDescribeAI.APIBase != "" {
@@ -901,7 +922,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		if s.logger != nil {
 			s.logger.Warnw("Video analysis describe job submission failed",
 				"task_id", task.ID,
-				"video_hash", task.VideoHash,
+				"structure_job_id", task.StructureJobID,
 				"error", err,
 			)
 		}
@@ -915,7 +936,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		s.logger.Infow("Video analysis describe job submitted",
 			"task_id", task.ID,
 			"describe_job_id", job.JobID,
-			"video_hash", task.VideoHash,
+			"structure_job_id", task.StructureJobID,
 		)
 	}
 	return job.JobID, nil
@@ -1012,6 +1033,48 @@ func (s *VideoAnalysisService) failTask(task *model.VideoAnalysisTask, err error
 	}
 }
 
+// claimStagingForTask 把 structure job 的 staging 产物 mv 到 asset_dir/<hash>/。
+// 必须在 describe 完成后调用（describe 读 staging 并写回 descriptions.json）。
+// 失败返回 errClaimStagingFailed，由编排层标为 CLAIM_STAGING_FAILED。
+func (s *VideoAnalysisService) claimStagingForTask(task *model.VideoAnalysisTask) error {
+	if strings.TrimSpace(task.ResultJSON) == "" {
+		return nil
+	}
+	var result struct {
+		VideoHash  string `json:"video_hash"`
+		StagingDir string `json:"staging_dir"`
+	}
+	if err := json.Unmarshal([]byte(task.ResultJSON), &result); err != nil {
+		return fmt.Errorf("decode structure result for claim: %w", err)
+	}
+	if strings.TrimSpace(result.StagingDir) == "" || strings.TrimSpace(result.VideoHash) == "" {
+		// 无 staging 产物（如 frame_grid=false 或旧结果），无需搬移。
+		return nil
+	}
+	if _, err := claimStagingDir(result.StagingDir, s.assetDir, result.VideoHash); err != nil {
+		if s.logger != nil {
+			s.logger.Warnw("Video analysis claim staging failed",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"staging_dir", result.StagingDir,
+				"video_hash", result.VideoHash,
+				"error", err,
+			)
+		}
+		return fmt.Errorf("%w: %v", errClaimStagingFailed, err)
+	}
+	if s.logger != nil {
+		s.logger.Infow("Video analysis claim staging succeeded",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"staging_dir", result.StagingDir,
+			"video_hash", result.VideoHash,
+			"asset_dir", s.assetDir,
+		)
+	}
+	return nil
+}
+
 func (s *VideoAnalysisService) broadcast(task *model.VideoAnalysisTask) {
 	if s.wsHub != nil {
 		s.wsHub.BroadcastEvent(videoAnalysisTaskUpdateEvent, task)
@@ -1039,6 +1102,9 @@ func shouldFallbackToScenes(err error) bool {
 func analysisErrorCode(err error) string {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "JOB_TIMEOUT"
+	}
+	if errors.Is(err, errClaimStagingFailed) {
+		return "CLAIM_STAGING_FAILED"
 	}
 	var apiErr *VideoAnalysisAPIError
 	if errors.As(err, &apiErr) {
@@ -1096,111 +1162,83 @@ func (s *VideoAnalysisService) saveScenesFromStructure(task *model.VideoAnalysis
 			"count", len(scenes),
 		)
 	}
+	return nil
+}
 
-		// Phase 2b: 计算并回写图片 CLIP embedding
-		if s.embeddingClient != nil && s.embeddingClient.IsAvailable() && len(result.Scenes) > 0 {
-			if s.logger != nil {
-				s.logger.Infow("Starting scene embedding computation",
+// computeSceneEmbeddings 遍历场景九宫格图片，调用 emb_server 计算 CLIP embedding 并回写。
+// 图片路径按搬移后的 <asset_dir>/<hash>/grids/ 解析，须在 claim 之后调用。
+func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisTask) error {
+	if s.embeddingClient == nil || s.sceneRepo == nil {
+		return nil
+	}
+	result, err := decodeVideoAnalysisStructureResult(task)
+	if err != nil {
+		return err
+	}
+	log := s.logger
+
+	updates := make([]repository.SceneEmbeddingUpdate, 0, len(result.Scenes))
+	for _, scene := range result.Scenes {
+		if scene.Status == "error" || strings.TrimSpace(scene.GridImage) == "" {
+			continue
+		}
+
+		gridPath, err := resolveClaimedGridPath(s.assetDir, result.VideoHash, scene.GridImage)
+		if err != nil {
+			if log != nil {
+				log.Debugw("Skip embedding for scene: resolve path failed",
 					"task_id", task.ID,
-					"media_id", task.MediaID,
-					"scene_count", len(result.Scenes),
-					"cache_root", s.cacheRoot,
-					"grid_base", result.GridBasePath,
-				)
-			}
-			if err := s.computeSceneEmbeddings(task, &result); err != nil && s.logger != nil {
-				s.logger.Warnw("Compute scene embeddings failed (non-fatal)",
-					"task_id", task.ID,
-					"media_id", task.MediaID,
+					"scene_index", scene.SceneIndex,
 					"error", err,
 				)
 			}
-		} else if s.logger != nil && len(result.Scenes) > 0 {
-			if s.embeddingClient == nil {
-				s.logger.Infow("Embedding client not configured, skipping scene embeddings",
+			continue
+		}
+
+		emb, err := s.embeddingClient.ComputeImageEmbedding(context.Background(), gridPath)
+		if err != nil {
+			if log != nil {
+				log.Warnw("Compute scene embedding failed",
 					"task_id", task.ID,
-					"media_id", task.MediaID,
-				)
-			} else if !s.embeddingClient.IsAvailable() {
-				s.logger.Warnw("Embedding client not available, skipping scene embeddings",
-					"task_id", task.ID,
-					"media_id", task.MediaID,
-					"base_url", s.embeddingClient.baseURL,
+					"scene_index", scene.SceneIndex,
+					"error", err,
 				)
 			}
+			continue
 		}
-		return nil
+
+		if len(emb) > 0 {
+			v := float64sToVector(emb)
+			updates = append(updates, repository.SceneEmbeddingUpdate{
+				SceneIndex: scene.SceneIndex,
+				Embedding:  v,
+			})
+		}
 	}
 
-// computeSceneEmbeddings 遍历场景九宫格图片，调用 emb_server 计算 CLIP embedding 并回写
-func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisTask, result *videoAnalysisStructureResult) error {
-		if s.embeddingClient == nil || s.sceneRepo == nil {
-			return nil
-		}
-		log := s.logger
-
-		updates := make([]repository.SceneEmbeddingUpdate, 0, len(result.Scenes))
-		for _, scene := range result.Scenes {
-			if scene.Status == "error" || strings.TrimSpace(scene.GridImage) == "" {
-				continue
-			}
-
-			gridPath, err := resolveVideoAnalysisGridPath(s.cacheRoot, result.GridBasePath, scene.GridImage)
-			if err != nil {
-				if log != nil {
-					log.Debugw("Skip embedding for scene: resolve path failed",
-						"task_id", task.ID,
-						"scene_index", scene.SceneIndex,
-						"error", err,
-					)
-				}
-				continue
-			}
-
-			emb, err := s.embeddingClient.ComputeImageEmbedding(context.Background(), gridPath)
-			if err != nil {
-				if log != nil {
-					log.Warnw("Compute scene embedding failed",
-						"task_id", task.ID,
-						"scene_index", scene.SceneIndex,
-						"error", err,
-					)
-				}
-				continue
-			}
-
-			if len(emb) > 0 {
-				v := float64sToVector(emb)
-				updates = append(updates, repository.SceneEmbeddingUpdate{
-					SceneIndex: scene.SceneIndex,
-					Embedding:  v,
-				})
-			}
-		}
-
-		if len(updates) == 0 {
-			if log != nil {
-				log.Warnw("computeSceneEmbeddings: no valid scenes for embedding",
-					"task_id", task.ID,
-					"total_scenes", len(result.Scenes),
-				)
-			}
-			return nil
-		}
-
-		if err := s.sceneRepo.UpdateEmbeddings(task.ID, updates); err != nil {
-			return fmt.Errorf("update scene embeddings: %w", err)
-		}
-
+	if len(updates) == 0 {
 		if log != nil {
-			log.Infow("Computed and saved scene embeddings",
+			log.Warnw("computeSceneEmbeddings: no valid scenes for embedding",
 				"task_id", task.ID,
-				"media_id", task.MediaID,
-				"count", len(updates),
+				"total_scenes", len(result.Scenes),
 			)
 		}
 		return nil
 	}
+
+	if err := s.sceneRepo.UpdateEmbeddings(task.ID, updates); err != nil {
+		return fmt.Errorf("update scene embeddings: %w", err)
+	}
+
+	if log != nil {
+		log.Infow("Computed and saved scene embeddings",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"count", len(updates),
+		)
+	}
+	return nil
+}
 
 // computeDescriptionEmbeddings 计算场景描述的文本 CLIP embedding 并回写
 // 在描述写入 DB 后调用，读取描述文本并调用 emb_server 计算文本 embedding
@@ -1238,8 +1276,8 @@ func (s *VideoAnalysisService) computeDescriptionEmbeddings(task *model.VideoAna
 
 		if len(emb) > 0 {
 			descriptionUpdate := repository.SceneDescriptionUpdate{
-				SceneIndex:          scene.SceneIndex,
-				Description:         scene.Description,
+				SceneIndex:           scene.SceneIndex,
+				Description:          scene.Description,
 				DescriptionEmbedding: float64sToVector(emb),
 			}
 			updates = append(updates, descriptionUpdate)
@@ -1316,11 +1354,11 @@ func (s *VideoAnalysisService) updateSceneDescriptionsFromDescribe(task *model.V
 	if len(updates) == 0 {
 		if s.logger != nil {
 			s.logger.Warnw("updateSceneDescriptionsFromDescribe: no descriptions",
-					"task_id", task.ID,
+				"task_id", task.ID,
 				"total_descriptions", len(result.Descriptions),
-				)
-			}
-			return nil
+			)
+		}
+		return nil
 	}
 
 	if err := s.sceneRepo.UpdateDescriptions(task.ID, updates); err != nil {
@@ -1413,6 +1451,25 @@ func (s *VideoAnalysisService) RunStage(ctx context.Context, taskID, stage strin
 
 	task.SetStageStatus(stage, model.VideoAnalysisStageStatusSucceeded)
 	if stage == model.VideoAnalysisStageDescribe || (!task.IncludeDescriptions && stage == model.VideoAnalysisStageStructure) {
+		// 到达 done：搬移 staging 产物（describe 后 staging 已含 descriptions.json），
+		// 失败 = 产物未落地 = 标 failed，RetryTask 从 structure 阶段重跑。
+		if err := s.claimStagingForTask(task); err != nil {
+			task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusFailed)
+			task.Status = model.VideoAnalysisStatusFailed
+			task.ErrorCode = analysisErrorCode(err)
+			task.ErrorMessage = err.Error()
+			finished := time.Now()
+			task.FinishedAt = &finished
+			s.persist(task)
+			return err
+		}
+		if err := s.computeSceneEmbeddings(task); err != nil && s.logger != nil {
+			s.logger.Warnw("Video analysis compute scene embeddings failed (non-fatal)",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"error", err,
+			)
+		}
 		task.Status = model.VideoAnalysisStatusSucceeded
 		task.Stage = model.VideoAnalysisStageDone
 		task.Progress = 100
@@ -1493,6 +1550,24 @@ func (s *VideoAnalysisService) runStageByTask(ctx context.Context, task *model.V
 		return stageErr
 	}
 	task.SetStageStatus(stage, model.VideoAnalysisStageStatusSucceeded)
+	// 最后一个阶段完成（下一阶段为 done）：搬移 staging 产物并计算图片 embedding。
+	// RunMissing 循环在下一次迭代发现 done 时退出，这里在退出前完成 claim。
+	if task.NextPendingStage() == model.VideoAnalysisStageDone {
+		if err := s.claimStagingForTask(task); err != nil {
+			task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusFailed)
+			task.ErrorCode = analysisErrorCode(err)
+			task.ErrorMessage = err.Error()
+			s.persist(task)
+			return err
+		}
+		if err := s.computeSceneEmbeddings(task); err != nil && s.logger != nil {
+			s.logger.Warnw("Video analysis compute scene embeddings failed (non-fatal)",
+				"task_id", task.ID,
+				"media_id", task.MediaID,
+				"error", err,
+			)
+		}
+	}
 	return s.persist(task)
 }
 

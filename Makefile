@@ -19,10 +19,12 @@ IMAGE_URL  ?= $(REGISTRY)/$(IMAGE_NAME)
 
 # 所有 compose 命令导出 IMAGE_URL，build/up/tag 使用同一镜像名
 COMPOSE := IMAGE_URL=$(IMAGE_URL) docker compose -f docker/docker-compose.yml
+# 开发叠加 dev.yml：容器内 go run（改代码重启即生效，免每次重建镜像）
+DEV_COMPOSE := $(COMPOSE) -f docker/docker-compose.dev.yml
 
 DEV_ENV_FILE := .env.dev
 PROD_ENV_FILE := .env.prod
-DEV_CMD := $(COMPOSE) --env-file $(DEV_ENV_FILE)
+DEV_CMD := $(DEV_COMPOSE) --env-file $(DEV_ENV_FILE)
 PROD_CMD := $(COMPOSE) --env-file $(PROD_ENV_FILE)
 
 # 传给 compose 的额外参数（默认前台；后台运行用 make dev OPTS=-d）

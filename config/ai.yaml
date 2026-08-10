@@ -1,4 +1,4 @@
-api_base: http://172.17.0.1:31536/v1
+api_base: http://172.17.0.1:21536/v1
 api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
 auto_pilot: true
 auto_subtitle_preprocess: false
@@ -20,7 +20,7 @@ failover:
     enabled: false
     last_switched_at: 0
 max_concurrent: 1
-model: qwen3:0.6b
+model: Qwen3.5-4B
 monthly_budget: 0
 monthly_token_budget: 0
 ocr_dpi: 150
@@ -29,10 +29,10 @@ prefer_existing_subtitle: true
 prefer_local_whisper: false
 profiles:
     custom:
-        api_base: http://172.17.0.1:31536/v1
+        api_base: http://172.17.0.1:21536/v1
         api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
         enabled: true
-        model: qwen3:0.6b
+        model: Qwen3.5-4B
     deepseek:
         api_base: https://api.deepseek.com/v1
         api_key: ENC:OcQmtgxl9hM4R5xdT51dhq13AnKjYptP/UiHj+HQRvprUN42DzlaQzjqFgZAQxngNlejZ2DX0xPVz7jP3wb0
@@ -56,9 +56,9 @@ profiles:
 provider: custom
 request_interval_ms: 1100
 scene_describe_ai:
-    api_base: http://10.144.144.232:31536/v1
-    api_key: ENC:FBFIhdcshJM+RtFWFQ4N7mehHyl1vXWORrYwym2tqw/q6FY=
-    model: minicpm-v:latest
+    api_base: http://10.144.144.232:21536/v1
+    api_key: ENC:VstsdT2fjc4VWNcg6x17jMqIFRKXPR983TFHKKV5VBFokio=
+    model: Qwen3.5-4B
 sub_clean_backup: true
 sub_clean_enabled: false
 sub_clean_fallback_enc: gbk

@@ -30,7 +30,7 @@ func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repo
 	if err := os.WriteFile(videoPath, []byte("video"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cacheRoot := filepath.Join(dir, "cache")
+	assetDir := filepath.Join(dir, "asset")
 	mapper, err := service.NewVideoPathMapper([]config.VideoAnalysisPathMapping{{Source: dir, Target: "/photos"}})
 	if err != nil {
 		t.Fatal(err)
@@ -39,8 +39,8 @@ func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repo
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, nil, nil, cacheRoot, false, nil, nil, time.Millisecond, time.Second, nil)
-	return NewVideoAnalysisHandler(vaService, nil), repos.VideoAnalysis, media.ID, cacheRoot
+	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, nil, nil, assetDir, false, nil, nil, time.Millisecond, time.Second, nil)
+	return NewVideoAnalysisHandler(vaService, nil), repos.VideoAnalysis, media.ID, assetDir
 }
 
 type fakeHandlerVideoAnalysisClient struct{}
@@ -70,7 +70,7 @@ func TestVideoAnalysisHandlerGetMediaResult(t *testing.T) {
 		MediaID: mediaID, LibraryID: "library-1", MediaTitle: "Movie",
 		VideoPath: "/media/movie.mp4", MappedVideoPath: "/photos/movie.mp4",
 		Trigger: model.VideoAnalysisTriggerManual, Status: model.VideoAnalysisStatusSucceeded, Stage: model.VideoAnalysisStageDone,
-		ResultJSON: `{"video_hash":"hash-1","metadata":{"video_path":"/photos/movie.mp4"},"grid_base_path":"scenes/hash-1","scenes":[{"scene_index":0,"start_time":0,"end_time":1,"start_frame":0,"end_frame":1}]}`,
+		ResultJSON: `{"video_hash":"hash-1","metadata":{"video_path":"/photos/movie.mp4"},"staging_dir":"/staging/job-1","scenes":[{"scene_index":0,"start_time":0,"end_time":1,"start_frame":0,"end_frame":1}]}`,
 	}
 	if err := tasks.CreateIfNoActive(task); err != nil {
 		t.Fatal(err)
@@ -87,19 +87,19 @@ func TestVideoAnalysisHandlerGetMediaResult(t *testing.T) {
 }
 
 func TestVideoAnalysisHandlerServeSceneGrid(t *testing.T) {
-	h, tasks, mediaID, cacheRoot := setupVideoAnalysisResultHandler(t)
-	cacheDir := filepath.Join(cacheRoot, "scenes", "hash-1")
-	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+	h, tasks, mediaID, assetDir := setupVideoAnalysisResultHandler(t)
+	assetDir = filepath.Join(assetDir, "hash-1", "grids")
+	if err := os.MkdirAll(assetDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cacheDir, "scene_000.jpg"), []byte("jpeg"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(assetDir, "scene_000.jpg"), []byte("jpeg"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	task := &model.VideoAnalysisTask{
 		MediaID: mediaID, LibraryID: "library-1", MediaTitle: "Movie",
 		VideoPath: "/media/movie.mp4", MappedVideoPath: "/photos/movie.mp4",
 		Trigger: model.VideoAnalysisTriggerManual, Status: model.VideoAnalysisStatusSucceeded, Stage: model.VideoAnalysisStageDone,
-		ResultJSON: `{"video_hash":"hash-1","metadata":{"video_path":"/photos/movie.mp4"},"grid_base_path":"scenes/hash-1","scenes":[{"scene_index":0,"start_time":0,"end_time":1,"start_frame":0,"end_frame":1,"grid_image":"scene_000.jpg"}]}`,
+		ResultJSON: `{"video_hash":"hash-1","metadata":{"video_path":"/photos/movie.mp4"},"staging_dir":"/staging/job-1","scenes":[{"scene_index":0,"start_time":0,"end_time":1,"start_frame":0,"end_frame":1,"grid_image":"scene_000.jpg"}]}`,
 	}
 	if err := tasks.CreateIfNoActive(task); err != nil {
 		t.Fatal(err)

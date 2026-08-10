@@ -14,7 +14,8 @@ import (
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"gorm.io/gorm"
 
-	"github.com/nowen-video/nowen-video/internal/testutil")
+	"github.com/nowen-video/nowen-video/internal/testutil"
+)
 
 type fakeVideoAnalysisClient struct {
 	detectSubmits    []DetectJobRequest
@@ -23,6 +24,7 @@ type fakeVideoAnalysisClient struct {
 	structureError   error
 	describeError    error
 	describeResult   []byte
+	structureResult  []byte
 }
 
 func (f *fakeVideoAnalysisClient) SubmitDetectJob(_ context.Context, request DetectJobRequest) (*ExternalJobRef, error) {
@@ -44,7 +46,10 @@ func (f *fakeVideoAnalysisClient) SubmitStructureJob(_ context.Context, request 
 }
 
 func (f *fakeVideoAnalysisClient) GetStructureJob(context.Context, string) (*ExternalJob, error) {
-	result, _ := json.Marshal(map[string]any{"video_hash": "hash-1", "scenes": []any{}})
+	result := f.structureResult
+	if len(result) == 0 {
+		result, _ = json.Marshal(map[string]any{"video_hash": "hash-1", "scenes": []any{}})
+	}
 	return &ExternalJob{JobID: "structure-1", Status: "succeeded", Result: result}, nil
 }
 
@@ -301,7 +306,7 @@ func TestVideoAnalysisServiceProcessesDescribeWhenEnabled(t *testing.T) {
 	if stored.Status != model.VideoAnalysisStatusSucceeded || stored.Stage != model.VideoAnalysisStageDone || stored.DescribeJobID != "describe-1" {
 		t.Fatalf("unexpected task: %+v", stored)
 	}
-	if len(client.describeSubmits) != 1 || client.describeSubmits[0].VideoHash != "hash-1" {
+	if len(client.describeSubmits) != 1 || client.describeSubmits[0].StructureJobID != "structure-1" {
 		t.Fatalf("describe submits: %+v", client.describeSubmits)
 	}
 	if stored.IncludeDescriptions != true {
@@ -326,6 +331,35 @@ func TestVideoAnalysisServiceDescribeFailureMarksPartial(t *testing.T) {
 	}
 	if stored.Status != model.VideoAnalysisStatusPartial || stored.Stage != model.VideoAnalysisStageDescribe || stored.ResultJSON == "" || stored.VideoHash != "hash-1" {
 		t.Fatalf("unexpected partial task: %+v", stored)
+	}
+}
+
+func TestVideoAnalysisServiceClaimStagingFailureMarksFailed(t *testing.T) {
+	// structure 结果含 staging_dir，但指向不存在的目录 → claim 失败 → task failed + CLAIM_STAGING_FAILED
+	client := &fakeVideoAnalysisClient{
+		structureResult: mustMarshalJSONBytes(t, map[string]any{
+			"video_hash":  "hash-1",
+			"staging_dir": "/nonexistent/staging/job-1",
+			"scenes":      []any{},
+		}),
+	}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err == nil {
+		t.Fatal("expected claim staging failure")
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusFailed {
+		t.Fatalf("status = %q, want failed", stored.Status)
+	}
+	if stored.ErrorCode != "CLAIM_STAGING_FAILED" {
+		t.Fatalf("error_code = %q, want CLAIM_STAGING_FAILED", stored.ErrorCode)
 	}
 }
 

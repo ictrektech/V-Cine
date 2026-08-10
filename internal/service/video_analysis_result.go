@@ -75,7 +75,7 @@ type VideoAnalysisResult struct {
 type videoAnalysisStructureResult struct {
 	VideoHash    string                 `json:"video_hash"`
 	Metadata     videoAnalysisMetadata  `json:"metadata"`
-	GridBasePath string                 `json:"grid_base_path"`
+	StagingDir   string                 `json:"staging_dir"`
 	Scenes       []videoAnalysisScene   `json:"scenes"`
 	Warnings     []VideoAnalysisWarning `json:"warnings"`
 	StageTimings map[string]float64     `json:"stage_timings"`
@@ -158,7 +158,7 @@ func (s *VideoAnalysisService) OpenSceneGridByMedia(mediaID, taskID string, scen
 	if strings.TrimSpace(scene.GridImage) == "" {
 		return nil, "", time.Time{}, gorm.ErrRecordNotFound
 	}
-	gridPath, err := resolveVideoAnalysisGridPath(s.cacheRoot, result.GridBasePath, scene.GridImage)
+	gridPath, err := resolveClaimedGridPath(s.assetDir, result.VideoHash, scene.GridImage)
 	if err != nil {
 		return nil, "", time.Time{}, err
 	}
@@ -272,26 +272,31 @@ func decodeVideoAnalysisStructureResult(task *model.VideoAnalysisTask) (*videoAn
 	return &result, nil
 }
 
-func resolveVideoAnalysisGridPath(cacheRoot, gridBasePath, gridImage string) (string, error) {
-	cacheRoot = filepath.Clean(strings.TrimSpace(cacheRoot))
-	if cacheRoot == "." || cacheRoot == "" {
-		return "", errors.New("video analysis cache root is not configured")
+// resolveClaimedGridPath 解析搬移后的九宫格图片绝对路径。
+// 布局：<assetDir>/<videoHash>/grids/<gridImage>（staging 被 mv 到 asset_dir/<hash>/）。
+func resolveClaimedGridPath(assetDir, videoHash, gridImage string) (string, error) {
+	assetDir = filepath.Clean(strings.TrimSpace(assetDir))
+	if assetDir == "." || assetDir == "" {
+		return "", errors.New("video analysis asset dir is not configured")
 	}
-	gridBasePath = filepath.Clean(strings.TrimSpace(gridBasePath))
+	videoHash = strings.TrimSpace(videoHash)
+	if videoHash == "" || videoHash == "." || strings.ContainsAny(videoHash, "/\\") {
+		return "", errors.New("video analysis asset hash is invalid")
+	}
 	gridImage = filepath.Clean(strings.TrimSpace(gridImage))
-	if gridBasePath == "." || gridBasePath == "" || gridImage == "." || gridImage == "" {
+	if gridImage == "." || gridImage == "" {
 		return "", errors.New("video analysis grid path is missing")
 	}
-	if filepath.IsAbs(gridBasePath) || filepath.IsAbs(gridImage) {
+	if filepath.IsAbs(gridImage) || strings.HasPrefix(gridImage, "..") {
 		return "", errors.New("video analysis grid path must be relative")
 	}
-	candidate := filepath.Join(cacheRoot, gridBasePath, gridImage)
-	rel, err := filepath.Rel(cacheRoot, candidate)
+	candidate := filepath.Join(assetDir, videoHash, "grids", gridImage)
+	rel, err := filepath.Rel(assetDir, candidate)
 	if err != nil {
 		return "", err
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", errors.New("video analysis grid path escapes cache root")
+		return "", errors.New("video analysis grid path escapes asset dir")
 	}
 	return candidate, nil
 }
