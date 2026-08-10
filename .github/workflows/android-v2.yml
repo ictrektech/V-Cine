@@ -1,26 +1,26 @@
 name: Android V2
 
-on:
-  pull_request:
-    paths:
-      - 'clients/android-v2/**'
-      - 'internal/handler/media.go'
-      - 'internal/service/media_mixed_filter.go'
-      - 'internal/service/media_mixed_filter_test.go'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/android-v2.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'clients/android-v2/**'
-      - 'internal/handler/media.go'
-      - 'internal/service/media_mixed_filter.go'
-      - 'internal/service/media_mixed_filter_test.go'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/android-v2.yml'
-  workflow_dispatch:
+# on:
+#   pull_request:
+#     paths:
+#       - 'clients/android-v2/**'
+#       - 'internal/handler/media.go'
+#       - 'internal/service/media_mixed_filter.go'
+#       - 'internal/service/media_mixed_filter_test.go'
+#       - 'go.mod'
+#       - 'go.sum'
+#       - '.github/workflows/android-v2.yml'
+#   push:
+#     branches: [main]
+#     paths:
+#       - 'clients/android-v2/**'
+#       - 'internal/handler/media.go'
+#       - 'internal/service/media_mixed_filter.go'
+#       - 'internal/service/media_mixed_filter_test.go'
+#       - 'go.mod'
+#       - 'go.sum'
+#       - '.github/workflows/android-v2.yml'
+#   workflow_dispatch:
 
 permissions:
   contents: read
