@@ -1,12 +1,12 @@
 name: android-v2-bootstrap-retry
 
-# on:
-#   push:
-#     branches: [main]
-#     paths:
-#       - .github/workflows/android-v2-bootstrap-retry.yml
-#       - .github/android-v2-bootstrap.tar.gz.b64
-#       - android-v2/**
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/android-v2-bootstrap-retry.yml
+      - .github/android-v2-bootstrap.tar.gz.b64
+      - android-v2/**
 
 permissions:
   contents: write
