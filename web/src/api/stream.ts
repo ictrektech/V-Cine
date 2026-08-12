@@ -2,15 +2,20 @@ import { useAuthStore } from '@/stores/auth'
 import type {
   MediaPlayInfo,
 } from '@/types'
+import { withBasePath } from '@/lib/basePath'
 import api from './client'
 
 // ==================== 流媒体 ====================
 
-function withToken(url: string): string {
+// 兼容 VOS 子路径：海报/流媒体 URL 是 path-absolute（/api/...），
+// 不受 <base> 影响，必须显式加前缀才能经过 Traefik 命中应用；
+// 绝对 URL（http/https/data 等）由 withBasePath 透传，再拼上鉴权 token。
+function withBaseAndToken(url: string): string {
+  const prefixed = withBasePath(url)
   const token = useAuthStore.getState().token
-  if (!token) return url
-  const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}token=${encodeURIComponent(token)}`
+  if (!token) return prefixed
+  const sep = prefixed.includes('?') ? '&' : '?'
+  return `${prefixed}${sep}token=${encodeURIComponent(token)}`
 }
 
 export const streamApi = {
@@ -18,13 +23,13 @@ export const streamApi = {
     api.get<{ data: MediaPlayInfo }>(`/stream/${mediaId}/info`),
 
   getMasterUrl: (mediaId: string) =>
-    withToken(`/api/stream/${mediaId}/master.m3u8`),
+    withBaseAndToken(`/api/stream/${mediaId}/master.m3u8`),
 
   getDirectUrl: (mediaId: string) =>
-    withToken(`/api/stream/${mediaId}/direct`),
+    withBaseAndToken(`/api/stream/${mediaId}/direct`),
 
   getRemuxUrl: (mediaId: string) =>
-    withToken(`/api/stream/${mediaId}/remux`),
+    withBaseAndToken(`/api/stream/${mediaId}/remux`),
 
   // 上报当前播放位置，驱动后端 FFmpeg 节流（Throttling）
   // position: 当前播放时间（秒，绝对位置）
@@ -89,23 +94,23 @@ export const streamApi = {
   // version 可选：用于缓存破坏（cache-busting）。
   // 当元数据/海报被替换后，传入一个新的数字即可触发浏览器重新请求图片。
   getPosterUrl: (mediaId: string, version?: number) =>
-    withToken(`/api/media/${mediaId}/poster${version ? `?v=${version}` : ''}`),
+    withBaseAndToken(`/api/media/${mediaId}/poster${version ? `?v=${version}` : ''}`),
 
   getSeriesPosterUrl: (seriesId: string, version?: number) =>
-    withToken(`/api/series/${seriesId}/poster${version ? `?v=${version}` : ''}`),
+    withBaseAndToken(`/api/series/${seriesId}/poster${version ? `?v=${version}` : ''}`),
 
   getSeriesBackdropUrl: (seriesId: string, version?: number) =>
-    withToken(`/api/series/${seriesId}/backdrop${version ? `?v=${version}` : ''}`),
+    withBaseAndToken(`/api/series/${seriesId}/backdrop${version ? `?v=${version}` : ''}`),
 
   getCollectionPosterUrl: (collectionId: string, version?: number) =>
-    withToken(`/api/collections/${collectionId}/poster${version ? `?v=${version}` : ''}`),
+    withBaseAndToken(`/api/collections/${collectionId}/poster${version ? `?v=${version}` : ''}`),
 
   getPersonProfileUrl: (personId: string, version?: number) =>
-    withToken(`/api/persons/${personId}/profile${version ? `?v=${version}` : ''}`),
+    withBaseAndToken(`/api/persons/${personId}/profile${version ? `?v=${version}` : ''}`),
 
   // 为任意 URL 添加认证 token
-  withTokenUrl: (url: string) => withToken(url),
+  withTokenUrl: (url: string) => withBaseAndToken(url),
 }
 
 // 导出 withToken 供其他模块使用
-export { withToken }
+export { withBaseAndToken as withToken }

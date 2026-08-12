@@ -1010,11 +1010,11 @@ func (s *PreprocessService) GetPreprocessedMasterPlaylist(mediaID string) (strin
 	if len(tracks) < 2 {
 		return playlist, nil
 	}
-	return injectAudioGroupIntoMasterPlaylist(mediaID, playlist, tracks), nil
+	return injectAudioGroupIntoMasterPlaylist(mediaID, playlist, tracks, s.cfg.App.WebBasePath), nil
 }
 
-func injectAudioGroupIntoMasterPlaylist(mediaID, playlist string, tracks []AudioTrackInfo) string {
-	audioEntries := strings.TrimRight(buildAudioMediaEntries(mediaID, tracks), "\n")
+func injectAudioGroupIntoMasterPlaylist(mediaID, playlist string, tracks []AudioTrackInfo, basePath string) string {
+	audioEntries := strings.TrimRight(buildAudioMediaEntries(mediaID, tracks, basePath), "\n")
 	if audioEntries == "" {
 		return playlist
 	}
@@ -2448,7 +2448,7 @@ func (s *PreprocessService) generateMasterPlaylist(task *model.PreprocessTask, v
 	content.WriteString("#EXTM3U\n")
 	content.WriteString("#EXT-X-VERSION:3\n")
 	if hasMultiAudio {
-		content.WriteString(buildAudioMediaEntries(task.MediaID, audioTracks))
+		content.WriteString(buildAudioMediaEntries(task.MediaID, audioTracks, s.cfg.App.WebBasePath))
 	}
 	content.WriteString("\n")
 

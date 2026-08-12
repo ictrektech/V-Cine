@@ -9,6 +9,16 @@ configs:
       en: Host root for the database, cache, and VOS-managed media directory.
     default: /data/vos_workspace/nowen
 
+  - name: NOWEN_APP_WEB_BASE_PATH
+    type: string
+    title:
+      zh-CN: 前端挂载前缀
+      en: Web Base Path
+    description:
+      zh-CN: 前端 iframe 挂载子路径（Traefik 会剥回）。设为空串可恢复根路径独立部署。
+      en: Frontend iframe sub-path (stripped by Traefik). Set empty for root-path deployment.
+    default: /app/com.ictrek.nowen-video
+
   - name: NOWEN_LOGGING_LEVEL
     type: string
     title:

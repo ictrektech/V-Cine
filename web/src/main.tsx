@@ -5,6 +5,7 @@ import App from './App'
 import FluentAppProvider from './components/FluentAppProvider'
 import { initTheme } from './stores/theme'
 import { initI18n } from './i18n'
+import { withBasePath } from './lib/basePath'
 import './index.css'
 import './styles/fluent.css'
 
@@ -48,7 +49,7 @@ async function cleanupDevelopmentServiceWorker() {
 function registerProductionServiceWorker() {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
+      const registration = await navigator.serviceWorker.register(withBasePath('/sw.js'), {
         updateViaCache: 'none',
       })
       // 每次启动主动检查 SW 更新，避免浏览器长期使用旧鉴权逻辑。

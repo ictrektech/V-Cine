@@ -88,6 +88,10 @@ type AppConfig struct {
 	DataDir string `mapstructure:"data_dir"`
 	// 前端静态文件目录，默认 ./web/dist
 	WebDir string `mapstructure:"web_dir"`
+	// 接入子路径（VOS 平台 iframe 部署时为 /app/<app-id>，独立部署为空串）。
+	// 由服务端注入 index.html 的 <base href> 与 __NOWEN_BASE_PATH__，
+	// 前端据此拼装资源/API/WebSocket 前缀，Traefik 侧再剥回根路径。
+	WebBasePath string `mapstructure:"web_base_path"`
 	// FFmpeg 可执行文件路径
 	FFmpegPath string `mapstructure:"ffmpeg_path"`
 	// FFprobe 可执行文件路径
@@ -810,6 +814,7 @@ func setDefaults() {
 	viper.SetDefault("app.env", "production")
 	viper.SetDefault("app.data_dir", "./data")
 	viper.SetDefault("app.web_dir", "./web/dist")
+	viper.SetDefault("app.web_base_path", "")
 	viper.SetDefault("app.ffmpeg_path", "ffmpeg")
 	viper.SetDefault("app.ffprobe_path", "ffprobe")
 	viper.SetDefault("app.vaapi_device", "/dev/dri/renderD128")
@@ -1113,6 +1118,13 @@ func (c *Config) migrateFromFlatConfig() {
 			c.App.WebDir = c.WebDir
 		} else {
 			c.App.WebDir = "./web/dist"
+		}
+	}
+	// 规范化 web_base_path：剥掉尾斜杠；"/" 视为空（根路径部署）。
+	if c.App.WebBasePath != "" {
+		c.App.WebBasePath = strings.TrimSuffix(c.App.WebBasePath, "/")
+		if c.App.WebBasePath == "/" {
+			c.App.WebBasePath = ""
 		}
 	}
 	if c.App.FFmpegPath == "" {

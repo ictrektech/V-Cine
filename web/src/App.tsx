@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { useAuthStore } from '@/stores/auth'
 import { ToastProvider } from '@/components/Toast'
 import { DialogProvider } from '@/components/Dialog'
+import { getBasePath, withBasePath } from '@/lib/basePath'
 import { Toaster } from 'react-hot-toast'
 import Layout from '@/components/Layout'
 import TitleBar from '@/components/TitleBar'
@@ -80,7 +81,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
   // 强制改密拦截：有 must_change_pwd 标记时强制跳转
-  if (user?.must_change_pwd && window.location.pathname !== '/force-change-password') {
+  // 接入子路径时 window.location.pathname 带前缀，需与 basename 对齐
+  if (user?.must_change_pwd && window.location.pathname !== withBasePath('/force-change-password')) {
     return <Navigate to="/force-change-password" replace />
   }
   return <>{children}</>
@@ -98,7 +100,7 @@ export default function App() {
     <ToastProvider>
       <DialogProvider>
       <Toaster position="top-right" />
-      <BrowserRouter>
+      <BrowserRouter basename={getBasePath() || '/'}>
         {/* 桌面端：首次启动"服务器地址"引导（仅在默认端口探活失败时出现） */}
         <DesktopServerPicker />
         {/* 桌面端事件绑定器（仅 Tauri 环境生效） */}

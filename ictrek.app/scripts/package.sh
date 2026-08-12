@@ -52,6 +52,7 @@ compose = (stage / "docker-compose.yml").read_text()
 assert "${NOWEN_VIDEO_IMAGE}" not in compose, "unrendered image variable"
 assert "docker.io/cropflre/nowen-video:latest" in compose, "missing full image"
 assert "HeadersRegexp(`Sec-Fetch-Dest`, `document`)" in compose, "missing VOS top-open redirect"
+assert "/app/com.ictrek.nowen-video" in compose and "NOWEN_APP_WEB_BASE_PATH" in compose, "missing VOS web base path"
 assert "external: true" in compose and "vos_default" in compose, "missing VOS network"
 routers = (stage / "routers.yml").read_text()
 for expected in ("com-ictrek-nowen-video", "iframe-src: /app/com.ictrek.nowen-video/", "entry-point: true", "embed: true"):

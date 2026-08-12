@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -89,6 +91,10 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.Default()
+
+	// 预处理 index.html（VOS 子路径时注入 <base> 与 __NOWEN_BASE_PATH__）
+	indexHTML := prepareIndexHTML(cfg.App.WebDir, cfg.App.WebBasePath, sugar)
+	webBasePath := cfg.App.WebBasePath
 
 	// 全局中间件
 	// 默认放行 Tauri 桌面端的两种 webview origin：
@@ -1062,17 +1068,46 @@ func main() {
 
 	// 静态文件（前端构建产物）
 	r.Static("/assets", cfg.App.WebDir+"/assets")
+	// SPA 兜底：非 /api/ 的未知路径返回前端入口（前置于此已注入 basePath）；
+	// /api/ 的未知路径返回 JSON 404，避免误返回 HTML。
 	r.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		if indexHTML != nil {
+			c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
+			return
+		}
 		c.File(cfg.App.WebDir + "/index.html")
 	})
 
 	addr := fmt.Sprintf(":%d", cfg.App.Port)
 	sugar.Infof("nowen-video 启动于 %s", addr)
 
+	// ── 子路径剥离（仅接入子路径时生效）──
+	// gin 的路由匹配发生在全局中间件之前，因此中间件改写路径无效；
+	// 这里在 http.Server 层先剥掉 basePath 前缀，再交给 gin，保证
+	// /app/<app-id>/api/... 与 /app/<app-id>/assets/... 能命中真实路由。
+	// 独立部署（webBasePath 为空）时 handler 即为 gin 引擎，零开销。
+	var handler http.Handler = r
+	if webBasePath != "" {
+		base := webBasePath
+		handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			p := req.URL.Path
+			if p == base {
+				req.URL.Path = "/"
+			} else if strings.HasPrefix(p, base+"/") {
+				req.URL.Path = strings.TrimPrefix(p, base)
+			}
+			r.ServeHTTP(w, req)
+		})
+	}
+
 	// 使用 http.Server 实现优雅关闭
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: r,
+		Handler: handler,
 	}
 
 	// 在 goroutine 中启动服务器
@@ -1116,6 +1151,29 @@ func main() {
 	}
 
 	sugar.Info("服务器已优雅关闭")
+}
+
+// prepareIndexHTML 读取前端入口 index.html，并在接入子路径（如 VOS 平台的
+// /app/<app-id>）时注入：
+//  1. <base href="/app/<app-id>/">：让相对路径的资源引用全部落在该前缀下
+//  2. window.__NOWEN_BASE_PATH__：供前端 JS 拼装 API / WS / 路由 basename
+//
+// 独立部署（根路径）时保持原样，无任何改动。
+func prepareIndexHTML(webDir, webBasePath string, sugar *zap.SugaredLogger) []byte {
+	indexPath := filepath.Join(webDir, "index.html")
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		sugar.Warnf("读取前端入口 %s 失败（前端可能未构建）: %v", indexPath, err)
+		return nil
+	}
+	if webBasePath == "" {
+		return data
+	}
+	html := strings.Replace(string(data), "<head>",
+		fmt.Sprintf(`<head><base href=%q><script>window.__NOWEN_BASE_PATH__=%q;</script>`,
+			webBasePath+"/", webBasePath), 1)
+	sugar.Infof("接入子路径 basePath=%s，index.html 已注入 <base> 与 __NOWEN_BASE_PATH__", webBasePath)
+	return []byte(html)
 }
 
 func getLocalIPv4Addresses() []string {

@@ -9,6 +9,10 @@ const devPort = Number(process.env.WEB_PORT) || 3000
 
 export default defineConfig({
   plugins: [react()],
+  // 相对路径打包：index.html 由服务端注入 <base href="/app/<app-id>/">，
+  // 资源引用（/assets/... 等）会解析到 iframe 前缀下，兼容 VOS 子路径部署；
+  // 独立部署时 <base> 为空，相对路径同样正确。
+  base: './',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
