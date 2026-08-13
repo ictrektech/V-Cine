@@ -37,8 +37,12 @@ GO_LDFLAGS := -s -w -X $(GO_VERSION_PKG)=$(VERSION)
 # 镜像版本 tag：<平台>_<日期>_<git短哈希>（参考 video-instruction，多平台互不覆盖）
 GIT_HASH   := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell date +%Y%m%d)
-PLATFORM   := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-BUILD_TAG  := $(PLATFORM)_$(BUILD_DATE)_$(GIT_HASH)
+HOST_ARCH  := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+# 跨平台构建：make build 默认构建本机架构；make build ARCH=arm64 构建 arm 镜像
+ARCH      ?= $(HOST_ARCH)
+PLATFORM  := $(ARCH)
+BUILD_TAG := $(PLATFORM)_$(BUILD_DATE)_$(GIT_HASH)
+PLATFORM_GOAL := linux/$(ARCH)
 
 # 默认：只打印帮助，不触发任何构建（build 走 Docker 较慢，不应由裸 make 隐式启动）
 .DEFAULT_GOAL := help
@@ -52,7 +56,7 @@ help:
 	@echo "  make prod         启动生产环境（.env.prod，前台；OPTS=-d 后台）"
 	@echo "  make prod-build   仅重新构建生产镜像（改代码后执行）"
 	@echo "  make prod-down    停止生产环境"
-	@echo "  make build        构建镜像 + 打版本 tag（平台_日期_哈希）"
+	@echo "  make build        构建镜像 + 打版本 tag（ARCH=arm64 可跨平台构建；BUILD_PROXY=http://ip:port 走代理）"
 	@echo "  make push         推送镜像到 registry（版本 tag + latest-平台）"
 	@echo "  make dev-go       go run 本地启动后端（调试模式，端口 38080）"
 	@echo "  make dev-web       启动前端 dev server（33000 → 38080）"
@@ -98,10 +102,21 @@ prod-logs: ## [Prod] 查看生产环境日志
 .PHONY: build push build-binary build-server build-web
 
 # Docker 镜像（项目主交付物；纯 Go，CGO=0 交叉编译由 Dockerfile 负责）
-# 构建后打 <平台>_<日期>_<git哈希> 版本 tag + latest-<平台>（参考 video-instruction）
-# 用 && 串联：build 失败则中止，不打错误 tag
+# 用 buildx 跨平台构建：默认本机架构，make build ARCH=arm64 构建 arm 镜像。
+# 使用默认 docker driver（在 daemon 上构建）：复用本地已缓存 base 镜像 + 走
+# daemon 的 registry-mirror，绕开 Docker Hub 直连（国内网络必要）。
+# 可选代理：make build BUILD_PROXY=http://10.144.144.10:4067 时向 RUN 步骤注入
+# HTTP(S)_PROXY，用于构建时拉取加速（如 Docker Hub / pip / npm）。默认不设代理
+# （本地直连更快；慢主要是 QEMU 模拟 arm64 的 CPU 开销，代理帮不上）。
+# 产物打 <平台>_<日期>_<git哈希> 版本 tag + latest-<平台>。
+BUILD_PROXY ?=
+PROXY_ARGS := $(if $(BUILD_PROXY),--build-arg HTTP_PROXY=$(BUILD_PROXY) --build-arg HTTPS_PROXY=$(BUILD_PROXY) --build-arg NO_PROXY=localhost,127.0.0.1,)
 build:
-	$(COMPOSE) build \
+	docker buildx build --platform $(PLATFORM_GOAL) --load \
+		-f docker/Dockerfile -t $(IMAGE_URL):latest \
+		--build-arg NOWEN_VERSION=$(VERSION) \
+		$(PROXY_ARGS) \
+		. \
 		&& docker tag $(IMAGE_URL):latest $(IMAGE_URL):$(BUILD_TAG) \
 		&& docker tag $(IMAGE_URL):latest $(IMAGE_URL):latest-$(PLATFORM) \
 		&& echo "✅ 镜像已构建并打 tag: $(IMAGE_URL):$(BUILD_TAG) / latest-$(PLATFORM)"
@@ -111,6 +126,14 @@ push:
 	docker push $(IMAGE_URL):$(BUILD_TAG)
 	docker push $(IMAGE_URL):latest-$(PLATFORM)
 	@echo "✅ Pushed: $(IMAGE_URL):$(BUILD_TAG) / latest-$(PLATFORM)"
+
+# ==================== 跨平台构建辅助 ====================
+
+.PHONY: binfmt
+
+# 安装跨平台 QEMU binfmt（默认 docker driver 跨架构构建需要；daemon 已配置则跳过）
+binfmt:
+	@docker run --rm --privileged tonistiigi/binfmt --install all 2>/dev/null || echo "binfmt 已安装或无需安装"
 
 # 本地二进制（快速调试用；CGO_ENABLED=0：无 cgo 依赖，与 Dockerfile 一致）
 build-binary: build-web

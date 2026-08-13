@@ -19,6 +19,73 @@ configs:
       en: Frontend iframe sub-path (stripped by Traefik). Set empty for root-path deployment.
     default: /app/com.ictrek.nowen-video
 
+  - name: NOWEN_PORT
+    type: integer
+    title:
+      zh-CN: 应用宿主端口
+      en: App Host Port
+    description:
+      zh-CN: "容器 8080 映射到宿主的端口，Traefik 经 172.17.0.1 转发到此端口。注意：改端口需同步修改应用包内的 traefik.yml（file provider 不支持变量插值）。"
+      en: "Host port mapped from container 8080; Traefik forwards via 172.17.0.1. Note: changing this requires editing traefik.yml in the package (file provider has no interpolation)."
+    default: 38085
+    minimum: 1024
+    maximum: 65535
+
+  # ---- PostgreSQL（应用为 PostgreSQL-only，必须可连）----
+  # 默认连接本应用内置的 postgres 服务（pgvector 镜像，含 vector 扩展）；
+  # 填写任意一项即覆盖对应值（如指向外部库，需自备 pgvector 扩展）。
+  - name: NOWEN_DATABASE_HOST
+    type: string
+    title:
+      zh-CN: 数据库主机（默认内置库）
+      en: Database Host (default bundled)
+    description:
+      zh-CN: PostgreSQL 主机。默认 postgres 指向应用内置数据库；改用外部库时填写其地址。
+      en: PostgreSQL host. Default 'postgres' points to the bundled database; fill in for an external DB.
+    default: postgres
+
+  - name: NOWEN_DATABASE_PORT
+    type: integer
+    title:
+      zh-CN: 数据库端口（默认内置库）
+      en: Database Port (default bundled)
+    description:
+      zh-CN: PostgreSQL 端口。
+      en: PostgreSQL port.
+    default: 5432
+    minimum: 1
+    maximum: 65535
+
+  - name: NOWEN_DATABASE_USER
+    type: string
+    title:
+      zh-CN: 数据库用户（默认内置库）
+      en: Database User (default bundled)
+    description:
+      zh-CN: PostgreSQL 用户（内置库首次初始化时创建）。
+      en: PostgreSQL user (created at bundled DB first init).
+    default: nowen
+
+  - name: NOWEN_DATABASE_PASSWORD
+    type: string
+    title:
+      zh-CN: 数据库密码（默认内置库）
+      en: Database Password (default bundled)
+    description:
+      zh-CN: PostgreSQL 密码。内置库首次初始化时生效；若数据目录已初始化过，改密码需在容器内执行 ALTER USER。
+      en: PostgreSQL password. Applies at bundled DB first init; if the data dir is already initialized, use ALTER USER inside the container.
+    default: nowen_password
+
+  - name: NOWEN_DATABASE_DBNAME
+    type: string
+    title:
+      zh-CN: 数据库名（默认内置库）
+      en: Database Name (default bundled)
+    description:
+      zh-CN: PostgreSQL 数据库名（内置库首次初始化时创建，含 pgvector 扩展）。
+      en: PostgreSQL database name (created at bundled DB first init, with pgvector extension).
+    default: nowen_video
+
   - name: NOWEN_LOGGING_LEVEL
     type: string
     title:
@@ -28,6 +95,7 @@ configs:
       zh-CN: Nowen Video 服务日志级别。
       en: Log level for the Nowen Video service.
     default: info
+    enum: [debug, info, warn, error]
 
   - name: NOWEN_ADULT_SCRAPER_ENABLED
     type: boolean
