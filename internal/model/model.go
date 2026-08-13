@@ -438,7 +438,7 @@ type WatchHistory struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	User  User  `json:"-" gorm:"foreignKey:UserID"`
-	Media Media `json:"media" gorm:"foreignKey:MediaID"`
+	Media Media `json:"media" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 // Favorite 收藏
@@ -450,7 +450,7 @@ type Favorite struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	User  User  `json:"-" gorm:"foreignKey:UserID"`
-	Media Media `json:"media" gorm:"foreignKey:MediaID"`
+	Media Media `json:"media" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 // TranscodeTask 转码任务
@@ -473,7 +473,7 @@ type TranscodeTask struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 
 	// 关联（仅查询时按需 Preload）
-	Media Media `json:"media,omitempty" gorm:"foreignKey:MediaID"`
+	Media Media `json:"media,omitempty" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 // BeforeCreate 自动生成UUID
@@ -540,7 +540,7 @@ type PlaylistItem struct {
 	SortOrder  int       `json:"sort_order" gorm:"default:0"`
 	CreatedAt  time.Time `json:"created_at"`
 
-	Media Media `json:"media" gorm:"foreignKey:MediaID"`
+	Media Media `json:"media" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (p *Playlist) BeforeCreate(tx *gorm.DB) error {
@@ -568,7 +568,7 @@ type Bookmark struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	User  User  `json:"-" gorm:"foreignKey:UserID"`
-	Media Media `json:"media,omitempty" gorm:"foreignKey:MediaID"`
+	Media Media `json:"media,omitempty" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (b *Bookmark) BeforeCreate(tx *gorm.DB) error {
@@ -590,7 +590,7 @@ type Comment struct {
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 
 	User  User  `json:"user,omitempty" gorm:"foreignKey:UserID"`
-	Media Media `json:"-" gorm:"foreignKey:MediaID"`
+	Media Media `json:"-" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (c *Comment) BeforeCreate(tx *gorm.DB) error {
@@ -617,7 +617,7 @@ type DanmakuComment struct {
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 
-	Media Media `json:"-" gorm:"foreignKey:MediaID"`
+	Media Media `json:"-" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (d *DanmakuComment) BeforeCreate(tx *gorm.DB) error {
@@ -766,7 +766,7 @@ type PreprocessTask struct {
 	CreatedAt time.Time `json:"created_at" gorm:"index"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	Media Media `json:"-" gorm:"foreignKey:MediaID"`
+	Media Media `json:"-" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (t *PreprocessTask) BeforeCreate(tx *gorm.DB) error {
@@ -809,7 +809,7 @@ type SubtitlePreprocessTask struct {
 	CreatedAt time.Time `json:"created_at" gorm:"index"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	Media Media `json:"-" gorm:"foreignKey:MediaID"`
+	Media Media `json:"-" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (t *SubtitlePreprocessTask) BeforeCreate(tx *gorm.DB) error {
