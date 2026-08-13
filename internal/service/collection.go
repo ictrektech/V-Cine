@@ -520,8 +520,9 @@ func (s *CollectionService) AddMediaToCollection(collectionID, mediaID string) e
 
 // RemoveMediaFromCollection 从合集中移除电影
 func (s *CollectionService) RemoveMediaFromCollection(collectionID, mediaID string) error {
+	// collection_id 置 NULL（不能置 ''，否则违反 fk_movie_collections_media 外键）
 	if err := s.mediaRepo.UpdateFields(mediaID, map[string]interface{}{
-		"collection_id": "",
+		"collection_id": nil,
 	}); err != nil {
 		return err
 	}

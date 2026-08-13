@@ -332,12 +332,14 @@ type Media struct {
 	ScrapeAttempts int        `json:"scrape_attempts"`                                // 刮削尝试次数
 	LastScrapeAt   *time.Time `json:"last_scrape_at"`                                 // 最后一次刮削时间
 	// 电影系列合集
-	CollectionID string `json:"collection_id" gorm:"index;type:text"` // 所属电影合集 ID
+	// default:NULL — 空字符串零值入库时必须转 NULL，否则违反 fk_movie_collections_media 外键（PostgreSQL 对 '' 做引用检查，NULL 才放行）
+	CollectionID string `json:"collection_id" gorm:"index;type:text;default:NULL"` // 所属电影合集 ID
 	// 重复媒体检测
 	DuplicateOf    string `json:"duplicate_of" gorm:"index;type:text"`    // 重复的原始媒体 ID（为空表示非重复）
 	DuplicateGroup string `json:"duplicate_group" gorm:"index;type:text"` // 重复组标识（相同标题+年份的媒体共享此标识）
 	// 剧集专属字段
-	SeriesID     string `json:"series_id" gorm:"index;type:text"`
+	// default:NULL — 空字符串零值入库时必须转 NULL，否则违反 fk_series_episodes 外键（PostgreSQL 对 '' 做引用检查，NULL 才放行）
+	SeriesID     string `json:"series_id" gorm:"index;type:text;default:NULL"` // 所属剧集 ID（单集/剧集入库时为 NULL）
 	SeasonNum    int    `json:"season_num"`
 	EpisodeNum   int    `json:"episode_num"`
 	EpisodeTitle string `json:"episode_title" gorm:"type:text"` // 单集标题（如有）

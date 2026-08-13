@@ -1086,7 +1086,8 @@ func (s *ScanPostProcessService) syncParsedToMedia(media *model.Media, parsed sc
 	}
 	if parsed.MediaType == "movie" {
 		if media.SeriesID != "" {
-			fields["series_id"] = ""
+			// 置 nil（NULL）而非 ""：空串会违反 fk_series_episodes 外键
+			fields["series_id"] = nil
 		}
 		if media.SeasonNum != 0 {
 			fields["season_num"] = 0
@@ -1158,6 +1159,10 @@ func applyScanPostFields(media *model.Media, fields map[string]any) {
 	}
 	if v, ok := fields["series_id"].(string); ok {
 		media.SeriesID = v
+	} else if _, exists := fields["series_id"]; exists {
+		// 值为 nil（显式清空 series_id）时同步内存状态为空串，
+		// 以便上方 recalculateSeriesAfterMediaMove 能感知剧集解除关联
+		media.SeriesID = ""
 	}
 	if v, ok := fields["season_num"].(int); ok {
 		media.SeasonNum = v

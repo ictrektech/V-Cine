@@ -230,8 +230,8 @@ func (r *MovieCollectionRepo) ListAll() ([]model.MovieCollection, error) {
 
 // Delete 删除合集（不删除关联的电影，只清除关联关系）
 func (r *MovieCollectionRepo) Delete(id string) error {
-	// 先清除所有关联电影的 collection_id
-	r.db.Model(&model.Media{}).Where("collection_id = ?", id).Update("collection_id", "")
+	// 先清除所有关联电影的 collection_id（置 NULL，不能置 ''，否则违反外键）
+	r.db.Model(&model.Media{}).Where("collection_id = ?", id).Update("collection_id", nil)
 	return r.db.Delete(&model.MovieCollection{}, "id = ?", id).Error
 }
 
@@ -340,10 +340,10 @@ func (r *MovieCollectionRepo) ClearAutoMatchedAssociations() (int64, error) {
 		return 0, nil
 	}
 
-	// 清除这些合集下电影的 collection_id
+	// 清除这些合集下电影的 collection_id（置 NULL，不能置 ''，否则违反外键）
 	result := r.db.Model(&model.Media{}).
 		Where("collection_id IN ?", autoMatchedIDs).
-		Update("collection_id", "")
+		Update("collection_id", nil)
 	return result.RowsAffected, result.Error
 }
 
