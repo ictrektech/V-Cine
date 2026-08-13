@@ -2,6 +2,7 @@
 set -euo pipefail
 
 APP_NAME="nowen-video"
+IMAGE_REPO="swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="${ROOT_DIR}/src"
 DIST_DIR="${ROOT_DIR}/dist"
@@ -18,8 +19,11 @@ rm -rf "${STAGE_DIR}" "${PACKAGE_ROOT}"
 mkdir -p "${STAGE_DIR}" "${PACKAGE_ROOT}"
 trap 'rm -rf "${STAGE_DIR}" "${PACKAGE_ROOT}"' EXIT
 
-cat > "${STAGE_DIR}/.env" <<'EOF'
-NOWEN_VIDEO_IMAGE=docker.io/cropflre/nowen-video:latest
+# Per-profile image refs are pinned to the VOS app version. The matching
+# images must be mirrored to SWR by scripts/mirror_image.sh before release.
+cat > "${STAGE_DIR}/.env" <<EOF
+NOWEN_VIDEO_AMD_IMAGE=${IMAGE_REPO}:amd_${APP_VERSION}
+NOWEN_VIDEO_ARM_IMAGE=${IMAGE_REPO}:arm_${APP_VERSION}
 EOF
 
 python3 - "${SRC_DIR}" "${STAGE_DIR}" "${APP_VERSION}" <<'PY'
@@ -29,36 +33,43 @@ from pathlib import Path
 src, dst = map(Path, sys.argv[1:3])
 version = sys.argv[3]
 env = dict(line.split("=", 1) for line in (dst / ".env").read_text().splitlines() if "=" in line)
-for name in ("manifest.yml", "configs.yml", "routers.yml", "README.zh-CN.md"):
+for name in ("manifest.yml", "configs.yml", "routers.yml", "README.zh-CN.md", "README.en.md"):
     (dst / name).write_text((src / name).read_text().replace("__APP_VERSION__", version), encoding="utf-8")
 compose = (src / "docker-compose.yml").read_text().replace("__APP_VERSION__", version)
 for key, value in env.items():
     compose = compose.replace("${" + key + "}", value)
 (dst / "docker-compose.yml").write_text(compose, encoding="utf-8")
+if (src / "icon.png").exists():
+    (dst / "icon.png").write_bytes((src / "icon.png").read_bytes())
 PY
 
-python3 - "${STAGE_DIR}" <<'PY'
+python3 - "${STAGE_DIR}" "${APP_VERSION}" "${IMAGE_REPO}" <<'PY'
 import re
 import sys
 from pathlib import Path
 import yaml
 
-stage = Path(sys.argv[1])
+stage, version, repo = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 for name in ("manifest.yml", "configs.yml", "routers.yml", "docker-compose.yml"):
     yaml.safe_load((stage / name).read_text())
-text = "\n".join(p.read_text() for p in stage.iterdir() if p.is_file())
-assert not re.search(r"__[A-Z0-9_]+__", text), "unrendered placeholder"
+text_parts = [(stage / ".env").read_text()]
+for name in ("manifest.yml", "configs.yml", "routers.yml", "docker-compose.yml", "README.zh-CN.md", "README.en.md"):
+    text_parts.append((stage / name).read_text())
+assert not re.search(r"__[A-Z0-9_]+__", "\n".join(text_parts)), "unrendered placeholder"
 compose = (stage / "docker-compose.yml").read_text()
-assert "${NOWEN_VIDEO_IMAGE}" not in compose, "unrendered image variable"
-assert "docker.io/cropflre/nowen-video:latest" in compose, "missing full image"
+assert "${NOWEN_VIDEO_AMD_IMAGE}" not in compose, "unrendered amd image variable"
+assert "${NOWEN_VIDEO_ARM_IMAGE}" not in compose, "unrendered arm image variable"
+assert f"{repo}:amd_{version}" in compose, "missing amd image tag"
+assert f"{repo}:arm_{version}" in compose, "missing arm image tag"
 assert "HeadersRegexp(`Sec-Fetch-Dest`, `document`)" in compose, "missing VOS top-open redirect"
 assert "external: true" in compose and "vos_default" in compose, "missing VOS network"
 routers = (stage / "routers.yml").read_text()
 for expected in ("com-ictrek-nowen-video", "iframe-src: /app/com.ictrek.nowen-video/", "entry-point: true", "embed: true"):
     assert expected in routers, f"missing router field {expected}"
+assert (stage / "icon.png").exists(), "missing icon.png referenced by manifest"
 PY
 
-tar czf "${PACKAGE_ROOT}/app.tar.gz" -C "${STAGE_DIR}" .env manifest.yml configs.yml routers.yml docker-compose.yml README.zh-CN.md
+tar czf "${PACKAGE_ROOT}/app.tar.gz" -C "${STAGE_DIR}" .env manifest.yml configs.yml routers.yml docker-compose.yml README.zh-CN.md README.en.md icon.png
 tar cf "${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar" -C "${PACKAGE_ROOT}" app.tar.gz
 test "$(tar tf "${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar" | wc -l | tr -d ' ')" = "1"
 echo "Built ${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar"

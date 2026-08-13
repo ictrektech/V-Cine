@@ -1,5 +1,4 @@
 x-nowen-video-base: &nowen-video-base
-  image: ${NOWEN_VIDEO_IMAGE}
   restart: unless-stopped
   pull_policy: always
   user: "0:0"
@@ -51,10 +50,12 @@ x-nowen-video-base: &nowen-video-base
 services:
   nowen-video-amd:
     <<: *nowen-video-base
+    image: ${NOWEN_VIDEO_AMD_IMAGE}
     profiles: ["amd"]
 
   nowen-video-arm:
     <<: *nowen-video-base
+    image: ${NOWEN_VIDEO_ARM_IMAGE}
     profiles: ["arm"]
 
 networks:

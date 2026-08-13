@@ -9,6 +9,7 @@ version: __APP_VERSION__
 author: ictrek
 category: [media]
 arch: [amd64, arm64]
+icon: icon.png
 
 frontend:
   enabled: true
