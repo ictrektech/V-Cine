@@ -1,0 +1,58 @@
+# Traefik File Provider 动态配置 - nowen-video 路由
+# ============================================================
+# VOS 平台 Traefik 只启用 file provider（/etc/traefik/dynamic-conf），
+# 不读 docker-compose labels，因此路由必须通过本文件注册
+# （平台安装时复制到 dynamic-conf/<app_id>.yml）。
+#
+# 服务地址走 Docker 默认网桥网关（docker0，172.17.0.1）+ 宿主端口映射：
+#   - nowen-video 容器 8080 映射到宿主 ${NOWEN_PORT:-38085}
+# 注意：Traefik file provider 不支持 ${VAR} 环境变量插值。
+# 若安装时将 NOWEN_PORT 改为非默认值，需同步修改下方 servers.url 端口。
+#
+# 流量路径：
+#   /app/com.ictrek.nowen-video/... -> strip /app/... -> 容器根路径
+#   容器注入 <base href="/app/.../">，前端资源/API 再带前缀请求，Traefik 剥回
+# ============================================================
+
+http:
+  routers:
+    # ---- 前端 + API 主路由（剥前缀后转发到容器根路径）----
+    nowen-video-web:
+      rule: "PathPrefix(`/app/com.ictrek.nowen-video`)"
+      service: nowen-video-web
+      middlewares:
+        - nowen-video-web-slash
+        - nowen-video-web-strip
+
+    # ---- 顶层打开兜底：浏览器地址栏直接访问 /app/com.ictrek.nowen-video
+    #      重定向到平台 hash 路由（平台前端 iframe 打开应用）----
+    nowen-video-top-open:
+      rule: "PathPrefix(`/app/com.ictrek.nowen-video`) && HeadersRegexp(`Sec-Fetch-Dest`, `document`)"
+      priority: 1000
+      service: nowen-video-web
+      middlewares:
+        - nowen-video-top-open-redirect
+
+  services:
+    nowen-video-web:
+      loadBalancer:
+        servers:
+          - url: "http://172.17.0.1:38085"
+
+  middlewares:
+    nowen-video-top-open-redirect:
+      redirectRegex:
+        regex: '^(https?://[^/]+)/app/com\.ictrek\.nowen-video/?(?:\?.*)?$'
+        replacement: '${1}/#/app/com.ictrek.nowen-video/com-ictrek-nowen-video/nowen-video'
+        permanent: false
+
+    nowen-video-web-slash:
+      redirectRegex:
+        regex: '^(.*)/app/com\.ictrek\.nowen-video$'
+        replacement: '${1}/app/com.ictrek.nowen-video/'
+        permanent: true
+
+    nowen-video-web-strip:
+      stripPrefix:
+        prefixes:
+          - /app/com.ictrek.nowen-video

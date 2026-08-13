@@ -35,7 +35,7 @@ from pathlib import Path
 src, dst = map(Path, sys.argv[1:3])
 version = sys.argv[3]
 env = dict(line.split("=", 1) for line in (dst / ".env").read_text().splitlines() if "=" in line)
-for name in ("manifest.yml", "configs.yml", "routers.yml", "README.zh-CN.md", "README.en.md"):
+for name in ("manifest.yml", "configs.yml", "routers.yml", "traefik.yml", "README.zh-CN.md", "README.en.md"):
     (dst / name).write_text((src / name).read_text().replace("__APP_VERSION__", version), encoding="utf-8")
 compose = (src / "docker-compose.yml").read_text().replace("__APP_VERSION__", version)
 for key, value in env.items():
@@ -52,10 +52,10 @@ from pathlib import Path
 import yaml
 
 stage, version, repo = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-for name in ("manifest.yml", "configs.yml", "routers.yml", "docker-compose.yml"):
+for name in ("manifest.yml", "configs.yml", "routers.yml", "traefik.yml", "docker-compose.yml"):
     yaml.safe_load((stage / name).read_text())
 text_parts = [(stage / ".env").read_text()]
-for name in ("manifest.yml", "configs.yml", "routers.yml", "docker-compose.yml", "README.zh-CN.md", "README.en.md"):
+for name in ("manifest.yml", "configs.yml", "routers.yml", "traefik.yml", "docker-compose.yml", "README.zh-CN.md", "README.en.md"):
     text_parts.append((stage / name).read_text())
 assert not re.search(r"__[A-Z0-9_]+__", "\n".join(text_parts)), "unrendered placeholder"
 compose = (stage / "docker-compose.yml").read_text()
@@ -70,10 +70,13 @@ assert "vos_default" in compose and "external: true" in compose, "missing VOS ne
 routers = (stage / "routers.yml").read_text()
 for expected in ("com-ictrek-nowen-video", "iframe-src: /app/com.ictrek.nowen-video/", "entry-point: true", "embed: true"):
     assert expected in routers, f"missing router field {expected}"
+traefik = (stage / "traefik.yml").read_text()
+for expected in ("/app/com.ictrek.nowen-video", "nowen-video-web", "172.17.0.1:38085", "stripPrefix"):
+    assert expected in traefik, f"missing traefik field {expected}"
 assert (stage / "icon.png").exists(), "missing icon.png referenced by manifest"
 PY
 
-tar czf "${PACKAGE_ROOT}/app.tar.gz" -C "${STAGE_DIR}" .env manifest.yml configs.yml routers.yml docker-compose.yml README.zh-CN.md README.en.md icon.png
+tar czf "${PACKAGE_ROOT}/app.tar.gz" -C "${STAGE_DIR}" .env manifest.yml configs.yml routers.yml traefik.yml docker-compose.yml README.zh-CN.md README.en.md icon.png
 tar cf "${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar" -C "${PACKAGE_ROOT}" app.tar.gz
 test "$(tar tf "${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar" | wc -l | tr -d ' ')" = "1"
 echo "Built ${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar"
