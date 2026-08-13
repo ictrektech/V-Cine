@@ -93,7 +93,6 @@ services:
       - PUID=0
       - PGID=0
       - UMASK=000
-      - NOWEN_DATABASE_DB_PATH=/data/nowen.db
       # ⚠️ 必改：换成你自己的随机字符串（至少 32 位）
       - NOWEN_SECRETS_JWT_SECRET=please-change-this-secret-key
       - NOWEN_CACHE_CACHE_DIR=/cache

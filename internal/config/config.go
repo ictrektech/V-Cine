@@ -983,7 +983,6 @@ func setDefaults() {
 	viper.SetDefault("data_dir", "./data")
 	viper.SetDefault("cache_dir", "./cache")
 	viper.SetDefault("web_dir", "./web/dist")
-	viper.SetDefault("db_path", "./data/nowen.db")
 	viper.SetDefault("jwt_secret", "nowen-video-secret-change-me")
 	viper.SetDefault("ffmpeg_path", "ffmpeg")
 	viper.SetDefault("ffprobe_path", "ffprobe")

@@ -22,7 +22,7 @@ Nowen Video -> 家庭影音
 
 ```text
 /data/vos_workspace/nowen/
-├── data/   # SQLite 数据库、配置和登录密钥
+├── data/   # 数据库、配置和登录密钥
 ├── cache/  # 转码缓存
 └── media/  # 可由 VOS 托管的媒体目录，容器内为 /media
 ```

@@ -119,7 +119,7 @@ func (r *RenameRepo) PurgePlan(planID string) error {
 
 // ===== Items =====
 
-// CreateItems 批量插入条目（按 chunk 切分，规避 SQLite 默认参数上限）
+// CreateItems 批量插入条目（按 chunk 切分，规避单条 SQL 语句参数数量上限）
 func (r *RenameRepo) CreateItems(items []model.RenamePlanItem) error {
 	if len(items) == 0 {
 		return nil

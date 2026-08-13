@@ -285,7 +285,7 @@ type GrowthPoint struct {
 func (r *PulseRepo) GetMediaGrowth(months int) ([]GrowthPoint, error) {
 	startDate := time.Now().AddDate(0, -months, 0).Format("2006-01-02")
 	var results []GrowthPoint
-	dateExpr := dateFormatExpr(r.db, "%Y-%m", "created_at")
+	dateExpr := dateFormatExpr("%Y-%m", "created_at")
 	err := r.db.Raw(`
 		SELECT `+dateExpr+` as date, COUNT(*) as count
 		FROM media
@@ -309,7 +309,7 @@ type HourlyDistItem struct {
 func (r *PulseRepo) GetHourlyDistribution(days int) ([]HourlyDistItem, error) {
 	startDate := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
 	var results []HourlyDistItem
-	hourExpr := dateFormatExpr(r.db, "%H", "created_at")
+	hourExpr := dateFormatExpr("%H", "created_at")
 	err := r.db.Raw(`
 		SELECT `+hourExpr+` as hour,
 			COUNT(*) as play_count,

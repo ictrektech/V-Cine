@@ -39,7 +39,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/dist ./web/dist
-# 使用纯 Go SQLite (glebarez/sqlite) 和 pgx (gorm.io/driver/postgres)，
+# 使用纯 Go 的 pgx (gorm.io/driver/postgres)，
 # 可以 CGO_ENABLED=0 直接交叉编译
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${NOWEN_VERSION}" -o nowen-video ./cmd/server
@@ -121,7 +121,6 @@ RUN mkdir -p /data /cache /media \
 ENV NOWEN_APP_PORT=8080
 ENV NOWEN_APP_DATA_DIR=/data
 ENV NOWEN_APP_WEB_DIR=/app/web/dist
-ENV NOWEN_DATABASE_DB_PATH=/data/nowen.db
 ENV NOWEN_CACHE_CACHE_DIR=/cache
 ENV NOWEN_LOGGING_LEVEL=info
 ENV NOWEN_VERSION=${NOWEN_VERSION}
