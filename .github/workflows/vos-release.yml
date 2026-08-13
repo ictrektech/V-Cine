@@ -14,7 +14,17 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Write Feishu component credentials
+        run: |
+          cat > "$HOME/.feishu.components.json" <<EOF
+          {
+            "feishu_app_id": "${{ secrets.FEISHU_APP_ID }}",
+            "feishu_app_secret": "${{ secrets.FEISHU_APP_SECRET }}"
+          }
+          EOF
       - name: Build pull-mode package
+        env:
+          FEISHU_SPREADSHEET_TOKEN: ${{ secrets.FEISHU_SPREADSHEET_TOKEN }}
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
