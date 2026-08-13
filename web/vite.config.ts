@@ -9,6 +9,9 @@ const devPort = Number(process.env.WEB_PORT) || 3000
 
 export default defineConfig({
   plugins: [react()],
+  // 相对资源路径：配合后端注入的 <base href>，使前端可在 VOS 子路径
+  // (/app/com.ictrek.nowen-video/) 与根路径下通用部署。
+  base: './',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

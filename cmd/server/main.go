@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -1060,10 +1061,26 @@ func main() {
 		sugar.Warnf("mDNS 服务发现启动失败（可忽略）: %v", err)
 	}
 
-	// 静态文件（前端构建产物）
+	// 静态文件（前端构建产物）。前端以相对路径构建（vite base: './'），
+	// 由注入的 <base href> 统一收敛到子路径前缀下，反向代理剥回根路径。
 	r.Static("/assets", cfg.App.WebDir+"/assets")
+
+	// 预读 index.html 并（若配置了 WebBasePath）注入 <base href> 与
+	// window.__NOWEN_BASE_PATH__，供前端感知挂载前缀。启动期一次注入、缓存复用。
+	indexBytes, err := os.ReadFile(cfg.App.WebDir + "/index.html")
+	if err != nil {
+		sugar.Fatalf("读取 index.html 失败: %v", err)
+	}
+	indexHTML := string(indexBytes)
+	if bp := strings.TrimRight(cfg.App.WebBasePath, "/"); bp != "" {
+		inject := `<base href="` + bp + `/"><script>window.__NOWEN_BASE_PATH__="` + bp + `";</script>`
+		indexHTML = strings.Replace(indexHTML, "<head>", "<head>"+inject, 1)
+		sugar.Infof("WebBasePath 注入: %s", bp)
+	}
+	cookedIndex := []byte(indexHTML)
 	r.NoRoute(func(c *gin.Context) {
-		c.File(cfg.App.WebDir + "/index.html")
+		// SPA 回退：未匹配的路由统一返回 index.html
+		c.Data(http.StatusOK, "text/html; charset=utf-8", cookedIndex)
 	})
 
 	addr := fmt.Sprintf(":%d", cfg.App.Port)

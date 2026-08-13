@@ -88,6 +88,10 @@ type AppConfig struct {
 	DataDir string `mapstructure:"data_dir"`
 	// 前端静态文件目录，默认 ./web/dist
 	WebDir string `mapstructure:"web_dir"`
+	// 前端子路径前缀（VOS 等 iframe 挂载场景）。非空时后端向 index.html 注入
+	// <base href="{path}/"> 与 window.__NOWEN_BASE_PATH__="{path}"，使前端
+	// 资源/API/路由自动落在该前缀下（由反向代理剥回）。独立部署留空即根路径。
+	WebBasePath string `mapstructure:"web_base_path"`
 	// FFmpeg 可执行文件路径
 	FFmpegPath string `mapstructure:"ffmpeg_path"`
 	// FFprobe 可执行文件路径
