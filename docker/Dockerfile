@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.6
 # =============================================
 # 多架构构建：支持 linux/amd64 / linux/arm64 / linux/arm/v7
 # 使用方式：
