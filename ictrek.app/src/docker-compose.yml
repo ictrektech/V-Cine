@@ -8,12 +8,7 @@ services:
       vos_default:
         aliases:
           - nowen-video
-    # 等 postgres 服务先启动（不等待 healthy——平台执行 `docker compose up -d` 时
-    # 等待健康检查会让客户端阻塞，客户端一断 nowen-video 就停在 Created 永远不启动；
-    # 改为 service_started + restart 自愈：应用连不上库会 fatal 退出、自动重启，
-    # postgres 初始化（约 7s）完成后即可连上）
-    depends_on:
-      - postgres
+    # 数据库连接 VOS 共享 PGV（外部服务，无 depends_on；连不上库时应用 fatal 退出并自动重启）
     environment:
       NOWEN_APP_PORT: "8080"
       NOWEN_APP_DATA_DIR: /data
@@ -22,10 +17,10 @@ services:
       # 前端资源/API/WS/路由自动落在 /app/com.ictrek.nowen-video 前缀下（Traefik 再剥回）。
       # 独立部署（非 VOS）时设为空串即可恢复根路径。
       NOWEN_APP_WEB_BASE_PATH: "${NOWEN_APP_WEB_BASE_PATH:-/app/com.ictrek.nowen-video}"
-      # ---- PostgreSQL（应用为 PostgreSQL-only，必须连库）----
-      # 默认指向本应用内置的 postgres 服务（docker compose 服务名 DNS 解析）；
-      # 如需改用外部库，安装时在 configs.yml 覆盖这些值即可。
-      NOWEN_DATABASE_HOST: "${NOWEN_DATABASE_HOST:-postgres}"
+      # ---- PostgreSQL（应用为 PostgreSQL-only，连接 VOS 共享 PGV）----
+      # PGV 预置了 nowen 用户与 nowen_video 库（vector 扩展已建好）；
+      # 如需指向其他库，安装时在 configs.yml 覆盖这些值即可。
+      NOWEN_DATABASE_HOST: "${NOWEN_DATABASE_HOST:-pgv}"
       NOWEN_DATABASE_PORT: "${NOWEN_DATABASE_PORT:-5432}"
       NOWEN_DATABASE_USER: "${NOWEN_DATABASE_USER:-nowen}"
       NOWEN_DATABASE_PASSWORD: "${NOWEN_DATABASE_PASSWORD:-nowen_password}"
@@ -51,32 +46,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 120s
-
-  # 内置 PostgreSQL（pgvector 系镜像，含 vector 扩展；应用场景搜索必需）
-  # 镜像：华为云 SWR（swr.cn-southwest-2.myhuaweicloud.com/ictrek/pgv:arm_16_20260717，ARM + PG16）
-  # 数据持久化到 NOWEN_WORKSPACE_PATH/postgres，卸载保留数据后可恢复。
-  postgres:
-    image: swr.cn-southwest-2.myhuaweicloud.com/ictrek/pgv:arm_16_20260717
-    restart: unless-stopped
-    networks:
-      vos_default:
-        aliases:
-          - postgres
-    environment:
-      POSTGRES_USER: "${NOWEN_DATABASE_USER:-nowen}"
-      POSTGRES_PASSWORD: "${NOWEN_DATABASE_PASSWORD:-nowen_password}"
-      POSTGRES_DB: "${NOWEN_DATABASE_DBNAME:-nowen_video}"
-      TZ: "${TZ:-Asia/Shanghai}"
-    volumes:
-      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/postgres:/var/lib/postgresql/data
-      # 首次初始化时启用 pgvector 扩展（仅首次建库生效；如已初始化需手动 CREATE EXTENSION）
-      - ./postgres-init.sql:/docker-entrypoint-initdb.d/10-pgvector.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${NOWEN_DATABASE_USER:-nowen} -d ${NOWEN_DATABASE_DBNAME:-nowen_video}"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
 
 networks:
   vos_default:

@@ -179,7 +179,7 @@ resolve_image_tag() {
 load_feishu_auth
 [[ -n "${SPREADSHEET_TOKEN}" ]] || { echo "missing FEISHU_SPREADSHEET_TOKEN (set env or feishu_spreadsheet_token in config)" >&2; exit 1; }
 
-# VOS 安装：单服务（nowen-video + 内置 postgres），不依赖平台传 --profile。
+# VOS 安装：单服务（nowen-video 连接 VOS 共享 PGV），不依赖平台传 --profile。
 # 镜像走华为云私有仓库；tag 由飞书表解析。
 # ⚠️ SHEET_TITLE 需与你飞书发布表中实际 sheet 的标题一致（改错会解析失败）；
 #    与 push_feishu.sh 写入的 sheet 保持一致（见 scripts/push_feishu.sh 的 DEFAULT_SHEET）。
@@ -198,7 +198,7 @@ from pathlib import Path
 
 src, dst = map(Path, sys.argv[1:3])
 version, image = sys.argv[3], sys.argv[4]
-for name in ("manifest.yml", "configs.yml", "routers.yml", "traefik.yml", "README.zh-CN.md", "postgres-init.sql"):
+for name in ("manifest.yml", "configs.yml", "routers.yml", "traefik.yml", "README.zh-CN.md"):
     (dst / name).write_text((src / name).read_text().replace("__APP_VERSION__", version), encoding="utf-8")
 compose = (src / "docker-compose.yml").read_text().replace("__APP_VERSION__", version)
 compose = compose.replace("${NOWEN_VIDEO_IMAGE}", image)
@@ -226,8 +226,7 @@ assert ":latest" not in image.split("/")[-1], "image tag must not be :latest (re
 assert "/app/com.ictrek.nowen-video" in compose and "NOWEN_APP_WEB_BASE_PATH" in compose, "missing VOS web base path"
 assert "external: true" in compose and "vos_default" in compose, "missing VOS network"
 assert "${NOWEN_PORT:-38085}:8080" in compose, "missing host port mapping (NOWEN_PORT)"
-assert "ictrek/pgv:" in compose, "missing bundled pgvector postgres service"
-assert "NOWEN_DATABASE_HOST:-postgres" in compose, "missing bundled DB wiring"
+assert "NOWEN_DATABASE_HOST:-pgv" in compose, "missing shared PGV database wiring"
 assert "profiles:" not in compose, "compose must not use profiles (platform may not pass --profile, service would be skipped)"
 assert "condition: service_healthy" not in compose, "depends_on must not wait for health (compose up -d blocks; use service_started + restart self-heal)"
 traefik = (stage / "traefik.yml").read_text()
@@ -240,7 +239,7 @@ for expected in ("com-ictrek-nowen-video", "iframe-src: /app/com.ictrek.nowen-vi
     assert expected in routers, f"missing router field {expected}"
 PY
 
-tar czf "${PACKAGE_ROOT}/app.tar.gz" -C "${STAGE_DIR}" manifest.yml configs.yml routers.yml traefik.yml docker-compose.yml README.zh-CN.md postgres-init.sql
+tar czf "${PACKAGE_ROOT}/app.tar.gz" -C "${STAGE_DIR}" manifest.yml configs.yml routers.yml traefik.yml docker-compose.yml README.zh-CN.md
 tar cf "${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar" -C "${PACKAGE_ROOT}" app.tar.gz
 test "$(tar tf "${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar" | wc -l | tr -d ' ')" = "1"
 echo "Built ${DIST_DIR}/${APP_NAME}_${APP_VERSION}_pull.tar"

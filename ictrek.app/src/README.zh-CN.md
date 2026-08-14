@@ -22,7 +22,7 @@ Nowen Video -> 家庭影音
 
 ```text
 /data/vos_workspace/nowen/
-├── data/   # 数据库、配置和登录密钥
+├── data/   # 配置和登录密钥（数据库为 VOS 共享 PGV，不落本目录）
 ├── cache/  # 转码缓存
 └── media/  # 可由 VOS 托管的媒体目录，容器内为 /media
 ```
