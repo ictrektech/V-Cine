@@ -337,7 +337,7 @@ export default function SmartRenamePanel({
               disabled={scanning}
               className="ml-auto rounded-md px-5 py-2 text-sm font-medium transition disabled:opacity-50"
               style={{
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--neon-blue)',
                 color: 'var(--text-on-neon)',
                 boxShadow: 'var(--shadow-neon)',
               }}
@@ -364,8 +364,7 @@ export default function SmartRenamePanel({
                   className="h-full rounded-full transition-all duration-300 ease-out"
                   style={{
                     width: `${scanProgress}%`,
-                    background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
-                    boxShadow: '0 0 8px var(--neon-blue-40)',
+                    background: 'var(--neon-blue)',
                   }}
                 />
                 {/* 顶层流光：未到 100% 时附加 indeterminate 闪光，强化「进行中」感知 */}
@@ -438,7 +437,7 @@ export default function SmartRenamePanel({
               disabled={executing || plan.status !== 'draft'}
               className="rounded-md px-3 py-1.5 text-xs transition disabled:opacity-40"
               style={{
-                border: '1px solid var(--neon-blue-40)',
+                border: '1px solid var(--border-strong)',
                 color: 'var(--neon-blue)',
                 background: 'transparent',
               }}
@@ -539,7 +538,7 @@ export default function SmartRenamePanel({
                 <button
                   onClick={() => onConfirmExecute(false)}
                   className="rounded-md px-4 py-2 text-sm font-medium text-white"
-                  style={{ background: 'linear-gradient(135deg, #10b981, #06b6d4)' }}
+                  style={{ background: '#10b981' }}
                 >
                   确认执行（跳过安全拦截条目）
                 </button>
@@ -673,7 +672,7 @@ function ItemCard({ item, onUpdate, planEditable }: ItemCardProps) {
                   className="flex-1 rounded px-2 py-1 text-xs font-mono outline-none"
                   style={{
                     background: 'var(--bg-input)',
-                    border: '1px solid var(--neon-blue-40)',
+                    border: '1px solid var(--border-strong)',
                     color: 'var(--neon-blue)',
                   }}
                 />

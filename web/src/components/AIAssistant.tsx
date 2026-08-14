@@ -52,7 +52,7 @@ export function AIAssistantButton({ isOpen, onToggle, selectedCount }: {
           : 'btn-ghost hover:text-neon'
       )}
       style={isOpen ? {
-        background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+        background: 'var(--neon-blue)',
       } : undefined}
       title={isOpen ? '关闭AI助手' : '打开AI助手'}
     >
@@ -348,7 +348,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
         >
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))' }}>
+              style={{ background: 'var(--neon-blue)' }}>
               <Bot size={16} style={{ color: 'var(--text-on-neon)' }} />
             </div>
             <div>
@@ -429,7 +429,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8">
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
-                    style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))', opacity: 0.3 }}>
+                    style={{ background: 'var(--neon-blue)', opacity: 0.3 }}>
                     <Sparkles size={24} style={{ color: 'var(--text-on-neon)' }} />
                   </div>
                   <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
@@ -461,7 +461,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                       'w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0',
                       msg.role === 'user' ? 'bg-neon-blue/20' : ''
                     )}
-                      style={msg.role === 'assistant' ? { background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))' } : undefined}>
+                      style={msg.role === 'assistant' ? { background: 'var(--neon-blue)' } : undefined}>
                       {msg.role === 'user'
                         ? <User size={12} className="text-neon" />
                         : <Bot size={12} style={{ color: 'var(--text-on-neon)' }} />
@@ -483,7 +483,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
               {loading && (
                 <div className="flex gap-2">
                   <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))' }}>
+                    style={{ background: 'var(--neon-blue)' }}>
                     <Bot size={12} style={{ color: 'var(--text-on-neon)' }} />
                   </div>
                   <div className="rounded-xl px-3 py-2" style={{ background: 'var(--bg-secondary)' }}>
@@ -539,7 +539,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                   )}
                   style={{
                     background: input.trim() && !loading
-                      ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))'
+                      ? 'var(--neon-blue)'
                       : 'var(--bg-secondary)',
                     color: input.trim() && !loading ? 'var(--text-on-neon)' : 'var(--text-tertiary)',
                   }}

@@ -57,7 +57,7 @@ export default function ForceChangePasswordPage() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4" style={{ background: 'var(--bg-base)' }}>
       <div className="relative z-10 w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))', boxShadow: 'var(--neon-glow-shadow)' }}>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
             <KeyRound size={26} className="text-white" />
           </div>
           <h1 className="font-display text-xl font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>首次登录 — 请修改密码</h1>

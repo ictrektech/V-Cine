@@ -110,7 +110,7 @@ export default function StatsPage() {
                     className="w-5 rounded-t-md transition-all group-hover:opacity-80"
                     style={{
                       height: `${Math.max(height, 4)}px`,
-                      background: 'linear-gradient(to top, var(--neon-blue), var(--neon-purple))',
+                      background: 'var(--neon-blue)',
                       opacity: 0.7,
                     }}
                   />
@@ -144,7 +144,7 @@ export default function StatsPage() {
                       className="h-full rounded-full transition-all duration-700"
                       style={{
                         width: `${pct}%`,
-                        background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
+                        background: 'var(--neon-blue)',
                       }}
                     />
                   </div>

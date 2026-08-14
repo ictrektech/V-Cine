@@ -142,7 +142,7 @@ export default function CommentSection({ mediaId }: CommentSectionProps) {
             onClick={handleSubmit}
             disabled={!content.trim()}
             className="rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 transition-all"
-style={{ background: 'linear-gradient(135deg, var(--neon-blue-90), var(--neon-blue-mid))', boxShadow: 'var(--shadow-neon)' }}
+style={{ background: 'var(--neon-blue)', boxShadow: 'var(--shadow-neon)' }}
           >
             <Send size={16} />
           </button>
@@ -166,7 +166,7 @@ style={{ background: 'linear-gradient(135deg, var(--neon-blue-90), var(--neon-bl
             <div key={comment.id} className="glass-panel-subtle group rounded-xl p-4">
               <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold" style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))', boxShadow: 'var(--shadow-neon)', color: 'var(--text-on-neon)' }}>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold" style={{ background: 'var(--neon-blue)', boxShadow: 'var(--shadow-neon)', color: 'var(--text-on-neon)' }}>
                     {comment.user?.username?.charAt(0).toUpperCase() || '?'}
                   </div>
                   <div>
@@ -212,7 +212,7 @@ style={{ background: 'linear-gradient(135deg, var(--neon-blue-90), var(--neon-bl
                   : 'hover:opacity-80'
               }`}
               style={p === page ? {
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--neon-blue)',
                 boxShadow: 'var(--shadow-neon)',
                 color: 'var(--text-on-neon)',
               } : {

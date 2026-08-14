@@ -10,48 +10,70 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Orbitron', 'sans-serif'],
+        display: ['Inter', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
         body: ['Inter', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
       },
       colors: {
-        // 「深空流体」赛博朋克色彩系统
-        neon: {
-          blue: 'var(--neon-blue)',
-          purple: 'var(--neon-purple)',
-          pink: 'var(--neon-pink)',
-          green: 'var(--neon-green)',
-        },
+        // ===== shadcn/ui 设计令牌（HSL）=====
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
         primary: {
-          50: '#ecfeff',
-          100: '#cffafe',
-          200: '#a5f3fc',
-          300: '#67e8f9',
-          400: '#00F0FF',
-          500: '#00D4E0',
-          600: '#00A8B8',
-          700: '#008899',
-          800: '#006B7A',
-          900: '#004D5A',
-          950: '#002B33',
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+          // 兼容旧色阶类（bg-primary-500/10、text-primary-300 等）→ 中性主色
+          200: 'hsl(var(--primary))',
+          300: 'hsl(var(--primary))',
+          400: 'hsl(var(--primary))',
+          500: 'hsl(var(--primary))',
+          600: 'hsl(var(--primary))',
+          700: 'hsl(var(--primary))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
         },
         accent: {
-          400: '#A855F7',
-          500: '#8A2BE2',
-          600: '#7C3AED',
-          glow: 'rgba(138, 43, 226, 0.4)',
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        // ===== 兼容别名：老代码里的语义色 → 中性令牌 =====
+        neon: {
+          blue: 'hsl(var(--primary))',
+          purple: 'hsl(var(--accent))',
+          pink: 'hsl(var(--destructive))',
+          green: 'hsl(var(--success))',
         },
         surface: {
-          50: 'var(--surface-50, #f0f4f8)',
-          100: 'var(--surface-100, #d9e2ec)',
-          200: 'var(--surface-200, #bcccdc)',
-          300: 'var(--surface-300, #9fb3c8)',
-          400: 'var(--surface-400, #829ab1)',
-          500: 'var(--surface-500, #627d98)',
-          600: 'var(--surface-600, #486581)',
-          700: 'var(--surface-700, #1a2332)',
-          800: 'var(--surface-800, #121a27)',
-          900: 'var(--surface-900, #0b1120)',
-          950: 'var(--surface-950, #060a13)',
+          50: 'hsl(var(--surface-50))',
+          100: 'hsl(var(--surface-100))',
+          200: 'hsl(var(--surface-200))',
+          300: 'hsl(var(--surface-300))',
+          400: 'hsl(var(--surface-400))',
+          500: 'hsl(var(--surface-500))',
+          600: 'hsl(var(--surface-600))',
+          700: 'hsl(var(--surface-700))',
+          800: 'hsl(var(--surface-800))',
+          900: 'hsl(var(--surface-900))',
+          950: 'hsl(var(--surface-950))',
         },
         /* 语义化主题色 — 引用 CSS 变量，随主题切换自动变化 */
         theme: {
@@ -67,9 +89,9 @@ export default {
         },
       },
       backgroundImage: {
-        'neon-gradient': 'linear-gradient(135deg, var(--neon-purple), var(--neon-pink))',
-        'neon-gradient-h': 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
-        'neon-gradient-v': 'linear-gradient(180deg, var(--neon-blue), var(--neon-purple))',
+        'neon-gradient': 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+        'neon-gradient-h': 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)))',
+        'neon-gradient-v': 'linear-gradient(180deg, hsl(var(--primary)), hsl(var(--accent)))',
         'deep-space': 'radial-gradient(ellipse at 20% 50%, var(--deco-glow-blue) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, var(--deco-glow-purple) 0%, transparent 50%)',
         'glass-border': 'linear-gradient(135deg, var(--neon-blue-20), var(--neon-purple-20))',
       },
@@ -95,6 +117,8 @@ export default {
         'ripple': 'ripple 0.6s ease-out',
         'particle-burst': 'particleBurst 0.5s ease-out forwards',
         'page-enter': 'pageEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
       },
       keyframes: {
         fadeIn: {
@@ -114,8 +138,8 @@ export default {
           '100%': { opacity: '1', transform: 'scale(1)', filter: 'blur(0)' },
         },
         glowPulse: {
-          '0%, 100%': { boxShadow: '0 0 15px rgba(0, 240, 255, 0.2)' },
-          '50%': { boxShadow: '0 0 25px rgba(0, 240, 255, 0.4), 0 0 50px rgba(0, 240, 255, 0.1)' },
+          '0%, 100%': { boxShadow: '0 0 15px hsl(var(--primary) / 0.2)' },
+          '50%': { boxShadow: '0 0 25px hsl(var(--primary) / 0.4), 0 0 50px hsl(var(--primary) / 0.1)' },
         },
         neonBreathe: {
           '0%, 100%': { opacity: '0.5' },
@@ -149,15 +173,26 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(12px)', filter: 'blur(4px)' },
           '100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' },
         },
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
+        },
       },
       backdropBlur: {
         xs: '2px',
       },
       borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
         '2xl': '1rem',
         '3xl': '1.5rem',
       },
     },
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate')],
 }

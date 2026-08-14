@@ -827,7 +827,7 @@ export default function PreprocessPage() {
           animate="visible"
         >
           <motion.div variants={staggerItemVariants} className="relative overflow-hidden rounded-xl p-4 group transition-shadow duration-300 hover:shadow-card-hover" style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}>
-            <div className="absolute top-0 left-0 right-0 h-[1px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent, var(--neon-blue), transparent)' }} />
+            <div className="absolute top-0 left-0 right-0 h-[1px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent, var(--border-strong), transparent)' }} />
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
@@ -855,7 +855,7 @@ export default function PreprocessPage() {
           </motion.div>
 
           <motion.div variants={staggerItemVariants} className="relative overflow-hidden rounded-xl p-4 group transition-shadow duration-300 hover:shadow-card-hover" style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}>
-            <div className="absolute top-0 left-0 right-0 h-[1px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent, var(--neon-blue), transparent)' }} />
+            <div className="absolute top-0 left-0 right-0 h-[1px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent, var(--border-strong), transparent)' }} />
             <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
               <Clock size={14} className="text-yellow-400" />
               队列
@@ -916,7 +916,7 @@ export default function PreprocessPage() {
                     width: `${Math.min(100, sysLoad.gpu_status.metrics.utilization)}%`,
                     background: sysLoad.gpu_status.degraded ? '#ef4444'
                       : sysLoad.gpu_status.metrics.utilization > 80 ? '#f59e0b'
-                      : '#a855f7',
+                      : 'var(--neon-blue)',
                   }}
                 />
               </div>
@@ -1109,7 +1109,7 @@ export default function PreprocessPage() {
                 }
               }}
               className="text-xs px-3 py-1.5 rounded-md flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: 'var(--neon-blue)', color: '#fff', boxShadow: '0 0 12px var(--neon-blue-30)' }}
+              style={{ background: 'var(--bg-overlay)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}
             >
               {candSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
               提交预处理（{candSelected.size}）

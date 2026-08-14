@@ -776,7 +776,7 @@ export default function ScrapeManagerPage({ embedded = false }: ScrapeManagerPag
               <button onClick={() => setShowTranslateDialog(false)} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}>
                 取消
               </button>
-              <button onClick={handleTranslate} className="btn-primary gap-1.5 px-4 py-2 text-sm" style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)' }}>
+              <button onClick={handleTranslate} className="btn-primary gap-1.5 px-4 py-2 text-sm" >
                 <Languages size={14} />
                 开始翻译
               </button>

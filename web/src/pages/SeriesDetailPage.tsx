@@ -472,11 +472,8 @@ export default function SeriesDetailPage() {
                 <p className="mt-1.5 text-base" style={{ color: 'var(--text-secondary)' }}>{series.orig_title}</p>
               )}
 
-              {/* 霓虹分隔线 */}
-              <div className="my-3 h-[2px] w-24 rounded-full" style={{
-                background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple), transparent)',
-                boxShadow: '0 0 8px var(--neon-blue-30)',
-              }} />
+              {/* 分隔线 */}
+              <div className="my-3 h-px w-24 bg-border" />
 
               {/* 操作按钮区 */}
               <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -486,8 +483,7 @@ export default function SeriesDetailPage() {
                     to={`/play/${firstEpisode.id}`}
                     className="group relative inline-flex items-center gap-2.5 rounded-2xl px-8 py-3.5 text-base font-bold transition-all duration-300 hover:-translate-y-0.5"
                     style={{
-                      background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))',
-                      boxShadow: 'var(--shadow-neon), 0 4px 15px var(--neon-blue-15)',
+                      background: 'var(--neon-blue)',
                       color: 'var(--text-on-neon)',
                     }}
                   >
@@ -789,7 +785,7 @@ export default function SeriesDetailPage() {
                         activeSeason === season.season_num ? '' : 'hover:bg-[var(--nav-hover-bg)]'
                       )}
                       style={activeSeason === season.season_num ? {
-                        background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                        background: 'var(--neon-blue)',
                         boxShadow: 'var(--shadow-neon)',
                         color: 'var(--text-on-neon)',
                       } : {
@@ -957,7 +953,7 @@ export default function SeriesDetailPage() {
                 onClick={() => { setMatchSource('tmdb'); setMatchResults([]) }}
                 className="rounded-lg px-4 py-1.5 text-sm font-medium transition-all"
                 style={{
-                  background: matchSource === 'tmdb' ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))' : 'var(--bg-surface)',
+                  background: matchSource === 'tmdb' ? 'var(--neon-blue)' : 'var(--bg-surface)',
                   color: matchSource === 'tmdb' ? '#fff' : 'var(--text-secondary)',
                   border: matchSource === 'tmdb' ? 'none' : '1px solid var(--border-default)',
                 }}
@@ -1020,7 +1016,7 @@ export default function SeriesDetailPage() {
                 onClick={handleMatchSearch}
                 disabled={matchSearching}
                 className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: { tmdb: 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))', douban: 'linear-gradient(135deg, #00b414, #009910)', bangumi: 'linear-gradient(135deg, #f09199, #e8788a)', thetvdb: 'linear-gradient(135deg, #6dc849, #4fa82d)' }[matchSource] }}
+                style={{ background: { tmdb: 'var(--neon-blue)', douban: '#00b414', bangumi: '#f09199', thetvdb: '#6dc849' }[matchSource] }}
               >
                 {matchSearching ? '搜索中...' : '搜索'}
               </button>
@@ -1256,7 +1252,7 @@ function EpisodeCard({ episode: ep, seriesTitle, historyRecord, posterVersion }:
         {/* 已观看覆盖层 */}
         {watchStatus.watched && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))' }}>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: 'var(--bg-overlay)' }}>
               <Check size={14} className="text-white" />
             </div>
           </div>
@@ -1268,7 +1264,7 @@ function EpisodeCard({ episode: ep, seriesTitle, historyRecord, posterVersion }:
               className="h-full"
               style={{
                 width: `${watchStatus.progress}%`,
-                background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--neon-blue)',
                 boxShadow: '0 0 6px var(--neon-blue-30)',
               }}
             />
@@ -1366,8 +1362,8 @@ function EpisodeSlideCard({ episode: ep, seriesTitle, historyRecord, posterVersi
           <div
             className="flex h-10 w-10 items-center justify-center rounded-full"
             style={{
-              background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-              boxShadow: '0 0 12px var(--neon-blue-40)',
+              background: 'var(--bg-overlay)',
+              boxShadow: 'none',
             }}
           >
             <Play size={18} className="ml-0.5 text-white" fill="white" />
@@ -1388,7 +1384,7 @@ function EpisodeSlideCard({ episode: ep, seriesTitle, historyRecord, posterVersi
         {/* 已观看覆盖层 */}
         {watchStatus.watched && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))' }}>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: 'var(--bg-overlay)' }}>
               <Check size={16} className="text-white" />
             </div>
           </div>
@@ -1400,7 +1396,7 @@ function EpisodeSlideCard({ episode: ep, seriesTitle, historyRecord, posterVersi
               className="h-full"
               style={{
                 width: `${watchStatus.progress}%`,
-                background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--neon-blue)',
                 boxShadow: '0 0 6px var(--neon-blue-30)',
               }}
             />

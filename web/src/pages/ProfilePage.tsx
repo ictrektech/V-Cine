@@ -123,8 +123,7 @@ toast.error(t('profile.passwordMismatch'))
             <div
               className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl text-2xl font-bold"
               style={{
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-                boxShadow: '0 0 30px var(--neon-blue-20)',
+                background: 'var(--neon-blue)',
                 color: 'var(--text-on-neon)',
               }}
             >

@@ -50,7 +50,7 @@ function PageLoader() {
             style={{
               border: '2px solid transparent',
               borderTopColor: 'var(--neon-blue)',
-              borderRightColor: 'var(--neon-blue-40)',
+              borderRightColor: 'var(--border-strong)',
             }}
           />
           <div

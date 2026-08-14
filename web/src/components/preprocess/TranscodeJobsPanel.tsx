@@ -990,7 +990,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                 disabled={selected.size === 0 || qualities.size === 0 || submitting}
                 onClick={handleSubmit}
                 className="text-xs px-3 py-1.5 rounded-md flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: 'var(--neon-blue)', color: '#fff', boxShadow: '0 0 12px var(--neon-blue-30)' }}
+                style={{ background: 'var(--bg-overlay)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}
               >
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                 提交转码（{selected.size}）

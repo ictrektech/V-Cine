@@ -375,8 +375,8 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
           className="pointer-events-none absolute inset-0"
           style={{
             background: `
-              linear-gradient(to top, var(--bg-base) 0%, var(--bg-base) 5%, rgba(6,10,19,0.7) 35%, transparent 70%),
-              linear-gradient(to right, var(--bg-base) 0%, rgba(6,10,19,0.5) 40%, transparent 70%)
+              linear-gradient(to top, var(--bg-base) 0%, var(--bg-base) 5%, var(--bg-overlay) 35%, transparent 70%),
+              linear-gradient(to right, var(--bg-base) 0%, var(--bg-overlay) 40%, transparent 70%)
             `,
           }}
         />
@@ -384,7 +384,7 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-24"
           style={{
-            background: 'linear-gradient(to bottom, var(--bg-base)/40, transparent)',
+            background: 'linear-gradient(to bottom, var(--bg-overlay), transparent)',
           }}
         />
 
@@ -461,8 +461,7 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
                       to={playLink}
                       className="group inline-flex items-center gap-2.5 rounded-2xl px-7 py-3 text-sm font-bold shadow-lg"
                       style={{
-                        background: 'linear-gradient(135deg, var(--neon-blue), rgba(0, 180, 220, 0.95))',
-                        boxShadow: 'var(--shadow-neon), 0 4px 15px var(--neon-blue-15)',
+                        background: 'var(--neon-blue)',
                         color: 'var(--text-on-neon)',
                       }}
                     >
@@ -577,8 +576,7 @@ aria-label={`第 ${i + 1} 张`}
                           ref={progressRef}
                           className="absolute inset-y-0 left-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full"
                           style={{
-                            background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
-                            boxShadow: '0 0 6px var(--neon-blue-30)',
+                            background: 'var(--neon-blue)',
                             width: '0%',
                           }}
                         />
@@ -588,7 +586,7 @@ aria-label={`第 ${i + 1} 张`}
                         <div
                           className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full"
                           style={{
-                            background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
+                            background: 'var(--neon-blue)',
                             opacity: 0.5,
                           }}
                         />
@@ -621,9 +619,8 @@ aria-label={`第 ${i + 1} 张`}
                   width: i === current ? 72 : 48,
                   height: i === current ? 48 : 32,
                   border: i === current
-                    ? '2px solid var(--neon-blue)'
+                    ? '2px solid rgba(255,255,255,0.8)'
                     : '1px solid rgba(255,255,255,0.12)',
-                  boxShadow: i === current ? 'var(--neon-glow-shadow-md)' : 'none',
                 }}
                 animate={{
                   width: i === current ? 72 : 48,
@@ -641,15 +638,9 @@ aria-label={`第 ${i + 1} 张`}
                   loading="lazy"
                   draggable={false}
                 />
-                {/* 当前项高亮边框光�?*/}
+                {/* 当前项高亮边框 */}
                 {i === current && (
-                  <motion.div
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      boxShadow: 'inset 0 0 12px var(--neon-blue-20)',
-                    }}
-                    layoutId="thumb-highlight"
-                  />
+                  <div className="absolute inset-0 rounded-lg ring-1 ring-inset ring-white/30" />
                 )}
               </motion.button>
             ))}

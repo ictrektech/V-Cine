@@ -128,7 +128,7 @@ function ToggleSwitch({
       className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-300 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
       style={{
         background: checked
-          ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))'
+          ? 'var(--neon-blue)'
           : 'var(--border-default)',
         boxShadow: checked ? 'var(--neon-glow-shadow-md)' : 'none',
       }}
@@ -548,7 +548,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
                         className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-all"
                         style={{
                           background: advanced.enable_file_filter
-                            ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))'
+                            ? 'var(--neon-blue)'
                             : 'transparent',
                           border: advanced.enable_file_filter ? 'none' : '2px solid var(--border-hover)',
                           boxShadow: advanced.enable_file_filter ? '0 0 8px var(--neon-blue-25)' : 'none',

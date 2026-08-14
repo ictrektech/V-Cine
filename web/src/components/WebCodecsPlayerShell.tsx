@@ -360,11 +360,11 @@ export default function WebCodecsPlayerShell({
           >
             <div
               className="absolute left-0 top-0 h-full rounded-full transition-all"
-              style={{ width: `${progress}%`, background: 'var(--neon-blue, #06b6d4)' }}
+              style={{ width: `${progress}%`, background: 'var(--neon-blue)' }}
             />
             <div
               className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity"
-              style={{ left: `${progress}%`, background: 'var(--neon-blue, #06b6d4)', boxShadow: '0 0 8px rgba(6,182,212,0.6)' }}
+              style={{ left: `${progress}%`, background: 'var(--neon-blue)', boxShadow: '0 0 8px rgba(255,255,255,0.3)' }}
             />
           </div>
 

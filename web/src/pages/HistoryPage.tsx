@@ -153,7 +153,7 @@ export default function HistoryPage() {
                     className="h-full"
                     style={{
                       width: `${formatProgress(item.position, item.duration)}%`,
-                      background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
+                      background: 'var(--neon-blue)',
                       boxShadow: '0 0 6px var(--neon-blue-30)',
                     }}
                   />

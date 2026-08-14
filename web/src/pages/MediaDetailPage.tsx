@@ -553,7 +553,7 @@ export default function MediaDetailPage() {
                 onClick={() => { setMatchSource('tmdb'); setMatchResults([]); setMatchSelectedId(null) }}
                 className="rounded-lg px-4 py-1.5 text-sm font-medium transition-all"
                 style={{
-                  background: matchSource === 'tmdb' ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))' : 'var(--bg-surface)',
+                  background: matchSource === 'tmdb' ? 'var(--neon-blue)' : 'var(--bg-surface)',
                   color: matchSource === 'tmdb' ? '#fff' : 'var(--text-secondary)',
                   border: matchSource === 'tmdb' ? 'none' : '1px solid var(--border-default)',
                 }}
@@ -616,7 +616,7 @@ export default function MediaDetailPage() {
                 onClick={handleMatchSearch}
                 disabled={matchSearching}
                 className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: { tmdb: 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))', douban: 'linear-gradient(135deg, #00b414, #009910)', bangumi: 'linear-gradient(135deg, #f09199, #e8788a)', thetvdb: 'linear-gradient(135deg, #6dc849, #4fa82d)' }[matchSource] }}
+                style={{ background: { tmdb: 'var(--neon-blue)', douban: '#00b414', bangumi: '#f09199', thetvdb: '#6dc849' }[matchSource] }}
               >
                 {matchSearching ? t('mediaDetail.searching') : t('mediaDetail.searchBtn')}
               </button>
@@ -667,7 +667,7 @@ export default function MediaDetailPage() {
                     className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
                     style={{
                       background: isSelected ? 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(56,189,248,0.06))' : 'var(--bg-surface)',
-                      border: isSelected ? '1px solid var(--neon-blue, #38bdf8)' : '1px solid var(--border-default)',
+                      border: isSelected ? '1px solid var(--neon-blue)' : '1px solid var(--border-default)',
                       boxShadow: isSelected ? '0 0 0 2px rgba(56,189,248,0.25)' : undefined,
                     }}
                   >
@@ -736,7 +736,7 @@ export default function MediaDetailPage() {
                   onClick={handleMatchApply}
                   disabled={matchSelectedId === null || matchApplying}
                   className="inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ background: { tmdb: 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))', douban: 'linear-gradient(135deg, #00b414, #009910)', bangumi: 'linear-gradient(135deg, #f09199, #e8788a)', thetvdb: 'linear-gradient(135deg, #6dc849, #4fa82d)' }[matchSource] }}
+                  style={{ background: { tmdb: 'var(--neon-blue)', douban: '#00b414', bangumi: '#f09199', thetvdb: '#6dc849' }[matchSource] }}
                 >
                   {matchApplying && (
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />

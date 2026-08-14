@@ -418,7 +418,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                       onClick={useAsync ? handleExtractAsync : handleExtractSync}
                       disabled={extracting}
                       className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                      style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))' }}
+                      style={{ background: 'var(--neon-blue)' }}
                     >
                       {extracting ? (
                         <span className="flex items-center gap-2">
@@ -452,7 +452,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                           className="h-full rounded-full transition-all duration-300"
                           style={{
                             width: `${asyncProgress.progress}%`,
-                            background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-blue-mid))',
+                            background: 'var(--neon-blue)',
                           }}
                         />
                       </div>

@@ -155,9 +155,9 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                   border: '1px solid rgba(59,130,246,0.1)',
                 }}
               >
-                {isSeries ? <Tv size={24} style={{ color: '#4a5568' }} /> : <Film size={24} style={{ color: '#4a5568' }} />}
+                {isSeries ? <Tv size={24} style={{ color: 'var(--text-tertiary)' }} /> : <Film size={24} style={{ color: 'var(--text-tertiary)' }} />}
               </div>
-              <span className="text-xs font-medium" style={{ color: '#4a5568' }}>暂无海报</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>暂无海报</span>
             </div>
 
             {/* 悬停遮罩 */}
@@ -168,8 +168,8 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                     onClick={handlePlayClick}
                     className="flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 hover:scale-125 cursor-pointer"
                     style={{
-                      background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-                      boxShadow: 'var(--neon-glow-shadow-lg)',
+                      background: 'var(--bg-overlay)',
+                      boxShadow: 'none',
                     }}
                     title={isSeries ? '查看系列' : '立即播放'}
                   >

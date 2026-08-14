@@ -201,7 +201,7 @@ function JobListItem({
       ? '#f43f5e'
       : job.status === 'canceled'
       ? '#94a3b8'
-      : '#22d3ee'
+      : 'var(--neon-blue)'
 
   return (
     <button

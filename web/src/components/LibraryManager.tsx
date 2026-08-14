@@ -537,8 +537,8 @@ function LibraryManager({
                           background: activeStage === 'scraping'
                             ? 'linear-gradient(90deg, var(--neon-purple), var(--neon-pink))'
                             : activeStage === 'ai_organizing'
-                              ? 'linear-gradient(90deg, #10B981, var(--neon-blue))'
-                              : 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
+                              ? '#10B981'
+                              : 'var(--neon-blue)',
                           width: `${stagePercent}%`,
                           animation: stageProgress.total <= 0 ? 'shimmer 2s linear infinite' : undefined,
                           backgroundSize: stageProgress.total <= 0 ? '200% 100%' : undefined,

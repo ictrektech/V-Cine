@@ -81,13 +81,13 @@ interface ToggleProps {
  */
 export function Toggle({ checked, onChange, disabled, accent = 'neon' }: ToggleProps) {
   const accentBg: Record<string, string> = {
-    neon: 'linear-gradient(90deg, #06b6d4, #22d3ee)',
-    purple: 'linear-gradient(90deg, #a855f7, #c084fc)',
+    neon: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary)))',
+    purple: 'linear-gradient(90deg, hsl(var(--accent)), hsl(var(--accent)))',
     amber: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
   }
   const accentShadow: Record<string, string> = {
-    neon: '0 0 12px rgba(34,211,238,0.45), inset 0 1px 2px rgba(255,255,255,0.2)',
-    purple: '0 0 12px rgba(168,85,247,0.45), inset 0 1px 2px rgba(255,255,255,0.2)',
+    neon: '0 0 12px hsl(var(--primary) / 0.3), inset 0 1px 2px rgba(255,255,255,0.2)',
+    purple: '0 0 12px hsl(var(--accent) / 0.3), inset 0 1px 2px rgba(255,255,255,0.2)',
     amber: '0 0 12px rgba(245,158,11,0.45), inset 0 1px 2px rgba(255,255,255,0.2)',
   }
   return (
@@ -154,7 +154,7 @@ export function FieldGroup({ title, description, children, collapsible, defaultO
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <span
-            className="h-3.5 w-1 rounded-full bg-gradient-to-b from-primary-400 to-accent-500"
+            className="h-3.5 w-1 rounded-full bg-gradient-to-b from-primary-400 to-accent"
             aria-hidden
           />
           <h3 className="text-sm font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
@@ -174,7 +174,7 @@ export function FieldGroup({ title, description, children, collapsible, defaultO
         onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--nav-hover-bg)')}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
-        <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-primary-400 to-accent-500" aria-hidden />
+        <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-primary-400 to-accent" aria-hidden />
         <h3 className="text-sm font-semibold tracking-wide">{title}</h3>
         <svg
           className="ml-auto h-4 w-4 transition-transform group-open:rotate-90"
@@ -320,8 +320,8 @@ export function ActionButton({
 
   // primary：实色按钮（深底浅字 / 渐变底 on-neon 字）
   const primaryMap = {
-    neon: 'bg-gradient-to-r from-primary-500 to-primary-400 hover:shadow-[0_0_16px_rgba(0,212,224,0.35)]',
-    purple: 'bg-gradient-to-r from-purple-500 to-accent-500 hover:shadow-[0_0_16px_rgba(168,85,247,0.35)]',
+    neon: 'bg-gradient-to-r from-primary-500 to-primary-400 ',
+    purple: 'bg-gradient-to-r from-purple-500 to-accent ',
     amber: 'bg-gradient-to-r from-amber-500 to-orange-400 hover:shadow-[0_0_16px_rgba(245,158,11,0.35)]',
   }
   // secondary：低饱和底 + 对应色文字
@@ -514,7 +514,7 @@ export function SectionShell({
 }: SectionShellProps) {
   const accentBar: Record<string, string> = {
     neon: 'from-primary-500 to-primary-400',
-    purple: 'from-purple-500 to-accent-500',
+    purple: 'from-purple-500 to-accent',
     amber: 'from-amber-500 to-orange-400',
   }
   return (

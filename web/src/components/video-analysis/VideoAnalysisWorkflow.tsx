@@ -181,7 +181,7 @@ export default function VideoAnalysisWorkflow({ taskId }: Props) {
   }
 
   return (
-    <div className="bg-surface-800 rounded-lg p-4 space-y-3">
+    <div className="bg-card rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-surface-200">工作流状态</h3>
         <span className={`text-xs px-2 py-0.5 rounded ${workflow.status === 'succeeded' ? 'bg-emerald-500/10 text-emerald-300' : workflow.status === 'failed' ? 'bg-red-500/10 text-red-300' : workflow.status === 'running' ? 'bg-amber-500/10 text-amber-300' : workflow.status === 'partial' ? 'bg-amber-500/10 text-amber-300' : 'bg-surface-600/30 text-surface-300'}`}>
@@ -195,7 +195,7 @@ export default function VideoAnalysisWorkflow({ taskId }: Props) {
           const isRunning = running === s.key
           const isDisabled = isRunning || running === 'all' || running === 'missing'
           return (
-            <div key={s.key} className="flex items-center gap-3 bg-surface-800 rounded px-3 py-2">
+            <div key={s.key} className="flex items-center gap-3 bg-card rounded px-3 py-2">
               <div className="flex-shrink-0">{stageStatusIcon(isRunning ? 'running' : s.status)}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

@@ -528,7 +528,7 @@ export default function EditMetadataModal({
           <button
             onClick={onSave}
             className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))' }}
+            style={{ background: 'var(--neon-blue)' }}
           >
             保存
           </button>

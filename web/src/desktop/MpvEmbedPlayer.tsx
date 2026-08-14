@@ -586,7 +586,7 @@ function MpvEmbedPlayerInner(
               onClick={togglePin}
               className={`h-9 w-9 rounded-full flex items-center justify-center transition ${
                 pinned
-                  ? 'bg-[color:var(--neon-blue,_#00F0FF)]/25 text-[color:var(--neon-blue,_#00F0FF)]'
+                  ? 'bg-white/25 text-white'
                   : 'bg-white/10 hover:bg-white/20 text-white'
               }`}
               title={pinned ? '取消置顶' : '始终置顶'}
@@ -599,7 +599,7 @@ function MpvEmbedPlayerInner(
               onClick={togglePip}
               className={`h-9 w-9 rounded-full flex items-center justify-center transition ${
                 pipActive
-                  ? 'bg-[color:var(--neon-blue,_#00F0FF)]/25 text-[color:var(--neon-blue,_#00F0FF)]'
+                  ? 'bg-white/25 text-white'
                   : 'bg-white/10 hover:bg-white/20 text-white'
               }`}
               title={pipActive ? '退出画中画' : '画中画'}

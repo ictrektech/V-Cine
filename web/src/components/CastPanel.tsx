@@ -89,7 +89,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
   return (
     <div className="absolute bottom-full right-0 mb-2 w-80 rounded-xl shadow-2xl"
       style={{
-        background: 'rgba(11, 17, 32, 0.92)',
+        background: 'var(--bg-elevated)',
         border: '1px solid var(--neon-blue-10)',
         backdropFilter: 'blur(20px)',
       }}
@@ -112,7 +112,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
       {session && (
         <div className="p-4" style={{ borderBottom: '1px solid var(--neon-blue-8)' }}>
           <div className="mb-2 flex items-center gap-2">
-            <div className="h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--neon-green)', boxShadow: '0 0 6px rgba(0, 255, 136, 0.5)' }} />
+            <div className="h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--neon-green)', boxShadow: 'var(--neon-glow-shadow-md)' }} />
             <span className="text-xs" style={{ color: 'var(--neon-green)' }}>正在投屏</span>
           </div>
           <p className="mb-1 text-sm font-medium text-white">{mediaTitle || '正在播放'}</p>
@@ -123,7 +123,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
               onClick={() => controlCast(session.status === 'playing' ? 'pause' : 'play')}
               className="rounded-full p-2.5 text-white transition-all hover:scale-105"
               style={{
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--neon-blue)',
                 boxShadow: 'var(--neon-glow-shadow-md)',
               }}
             >

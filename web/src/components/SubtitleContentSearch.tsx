@@ -186,8 +186,8 @@ export default function SubtitleContentSearch({
       <div
         className="absolute bottom-full right-0 mb-2 w-[340px] rounded-xl p-4 shadow-2xl"
         style={{
-          background: 'rgba(11, 17, 32, 0.95)',
-          border: '1px solid rgba(0, 240, 255, 0.1)',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-default)',
           backdropFilter: 'blur(20px)',
         }}
       >
@@ -213,8 +213,8 @@ export default function SubtitleContentSearch({
     <div
       className="absolute bottom-full right-0 mb-2 w-[380px] rounded-xl shadow-2xl"
       style={{
-        background: 'rgba(11, 17, 32, 0.95)',
-        border: '1px solid rgba(0, 240, 255, 0.1)',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-default)',
         backdropFilter: 'blur(20px)',
       }}
       onClick={(e) => e.stopPropagation()}
