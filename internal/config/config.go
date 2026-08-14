@@ -367,6 +367,14 @@ type RegistrationConfig struct {
 	InviteCode string `mapstructure:"invite_code"`
 }
 
+// VOSOIDCConfig configures VOS OIDC Fastpath authentication for the embedded app.
+type VOSOIDCConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	JWKSURL  string `mapstructure:"jwks_url"`
+	Issuer   string `mapstructure:"issuer"`
+	ClientID string `mapstructure:"client_id"`
+}
+
 // EmbyConfig Emby/Jellyfin 兼容层配置（供移动端/桌面 Emby/Infuse/Jellyfin 客户端登录与播放）
 type EmbyConfig struct {
 	// 服务器对外显示名称（留空则使用主机名或 "nowen-video"）
@@ -637,6 +645,7 @@ type Config struct {
 	VideoAnalysis VideoAnalysisConfig `mapstructure:"video_analysis"`
 	AI            AIConfig            `mapstructure:"ai"`
 	Registration  RegistrationConfig  `mapstructure:"registration"`
+	VOSOIDC       VOSOIDCConfig       `mapstructure:"vos_oidc"`
 	Storage       StorageConfig       `mapstructure:"storage"`
 	Emby          EmbyConfig          `mapstructure:"emby"`
 	AdultScraper  AdultScraperConfig  `mapstructure:"adult_scraper"`
@@ -901,6 +910,10 @@ func setDefaults() {
 	// ---- 注册控制 ----
 	viper.SetDefault("registration.enabled", false)
 	viper.SetDefault("registration.invite_code", "")
+	viper.SetDefault("vos_oidc.enabled", false)
+	viper.SetDefault("vos_oidc.jwks_url", "http://172.17.0.1:8105/v1000/oauth2/jwks")
+	viper.SetDefault("vos_oidc.issuer", "/v1000/oauth2")
+	viper.SetDefault("vos_oidc.client_id", "com.ictrek.nowen-video")
 
 	// ---- Emby 兼容层 ----
 	viper.SetDefault("emby.server_name", "")

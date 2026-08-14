@@ -221,6 +221,7 @@ func main() {
 	})
 
 	// 需要认证的auth路由
+	r.POST("/api/auth/vos-oidc", handlers.Auth.LoginWithVOSOIDC)
 	authProtected := r.Group("/api/auth")
 	{
 		// refresh 用宽松中间件：允许过期 token 续签

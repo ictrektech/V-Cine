@@ -9,6 +9,32 @@ import (
 	"go.uber.org/zap"
 )
 
+type vosOIDCRequest struct {
+	AccessToken string `json:"access_token" binding:"required"`
+}
+
+// LoginWithVOSOIDC exchanges a verified VOS OIDC access token for a Nowen session.
+func (h *AuthHandler) LoginWithVOSOIDC(c *gin.Context) {
+	var req vosOIDCRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "VOS access token 无效"})
+		return
+	}
+	resp, err := h.authService.LoginWithVOSOIDC(req.AccessToken, c.ClientIP(), c.Request.UserAgent())
+	if err != nil {
+		switch err {
+		case service.ErrVOSIdentityConflict:
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case service.ErrUserDisabled:
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "VOS 身份验证失败"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 // AuthHandler 认证处理器
 type AuthHandler struct {
 	authService *service.AuthService

@@ -23,6 +23,12 @@ func (r *UserRepo) FindByUsername(username string) (*model.User, error) {
 	return &user, err
 }
 
+func (r *UserRepo) FindByVOSSubject(subject string) (*model.User, error) {
+	var user model.User
+	err := r.db.Where("vos_subject = ?", subject).First(&user).Error
+	return &user, err
+}
+
 func (r *UserRepo) FindByID(id string) (*model.User, error) {
 	var user model.User
 	err := r.db.First(&user, "id = ?", id).Error

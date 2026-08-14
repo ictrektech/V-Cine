@@ -14,9 +14,12 @@ import (
 type User struct {
 	ID       string `json:"id" gorm:"primaryKey;type:text"`
 	Username string `json:"username" gorm:"uniqueIndex;type:text;not null"`
-	Password string `json:"-" gorm:"type:text;not null"`        // bcrypt哈希，JSON不输出
-	Role     string `json:"role" gorm:"type:text;default:user"` // admin / user
-	Avatar   string `json:"avatar" gorm:"type:text"`
+	// VOSSubject is the immutable OIDC sub claim used to bind a VOS account.
+	// NULL permits existing local-only users and multiple unbound accounts.
+	VOSSubject *string `json:"-" gorm:"uniqueIndex;type:text"`
+	Password   string  `json:"-" gorm:"type:text;not null"`        // bcrypt哈希，JSON不输出
+	Role       string  `json:"role" gorm:"type:text;default:user"` // admin / user
+	Avatar     string  `json:"avatar" gorm:"type:text"`
 	// 扩展资料
 	Nickname string `json:"nickname" gorm:"type:text"`
 	Email    string `json:"email" gorm:"type:text;index"`

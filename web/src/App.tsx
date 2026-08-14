@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useAuthStore } from '@/stores/auth'
 import { ToastProvider } from '@/components/Toast'
 import { DialogProvider } from '@/components/Dialog'
@@ -9,6 +9,8 @@ import TitleBar from '@/components/TitleBar'
 import LoginPage from '@/pages/LoginPage'
 import ForceChangePasswordPage from '@/pages/ForceChangePasswordPage'
 import { DesktopEventBinder, DesktopServerPicker, UpdateBanner } from '@/desktop'
+import { authApi } from '@/api/auth'
+import { acquireVOSAccessToken } from '@/utils/vos-oidc'
 
 // 懒加载页面组件 — 按需加载，减少首屏 JS 体积
 const HomePage = lazy(() => import('@/pages/HomePage'))
@@ -94,6 +96,16 @@ function ForceChangePasswordRoute() {
 }
 
 export default function App() {
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  useEffect(() => {
+    if (isAuthenticated) return
+    void acquireVOSAccessToken().then(async (accessToken) => {
+      if (!accessToken) return
+      const response = await authApi.vosOIDC(accessToken)
+      if (response.data.token && response.data.user) setAuth(response.data.token, response.data.user)
+    }).catch(() => undefined)
+  }, [isAuthenticated, setAuth])
   return (
     <ToastProvider>
       <DialogProvider>

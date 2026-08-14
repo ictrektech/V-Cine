@@ -32,6 +32,10 @@ services:
       NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON: "true"
       NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE: /usr/bin/python3
       NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR: /app/scripts/adult-scraper
+      NOWEN_VOS_OIDC_ENABLED: "true"
+      NOWEN_VOS_OIDC_JWKS_URL: http://172.17.0.1:8105/v1000/oauth2/jwks
+      NOWEN_VOS_OIDC_ISSUER: /v1000/oauth2
+      NOWEN_VOS_OIDC_CLIENT_ID: com.ictrek.nowen-video
       TZ: "${TZ:-Asia/Shanghai}"
     # 宿主端口：Traefik file provider 经 docker0 网关 172.17.0.1 转发到该端口
     ports:

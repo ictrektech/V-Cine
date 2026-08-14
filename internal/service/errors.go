@@ -8,6 +8,7 @@ var (
 	ErrUserExists           = errors.New("用户名已存在")
 	ErrUserNotFound         = errors.New("用户不存在")
 	ErrUserDisabled         = errors.New("账号已被禁用，请联系管理员")
+	ErrVOSIdentityConflict  = errors.New("同名本地账号尚未绑定 VOS 身份，拒绝自动接管")
 	ErrLastAdmin            = errors.New("不能删除或降级最后一个管理员")
 	ErrLibraryNotFound      = errors.New("媒体库不存在")
 	ErrMediaNotFound        = errors.New("媒体不存在")

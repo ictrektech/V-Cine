@@ -12,6 +12,8 @@ export const authApi = {
 
   register: (data: RegisterRequest) =>
     api.post<TokenResponse>('/auth/register', data),
+  vosOIDC: (access_token: string) =>
+    api.post<TokenResponse>('/auth/vos-oidc', { access_token }),
 
   refreshToken: () =>
     api.post<TokenResponse>('/auth/refresh'),
