@@ -52,42 +52,47 @@ ARG TARGETARCH
 ARG NOWEN_VERSION=0.1.0
 
 # ---- 基础依赖（全架构通用） ----
-RUN apk add --no-cache \
-    ffmpeg \
-    tzdata \
-    ca-certificates \
-    su-exec \
-    coreutils \
-    wget \
-    && rm -rf /var/cache/apk/* \
-    && ln -sf /bin/nice /usr/bin/nice
+# Alpine 镜像源：默认阿里云（--build-arg 可覆盖），失败回退官方源
+ARG ALPINE_MIRROR=https://mirrors.aliyun.com/alpine
+RUN set -eux; \
+    AV=$(cut -d. -f1-2 /etc/alpine-release); \
+    apk add --no-cache \
+        --repository "${ALPINE_MIRROR}/v${AV}/main" \
+        --repository "${ALPINE_MIRROR}/v${AV}/community" \
+        ffmpeg tzdata ca-certificates su-exec coreutils wget \
+    || apk add --no-cache ffmpeg tzdata ca-certificates su-exec coreutils wget; \
+    rm -rf /var/cache/apk/*; \
+    ln -sf /bin/nice /usr/bin/nice
 
 # ---- Python 番号刮削微服务依赖 ----
 # 全部走 Alpine 社区仓库的预编译包，amd64/arm64/armv7 通用，QEMU 下也秒装
 # flask / requests / beautifulsoup4 / lxml 四个核心依赖 + pip（用于 update）
-RUN apk add --no-cache \
-        python3 \
-        py3-pip \
-        py3-flask \
-        py3-requests \
-        py3-beautifulsoup4 \
-        py3-lxml \
-    && rm -rf /var/cache/apk/*
+RUN set -eux; \
+    AV=$(cut -d. -f1-2 /etc/alpine-release); \
+    apk add --no-cache \
+        --repository "${ALPINE_MIRROR}/v${AV}/main" \
+        --repository "${ALPINE_MIRROR}/v${AV}/community" \
+        python3 py3-pip py3-flask py3-requests py3-beautifulsoup4 py3-lxml \
+    || apk add --no-cache python3 py3-pip py3-flask py3-requests py3-beautifulsoup4 py3-lxml; \
+    rm -rf /var/cache/apk/*
 
 # ---- 架构相关的硬件加速驱动 ----
 # - amd64: Intel QSV/VAAPI (intel-media-driver + libva-intel-driver)
 # - arm64 / armv7: 通用 mesa VAAPI 驱动（Mali/Panfrost/RPi/RKMPP 等走 /dev/dri）
 RUN set -eux; \
+    AV=$(cut -d. -f1-2 /etc/alpine-release); \
     if [ "${TARGETARCH}" = "amd64" ]; then \
         apk add --no-cache \
-            intel-media-driver \
-            libva-intel-driver \
-            mesa-va-gallium \
-            libva-utils; \
+            --repository "${ALPINE_MIRROR}/v${AV}/main" \
+            --repository "${ALPINE_MIRROR}/v${AV}/community" \
+            intel-media-driver libva-intel-driver mesa-va-gallium libva-utils \
+        || apk add --no-cache intel-media-driver libva-intel-driver mesa-va-gallium libva-utils; \
     else \
         apk add --no-cache \
-            mesa-va-gallium \
-            libva-utils; \
+            --repository "${ALPINE_MIRROR}/v${AV}/main" \
+            --repository "${ALPINE_MIRROR}/v${AV}/community" \
+            mesa-va-gallium libva-utils \
+        || apk add --no-cache mesa-va-gallium libva-utils; \
     fi; \
     rm -rf /var/cache/apk/*
 

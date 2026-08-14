@@ -80,6 +80,8 @@ dev-logs:  ## [Dev] 查看开发环境日志
 	$(DEV_CMD) logs -f
 dev-ps:    ## [Dev] 查看开发环境状态
 	$(DEV_CMD) ps
+dev-build: ## [Dev] 重新构建 dev 镜像（改 docker/Dockerfile.dev 后执行）
+	$(DEV_CMD) build nowen-video
 
 # ==================== Prod ====================
 
@@ -110,11 +112,17 @@ prod-logs: ## [Prod] 查看生产环境日志
 # （本地直连更快；慢主要是 QEMU 模拟 arm64 的 CPU 开销，代理帮不上）。
 # 产物打 <平台>_<日期>_<git哈希> 版本 tag + latest-<平台>。
 BUILD_PROXY ?=
-PROXY_ARGS := $(if $(BUILD_PROXY),--build-arg HTTP_PROXY=$(BUILD_PROXY) --build-arg HTTPS_PROXY=$(BUILD_PROXY) --build-arg NO_PROXY=localhost,127.0.0.1,)
+# comma 变量：make 的 $(if) 以逗号分参，NO_PROXY 里的逗号必须用变量注入
+comma := ,
+PROXY_ARGS := $(if $(BUILD_PROXY),--build-arg HTTP_PROXY=$(BUILD_PROXY) --build-arg HTTPS_PROXY=$(BUILD_PROXY) --build-arg NO_PROXY=localhost$(comma)127.0.0.1$(comma))
+# Alpine 镜像源：未设置则用 Dockerfile ARG 默认（阿里云）；换源 make build ALPINE_MIRROR=...
+ALPINE_MIRROR ?=
+MIRROR_ARGS := $(if $(ALPINE_MIRROR),--build-arg ALPINE_MIRROR=$(ALPINE_MIRROR))
 build:
 	docker buildx build --platform $(PLATFORM_GOAL) --load \
 		-f docker/Dockerfile -t $(IMAGE_URL):latest \
 		--build-arg NOWEN_VERSION=$(VERSION) \
+		$(MIRROR_ARGS) \
 		$(PROXY_ARGS) \
 		. \
 		&& docker tag $(IMAGE_URL):latest $(IMAGE_URL):$(BUILD_TAG) \

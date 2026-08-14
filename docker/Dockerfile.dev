@@ -1,0 +1,13 @@
+# 开发专用镜像：golang:1.25-alpine + ffmpeg（烧入镜像层，容器重建不丢失；改后 make dev-build 重建）
+FROM golang:1.25-alpine
+
+# Alpine 镜像源：默认阿里云（--build-arg 可覆盖），失败回退官方源
+ARG ALPINE_MIRROR=https://mirrors.aliyun.com/alpine
+RUN set -eux; \
+    AV=$(cut -d. -f1-2 /etc/alpine-release); \
+    apk add --no-cache \
+        --repository "${ALPINE_MIRROR}/v${AV}/main" \
+        --repository "${ALPINE_MIRROR}/v${AV}/community" \
+        ffmpeg \
+    || apk add --no-cache ffmpeg; \
+    rm -rf /var/cache/apk/*

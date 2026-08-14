@@ -148,8 +148,10 @@ services:
 #    docker buildx inspect --bootstrap
 #
 # 2. 构建并推送 manifest list（amd64 + arm64 + armv7）：
+#    国内网络建议加 --build-arg ALPINE_MIRROR 走镜像源加速（Dockerfile 默认已指向阿里云）：
 #    docker buildx build \
 #      --platform linux/amd64,linux/arm64,linux/arm/v7 \
+#      --build-arg ALPINE_MIRROR=https://mirrors.aliyun.com/alpine \
 #      -t cropflre/nowen-video:latest \
 #      -t cropflre/nowen-video:v1.2.0 \
 #      --push .
