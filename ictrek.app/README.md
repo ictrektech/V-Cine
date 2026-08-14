@@ -3,7 +3,7 @@
 本目录包含 VOS app `com.ictrek.nowen-video` 的安装包模板。
 
 VOS OIDC 登录会以已验签的 VOS `sub` 绑定 Nowen 账号；同名的既有本地账号会在首次 VOS 登录时自动绑定，并按 VOS 管理员身份同步为 Nowen 管理员。
-发布流程以 `update_version.sh` 触发的 GitHub Actions 为准。
+发布流程以 `push_release.sh` 推送 tag 触发的 GitHub Actions 为准（`update_version.sh` 只升版本、不推 tag）。
 
 ## 镜像准备（发布前必做）
 
@@ -22,20 +22,29 @@ ssh tc232  'cd nowen-video && ./scripts/mirror_base_images.sh'   # amd64 基镜�
 ssh tc192  'cd nowen-video && ./scripts/mirror_base_images.sh'   # arm64 基镜像
 ```
 
-**每次发布**：在两台构建机上原生构建（基镜像从 SWR 拉，构建走 `--pull=false`），推 SWR 并写飞书记录。飞书记录写入该架构的全部 sheet（与 motrix 同一套：amd → `AMD_with_cuda`、`AMD_with_mxn100`；arm → `ARM_without_cuda`、`ARM_with_cuda`、`l4t`、`thor_spark`），组件列头 `nowen-video`。先在各构建机 `git pull` 取到最新的 `build_image.sh`：
+**每次发布**：**先升版本、后构建、最后推 tag**——构建机 `git pull` 后读到的 `ictrek.app/VERSION` 才是新版本，且 tag 永远在镜像就绪后才推（否则 CI 会打出一个引用了不存在镜像的包）。
 
 ```bash
 cd apps/nowen-video
-ssh tc232  && ./build_image.sh         # AMD64: 构建 amd_${VERSION} + 推送 + 写飞书
-ssh tc192  && ./build_image.sh         # ARM64: 构建 arm_${VERSION} + 推送 + 写飞书
+# ① 本地：bump VERSION + commit + 推分支（不推 tag、不触发 CI），并打本地 tag
+./ictrek.app/scripts/update_version.sh
+
+# ② 两台构建机上原生构建（基镜像从 SWR 拉，构建走 --pull=false），推 SWR + 写飞书
+#    飞书记录写入该架构的全部 sheet（与 motrix 同一套：amd → AMD_with_cuda、AMD_with_mxn100；
+#    arm → ARM_without_cuda、ARM_with_cuda、l4t、thor_spark），组件列头 nowen-video
+ssh tc232  'cd nowen-video && git pull && ./build_image.sh'   # AMD64: 构建 amd_${VERSION} + 推送 + 写飞书
+ssh tc192  'cd nowen-video && git pull && ./build_image.sh'   # ARM64: 构建 arm_${VERSION} + 推送 + 写飞书
+
+# ③ 本地：确认两个架构镜像都已 push 后，推 tag 触发 GitHub Actions 打包上架
+./ictrek.app/scripts/push_release.sh
 ```
 
-`VERSION` 默认取 `ictrek.app/VERSION`（`--version` 覆盖）；`--no-push` / `--no-feishu` 用于调试。
-两个架构都构建完，再执行下面的 VOS 发布。SWR 镜像从 0.1.2 起接入；更早的 0.1.1 历史包仍指向 Docker Hub。
+`build_image.sh` 的 `VERSION` 默认取 `ictrek.app/VERSION`（`--version` 覆盖）；`--no-push` / `--no-feishu` 用于调试。
+镜像 tag 必须与 `VERSION` 一致，且**必须先于 tag 推送构建完成**（`package.sh` 只校验字符串、不校验 SWR 上是否存在）。SWR 镜像从 0.1.2 起接入；更早的 0.1.1 历史包仍指向 Docker Hub。
 
 ## 打包
 
-发布入口是 `ictrek.app/scripts/update_version.sh`：它只更新 `VERSION`、提交 release commit、推送 `vos-nowen-video-v${VERSION}` 触发 tag；GitHub Actions 收到 tag 后生成 pull 包并更新 GitHub release / VOS App Store。
+发布入口是 `ictrek.app/scripts/push_release.sh`：读 `VERSION` 拼出 `vos-nowen-video-v${VERSION}`，确认镜像就绪后推 tag；GitHub Actions 收到 tag 后生成 pull 包并更新 GitHub release / VOS App Store。`update_version.sh` 只负责 bump VERSION、提交 release commit、推分支并打本地 tag，**不推 tag**。
 
 本地 `package.sh` 只用于调试或手动验证，不会递增或写回 `VERSION`：
 
