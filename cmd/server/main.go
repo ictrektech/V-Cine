@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -92,8 +91,6 @@ func main() {
 	}
 	r := gin.Default()
 
-	// 预处理 index.html（VOS 子路径时注入 <base> 与 __NOWEN_BASE_PATH__）
-	indexHTML := prepareIndexHTML(cfg.App.WebDir, cfg.App.WebBasePath, sugar)
 	webBasePath := cfg.App.WebBasePath
 
 	// 全局中间件
@@ -1158,29 +1155,6 @@ func main() {
 	}
 
 	sugar.Info("服务器已优雅关闭")
-}
-
-// prepareIndexHTML 读取前端入口 index.html，并在接入子路径（如 VOS 平台的
-// /app/<app-id>）时注入：
-//  1. <base href="/app/<app-id>/">：让相对路径的资源引用全部落在该前缀下
-//  2. window.__NOWEN_BASE_PATH__：供前端 JS 拼装 API / WS / 路由 basename
-//
-// 独立部署（根路径）时保持原样，无任何改动。
-func prepareIndexHTML(webDir, webBasePath string, sugar *zap.SugaredLogger) []byte {
-	indexPath := filepath.Join(webDir, "index.html")
-	data, err := os.ReadFile(indexPath)
-	if err != nil {
-		sugar.Warnf("读取前端入口 %s 失败（前端可能未构建）: %v", indexPath, err)
-		return nil
-	}
-	if webBasePath == "" {
-		return data
-	}
-	html := strings.Replace(string(data), "<head>",
-		fmt.Sprintf(`<head><base href=%q><script>window.__NOWEN_BASE_PATH__=%q;</script>`,
-			webBasePath+"/", webBasePath), 1)
-	sugar.Infof("接入子路径 basePath=%s，index.html 已注入 <base> 与 __NOWEN_BASE_PATH__", webBasePath)
-	return []byte(html)
 }
 
 func getLocalIPv4Addresses() []string {
