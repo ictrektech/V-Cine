@@ -84,7 +84,7 @@ api.interceptors.request.use((config) => {
 
 // ========== 401 处理：静默刷新 + 并发抑制 + 会话竞态保护 ==========
 // 不触发自动登出/刷新的白名单路径
-const AUTH_SAFE_PATHS = ['/auth/login', '/auth/register', '/auth/status', '/auth/refresh']
+const AUTH_SAFE_PATHS = ['/auth/login', '/auth/register', '/auth/status', '/auth/refresh', '/auth/vos-oidc']
 
 // 刷新请求必须按 Token 隔离，防止旧会话的刷新结果覆盖刚登录的新会话。
 let refreshState: { token: string; promise: Promise<string | null> } | null = null
