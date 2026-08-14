@@ -823,6 +823,7 @@ func setDefaults() {
 	viper.SetDefault("app.env", "production")
 	viper.SetDefault("app.data_dir", "./data")
 	viper.SetDefault("app.web_dir", "./web/dist")
+	viper.SetDefault("app.web_base_path", "")
 	viper.SetDefault("app.ffmpeg_path", "ffmpeg")
 	viper.SetDefault("app.ffprobe_path", "ffprobe")
 	viper.SetDefault("app.vaapi_device", "/dev/dri/renderD128")
