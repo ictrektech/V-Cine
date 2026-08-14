@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -1070,29 +1071,57 @@ func main() {
 	// 由注入的 <base href> 统一收敛到子路径前缀下，反向代理剥回根路径。
 	r.Static("/assets", cfg.App.WebDir+"/assets")
 
-	// 预读 index.html 并（若配置了 WebBasePath）注入 <base href> 与
-	// window.__NOWEN_BASE_PATH__，供前端感知挂载前缀。启动期一次注入、缓存复用。
-	// 根部署也注入 <base href="/">：前端按相对路径（vite base './'）引用资源，
-	// 深层路由（如 /play/<id>）下浏览器会把 ./assets/... 解析到路由前缀上而 404；
-	// <base> 让相对引用统一落在站点根；VOS 子路径则落在注入的 iframe 前缀下。
-	indexBytes, err := os.ReadFile(cfg.App.WebDir + "/index.html")
-	if err != nil {
-		sugar.Fatalf("读取 index.html 失败: %v", err)
+	// 读取并注入 <base href> 与 __NOWEN_BASE_PATH__ 的 index.html，缓存按 mtime 失效：
+	// dev 容器挂载源码热更新 dist 后无需重启，服务端立即返回新哈希引用，
+	// 避免"旧 index.html + 新 assets"导致白屏。
+	webDir := cfg.App.WebDir
+	indexPath := filepath.Join(webDir, "index.html")
+	var (
+		cookedMu    sync.Mutex
+		cookedMtime time.Time
+		cooked      []byte
+	)
+	loadCookedIndex := func() []byte {
+		cookedMu.Lock()
+		defer cookedMu.Unlock()
+		fi, err := os.Stat(indexPath)
+		if err != nil {
+			sugar.Warnf("读取前端入口 %s 失败（前端可能未构建）: %v", indexPath, err)
+			return cooked
+		}
+		if cooked != nil && fi.ModTime().Equal(cookedMtime) {
+			return cooked
+		}
+		indexBytes, err := os.ReadFile(indexPath)
+		if err != nil {
+			sugar.Warnf("读取前端入口 %s 失败: %v", indexPath, err)
+			return cooked
+		}
+		// 根部署也注入 <base href="/">：前端按相对路径（vite base './'）引用资源，
+		// 深层路由（如 /play/<id>）下浏览器会把 ./assets/... 解析到路由前缀上而 404；
+		// <base> 让相对引用统一落在站点根；VOS 子路径则落在注入的 iframe 前缀下。
+		bp := strings.TrimRight(cfg.App.WebBasePath, "/")
+		baseHref := "/"
+		if bp != "" {
+			baseHref = bp + "/"
+		}
+		inject := `<base href="` + baseHref + `"><script>window.__NOWEN_BASE_PATH__="` + bp + `";</script>`
+		cooked = []byte(strings.Replace(string(indexBytes), "<head>", "<head>"+inject, 1))
+		cookedMtime = fi.ModTime()
+		if bp != "" {
+			sugar.Infof("WebBasePath 注入: %s", bp)
+		}
+		return cooked
 	}
-	bp := strings.TrimRight(cfg.App.WebBasePath, "/")
-	baseHref := "/"
-	if bp != "" {
-		baseHref = bp + "/"
+	// 启动时预热：dist 缺失直接 fatal，避免部署缺前端时静默空页
+	if loadCookedIndex() == nil {
+		sugar.Fatalf("读取 index.html 失败: %s", indexPath)
 	}
-	inject := `<base href="` + baseHref + `"><script>window.__NOWEN_BASE_PATH__="` + bp + `";</script>`
-	indexHTML := strings.Replace(string(indexBytes), "<head>", "<head>"+inject, 1)
-	if bp != "" {
-		sugar.Infof("WebBasePath 注入: %s", bp)
-	}
-	cookedIndex := []byte(indexHTML)
+
 	// SPA 兜底：非 /api/ 的未知路径，先按 webDir 内真实文件返回
 	// （深层路由下相对引用的 favicon/manifest 等，如 /play/vite.svg），
-	// 再回退到前端入口；/api/ 的未知路径返回 JSON 404，避免误返回 HTML。
+	// 再回退到前端入口；/api/ 与不存在的静态资源返回 404，
+	// 避免浏览器把 HTML 当模块加载触发 MIME 报错（如 dist 重建后旧哈希失效）。
 	r.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
@@ -1100,13 +1129,19 @@ func main() {
 		}
 		rel := strings.TrimPrefix(path.Clean(c.Request.URL.Path), "/")
 		if rel != "" && rel != "." {
-			filePath := filepath.Join(cfg.App.WebDir, filepath.FromSlash(rel))
+			filePath := filepath.Join(webDir, filepath.FromSlash(rel))
 			if fi, err := os.Stat(filePath); err == nil && fi.Mode().IsRegular() {
 				c.File(filePath)
 				return
 			}
+			if filepath.Ext(rel) != "" {
+				c.String(http.StatusNotFound, "not found")
+				return
+			}
 		}
-		c.Data(http.StatusOK, "text/html; charset=utf-8", cookedIndex)
+		// index.html 不缓存：dist 重建后浏览器立即拿到新哈希引用
+		c.Header("Cache-Control", "no-cache")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", loadCookedIndex())
 	})
 
 	addr := fmt.Sprintf(":%d", cfg.App.Port)
