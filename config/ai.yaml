@@ -6,7 +6,6 @@ block_local_ai: true
 cache_ttl_hours: 168
 embedding_ai:
     api_base: http://172.17.0.1:18005
-    enabled: true
     model: vit-b-16-siglip2__webli
 enable_metadata_enhance: true
 enable_recommend_reason: true

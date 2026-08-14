@@ -417,7 +417,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 		} else {
 			// 创建 embedding 客户端（可选，配置了 embedding_ai 才启用）
 			var embeddingClient *EmbeddingClient
-			if cfg.AI.EmbeddingAI.Enabled {
+			if cfg.AI.EmbeddingAI.APIBase != "" {
 				if ec, ecErr := NewEmbeddingClient(cfg.AI.EmbeddingAI.APIBase, cfg.AI.EmbeddingAI.Model); ecErr == nil {
 					embeddingClient = ec
 				} else {

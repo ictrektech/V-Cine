@@ -218,9 +218,9 @@ type AIFailoverConfig struct {
 
 // AIConfig AI 功能配置
 // EmbeddingAIConfig 图片/文本 embedding 服务配置
-// 对接 emb_server，计算 CLIP 图片 embedding 用于向量检索
+// 对接 emb_server，计算 CLIP 图片 embedding 用于向量检索。
+// 启用语义：APIBase 非空即启用（地址即开关），不再有独立 enabled 开关。
 type EmbeddingAIConfig struct {
-	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
 	APIBase string `mapstructure:"api_base" yaml:"api_base"`
 	Model   string `mapstructure:"model" yaml:"model"`
 }
@@ -870,7 +870,8 @@ func setDefaults() {
 	// 免费档 60 QPM 上限，避免 429。用户可在前端 AI 高级设置里手动调高。
 	viper.SetDefault("ai.max_concurrent", 1)
 	viper.SetDefault("ai.request_interval_ms", 1100)
-	viper.SetDefault("ai.embedding_ai.enabled", false)
+	// embedding 地址即开关：默认连宿主 emb_server（172.17.0.1:18005），
+	// VOS 留空才禁用，改地址即改连接目标。
 	viper.SetDefault("ai.embedding_ai.api_base", "http://172.17.0.1:18005")
 	viper.SetDefault("ai.embedding_ai.model", "vit-b-16-siglip2__webli")
 	viper.SetDefault("ai.scene_describe_ai.api_base", "")
