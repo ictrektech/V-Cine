@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/auth'
 import { ToastProvider } from '@/components/Toast'
 import { DialogProvider } from '@/components/Dialog'
@@ -98,20 +98,32 @@ function ForceChangePasswordRoute() {
 export default function App() {
   const setAuth = useAuthStore((s) => s.setAuth)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isVOSFrame = typeof window !== 'undefined' && window.parent !== window
+  const [vosLoginError, setVOSLoginError] = useState(false)
+  const [vosLoginAttempt, setVOSLoginAttempt] = useState(0)
   useEffect(() => {
-	if (isAuthenticated) return
+    if (isAuthenticated || !isVOSFrame) return
+    setVOSLoginError(false)
     void acquireVOSAccessToken().then(async (accessToken) => {
-      if (!accessToken) return
+      if (!accessToken) throw new Error('VOS access token unavailable')
       const response = await authApi.vosOIDC(accessToken)
-	  if (response.data.token && response.data.user) {
-		setAuth(response.data.token, response.data.user)
-		const basePath = typeof (window as any).__NOWEN_BASE_PATH__ === 'string'
-		  ? (window as any).__NOWEN_BASE_PATH__.replace(/\/+$/, '')
-		  : ''
-		window.location.replace(basePath ? `${basePath}/` : '/')
-	  }
-    }).catch(() => undefined)
-  }, [isAuthenticated, setAuth])
+      if (!response.data.token || !response.data.user) throw new Error('Nowen session unavailable')
+      setAuth(response.data.token, response.data.user)
+      const basePath = typeof (window as any).__NOWEN_BASE_PATH__ === 'string'
+        ? (window as any).__NOWEN_BASE_PATH__.replace(/\/+$/, '')
+        : ''
+      window.location.replace(basePath ? `${basePath}/` : '/')
+    }).catch(() => setVOSLoginError(true))
+  }, [isAuthenticated, isVOSFrame, setAuth, vosLoginAttempt])
+
+  if (isVOSFrame && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-slate-100">
+        <div className="text-lg font-semibold">正在使用 VOS 账户登录 Nowen</div>
+        {vosLoginError && <button className="rounded bg-cyan-500 px-4 py-2 text-slate-950" onClick={() => setVOSLoginAttempt((attempt) => attempt + 1)}>重新连接 VOS</button>}
+      </div>
+    )
+  }
   return (
     <ToastProvider>
       <DialogProvider>
