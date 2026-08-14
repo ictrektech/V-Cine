@@ -207,9 +207,9 @@ function CollectionCard({ item, versionCount, isCurrent, onClick }: {
           <div className="absolute left-1.5 top-1.5">
             <span className="block rounded-md px-1.5 py-0.5 text-[9px] font-bold leading-tight backdrop-blur-md"
               style={{
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--bg-overlay)',
                 color: '#fff',
-                boxShadow: '0 0 8px var(--neon-blue-40)',
+                border: '1px solid rgba(255,255,255,0.15)',
               }}
             >当前</span>
           </div>
@@ -238,8 +238,8 @@ function CollectionCard({ item, versionCount, isCurrent, onClick }: {
             <div className="absolute bottom-2 left-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full"
                 style={{
-                  background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-                  boxShadow: '0 0 12px var(--neon-blue-40)',
+                  background: 'var(--bg-overlay)',
+                  boxShadow: 'none',
                 }}
               >
                 <Play size={14} className="ml-0.5 text-white" fill="white" />
@@ -293,7 +293,7 @@ function CollectionListItem({ group, index, isCurrent }: {
       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold"
         style={{
           background: isCurrent
-            ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))'
+            ? 'var(--neon-blue)'
             : 'var(--bg-elevated)',
           color: isCurrent ? '#fff' : 'var(--text-muted)',
         }}
@@ -324,7 +324,7 @@ function CollectionListItem({ group, index, isCurrent }: {
           {isCurrent && (
             <span className="ml-2 inline-block rounded px-1.5 py-0.5 text-[9px] font-bold"
               style={{
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--bg-overlay)',
                 color: '#fff',
               }}
             >当前</span>
@@ -390,8 +390,8 @@ function CollectionListItem({ group, index, isCurrent }: {
         <div className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
           <div className="flex h-8 w-8 items-center justify-center rounded-full"
             style={{
-              background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-              boxShadow: '0 0 8px var(--neon-blue-40)',
+              background: 'var(--bg-overlay)',
+              boxShadow: 'none',
             }}
           >
             <Play size={12} className="ml-0.5 text-white" fill="white" />
@@ -422,7 +422,7 @@ function CollectionListItem({ group, index, isCurrent }: {
                   {vIsCurrent && (
                     <span className="flex-shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold"
                       style={{
-                        background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                        background: 'var(--bg-overlay)',
                         color: '#fff',
                       }}>当前</span>
                   )}

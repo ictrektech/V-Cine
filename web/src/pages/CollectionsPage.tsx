@@ -280,7 +280,7 @@ export default function CollectionsPage() {
             <span
               className="ml-1 rounded-full px-1.5 text-[10px] font-bold"
               style={{
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--neon-blue)',
                 color: 'var(--text-on-neon)',
               }}
             >
@@ -556,8 +556,8 @@ function CollectionCard({ collection: coll, onClick }: { collection: MovieCollec
           <div className="absolute bottom-2 left-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full"
               style={{
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-                boxShadow: '0 0 12px var(--neon-blue-40)',
+                background: 'var(--bg-overlay)',
+                boxShadow: 'none',
               }}
             >
               <Play size={14} className="ml-0.5 text-white" fill="white" />

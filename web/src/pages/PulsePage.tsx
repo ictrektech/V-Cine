@@ -410,7 +410,7 @@ function AnalyticsTab({ data }: { data: PulseAnalyticsData }) {
                     className="w-7 rounded-t-md transition-all group-hover:opacity-80"
                     style={{
                       height: `${Math.max(height, 4)}px`,
-                      background: 'linear-gradient(to top, var(--neon-blue), var(--neon-purple))',
+                      background: 'var(--neon-blue)',
                       opacity: 0.7,
                     }}
                   />
@@ -483,7 +483,7 @@ function TrendChart({ data }: { data: { date: string; total_minutes: number; pla
               className="w-4 rounded-t-md transition-all group-hover:opacity-80"
               style={{
                 height: `${Math.max(height, 3)}px`,
-                background: 'linear-gradient(to top, var(--neon-blue), var(--neon-purple))',
+                background: 'var(--neon-blue)',
                 opacity: 0.7,
               }}
             />
@@ -561,7 +561,7 @@ function TopContentList({ items }: { items: PulseTopContentItem[] }) {
           <span
             className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold"
             style={{
-              background: i < 3 ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))' : 'var(--bg-card)',
+              background: i < 3 ? 'var(--neon-blue)' : 'var(--bg-card)',
               color: i < 3 ? '#fff' : 'var(--text-muted)',
             }}
           >
@@ -608,7 +608,7 @@ function TopUserList({ items }: { items: PulseTopUserItem[] }) {
           <span
             className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold"
             style={{
-              background: i < 3 ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))' : 'var(--bg-card)',
+              background: i < 3 ? 'var(--neon-blue)' : 'var(--bg-card)',
               color: i < 3 ? '#fff' : 'var(--text-muted)',
             }}
           >
@@ -617,7 +617,7 @@ function TopUserList({ items }: { items: PulseTopUserItem[] }) {
           <div
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold"
             style={{
-              background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+              background: 'var(--neon-blue)',
               color: 'var(--text-on-neon)',
             }}
           >

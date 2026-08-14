@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -1070,19 +1072,40 @@ func main() {
 
 	// 预读 index.html 并（若配置了 WebBasePath）注入 <base href> 与
 	// window.__NOWEN_BASE_PATH__，供前端感知挂载前缀。启动期一次注入、缓存复用。
+	// 根部署也注入 <base href="/">：前端按相对路径（vite base './'）引用资源，
+	// 深层路由（如 /play/<id>）下浏览器会把 ./assets/... 解析到路由前缀上而 404；
+	// <base> 让相对引用统一落在站点根；VOS 子路径则落在注入的 iframe 前缀下。
 	indexBytes, err := os.ReadFile(cfg.App.WebDir + "/index.html")
 	if err != nil {
 		sugar.Fatalf("读取 index.html 失败: %v", err)
 	}
-	indexHTML := string(indexBytes)
-	if bp := strings.TrimRight(cfg.App.WebBasePath, "/"); bp != "" {
-		inject := `<base href="` + bp + `/"><script>window.__NOWEN_BASE_PATH__="` + bp + `";</script>`
-		indexHTML = strings.Replace(indexHTML, "<head>", "<head>"+inject, 1)
+	bp := strings.TrimRight(cfg.App.WebBasePath, "/")
+	baseHref := "/"
+	if bp != "" {
+		baseHref = bp + "/"
+	}
+	inject := `<base href="` + baseHref + `"><script>window.__NOWEN_BASE_PATH__="` + bp + `";</script>`
+	indexHTML := strings.Replace(string(indexBytes), "<head>", "<head>"+inject, 1)
+	if bp != "" {
 		sugar.Infof("WebBasePath 注入: %s", bp)
 	}
 	cookedIndex := []byte(indexHTML)
+	// SPA 兜底：非 /api/ 的未知路径，先按 webDir 内真实文件返回
+	// （深层路由下相对引用的 favicon/manifest 等，如 /play/vite.svg），
+	// 再回退到前端入口；/api/ 的未知路径返回 JSON 404，避免误返回 HTML。
 	r.NoRoute(func(c *gin.Context) {
-		// SPA 回退：未匹配的路由统一返回 index.html
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		rel := strings.TrimPrefix(path.Clean(c.Request.URL.Path), "/")
+		if rel != "" && rel != "." {
+			filePath := filepath.Join(cfg.App.WebDir, filepath.FromSlash(rel))
+			if fi, err := os.Stat(filePath); err == nil && fi.Mode().IsRegular() {
+				c.File(filePath)
+				return
+			}
+		}
 		c.Data(http.StatusOK, "text/html; charset=utf-8", cookedIndex)
 	})
 

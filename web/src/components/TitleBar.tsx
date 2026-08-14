@@ -11,13 +11,7 @@
  */
 import { useEffect, useState, useCallback, memo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import {
-  Subtract16Regular,
-  Square16Regular,
-  SquareMultiple16Regular,
-  Dismiss16Regular,
-  Search20Regular,
-} from '@fluentui/react-icons'
+import { Minus, Square, Copy, X, Search } from 'lucide-react'
 import { desktop } from '@/desktop/bridge'
 
 function TitleBarImpl() {
@@ -127,14 +121,14 @@ function TitleBarImpl() {
             height: 26,
             padding: '0 10px',
             borderRadius: 999,
-            background: 'rgba(11, 17, 32, 0.6)',
+            background: 'var(--bg-elevated)',
             border: '1px solid var(--border-default)',
             color: 'var(--text-tertiary)',
             fontSize: 12,
             transition: 'all .2s ease',
           }}
         >
-          <Search20Regular style={{ width: 14, height: 14 }} />
+          <Search size={14} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -159,17 +153,17 @@ function TitleBarImpl() {
         <TitleBarButton
           label="最小化"
           onClick={onMinimize}
-          icon={<Subtract16Regular />}
+          icon={<Minus size={14} />}
         />
         <TitleBarButton
           label={maximized ? '还原' : '最大化'}
           onClick={onToggleMax}
-          icon={maximized ? <SquareMultiple16Regular /> : <Square16Regular />}
+          icon={maximized ? <Copy size={14} /> : <Square size={14} />}
         />
         <TitleBarButton
           label="关闭"
           onClick={onClose}
-          icon={<Dismiss16Regular />}
+          icon={<X size={14} />}
           danger
         />
       </div>

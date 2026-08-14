@@ -116,13 +116,12 @@ export default function LoginPage() {
           <motion.div
             className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
             style={{
-              background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-              boxShadow: 'var(--neon-glow-shadow-xl)',
+              background: 'var(--neon-blue)',
             }}
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <Zap size={32} className="text-white" />
+            <Zap size={32} style={{ color: 'var(--text-on-neon)' }} />
           </motion.div>
           <h1 className="font-display text-3xl font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>
             <span className="text-neon text-neon-glow">N</span>OWEN

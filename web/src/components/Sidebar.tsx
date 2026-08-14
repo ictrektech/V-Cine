@@ -350,7 +350,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                     ? 'rotate-0 scale-100 opacity-100 text-neon'
                     : '-rotate-90 scale-0 opacity-0'
                 )}
-                style={theme === 'dark' ? { filter: 'drop-shadow(0 0 4px var(--neon-blue-40))' } : undefined}
+                style={theme === 'dark' ? { filter: 'drop-shadow(0 0 4px rgba(255,255,255,0.3))' } : undefined}
               />
             </div>
             {(!collapsed || isMobileOpen) && (
@@ -365,7 +365,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 style={{
                   background: theme === 'dark' ? 'var(--neon-blue)' : '#f59e0b',
                   boxShadow: theme === 'dark'
-                    ? '0 0 6px var(--neon-blue-40)'
+                    ? '0 0 6px rgba(255,255,255,0.3)'
                     : '0 0 6px rgba(245, 158, 11, 0.4)',
                 }}
               />
@@ -382,7 +382,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           {/* 霓虹头像 */}
           <div className="relative flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
             style={{
-              background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+              background: 'var(--neon-blue)',
               boxShadow: 'var(--shadow-neon)',
               color: 'var(--text-on-neon)',
             }}

@@ -1180,7 +1180,7 @@ export default function VideoPlayer({
       {loadError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm">
           <div className="rounded-2xl p-8 text-center" style={{
-            background: 'rgba(11, 17, 32, 0.8)',
+            background: 'var(--bg-elevated)',
             border: '1px solid rgba(239, 68, 68, 0.2)',
           }}>
             <p className="text-lg font-medium text-red-400">{loadError}</p>
@@ -1199,7 +1199,7 @@ export default function VideoPlayer({
       {gestureOverlay && (
         <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
           <div className="rounded-2xl px-8 py-4 text-center" style={{
-            background: 'rgba(11, 17, 32, 0.85)',
+            background: 'var(--bg-elevated)',
             border: '1px solid var(--neon-blue-15)',
             backdropFilter: 'blur(12px)',
           }}>
@@ -1217,7 +1217,7 @@ export default function VideoPlayer({
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-5 rounded-2xl p-8 text-center"
             style={{
-              background: 'rgba(11, 17, 32, 0.85)',
+              background: 'var(--bg-elevated)',
               border: '1px solid var(--neon-blue-15)',
               backdropFilter: 'blur(20px)',
             }}
@@ -1264,7 +1264,7 @@ export default function VideoPlayer({
                 onClick={() => { setNextCountdown(null); onNext() }}
                 className="rounded-xl px-5 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5"
                 style={{
-                  background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))',
+                  background: 'var(--neon-blue)',
                   boxShadow: 'var(--shadow-neon)',
                   color: 'var(--text-on-neon)',
                 }}
@@ -1296,10 +1296,9 @@ export default function VideoPlayer({
         >
           <div className="flex h-20 w-20 items-center justify-center rounded-full transition-all duration-300 hover:scale-110"
             style={{
-              background: 'linear-gradient(135deg, var(--neon-blue-20), var(--neon-purple-20))',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid var(--neon-blue-15)',
-              boxShadow: '0 0 40px var(--neon-blue-15), inset 0 0 20px var(--neon-blue-5)',
+              background: 'var(--bg-overlay)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.15)',
             }}
           >
             <Play size={40} className="ml-1 text-white drop-shadow-lg" fill="white" />
@@ -1476,7 +1475,7 @@ export default function VideoPlayer({
             {showSpeedMenu && (
               <div className="absolute bottom-full right-0 mb-2 min-w-[140px] max-h-[360px] overflow-y-auto rounded-xl py-1 shadow-2xl"
                 style={{
-                  background: 'rgba(11, 17, 32, 0.9)',
+                  background: 'var(--bg-elevated)',
                   border: '1px solid var(--neon-blue-10)',
                   backdropFilter: 'blur(20px)',
                   scrollbarWidth: 'thin',
@@ -1554,7 +1553,7 @@ export default function VideoPlayer({
               {showSubtitleMenu && (
                 <div className="absolute bottom-full right-0 mb-2 min-w-[200px] rounded-xl py-1 shadow-2xl"
                   style={{
-                    background: 'rgba(11, 17, 32, 0.9)',
+                    background: 'var(--bg-elevated)',
                     border: '1px solid var(--neon-blue-10)',
                     backdropFilter: 'blur(20px)',
                   }}
@@ -1660,7 +1659,7 @@ export default function VideoPlayer({
                               className="h-full rounded-full transition-all duration-500"
                               style={{
                                 width: `${aiSubtitleStatus.progress}%`,
-                                background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
+                                background: 'var(--neon-blue)',
                               }}
                             />
                           </div>
@@ -1875,7 +1874,7 @@ export default function VideoPlayer({
               {showAudioMenu && (
                 <div className="absolute bottom-full right-0 mb-2 min-w-[160px] rounded-xl py-1 shadow-2xl"
                   style={{
-                    background: 'rgba(11, 17, 32, 0.9)',
+                    background: 'var(--bg-elevated)',
                     border: '1px solid var(--neon-blue-10)',
                     backdropFilter: 'blur(20px)',
                   }}
@@ -1918,7 +1917,7 @@ export default function VideoPlayer({
               {showQuality && (
                 <div className="absolute bottom-full right-0 mb-2 min-w-[220px] rounded-xl py-1 shadow-2xl"
                   style={{
-                    background: 'rgba(11, 17, 32, 0.9)',
+                    background: 'var(--bg-elevated)',
                     border: '1px solid var(--neon-blue-10)',
                     backdropFilter: 'blur(20px)',
                   }}

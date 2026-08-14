@@ -554,7 +554,7 @@ export default function BrowsePage() {
               <span
                 className="ml-1 rounded-full px-1.5 text-[10px] font-bold"
                 style={{
-                  background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                  background: 'var(--neon-blue)',
                   color: 'var(--text-on-neon)',
                 }}
               >
@@ -1227,7 +1227,7 @@ function PosterWallItem({ item }: { item: MixedItem }) {
         />
         {/* 占位 */}
         <div className="absolute inset-0 -z-10 flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #1a1b2e 0%, #0f1019 100%)' }}>
-          {isSeries ? <Tv size={20} style={{ color: '#4a5568' }} /> : <Film size={20} style={{ color: '#4a5568' }} />}
+          {isSeries ? <Tv size={20} style={{ color: 'var(--text-tertiary)' }} /> : <Film size={20} style={{ color: 'var(--text-tertiary)' }} />}
         </div>
 
         {/* 悬停遮罩 */}
@@ -1239,8 +1239,8 @@ function PosterWallItem({ item }: { item: MixedItem }) {
             <div
               className="flex h-7 w-7 items-center justify-center rounded-full"
               style={{
-                background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-                boxShadow: 'var(--neon-glow-shadow-sm)',
+                background: 'var(--bg-overlay)',
+                boxShadow: 'none',
               }}
             >
               <Play size={12} className="ml-0.5 text-white" fill="white" />

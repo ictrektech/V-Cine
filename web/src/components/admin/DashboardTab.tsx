@@ -214,7 +214,7 @@ export default function DashboardTab({
                   <div
                     className="h-full rounded-full transition-all duration-700"
                     style={{
-                      background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple))',
+                      background: 'var(--neon-blue)',
                       width: `${data.step_total > 0 ? (data.step_current / data.step_total) * 100 : 0}%`,
                     }}
                   />
@@ -253,7 +253,7 @@ export default function DashboardTab({
                   <span className="text-xs" style={{ color: 'var(--neon-purple)' }}>{data.current}/{data.total} (成功:{data.success} 失败:{data.failed})</span>
                 </div>
                 <div className="mb-2 h-2 overflow-hidden rounded-full" style={{ background: 'var(--neon-blue-6)' }}>
-                  <div className="h-full rounded-full transition-all duration-300" style={{ background: 'linear-gradient(90deg, var(--neon-purple), var(--neon-pink))', width: `${data.total > 0 ? (data.current / data.total) * 100 : 0}%` }} />
+                  <div className="h-full rounded-full transition-all duration-300" style={{ background: 'var(--neon-purple)', width: `${data.total > 0 ? (data.current / data.total) * 100 : 0}%` }} />
                 </div>
                 <p className="text-xs text-surface-400">{data.message}</p>
               </div>
@@ -767,7 +767,7 @@ function ToggleButton({ checked, onChange }: { checked: boolean; onChange: () =>
       onClick={onChange}
       className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-300 focus:outline-none"
       style={{
-        background: checked ? 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))' : 'var(--border-default)',
+        background: checked ? 'var(--neon-blue)' : 'var(--border-default)',
         boxShadow: checked ? 'var(--neon-glow-shadow-md)' : 'none',
       }}
     >

@@ -84,7 +84,7 @@ const iconMap: Record<ToastType, React.ReactNode> = {
 }
 
 const borderColorMap: Record<ToastType, string> = {
-  success: 'rgba(0, 255, 136, 0.15)',
+  success: 'rgba(16, 185, 129, 0.15)',
   error: 'rgba(239, 68, 68, 0.15)',
   warning: 'rgba(234, 179, 8, 0.15)',
   info: 'var(--neon-blue-15)',

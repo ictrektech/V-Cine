@@ -192,11 +192,8 @@ export default function HeroSection({
                 <p className="mt-1 text-sm italic" style={{ color: 'var(--text-tertiary)' }}>{media.tagline}</p>
               )}
 
-              {/* 霓虹分隔线 */}
-              <div className="my-3 h-[2px] w-24 rounded-full" style={{
-                background: 'linear-gradient(90deg, var(--neon-blue), var(--neon-purple), transparent)',
-                boxShadow: '0 0 8px var(--neon-blue-30)',
-              }} />
+              {/* 分隔线 */}
+              <div className="my-3 h-px w-24 bg-border" />
 
               {/* 操作按钮组 */}
               <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -205,8 +202,7 @@ export default function HeroSection({
                   to={`/play/${media.id}`}
                   className="group relative inline-flex items-center gap-2.5 rounded-2xl px-8 py-3.5 text-base font-bold transition-all duration-300 hover:-translate-y-0.5"
                   style={{
-                    background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-blue-mid))',
-                    boxShadow: 'var(--shadow-neon), 0 4px 15px var(--neon-blue-15)',
+                    background: 'var(--neon-blue)',
                     color: 'var(--text-on-neon)',
                   }}
                   aria-label={watchProgress && !watchProgress.completed && watchProgress.position > 0 ? t('hero.continuePlay', { title: media.title }) : t('hero.playTitle', { title: media.title })}

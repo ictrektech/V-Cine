@@ -55,8 +55,8 @@ export default function SubtitleSearchPanel({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl" style={{
-        background: 'rgba(11, 17, 32, 0.92)',
-        border: '1px solid rgba(0, 240, 255, 0.15)',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-default)',
         backdropFilter: 'blur(20px)',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
       }}>
@@ -80,15 +80,15 @@ export default function SubtitleSearchPanel({
             className="rounded-lg px-3 py-2 text-sm outline-none"
             style={{
               background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(0, 240, 255, 0.1)',
-              color: '#e2e8f0',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
             }}>
-            <option value="zh-cn,en" style={{ background: '#0b1120', color: '#e2e8f0' }}>中文 + 英文</option>
-            <option value="zh-cn" style={{ background: '#0b1120', color: '#e2e8f0' }}>简体中文</option>
-            <option value="zh-tw" style={{ background: '#0b1120', color: '#e2e8f0' }}>繁体中文</option>
-            <option value="en" style={{ background: '#0b1120', color: '#e2e8f0' }}>English</option>
-            <option value="ja" style={{ background: '#0b1120', color: '#e2e8f0' }}>日本語</option>
-            <option value="ko" style={{ background: '#0b1120', color: '#e2e8f0' }}>한국어</option>
+            <option value="zh-cn,en" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>中文 + 英文</option>
+            <option value="zh-cn" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>简体中文</option>
+            <option value="zh-tw" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>繁体中文</option>
+            <option value="en" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>English</option>
+            <option value="ja" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>日本語</option>
+            <option value="ko" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>한국어</option>
           </select>
           <button onClick={handleSearch} disabled={searching}
             className="btn-neon rounded-lg px-5 py-2 text-sm font-medium flex items-center gap-2"
@@ -144,12 +144,12 @@ export default function SubtitleSearchPanel({
                 disabled={downloading === sub.id}
                 className="shrink-0 rounded-lg px-3 py-1.5 text-xs flex items-center gap-1 transition-all duration-300"
                 style={{
-                  color: '#9fb3c8',
-                  background: 'rgba(0, 240, 255, 0.05)',
-                  border: '1px solid rgba(0, 240, 255, 0.1)',
+                  color: 'var(--text-secondary)',
+                  background: 'var(--neon-blue-5)',
+                  border: '1px solid var(--border-default)',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#ffffff'; e.currentTarget.style.background = 'rgba(0, 240, 255, 0.1)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#9fb3c8'; e.currentTarget.style.background = 'rgba(0, 240, 255, 0.05)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--neon-blue-10)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'var(--neon-blue-5)' }}
               >
                 {downloading === sub.id ? (
                   <Loader2 className="h-3 w-3 animate-spin" />

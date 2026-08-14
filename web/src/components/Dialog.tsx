@@ -92,31 +92,14 @@ const variantIconMap: Record<Variant, ReactNode> = {
   error: <XCircle size={22} className="text-red-400" />,
 }
 
-const variantBorderMap: Record<Variant, string> = {
-  default: 'rgba(0, 240, 255, 0.18)',
-  primary: 'rgba(0, 240, 255, 0.18)',
-  info: 'rgba(0, 240, 255, 0.18)',
-  success: 'rgba(0, 255, 136, 0.20)',
-  warning: 'rgba(234, 179, 8, 0.20)',
-  danger: 'rgba(239, 68, 68, 0.22)',
-  error: 'rgba(239, 68, 68, 0.22)',
-}
-
 const variantBtnMap: Record<Variant, string> = {
-  default:
-    'bg-[var(--neon-blue)] hover:bg-[var(--neon-blue-80,#00d6f0)] text-black',
-  primary:
-    'bg-[var(--neon-blue)] hover:bg-[var(--neon-blue-80,#00d6f0)] text-black',
-  info:
-    'bg-[var(--neon-blue)] hover:bg-[var(--neon-blue-80,#00d6f0)] text-black',
-  success:
-    'bg-emerald-500 hover:bg-emerald-400 text-black',
-  warning:
-    'bg-yellow-500 hover:bg-yellow-400 text-black',
-  danger:
-    'bg-red-500 hover:bg-red-400 text-white',
-  error:
-    'bg-red-500 hover:bg-red-400 text-white',
+  default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+  primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+  info: 'bg-primary text-primary-foreground hover:bg-primary/90',
+  success: 'bg-emerald-600 text-white hover:bg-emerald-500',
+  warning: 'bg-amber-500 text-white hover:bg-amber-400',
+  danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+  error: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
 }
 
 // ──────────────────── Provider ────────────────────
@@ -245,7 +228,7 @@ function DialogShell({
         className="relative w-full max-w-md rounded-2xl shadow-2xl"
         style={{
           background: 'var(--bg-elevated)',
-          border: `1px solid ${variantBorderMap[variant]}`,
+          border: '1px solid hsl(var(--border))',
           backdropFilter: 'blur(24px)',
         }}
         onClick={(e) => e.stopPropagation()}

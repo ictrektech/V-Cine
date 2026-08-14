@@ -82,7 +82,7 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
         <span className="hidden sm:inline">书签</span>
         {bookmarks.length > 0 && (
           <span className="ml-1 rounded-full px-1.5 text-xs font-bold"
-            style={{ background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))', color: '#fff' }}
+            style={{ background: 'var(--bg-overlay)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}
           >
             {bookmarks.length}
           </span>
@@ -94,7 +94,7 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
   return (
     <div className="absolute bottom-16 right-4 z-50 w-80 rounded-xl shadow-2xl"
       style={{
-        background: 'rgba(11, 17, 32, 0.92)',
+        background: 'var(--bg-elevated)',
         border: '1px solid var(--neon-blue-10)',
         backdropFilter: 'blur(20px)',
       }}

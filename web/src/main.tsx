@@ -2,12 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { LazyMotion, domAnimation } from 'framer-motion'
 import App from './App'
-import FluentAppProvider from './components/FluentAppProvider'
 import { initTheme } from './stores/theme'
 import { initI18n } from './i18n'
 import { withBasePath } from './lib/basePath'
 import './index.css'
-import './styles/fluent.css'
 
 const SW_DEV_RELOAD_KEY = 'nowen-sw-dev-cleanup-reload'
 
@@ -83,10 +81,8 @@ if (typeof window !== 'undefined') {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <FluentAppProvider>
-      <LazyMotion features={domAnimation} strict>
-        <App />
-      </LazyMotion>
-    </FluentAppProvider>
+    <LazyMotion features={domAnimation} strict>
+      <App />
+    </LazyMotion>
   </React.StrictMode>,
 )

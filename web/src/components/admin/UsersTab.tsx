@@ -268,7 +268,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                   style={{
                     background: user.disabled
                       ? 'linear-gradient(135deg, #6b7280, #4b5563)'
-                      : 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                      : 'var(--neon-blue)',
                     boxShadow: user.disabled ? 'none' : 'var(--shadow-neon)',
                     color: 'var(--text-on-neon)',
                   }}

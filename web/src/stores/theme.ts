@@ -25,7 +25,7 @@ function rgba(hex: string, alpha: number): string {
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`
 }
 
-/** 根据主色和辅色生成完整的霓虹色透明度变体 */
+/** 根据主色和辅色生成完整的透明度变体 */
 function generateNeonVars(neonBlue: string, neonPurple: string, isDark: boolean) {
   // 计算一个中间色调（用于渐变按钮）
   const blueRgb = hexToRgb(neonBlue)
@@ -53,11 +53,11 @@ function generateNeonVars(neonBlue: string, neonPurple: string, isDark: boolean)
     '--neon-purple-15': rgba(neonPurple, 0.15),
     '--neon-purple-20': rgba(neonPurple, 0.20),
     '--neon-purple-glow-text': neonPurple,
-    '--neon-glow-shadow-sm': `0 0 ${isDark ? 6 : 4}px ${rgba(neonBlue, isDark ? 0.3 : 0.15)}`,
-    '--neon-glow-shadow-md': `0 0 ${isDark ? 12 : 8}px ${rgba(neonBlue, isDark ? 0.3 : 0.18)}`,
-    '--neon-glow-shadow-lg': `0 0 ${isDark ? 20 : 12}px ${rgba(neonBlue, isDark ? 0.4 : 0.20)}`,
-    '--neon-glow-shadow-xl': `0 0 ${isDark ? 30 : 15}px ${rgba(neonBlue, isDark ? 0.3 : 0.15)}, 0 0 ${isDark ? 60 : 30}px ${rgba(neonBlue, isDark ? 0.1 : 0.05)}`,
-    '--neon-glow-shadow-inset': `0 0 ${isDark ? 40 : 20}px ${rgba(neonBlue, isDark ? 0.15 : 0.08)}, inset 0 0 ${isDark ? 20 : 10}px ${rgba(neonBlue, isDark ? 0.05 : 0.03)}`,
+    '--neon-glow-shadow-sm': `0 1px 3px rgba(0, 0, 0, ${isDark ? 0.25 : 0.08})`,
+    '--neon-glow-shadow-md': `0 2px 8px rgba(0, 0, 0, ${isDark ? 0.3 : 0.1})`,
+    '--neon-glow-shadow-lg': `0 4px 14px rgba(0, 0, 0, ${isDark ? 0.35 : 0.12})`,
+    '--neon-glow-shadow-xl': `0 8px 28px rgba(0, 0, 0, ${isDark ? 0.4 : 0.14})`,
+    '--neon-glow-shadow-inset': `inset 0 1px 0 rgba(255, 255, 255, ${isDark ? 0.05 : 0.7})`,
   }
 }
 
@@ -73,8 +73,8 @@ function generateDarkThemeVars(opts: {
   neonGreen?: string
 }): Record<string, string> {
   const { bgBase, bgSurface, textPrimary, textSecondary, neonBlue, neonPurple } = opts
-  const neonPink = opts.neonPink || '#FF00FF'
-  const neonGreen = opts.neonGreen || '#00FF88'
+  const neonPink = opts.neonPink || '#d4d4d8'
+  const neonGreen = opts.neonGreen || '#4ade80'
 
   return {
     '--neon-blue': neonBlue,
@@ -83,177 +83,129 @@ function generateDarkThemeVars(opts: {
     '--neon-green': neonGreen,
     '--bg-base': bgBase,
     '--bg-surface': bgSurface,
-    '--bg-elevated': rgba(bgSurface, 0.85),
-    '--bg-subtle': rgba(bgSurface, 0.4),
-    '--bg-card': rgba(bgSurface, 0.6),
-    '--bg-input': rgba(bgSurface, 0.6),
-    '--bg-overlay': rgba(bgBase, 0.7),
-    '--bg-tooltip': rgba(bgSurface, 0.9),
-    '--bg-skeleton-from': rgba(neonBlue, 0.03),
-    '--bg-skeleton-to': rgba(neonBlue, 0.06),
+    '--bg-elevated': rgba(bgSurface, 0.9),
+    '--bg-subtle': 'rgba(255, 255, 255, 0.03)',
+    '--bg-card': rgba(bgSurface, 0.9),
+    '--bg-input': rgba(bgSurface, 0.95),
+    '--bg-overlay': 'rgba(0, 0, 0, 0.7)',
+    '--bg-tooltip': '#27272a',
+    '--bg-skeleton-from': 'rgba(255, 255, 255, 0.04)',
+    '--bg-skeleton-to': 'rgba(255, 255, 255, 0.08)',
     '--text-primary': textPrimary,
     '--text-secondary': textSecondary,
     '--text-tertiary': rgba(textPrimary, 0.45),
-    '--text-muted': rgba(textPrimary, 0.30),
+    '--text-muted': rgba(textPrimary, 0.32),
     '--text-on-neon': bgBase,
-    '--glass-bg': rgba(bgSurface, 0.6),
-    '--glass-border': rgba(neonBlue, 0.08),
-    '--glass-blur': '20px',
-    '--border-default': rgba(neonBlue, 0.06),
-    '--border-hover': rgba(neonBlue, 0.2),
-    '--border-strong': rgba(neonBlue, 0.12),
-    '--border-subtle': rgba(neonBlue, 0.04),
-    '--shadow-card': `0 8px 32px rgba(0, 0, 0, 0.3)`,
-    '--shadow-card-hover': `0 8px 32px ${rgba(neonBlue, 0.12)}, 0 0 1px ${rgba(neonBlue, 0.4)}`,
-    '--shadow-elevated': `0 8px 32px rgba(0, 0, 0, 0.4)`,
-    '--shadow-neon': `0 0 15px ${rgba(neonBlue, 0.2)}`,
+    '--glass-bg': rgba(bgSurface, 0.7),
+    '--glass-border': 'rgba(255, 255, 255, 0.08)',
+    '--glass-blur': '16px',
+    '--border-default': 'rgba(255, 255, 255, 0.08)',
+    '--border-hover': 'rgba(255, 255, 255, 0.18)',
+    '--border-strong': 'rgba(255, 255, 255, 0.14)',
+    '--border-subtle': 'rgba(255, 255, 255, 0.05)',
+    '--shadow-card': '0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2)',
+    '--shadow-card-hover': '0 4px 12px rgba(0, 0, 0, 0.35)',
+    '--shadow-elevated': '0 8px 24px rgba(0, 0, 0, 0.4)',
+    '--shadow-neon': '0 1px 3px rgba(0, 0, 0, 0.3)',
     '--gradient-overlay-from': rgba(bgBase, 0.95),
     '--gradient-overlay-mid': rgba(bgBase, 0.5),
     '--selection-bg': rgba(neonBlue, 0.2),
     '--selection-text': '#fff',
-    '--scrollbar-thumb': `linear-gradient(180deg, ${rgba(neonBlue, 0.3)}, ${rgba(neonPurple, 0.3)})`,
-    '--scrollbar-thumb-hover': `linear-gradient(180deg, ${rgba(neonBlue, 0.5)}, ${rgba(neonPurple, 0.5)})`,
+    '--scrollbar-thumb': 'rgba(255, 255, 255, 0.18)',
+    '--scrollbar-thumb-hover': 'rgba(255, 255, 255, 0.3)',
     '--focus-ring': rgba(neonBlue, 0.5),
-    '--nav-hover-bg': rgba(neonBlue, 0.05),
-    '--nav-active-bg': rgba(neonBlue, 0.08),
-    '--noise-opacity': '0.015',
-    '--progress-track-bg': 'rgba(255, 255, 255, 0.1)',
-    '--progress-bar-glow': `0 0 8px ${rgba(neonBlue, 0.3)}`,
-    '--spinner-border': rgba(neonBlue, 0.3),
-    '--glass-panel-inset': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.03)',
-    '--glass-panel-strong-inset': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.05)',
-    '--modal-glow': `0 0 1px ${rgba(neonBlue, 0.2)}`,
-    '--modal-panel-glow': `0 0 60px ${rgba(neonBlue, 0.06)}`,
-    '--grid-line-color': rgba(neonBlue, 0.3),
-    '--deco-glow-blue': rgba(neonBlue, 0.15),
-    '--deco-glow-purple': rgba(neonPurple, 0.15),
+    '--nav-hover-bg': 'rgba(255, 255, 255, 0.06)',
+    '--nav-active-bg': 'rgba(255, 255, 255, 0.1)',
+    '--noise-opacity': '0.012',
+    '--progress-track-bg': 'rgba(255, 255, 255, 0.12)',
+    '--progress-bar-glow': 'none',
+    '--spinner-border': 'rgba(255, 255, 255, 0.3)',
+    '--glass-panel-inset': 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+    '--glass-panel-strong-inset': 'inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+    '--modal-glow': '0 0 1px rgba(255, 255, 255, 0.08)',
+    '--modal-panel-glow': 'none',
+    '--grid-line-color': 'rgba(255, 255, 255, 0.08)',
+    '--deco-glow-blue': 'rgba(255, 255, 255, 0.03)',
+    '--deco-glow-purple': 'rgba(255, 255, 255, 0.02)',
     ...generateNeonVars(neonBlue, neonPurple, true),
   }
 }
 
-// 内置主题
+// 内置主题（中性色板）
 export const builtinThemes: ThemeConfig[] = [
   {
     id: 'neon-dark',
-    name: '霓虹暗夜',
+    name: '深色',
     author: 'nowen',
-    description: '默认深色主题，赛博朋克霓虹风格',
+    description: 'shadcn 中性深色主题',
     vars: generateDarkThemeVars({
-      bgBase: '#060a13',
-      bgSurface: '#0b1120',
-      textPrimary: '#ffffff',
-      textSecondary: '#9fb3c8',
-      neonBlue: '#00F0FF',
-      neonPurple: '#8A2BE2',
-      neonPink: '#FF00FF',
-      neonGreen: '#00FF88',
-    }),
-  },
-  {
-    id: 'ocean-breeze',
-    name: '海洋微风',
-    author: 'nowen',
-    description: '清新蓝色调深色主题',
-    vars: generateDarkThemeVars({
-      bgBase: '#0d1117',
-      bgSurface: '#161b22',
-      textPrimary: '#e6edf3',
-      textSecondary: '#8b949e',
-      neonBlue: '#58a6ff',
-      neonPurple: '#bc8cff',
-      neonPink: '#f778ba',
-      neonGreen: '#56d364',
-    }),
-  },
-  {
-    id: 'forest-night',
-    name: '暗夜森林',
-    author: 'nowen',
-    description: '自然绿色调深色主题',
-    vars: generateDarkThemeVars({
-      bgBase: '#0a100d',
-      bgSurface: '#131f18',
-      textPrimary: '#e0ede4',
-      textSecondary: '#8ba89a',
-      neonBlue: '#4ade80',
-      neonPurple: '#22d3ee',
-      neonPink: '#a78bfa',
+      bgBase: '#09090b',
+      bgSurface: '#121214',
+      textPrimary: '#fafafa',
+      textSecondary: '#a1a1aa',
+      neonBlue: '#fafafa',
+      neonPurple: '#d4d4d8',
+      neonPink: '#d4d4d8',
       neonGreen: '#4ade80',
     }),
   },
   {
-    id: 'warm-sunset',
-    name: '暖色日暮',
-    author: 'nowen',
-    description: '温暖橙色调深色主题',
-    vars: generateDarkThemeVars({
-      bgBase: '#120e0a',
-      bgSurface: '#1f1810',
-      textPrimary: '#f5e6d3',
-      textSecondary: '#b89e7a',
-      neonBlue: '#fb923c',
-      neonPurple: '#f472b6',
-      neonPink: '#e879f9',
-      neonGreen: '#a3e635',
-    }),
-  },
-  {
     id: 'pure-light',
-    name: '纯净白',
+    name: '浅色',
     author: 'nowen',
-    description: '亮色主题，适合白天使用',
+    description: 'shadcn 中性浅色主题',
     vars: {
-      '--neon-blue': '#0891B2',
-      '--neon-purple': '#7C3AED',
-      '--neon-pink': '#DB2777',
+      '--neon-blue': '#18181b',
+      '--neon-purple': '#71717a',
+      '--neon-pink': '#a1a1aa',
       '--neon-green': '#059669',
-      '--glass-bg': 'rgba(255, 255, 255, 0.82)',
-      '--glass-border': 'rgba(8, 145, 178, 0.15)',
-      '--glass-blur': '20px',
-      '--bg-base': '#f0f2f5',
-      '--bg-surface': '#e4e8ed',
+      '--glass-bg': 'rgba(255, 255, 255, 0.85)',
+      '--glass-border': 'rgba(0, 0, 0, 0.08)',
+      '--glass-blur': '16px',
+      '--bg-base': '#ffffff',
+      '--bg-surface': '#fafafa',
       '--bg-elevated': '#ffffff',
-      '--bg-subtle': 'rgba(255, 255, 255, 0.7)',
-      '--bg-card': 'rgba(255, 255, 255, 0.9)',
+      '--bg-subtle': 'rgba(0, 0, 0, 0.02)',
+      '--bg-card': 'rgba(255, 255, 255, 0.95)',
       '--bg-input': '#ffffff',
       '--bg-overlay': 'rgba(0, 0, 0, 0.35)',
-      '--bg-tooltip': 'rgba(30, 41, 59, 0.95)',
-      '--bg-skeleton-from': 'rgba(8, 145, 178, 0.06)',
-      '--bg-skeleton-to': 'rgba(8, 145, 178, 0.12)',
-      '--text-primary': '#1e293b',
-      '--text-secondary': '#475569',
-      '--text-tertiary': '#4b5563',
-      '--text-muted': '#6b7280',
+      '--bg-tooltip': '#18181b',
+      '--bg-skeleton-from': 'rgba(0, 0, 0, 0.04)',
+      '--bg-skeleton-to': 'rgba(0, 0, 0, 0.08)',
+      '--text-primary': '#18181b',
+      '--text-secondary': '#52525b',
+      '--text-tertiary': '#71717a',
+      '--text-muted': '#a1a1aa',
       '--text-on-neon': '#ffffff',
-      '--border-default': 'rgba(0, 0, 0, 0.10)',
-      '--border-hover': 'rgba(8, 145, 178, 0.30)',
-      '--border-strong': 'rgba(8, 145, 178, 0.22)',
+      '--border-default': 'rgba(0, 0, 0, 0.1)',
+      '--border-hover': 'rgba(0, 0, 0, 0.2)',
+      '--border-strong': 'rgba(0, 0, 0, 0.14)',
       '--border-subtle': 'rgba(0, 0, 0, 0.06)',
-      '--shadow-card': '0 2px 8px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05)',
-      '--shadow-card-hover': '0 8px 24px rgba(8, 145, 178, 0.12), 0 0 1px rgba(8, 145, 178, 0.25)',
-      '--shadow-elevated': '0 4px 20px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.06)',
-      '--shadow-neon': '0 0 12px rgba(8, 145, 178, 0.18)',
-      '--gradient-overlay-from': 'rgba(240, 242, 245, 0.95)',
-      '--gradient-overlay-mid': 'rgba(240, 242, 245, 0.5)',
-      '--selection-bg': 'rgba(8, 145, 178, 0.18)',
-      '--selection-text': '#1e293b',
-      '--scrollbar-thumb': 'linear-gradient(180deg, rgba(8, 145, 178, 0.30), rgba(124, 58, 237, 0.30))',
-      '--scrollbar-thumb-hover': 'linear-gradient(180deg, rgba(8, 145, 178, 0.50), rgba(124, 58, 237, 0.50))',
-      '--focus-ring': 'rgba(8, 145, 178, 0.5)',
-      '--nav-hover-bg': 'rgba(8, 145, 178, 0.08)',
-      '--nav-active-bg': 'rgba(8, 145, 178, 0.12)',
-      '--noise-opacity': '0.008',
-      '--progress-track-bg': 'rgba(0, 0, 0, 0.06)',
-      '--progress-bar-glow': '0 0 6px rgba(8, 145, 178, 0.20)',
-      '--spinner-border': 'rgba(8, 145, 178, 0.30)',
-      '--glass-panel-inset': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
-      '--glass-panel-strong-inset': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.8)',
-      '--modal-glow': '0 0 1px rgba(8, 145, 178, 0.15)',
-      '--modal-panel-glow': '0 0 30px rgba(8, 145, 178, 0.04)',
-      '--grid-line-color': 'rgba(8, 145, 178, 0.12)',
-      '--deco-glow-blue': 'rgba(8, 145, 178, 0.08)',
-      '--deco-glow-purple': 'rgba(124, 58, 237, 0.06)',
-      ...generateNeonVars('#0891B2', '#7C3AED', false),
+      '--shadow-card': '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
+      '--shadow-card-hover': '0 4px 12px rgba(0, 0, 0, 0.1)',
+      '--shadow-elevated': '0 8px 24px rgba(0, 0, 0, 0.12)',
+      '--shadow-neon': '0 1px 3px rgba(0, 0, 0, 0.08)',
+      '--gradient-overlay-from': 'rgba(255, 255, 255, 0.95)',
+      '--gradient-overlay-mid': 'rgba(255, 255, 255, 0.5)',
+      '--selection-bg': 'rgba(0, 0, 0, 0.12)',
+      '--selection-text': '#18181b',
+      '--scrollbar-thumb': 'rgba(0, 0, 0, 0.18)',
+      '--scrollbar-thumb-hover': 'rgba(0, 0, 0, 0.3)',
+      '--focus-ring': 'rgba(0, 0, 0, 0.4)',
+      '--nav-hover-bg': 'rgba(0, 0, 0, 0.05)',
+      '--nav-active-bg': 'rgba(0, 0, 0, 0.08)',
+      '--noise-opacity': '0.005',
+      '--progress-track-bg': 'rgba(0, 0, 0, 0.1)',
+      '--progress-bar-glow': 'none',
+      '--spinner-border': 'rgba(0, 0, 0, 0.3)',
+      '--glass-panel-inset': 'inset 0 1px 0 rgba(255, 255, 255, 0.7)',
+      '--glass-panel-strong-inset': 'inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+      '--modal-glow': '0 0 1px rgba(0, 0, 0, 0.08)',
+      '--modal-panel-glow': 'none',
+      '--grid-line-color': 'rgba(0, 0, 0, 0.08)',
+      '--deco-glow-blue': 'rgba(0, 0, 0, 0.03)',
+      '--deco-glow-purple': 'rgba(0, 0, 0, 0.02)',
+      ...generateNeonVars('#18181b', '#71717a', false),
     },
   },
 ]
@@ -287,9 +239,12 @@ export const useThemeStore = create<ThemeStore>()(
       customThemes: [],
 
       setTheme: (id: string) => {
-        const mode = resolveMode(id)
-        set({ currentThemeId: id, theme: mode })
-        applyTheme(id, [...builtinThemes, ...get().customThemes])
+        const allThemes = [...builtinThemes, ...get().customThemes]
+        // 防御无效主题 ID（如已删除的内置主题），回退到默认深色主题
+        const safeId = allThemes.some((t) => t.id === id) ? id : 'neon-dark'
+        const mode = resolveMode(safeId)
+        set({ currentThemeId: safeId, theme: mode })
+        applyTheme(safeId, allThemes)
       },
 
       toggleTheme: () => {
@@ -300,10 +255,13 @@ export const useThemeStore = create<ThemeStore>()(
           set({ currentThemeId: newId, theme: 'light' })
           applyTheme(newId, [...builtinThemes, ...customThemes])
         } else {
-          // 切回默认深色主题，若之前用的是深色主题则保留
-          const fallbackDark = lightThemeIds.has(currentThemeId) ? 'neon-dark' : currentThemeId
+          // 切回默认深色主题；若之前的 ID 无效（如已删除的内置主题）则回退 neon-dark
+          const allThemes = [...builtinThemes, ...customThemes]
+          const fallbackDark = allThemes.some((t) => t.id === currentThemeId) && !lightThemeIds.has(currentThemeId)
+            ? currentThemeId
+            : 'neon-dark'
           set({ currentThemeId: fallbackDark, theme: 'dark' })
-          applyTheme(fallbackDark, [...builtinThemes, ...customThemes])
+          applyTheme(fallbackDark, allThemes)
         }
       },
 
@@ -363,5 +321,10 @@ export function applyTheme(themeId: string, allThemes: ThemeConfig[]) {
 export function initTheme() {
   const state = useThemeStore.getState()
   const allThemes = [...builtinThemes, ...state.customThemes]
+  // 持久化的主题 ID 可能已不存在（如旧版内置主题被移除），回退到默认深色主题
+  if (!allThemes.some((t) => t.id === state.currentThemeId)) {
+    state.setTheme('neon-dark')
+    return
+  }
   applyTheme(state.currentThemeId, allThemes)
 }

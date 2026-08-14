@@ -419,7 +419,7 @@ export default function LibraryPage() {
                 <span
                   className="ml-1 rounded-full px-1.5 text-[10px] font-bold"
                   style={{
-                    background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                    background: 'var(--neon-blue)',
                     color: 'var(--text-on-neon)',
                   }}
                 >

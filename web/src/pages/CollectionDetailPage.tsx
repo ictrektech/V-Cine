@@ -482,9 +482,9 @@ function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index:
               <span
                 className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold backdrop-blur-md"
                 style={{
-                  background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                  background: 'var(--bg-overlay)',
                   color: '#fff',
-                  boxShadow: '0 0 8px var(--neon-blue-40)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                 }}
                 title={`共有 ${versionCount} 个版本`}
               >
@@ -510,8 +510,8 @@ function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index:
             <div className="absolute bottom-2 right-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full"
                 style={{
-                  background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-                  boxShadow: '0 0 12px var(--neon-blue-40)',
+                  background: 'var(--bg-overlay)',
+                  boxShadow: 'none',
                 }}
               >
                 <Play size={14} className="ml-0.5 text-white" fill="white" />
@@ -699,7 +699,7 @@ function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; in
               <span
                 className="flex-shrink-0 inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold"
                 style={{
-                  background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                  background: 'var(--bg-overlay)',
                   color: '#fff',
                 }}
                 title={`共有 ${versionCount} 个版本`}
@@ -786,8 +786,8 @@ function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; in
         <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="flex h-8 w-8 items-center justify-center rounded-full"
             style={{
-              background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
-              boxShadow: '0 0 8px var(--neon-blue-40)',
+              background: 'var(--bg-overlay)',
+              boxShadow: 'none',
             }}>
             <Play size={12} className="ml-0.5 text-white" fill="white" />
           </div>
@@ -814,7 +814,7 @@ function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; in
                   {v.id === item.id && (
                     <span className="flex-shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold"
                       style={{
-                        background: 'linear-gradient(135deg, var(--neon-blue), var(--neon-purple))',
+                        background: 'var(--bg-overlay)',
                         color: '#fff',
                       }}>当前</span>
                   )}

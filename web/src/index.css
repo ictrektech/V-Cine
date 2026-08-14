@@ -3,302 +3,343 @@
 @tailwind utilities;
 
 /* ============================================================
-   深空流体 · 未来影音枢纽 - 全局样式系统
+   全局样式系统（shadcn/ui 中性风）
+   - 保留旧变量名（--text-primary / --neon-blue 等），
+     使存量组件内联 var() 引用自动切换为中性观感
+   - 新增 shadcn HSL 令牌，供 components/ui/* 使用
    ============================================================ */
 
-/* ==================== CSS 自定义属性 ==================== */
+/* ==================== shadcn 设计令牌（深色默认） ==================== */
 :root,
 [data-theme="dark"] {
-  --neon-blue: #00F0FF;
-  --neon-purple: #8A2BE2;
-  --neon-pink: #FF00FF;
-  --neon-green: #00FF88;
-  --glass-bg: rgba(11, 17, 32, 0.6);
-  --glass-border: rgba(0, 240, 255, 0.08);
-  --glass-blur: 20px;
+  --background: 0 0% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 9%;
+  --secondary: 0 0% 14.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 14.9%;
+  --muted-foreground: 0 0% 63.9%;
+  --accent: 0 0% 14.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --success: 142 71% 45%;
+  --border: 0 0% 14.9%;
+  --input: 0 0% 14.9%;
+  --ring: 0 0% 83.1%;
+  --radius: 0.5rem;
+
+  /* ==================== 兼容旧变量（中性值） ==================== */
+  --neon-blue: #fafafa;
+  --neon-purple: #d4d4d8;
+  --neon-pink: #d4d4d8;
+  --neon-green: #4ade80;
+  --glass-bg: rgba(24, 24, 27, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 16px;
   --transition-smooth: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* 主题语义色 */
-  --bg-base: #060a13;
-  --bg-surface: #0b1120;
-  --bg-elevated: rgba(11, 17, 32, 0.85);
-  --bg-subtle: rgba(11, 17, 32, 0.4);
-  --bg-card: rgba(11, 17, 32, 0.6);
-  --bg-input: rgba(11, 17, 32, 0.6);
-  --bg-overlay: rgba(6, 10, 19, 0.7);
-  --bg-tooltip: rgba(11, 17, 32, 0.9);
-  --bg-skeleton-from: rgba(0, 240, 255, 0.03);
-  --bg-skeleton-to: rgba(0, 240, 255, 0.06);
-  --text-primary: #ffffff;
-  --text-secondary: #9fb3c8;
-  --text-tertiary: #627d98;
-  --text-muted: #486581;
-  --text-on-neon: #060a13;
-  /* 海报角标专用：在深色半透明底上的高对比文字色（暗色模式下用更亮的青） */
-  --badge-overlay-text: #7DEFFF;
-  --border-default: rgba(0, 240, 255, 0.06);
-  --border-hover: rgba(0, 240, 255, 0.2);
-  --border-strong: rgba(0, 240, 255, 0.12);
-  --border-subtle: rgba(0, 240, 255, 0.04);
-  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --shadow-card-hover: 0 8px 32px rgba(0, 240, 255, 0.12), 0 0 1px rgba(0, 240, 255, 0.4);
-  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-neon: 0 0 15px rgba(0, 240, 255, 0.2);
-  /* Hero 海报容器：暗色模式 — 霓虹细描边 + 深阴影 + 浅蓝内描边 */
-  --hero-poster-border: rgba(0, 240, 255, 0.30);
-  --hero-poster-border-hover: rgba(0, 240, 255, 0.55);
-  --hero-poster-inner: rgba(0, 240, 255, 0.10);
-  --hero-poster-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 240, 255, 0.15), 0 0 24px rgba(0, 240, 255, 0.18);
-  --hero-poster-shadow-hover: 0 18px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 240, 255, 0.30), 0 0 36px rgba(0, 240, 255, 0.32);
-  --gradient-overlay-from: rgba(6, 10, 19, 0.95);
-  --gradient-overlay-mid: rgba(6, 10, 19, 0.5);
-  --selection-bg: rgba(0, 240, 255, 0.2);
+  --bg-base: hsl(0 0% 3.9%);
+  --bg-surface: hsl(0 0% 7%);
+  --bg-elevated: hsl(0 0% 10%);
+  --bg-subtle: rgba(255, 255, 255, 0.03);
+  --bg-card: hsl(0 0% 7%);
+  --bg-input: hsl(0 0% 10%);
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+  --bg-tooltip: hsl(0 0% 14.9%);
+  --bg-skeleton-from: rgba(255, 255, 255, 0.04);
+  --bg-skeleton-to: rgba(255, 255, 255, 0.08);
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-muted: #52525b;
+  --text-on-neon: #09090b;
+  --badge-overlay-text: #fafafa;
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.18);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-neon: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --hero-poster-border: rgba(255, 255, 255, 0.15);
+  --hero-poster-border-hover: rgba(255, 255, 255, 0.28);
+  --hero-poster-inner: rgba(255, 255, 255, 0.06);
+  --hero-poster-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --hero-poster-shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --gradient-overlay-from: rgba(9, 9, 11, 0.95);
+  --gradient-overlay-mid: rgba(9, 9, 11, 0.5);
+  --selection-bg: rgba(250, 250, 250, 0.2);
   --selection-text: #fff;
-  --scrollbar-thumb: linear-gradient(180deg, rgba(0, 240, 255, 0.3), rgba(138, 43, 226, 0.3));
-  --scrollbar-thumb-hover: linear-gradient(180deg, rgba(0, 240, 255, 0.5), rgba(138, 43, 226, 0.5));
-  --focus-ring: rgba(0, 240, 255, 0.5);
-  --nav-hover-bg: rgba(0, 240, 255, 0.05);
-  --nav-active-bg: rgba(0, 240, 255, 0.08);
-  --noise-opacity: 0.015;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --focus-ring: rgba(250, 250, 250, 0.5);
+  --nav-hover-bg: rgba(255, 255, 255, 0.06);
+  --nav-active-bg: rgba(255, 255, 255, 0.1);
+  --noise-opacity: 0.012;
 
-  /* 霓虹色透明度变体（供组件内联样式使用） */
-  --neon-blue-4: rgba(0, 240, 255, 0.04);
-  --neon-blue-5: rgba(0, 240, 255, 0.05);
-  --neon-blue-6: rgba(0, 240, 255, 0.06);
-  --neon-blue-8: rgba(0, 240, 255, 0.08);
-  --neon-blue-10: rgba(0, 240, 255, 0.10);
-  --neon-blue-12: rgba(0, 240, 255, 0.12);
-  --neon-blue-15: rgba(0, 240, 255, 0.15);
-  --neon-blue-20: rgba(0, 240, 255, 0.20);
-  --neon-blue-25: rgba(0, 240, 255, 0.25);
-  --neon-blue-30: rgba(0, 240, 255, 0.30);
-  --neon-blue-40: rgba(0, 240, 255, 0.40);
-  --neon-blue-50: rgba(0, 240, 255, 0.50);
-  --neon-blue-90: rgba(0, 240, 255, 0.90);
-  --neon-blue-mid: rgba(0, 180, 220, 0.90);
-  --neon-purple-8: rgba(138, 43, 226, 0.08);
-  --neon-purple-10: rgba(138, 43, 226, 0.10);
-  --neon-purple-15: rgba(138, 43, 226, 0.15);
-  --neon-purple-20: rgba(138, 43, 226, 0.20);
-  --neon-purple-glow-text: #A855F7;
-  --neon-glow-shadow-sm: 0 0 6px rgba(0, 240, 255, 0.3);
-  --neon-glow-shadow-md: 0 0 12px rgba(0, 240, 255, 0.3);
-  --neon-glow-shadow-lg: 0 0 20px rgba(0, 240, 255, 0.4);
-  --neon-glow-shadow-xl: 0 0 30px rgba(0, 240, 255, 0.3), 0 0 60px rgba(0, 240, 255, 0.1);
-  --neon-glow-shadow-inset: 0 0 40px rgba(0, 240, 255, 0.15), inset 0 0 20px rgba(0, 240, 255, 0.05);
-  --progress-track-bg: rgba(255, 255, 255, 0.1);
-  --progress-bar-glow: 0 0 8px rgba(0, 240, 255, 0.3);
-  --spinner-border: rgba(0, 240, 255, 0.3);
+  /* 透明度变体（中性） */
+  --neon-blue-4: rgba(250, 250, 250, 0.04);
+  --neon-blue-5: rgba(250, 250, 250, 0.05);
+  --neon-blue-6: rgba(250, 250, 250, 0.06);
+  --neon-blue-8: rgba(250, 250, 250, 0.08);
+  --neon-blue-10: rgba(250, 250, 250, 0.10);
+  --neon-blue-12: rgba(250, 250, 250, 0.12);
+  --neon-blue-15: rgba(250, 250, 250, 0.15);
+  --neon-blue-20: rgba(250, 250, 250, 0.20);
+  --neon-blue-25: rgba(250, 250, 250, 0.25);
+  --neon-blue-30: rgba(250, 250, 250, 0.30);
+  --neon-blue-40: rgba(250, 250, 250, 0.40);
+  --neon-blue-50: rgba(250, 250, 250, 0.50);
+  --neon-blue-90: rgba(250, 250, 250, 0.90);
+  --neon-blue-mid: rgba(230, 230, 235, 0.90);
+  --neon-purple-8: rgba(161, 161, 170, 0.08);
+  --neon-purple-10: rgba(161, 161, 170, 0.10);
+  --neon-purple-15: rgba(161, 161, 170, 0.15);
+  --neon-purple-20: rgba(161, 161, 170, 0.20);
+  --neon-purple-glow-text: #a1a1aa;
+  --neon-glow-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --neon-glow-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --neon-glow-shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --neon-glow-shadow-xl: 0 8px 28px rgba(0, 0, 0, 0.4);
+  --neon-glow-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --progress-track-bg: rgba(255, 255, 255, 0.12);
+  --progress-bar-glow: none;
+  --spinner-border: rgba(255, 255, 255, 0.3);
 
-  /* === 存储管理模块专用（深色） === */
-  --storage-input-bg: rgba(11, 17, 32, 0.75);
-  --storage-input-border: rgba(0, 240, 255, 0.18);
-  --storage-input-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
-  --storage-enable-row-bg: rgba(0, 240, 255, 0.06);
-  --storage-enable-row-border: rgba(0, 240, 255, 0.20);
-  --storage-toggle-off-bg: rgba(255, 255, 255, 0.12);
-  --storage-toggle-off-border: rgba(255, 255, 255, 0.18);
-  --glass-panel-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
-  --glass-panel-strong-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
-  --modal-glow: 0 0 1px rgba(0, 240, 255, 0.2);
-  --modal-panel-glow: 0 0 60px rgba(0, 240, 255, 0.06);
-  --grid-line-color: rgba(0, 240, 255, 0.3);
-  --deco-glow-blue: rgba(0, 240, 255, 0.15);
-  --deco-glow-purple: rgba(138, 43, 226, 0.15);
+  /* 存储管理模块 */
+  --storage-input-bg: hsl(0 0% 10%);
+  --storage-input-border: rgba(255, 255, 255, 0.15);
+  --storage-input-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  --storage-enable-row-bg: rgba(255, 255, 255, 0.05);
+  --storage-enable-row-border: rgba(255, 255, 255, 0.14);
+  --storage-toggle-off-bg: rgba(255, 255, 255, 0.14);
+  --storage-toggle-off-border: rgba(255, 255, 255, 0.2);
+  --glass-panel-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --glass-panel-strong-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --modal-glow: 0 0 1px rgba(255, 255, 255, 0.08);
+  --modal-panel-glow: none;
+  --grid-line-color: rgba(255, 255, 255, 0.08);
+  --deco-glow-blue: rgba(255, 255, 255, 0.03);
+  --deco-glow-purple: rgba(255, 255, 255, 0.02);
+  --toggle-off-bg: rgba(255, 255, 255, 0.14);
 
-  /* === 通用语义高亮（chip / toggle / accent，跨主题适配） === */
-  /* 琥珀色：用于"激活 / 高亮"的 chip 和按钮文字 */
+  /* 语义高亮（chip / toggle / accent） */
   --accent-amber: #fbbf24;
   --accent-amber-text: #fbbf24;
-  --accent-amber-bg: rgba(245, 158, 11, 0.18);
-  --accent-amber-bg-strong: rgba(245, 158, 11, 0.28);
-  --accent-amber-border: rgba(245, 158, 11, 0.40);
-  /* 琥珀色 - 柔和版（用于次级入口按钮，避免页面里出现「过曝」的高饱和色块） */
+  --accent-amber-bg: rgba(245, 158, 11, 0.15);
+  --accent-amber-bg-strong: rgba(245, 158, 11, 0.25);
+  --accent-amber-border: rgba(245, 158, 11, 0.35);
   --accent-amber-soft-text: #fbbf24;
-  --accent-amber-soft-bg: rgba(245, 158, 11, 0.10);
-  --accent-amber-soft-border: rgba(245, 158, 11, 0.22);
-  --accent-amber-soft-bg-hover: rgba(245, 158, 11, 0.18);
-  --accent-amber-soft-border-hover: rgba(245, 158, 11, 0.36);
-  /* 翠绿色：用于"勾选 / 启用"的 toggle */
+  --accent-amber-soft-bg: rgba(245, 158, 11, 0.08);
+  --accent-amber-soft-border: rgba(245, 158, 11, 0.2);
+  --accent-amber-soft-bg-hover: rgba(245, 158, 11, 0.15);
+  --accent-amber-soft-border-hover: rgba(245, 158, 11, 0.32);
   --accent-emerald: #10b981;
   --accent-emerald-text: #6ee7b7;
-  --accent-emerald-bg: rgba(16, 185, 129, 0.10);
-  --accent-emerald-border: rgba(16, 185, 129, 0.30);
-  /* 玫瑰红 / 警告红：用于"危险 / 错误 / 专家模式"等强警示态 */
+  --accent-emerald-bg: rgba(16, 185, 129, 0.1);
+  --accent-emerald-border: rgba(16, 185, 129, 0.3);
   --accent-rose: #f43f5e;
-  --accent-rose-text: #fca5a5;
-  --accent-rose-text-strong: #fecaca;
-  --accent-rose-bg: rgba(244, 63, 94, 0.10);
+  --accent-rose-text: #fda4af;
+  --accent-rose-text-strong: #fecdd3;
+  --accent-rose-bg: rgba(244, 63, 94, 0.1);
   --accent-rose-bg-strong: rgba(244, 63, 94, 0.18);
-  --accent-rose-border: rgba(244, 63, 94, 0.40);
-  /* chip 通用 */
-  --chip-bg: var(--neon-blue-6);
-  --chip-border: var(--neon-blue-15);
+  --accent-rose-border: rgba(244, 63, 94, 0.4);
+  --chip-bg: rgba(255, 255, 255, 0.06);
+  --chip-border: rgba(255, 255, 255, 0.14);
   --chip-text: var(--text-secondary);
 
-  /* Tailwind surface 色板 */
-  --surface-50: #f0f4f8;
-  --surface-100: #d9e2ec;
-  --surface-200: #bcccdc;
-  --surface-300: #9fb3c8;
-  --surface-400: #829ab1;
-  --surface-500: #627d98;
-  --surface-600: #486581;
-  --surface-700: #1a2332;
-  --surface-800: #121a27;
-  --surface-900: #0b1120;
-  --surface-950: #060a13;
+  /* surface 色板（zinc 系） */
+  --surface-50: #fafafa;
+  --surface-100: #f4f4f5;
+  --surface-200: #e4e4e7;
+  --surface-300: #d4d4d8;
+  --surface-400: #a1a1aa;
+  --surface-500: #71717a;
+  --surface-600: #52525b;
+  --surface-700: #3f3f46;
+  --surface-800: #27272a;
+  --surface-900: #18181b;
+  --surface-950: #09090b;
+
+  /* 其他兼容 */
+  --bg-primary: hsl(0 0% 10%);
+  --bg-secondary: hsl(0 0% 7%);
+  --bg-tertiary: hsl(0 0% 12%);
+  --surface-glass-2: rgba(255, 255, 255, 0.04);
+  --neon: #fafafa;
+  --neon-tint: rgba(250, 250, 250, 0.08);
 }
 
 /* ==================== 日间模式配色 ==================== */
 [data-theme="light"] {
-  --neon-blue: #0891B2;
-  --neon-purple: #7C3AED;
-  --neon-pink: #DB2777;
-  --neon-green: #059669;
-  --glass-bg: rgba(255, 255, 255, 0.82);
-  --glass-border: rgba(8, 145, 178, 0.15);
-  --glass-blur: 20px;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 3.9%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 96.1%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 45.1%;
+  --accent: 0 0% 96.1%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --success: 142 71% 45%;
+  --border: 0 0% 89.8%;
+  --input: 0 0% 89.8%;
+  --ring: 0 0% 3.9%;
+  --radius: 0.5rem;
 
-  --bg-base: #f0f2f5;
-  --bg-surface: #e4e8ed;
+  --neon-blue: #18181b;
+  --neon-purple: #71717a;
+  --neon-pink: #a1a1aa;
+  --neon-green: #059669;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-blur: 16px;
+
+  --bg-base: #ffffff;
+  --bg-surface: #fafafa;
   --bg-elevated: #ffffff;
-  --bg-subtle: rgba(255, 255, 255, 0.7);
-  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-subtle: rgba(0, 0, 0, 0.02);
+  --bg-card: #ffffff;
   --bg-input: #ffffff;
   --bg-overlay: rgba(0, 0, 0, 0.35);
-  --bg-tooltip: rgba(30, 41, 59, 0.95);
-  --bg-skeleton-from: rgba(8, 145, 178, 0.06);
-  --bg-skeleton-to: rgba(8, 145, 178, 0.12);
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-tertiary: #4b5563;
-  --text-muted: #6b7280;
+  --bg-tooltip: hsl(0 0% 9%);
+  --bg-skeleton-from: rgba(0, 0, 0, 0.04);
+  --bg-skeleton-to: rgba(0, 0, 0, 0.08);
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-tertiary: #71717a;
+  --text-muted: #a1a1aa;
   --text-on-neon: #ffffff;
-  /* 海报角标专用：在深色半透明底上的高对比文字色（日间模式下也保持青亮可读） */
-  --badge-overlay-text: #5EEAFF;
-  --border-default: rgba(0, 0, 0, 0.10);
-  --border-hover: rgba(8, 145, 178, 0.30);
-  --border-strong: rgba(8, 145, 178, 0.22);
+  --badge-overlay-text: #fafafa;
+  --border-default: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(0, 0, 0, 0.2);
+  --border-strong: rgba(0, 0, 0, 0.14);
   --border-subtle: rgba(0, 0, 0, 0.06);
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-card-hover: 0 8px 24px rgba(8, 145, 178, 0.12), 0 0 1px rgba(8, 145, 178, 0.25);
-  --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.06);
-  --shadow-neon: 0 0 12px rgba(8, 145, 178, 0.18);
-  /* Hero 海报容器：日间模式 — 浅色背景下需要更厚的描边 + 浓阴影把白底海报"切"出来 */
-  --hero-poster-border: rgba(8, 145, 178, 0.45);
-  --hero-poster-border-hover: rgba(8, 145, 178, 0.70);
-  --hero-poster-inner: rgba(255, 255, 255, 0.65);
-  --hero-poster-shadow: 0 14px 40px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(8, 145, 178, 0.18);
-  --hero-poster-shadow-hover: 0 22px 56px rgba(15, 23, 42, 0.32), 0 8px 18px rgba(15, 23, 42, 0.20), 0 0 0 1px rgba(8, 145, 178, 0.35);
-  --gradient-overlay-from: rgba(240, 242, 245, 0.95);
-  --gradient-overlay-mid: rgba(240, 242, 245, 0.5);
-  --selection-bg: rgba(8, 145, 178, 0.18);
-  --selection-text: #1e293b;
-  --scrollbar-thumb: linear-gradient(180deg, rgba(8, 145, 178, 0.30), rgba(124, 58, 237, 0.30));
-  --scrollbar-thumb-hover: linear-gradient(180deg, rgba(8, 145, 178, 0.50), rgba(124, 58, 237, 0.50));
-  --focus-ring: rgba(8, 145, 178, 0.5);
-  --nav-hover-bg: rgba(8, 145, 178, 0.08);
-  --nav-active-bg: rgba(8, 145, 178, 0.12);
-  --noise-opacity: 0.008;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-neon: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --hero-poster-border: rgba(0, 0, 0, 0.18);
+  --hero-poster-border-hover: rgba(0, 0, 0, 0.3);
+  --hero-poster-inner: rgba(255, 255, 255, 0.6);
+  --hero-poster-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+  --hero-poster-shadow-hover: 0 12px 32px rgba(15, 23, 42, 0.22);
+  --gradient-overlay-from: rgba(255, 255, 255, 0.95);
+  --gradient-overlay-mid: rgba(255, 255, 255, 0.5);
+  --selection-bg: rgba(0, 0, 0, 0.12);
+  --selection-text: #18181b;
+  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+  --focus-ring: rgba(0, 0, 0, 0.4);
+  --nav-hover-bg: rgba(0, 0, 0, 0.05);
+  --nav-active-bg: rgba(0, 0, 0, 0.08);
+  --noise-opacity: 0.005;
 
-  /* 霓虹色透明度变体（亮色模式适配） */
-  --neon-blue-4: rgba(8, 145, 178, 0.04);
-  --neon-blue-5: rgba(8, 145, 178, 0.05);
-  --neon-blue-6: rgba(8, 145, 178, 0.06);
-  --neon-blue-8: rgba(8, 145, 178, 0.08);
-  --neon-blue-10: rgba(8, 145, 178, 0.10);
-  --neon-blue-12: rgba(8, 145, 178, 0.12);
-  --neon-blue-15: rgba(8, 145, 178, 0.15);
-  --neon-blue-20: rgba(8, 145, 178, 0.20);
-  --neon-blue-25: rgba(8, 145, 178, 0.25);
-  --neon-blue-30: rgba(8, 145, 178, 0.30);
-  --neon-blue-40: rgba(8, 145, 178, 0.40);
-  --neon-blue-50: rgba(8, 145, 178, 0.50);
-  --neon-blue-90: rgba(8, 145, 178, 0.95);
-  --neon-blue-mid: rgba(6, 116, 142, 0.95);
-  --neon-purple-8: rgba(124, 58, 237, 0.08);
-  --neon-purple-10: rgba(124, 58, 237, 0.10);
-  --neon-purple-15: rgba(124, 58, 237, 0.15);
-  --neon-purple-20: rgba(124, 58, 237, 0.20);
-  --neon-purple-glow-text: #7C3AED;
-  --neon-glow-shadow-sm: 0 0 4px rgba(8, 145, 178, 0.15);
-  --neon-glow-shadow-md: 0 0 8px rgba(8, 145, 178, 0.18);
-  --neon-glow-shadow-lg: 0 0 12px rgba(8, 145, 178, 0.20);
-  --neon-glow-shadow-xl: 0 0 15px rgba(8, 145, 178, 0.15), 0 0 30px rgba(8, 145, 178, 0.05);
-  --neon-glow-shadow-inset: 0 0 20px rgba(8, 145, 178, 0.08), inset 0 0 10px rgba(8, 145, 178, 0.03);
-  --progress-track-bg: rgba(0, 0, 0, 0.06);
-  --progress-bar-glow: 0 0 6px rgba(8, 145, 178, 0.20);
-  --spinner-border: rgba(8, 145, 178, 0.30);
+  --neon-blue-4: rgba(24, 24, 27, 0.04);
+  --neon-blue-5: rgba(24, 24, 27, 0.05);
+  --neon-blue-6: rgba(24, 24, 27, 0.06);
+  --neon-blue-8: rgba(24, 24, 27, 0.08);
+  --neon-blue-10: rgba(24, 24, 27, 0.10);
+  --neon-blue-12: rgba(24, 24, 27, 0.12);
+  --neon-blue-15: rgba(24, 24, 27, 0.15);
+  --neon-blue-20: rgba(24, 24, 27, 0.20);
+  --neon-blue-25: rgba(24, 24, 27, 0.25);
+  --neon-blue-30: rgba(24, 24, 27, 0.30);
+  --neon-blue-40: rgba(24, 24, 27, 0.40);
+  --neon-blue-50: rgba(24, 24, 27, 0.50);
+  --neon-blue-90: rgba(24, 24, 27, 0.90);
+  --neon-blue-mid: rgba(60, 60, 65, 0.90);
+  --neon-purple-8: rgba(82, 82, 91, 0.08);
+  --neon-purple-10: rgba(82, 82, 91, 0.10);
+  --neon-purple-15: rgba(82, 82, 91, 0.15);
+  --neon-purple-20: rgba(82, 82, 91, 0.20);
+  --neon-purple-glow-text: #52525b;
+  --neon-glow-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --neon-glow-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --neon-glow-shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.12);
+  --neon-glow-shadow-xl: 0 8px 28px rgba(0, 0, 0, 0.14);
+  --neon-glow-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --progress-track-bg: rgba(0, 0, 0, 0.1);
+  --progress-bar-glow: none;
+  --spinner-border: rgba(0, 0, 0, 0.3);
 
-  /* === 存储管理模块专用（日间） === */
   --storage-input-bg: #ffffff;
-  --storage-input-border: rgba(8, 145, 178, 0.30);
-  --storage-input-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-  --storage-enable-row-bg: rgba(8, 145, 178, 0.06);
-  --storage-enable-row-border: rgba(8, 145, 178, 0.22);
-  --storage-toggle-off-bg: rgba(15, 23, 42, 0.22);
-  --storage-toggle-off-border: rgba(15, 23, 42, 0.25);
-  --glass-panel-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
-  --glass-panel-strong-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
-  --modal-glow: 0 0 1px rgba(8, 145, 178, 0.15);
-  --modal-panel-glow: 0 0 30px rgba(8, 145, 178, 0.04);
-  --grid-line-color: rgba(8, 145, 178, 0.12);
-  --deco-glow-blue: rgba(8, 145, 178, 0.08);
-  --deco-glow-purple: rgba(124, 58, 237, 0.06);
+  --storage-input-border: rgba(0, 0, 0, 0.18);
+  --storage-input-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  --storage-enable-row-bg: rgba(0, 0, 0, 0.04);
+  --storage-enable-row-border: rgba(0, 0, 0, 0.12);
+  --storage-toggle-off-bg: rgba(0, 0, 0, 0.16);
+  --storage-toggle-off-border: rgba(0, 0, 0, 0.2);
+  --glass-panel-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --glass-panel-strong-inset: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --modal-glow: 0 0 1px rgba(0, 0, 0, 0.08);
+  --modal-panel-glow: none;
+  --grid-line-color: rgba(0, 0, 0, 0.08);
+  --deco-glow-blue: rgba(0, 0, 0, 0.03);
+  --deco-glow-purple: rgba(0, 0, 0, 0.02);
+  --toggle-off-bg: rgba(0, 0, 0, 0.16);
 
-  /* === 通用语义高亮（chip / toggle / accent，日间适配） === */
-  /* 琥珀色：日间用更深的橙红做文字，保证白底对比度 */
   --accent-amber: #b45309;
   --accent-amber-text: #b45309;
   --accent-amber-bg: rgba(245, 158, 11, 0.16);
   --accent-amber-bg-strong: rgba(245, 158, 11, 0.28);
   --accent-amber-border: rgba(180, 83, 9, 0.45);
-  /* 琥珀色 - 柔和版（次级入口按钮专用：白底上做得很淡，hover 才提色） */
   --accent-amber-soft-text: #92400e;
   --accent-amber-soft-bg: rgba(245, 158, 11, 0.07);
   --accent-amber-soft-border: rgba(180, 83, 9, 0.18);
   --accent-amber-soft-bg-hover: rgba(245, 158, 11, 0.14);
   --accent-amber-soft-border-hover: rgba(180, 83, 9, 0.32);
-  /* 翠绿色：日间用更深的绿做文字 */
   --accent-emerald: #047857;
   --accent-emerald-text: #047857;
   --accent-emerald-bg: rgba(16, 185, 129, 0.14);
-  --accent-emerald-border: rgba(4, 120, 87, 0.40);
-  /* 玫瑰红：日间用更深的红做文字，保证白底可读 */
+  --accent-emerald-border: rgba(4, 120, 87, 0.4);
   --accent-rose: #be123c;
   --accent-rose-text: #be123c;
   --accent-rose-text-strong: #9f1239;
-  --accent-rose-bg: rgba(244, 63, 94, 0.10);
+  --accent-rose-bg: rgba(244, 63, 94, 0.1);
   --accent-rose-bg-strong: rgba(244, 63, 94, 0.18);
-  --accent-rose-border: rgba(190, 18, 60, 0.40);
-  /* chip 通用 */
-  --chip-bg: var(--neon-blue-6);
-  --chip-border: var(--neon-blue-15);
+  --accent-rose-border: rgba(190, 18, 60, 0.4);
+  --chip-bg: rgba(0, 0, 0, 0.05);
+  --chip-border: rgba(0, 0, 0, 0.12);
   --chip-text: var(--text-secondary);
 
-  /* Tailwind surface 色板（亮色版 — 数值翻转） */
-  --surface-50: #1e293b;
-  --surface-100: #334155;
-  --surface-200: #475569;
-  --surface-300: #64748b;
-  --surface-400: #94a3b8;
-  --surface-500: #94a3b8;
-  --surface-600: #cbd5e1;
-  --surface-700: #e2e8f0;
-  --surface-800: #f1f5f9;
-  --surface-900: #f5f7fa;
-  --surface-950: #f5f7fa;
+  --surface-50: #fafafa;
+  --surface-100: #f4f4f5;
+  --surface-200: #e4e4e7;
+  --surface-300: #d4d4d8;
+  --surface-400: #a1a1aa;
+  --surface-500: #71717a;
+  --surface-600: #52525b;
+  --surface-700: #3f3f46;
+  --surface-800: #27272a;
+  --surface-900: #18181b;
+  --surface-950: #09090b;
+
+  --bg-primary: #ffffff;
+  --bg-secondary: #fafafa;
+  --bg-tertiary: #f4f4f5;
+  --surface-glass-2: rgba(0, 0, 0, 0.03);
+  --neon: #18181b;
+  --neon-tint: rgba(0, 0, 0, 0.05);
 }
 
-/* ==================== 全局基础样式 ==================== */
+/* ==================== 基础层 ==================== */
 @layer base {
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
   html {
     scroll-behavior: smooth;
   }
@@ -321,10 +362,8 @@
   .admin-tab,
   .modal-panel,
   .tooltip {
-    transition: background-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-                border-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-                color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-                box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease,
+      box-shadow 0.3s ease;
   }
   /* 排除需要自己控制transition的元素 */
   html .no-theme-transition,
@@ -350,8 +389,8 @@
 
   /* 滚动条 */
   ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
@@ -389,8 +428,8 @@
   .glass-panel-strong {
     background: var(--bg-elevated);
     border: 1px solid var(--border-strong);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     box-shadow: var(--shadow-elevated), var(--glass-panel-strong-inset);
   }
 
@@ -401,7 +440,7 @@
     -webkit-backdrop-filter: blur(12px);
   }
 
-  /* === 霓虹边框 === */
+  /* === 霓虹边框（保留结构，颜色中性化） === */
   .neon-border {
     border: 1px solid transparent;
     background-clip: padding-box;
@@ -421,39 +460,18 @@
     pointer-events: none;
   }
 
-  /* === 媒体卡片 - 3D光影版 === */
+  /* === 媒体卡片 === */
   .media-card {
     @apply relative overflow-hidden rounded-xl transition-all duration-300;
     background: var(--bg-card);
     border: 1px solid var(--border-default);
-    transform-style: preserve-3d;
-    perspective: 1000px;
-    /* 确保卡片在网格中完整填充 */
     width: 100%;
     min-width: 0;
   }
 
   .media-card:hover {
     border-color: var(--border-hover);
-    box-shadow: var(--shadow-card-hover), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-
-  /* 卡片顶部霓虹光条 */
-  .media-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--neon-blue), var(--neon-purple), transparent);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: 10;
-  }
-
-  .media-card:hover::after {
-    opacity: 1;
+    box-shadow: var(--shadow-card-hover);
   }
 
   /* === 渐变遮罩 === */
@@ -474,7 +492,7 @@
     @apply px-4 pb-4 pt-20 transition-opacity duration-300;
   }
 
-  /* === 能量流动进度条 === */
+  /* === 进度条 === */
   .progress-bar {
     @apply relative h-1 w-full cursor-pointer rounded-full;
     background: var(--progress-track-bg);
@@ -483,16 +501,15 @@
 
   .progress-bar-fill {
     @apply absolute left-0 top-0 h-full rounded-full;
-    background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+    background: var(--neon-blue);
     @apply transition-all duration-100;
-    box-shadow: var(--progress-bar-glow);
   }
 
   .progress-bar-thumb {
     @apply absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full;
     background: var(--neon-blue);
     @apply opacity-0 transition-all duration-200;
-    box-shadow: var(--neon-glow-shadow-md), var(--neon-glow-shadow-lg);
+    box-shadow: var(--neon-glow-shadow-md);
   }
 
   .progress-bar:hover .progress-bar-thumb {
@@ -501,18 +518,34 @@
 
   /* === 侧边导航项 === */
   .nav-item {
-    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium;
+    @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium;
     color: var(--text-secondary);
     position: relative;
-    overflow: hidden;
     white-space: nowrap;
-    /* 仅过渡颜色和背景，避免与 framer-motion 的 width 动画冲突 */
-    transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+    transition: color 0.2s, background 0.2s;
   }
 
   .nav-item:hover {
     color: var(--text-primary);
     background: var(--nav-hover-bg);
+  }
+
+  .nav-item.active {
+    color: var(--text-primary);
+    background: var(--nav-active-bg);
+    font-weight: 600;
+  }
+
+  /* 激活态左侧指示条 */
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 25%;
+    bottom: 25%;
+    width: 2px;
+    background: var(--neon-blue);
+    border-radius: 0 2px 2px 0;
   }
 
   /* === 主题切换按钮 === */
@@ -526,158 +559,120 @@
     transform: scale(0.98);
   }
 
-  .nav-item.active {
-    color: var(--neon-blue);
-    background: var(--nav-active-bg);
-    box-shadow: inset 0 0 20px var(--neon-blue-4);
-  }
-
-  /* 激活态左侧霓虹指示条 */
-  .nav-item.active::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 25%;
-    bottom: 25%;
-    width: 2px;
-    background: var(--neon-blue);
-    border-radius: 0 2px 2px 0;
-    box-shadow: var(--neon-glow-shadow-md);
-  }
-
-  /* === 按钮系统 === */
+  /* === 按钮系统（shadcn 观感） === */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl;
-    @apply px-5 py-2.5 text-sm font-semibold;
-    color: var(--text-on-neon);
-    @apply transition-all duration-300;
-    background: linear-gradient(135deg, var(--neon-blue-90), var(--neon-blue-mid));
-    box-shadow: var(--shadow-neon);
-    @apply focus:outline-none;
-    @apply disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-md;
+    @apply px-4 py-2 text-sm font-medium;
+    color: hsl(var(--primary-foreground));
+    background: hsl(var(--primary));
+    @apply transition-all duration-200;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none;
   }
 
   .btn-primary:hover:not(:disabled) {
-    box-shadow: var(--neon-glow-shadow-lg), var(--shadow-neon);
-    transform: translateY(-1px);
+    background: hsl(var(--primary) / 0.9);
   }
 
   .btn-primary:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: var(--neon-glow-shadow-md);
+    background: hsl(var(--primary) / 0.85);
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl;
-    @apply px-4 py-2.5 text-sm font-medium text-surface-300;
-    @apply transition-all duration-300;
-    @apply focus:outline-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-md;
+    @apply px-3 py-2 text-sm font-medium;
+    color: var(--text-secondary);
+    @apply transition-all duration-200;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
   .btn-ghost:hover {
     color: var(--text-primary);
     background: var(--nav-hover-bg);
-    border-color: var(--border-hover) !important;
   }
 
   /* === 次要按钮 === */
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl;
-    @apply px-5 py-2.5 text-sm font-semibold;
-    color: var(--text-primary);
-    @apply transition-all duration-300;
-    background: var(--nav-hover-bg);
-    border: 1px solid var(--border-default);
-    backdrop-filter: blur(12px);
-    @apply focus:outline-none;
-    @apply disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-md;
+    @apply px-4 py-2 text-sm font-medium;
+    color: hsl(var(--secondary-foreground));
+    background: hsl(var(--secondary));
+    border: 1px solid hsl(var(--border));
+    @apply transition-all duration-200;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background: var(--nav-active-bg);
-    border-color: var(--border-hover);
-    transform: translateY(-1px);
-  }
-
-  .btn-secondary:active:not(:disabled) {
-    transform: translateY(0);
+    background: hsl(var(--secondary) / 0.8);
   }
 
   /* === 危险按钮 === */
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl;
-    @apply px-5 py-2.5 text-sm font-semibold;
-    color: #fca5a5;
-    @apply transition-all duration-300;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    @apply focus:outline-none;
-    @apply disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-md;
+    @apply px-4 py-2 text-sm font-medium;
+    color: hsl(var(--destructive-foreground));
+    background: hsl(var(--destructive));
+    @apply transition-all duration-200;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-danger:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.18);
-    border-color: rgba(239, 68, 68, 0.35);
-    color: #fecaca;
-    transform: translateY(-1px);
-    box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
-  }
-
-  .btn-danger:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: none;
+    background: hsl(var(--destructive) / 0.9);
   }
 
   /* === 图标按钮 === */
   .btn-icon {
-    @apply inline-flex items-center justify-center rounded-2xl;
-    @apply h-12 w-12;
-    @apply transition-all duration-300;
-    background: var(--nav-hover-bg);
-    border: 1px solid var(--border-default);
-    backdrop-filter: blur(12px);
+    @apply inline-flex items-center justify-center rounded-md;
+    @apply h-9 w-9;
+    @apply transition-all duration-200;
     color: var(--text-secondary);
-    @apply focus:outline-none;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
   }
 
   .btn-icon:hover {
-    background: var(--nav-active-bg);
-    border-color: var(--border-hover);
+    background: var(--nav-hover-bg);
     color: var(--text-primary);
-    transform: scale(1.05);
   }
 
-  .btn-icon:active {
-    transform: scale(0.98);
-  }
-
-  /* === 输入框 === */
+  /* === 输入框（shadcn 观感） === */
   .input {
-    @apply w-full rounded-xl px-4 py-2.5;
+    @apply w-full rounded-md px-3 py-2;
     @apply text-sm;
     color: var(--text-primary);
-    @apply transition-all duration-300;
+    @apply transition-colors duration-200;
     background: var(--bg-input);
-    border: 1px solid var(--glass-border);
+    border: 1px solid hsl(var(--input));
+    @apply placeholder:text-muted-foreground;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  .input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  /* Storage 模块专用输入框 placeholder — 主题感知 */
+  .storage-input::placeholder {
+    color: var(--text-muted);
   }
 
   /* === Toggle 开关 === */
   .toggle-switch {
     @apply relative inline-flex items-center rounded-full cursor-pointer;
-    @apply transition-all duration-300;
-    background: var(--toggle-off-bg, var(--surface-400));
+    @apply transition-colors duration-200;
+    background: var(--toggle-off-bg);
   }
 
   .toggle-switch[aria-checked="true"] {
     background: var(--neon-blue);
-    box-shadow: 0 0 8px var(--neon-blue-25);
   }
 
   .toggle-switch-thumb {
     @apply inline-block transform rounded-full;
-    @apply transition-transform duration-300;
+    @apply transition-transform duration-200;
     background: #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
   /* 大号 toggle (h-6 w-11) */
@@ -713,72 +708,37 @@
     outline-offset: 2px;
   }
 
-  .input::placeholder {
-    color: var(--text-tertiary);
-  }
-
-  /* Storage 模块专用输入框 placeholder — 主题感知 */
-  .storage-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .input:focus {
-    @apply outline-none;
-    border-color: var(--neon-blue);
-    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.08), 0 0 15px rgba(8, 145, 178, 0.06);
-  }
-
-  /* === 标签/徽章 === */
+  /* === 标签/徽章（shadcn badge） === */
   .badge-neon {
-    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
-    background: var(--neon-blue-10);
-    color: var(--neon-blue);
-    border: 1px solid var(--neon-blue-15);
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium;
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border: 1px solid hsl(var(--border));
   }
 
-  /* 海报/视频缩略图上的角标变体
-   *
-   * 普通 .badge-neon 在海报上对比度差：
-   *   - 暗色模式：浅色海报 + 10% 透明背 + 青色文字 → 看不清
-   *   - 日间模式：浅色海报 + 浅青色文字 → 几乎隐形
-   *
-   * .badge-neon-overlay 给一个不依赖父级颜色的强对比方案：
-   *   - 深色半透明底（黑色 78%）+ 模糊背景 → 在任何海报上都稳定可读
-   *   - 文字使用对应主题下"足够亮"的霓虹色变体
-   *   - 边框使用白色低透明度，提升边缘清晰度
-   */
+  /* 海报/视频缩略图上的角标变体 — 深色半透明底，任何海报上都稳定可读 */
   .badge-neon-overlay {
     @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
-    background: rgba(0, 0, 0, 0.78);
+    background: rgba(0, 0, 0, 0.7);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     color: var(--badge-overlay-text);
     border: 1px solid rgba(255, 255, 255, 0.18);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
     letter-spacing: 0.01em;
   }
 
   .badge-accent {
-    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
-    background: var(--neon-purple-15);
-    color: var(--neon-purple-glow-text);
-    border: 1px solid var(--neon-purple-20);
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium;
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+    border: 1px solid hsl(var(--border));
   }
 
-  /* === Hero 海报容器 ===
-   *
-   * 详情页 Hero 区的小海报：
-   *   - 暗色模式：弱阴影 + 霓虹蓝细描边 + 浮起感
-   *   - 日间模式：因为 hero 背景被浅色海报糊化成"白蒙版"，海报本身的白底容易和背景融为一体，
-   *     需要更粗的描边 + 更浓的投影 + 一圈深色内描边把海报"切"出来。
-   *
-   * 改成 class 而非内联，便于按主题分别覆写并支持悬停加深。
-   */
+  /* === Hero 海报容器 === */
   .hero-poster-frame {
     background: var(--bg-card);
     border: 1px solid var(--hero-poster-border);
     box-shadow: var(--hero-poster-shadow);
-    /* 内描边：模拟一圈高光勾边，让海报和背景有清晰分界 */
     outline: 1px solid var(--hero-poster-inner);
     outline-offset: -2px;
     transition: box-shadow 0.4s ease, transform 0.5s ease, border-color 0.3s ease;
@@ -790,7 +750,7 @@
 
   /* === 骨架屏加载 === */
   .skeleton {
-    @apply rounded-lg;
+    @apply rounded-md;
     background: linear-gradient(
       90deg,
       var(--bg-skeleton-from) 25%,
@@ -804,23 +764,23 @@
 
 /* ==================== 工具类 ==================== */
 @layer utilities {
-  /* 文字霓虹发光 */
+  /* 文字发光（中性化：仅保留轻微投影，避免霓虹感） */
   .text-neon-glow {
-    text-shadow: 0 0 10px var(--neon-blue-50), 0 0 30px var(--neon-blue-20);
+    text-shadow: none;
   }
 
   .text-accent-glow {
-    text-shadow: 0 0 10px var(--neon-purple-20), 0 0 30px var(--neon-purple-10);
+    text-shadow: none;
   }
 
-  /* 霓虹蓝文字 */
+  /* 霓虹文字 → 主前景色 */
   .text-neon {
     color: var(--neon-blue);
   }
 
   /* 渐变文字 */
   .text-gradient {
-    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+    background: linear-gradient(135deg, hsl(var(--foreground)), hsl(var(--muted-foreground)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -866,6 +826,7 @@
     height: 4px;
     border-radius: 4px;
     outline: none;
+    background: var(--progress-track-bg);
   }
 
   input[type="range"]::-webkit-slider-thumb {
@@ -882,7 +843,6 @@
 
   input[type="range"]::-webkit-slider-thumb:hover {
     transform: scale(1.2);
-    box-shadow: var(--neon-glow-shadow-lg);
   }
 
   input[type="range"]::-moz-range-thumb {
@@ -910,16 +870,14 @@
     inset: 0;
     z-index: 100;
     background: var(--bg-overlay);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
 
   .modal-panel {
     background: var(--bg-elevated);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow: var(--shadow-elevated), var(--modal-glow);
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-elevated);
   }
 
   /* === 关闭按钮幽灵态 === */
@@ -933,19 +891,18 @@
 
   /* Tooltip */
   .tooltip {
-    @apply absolute z-50 rounded-lg px-3 py-1.5 text-xs font-medium;
+    @apply absolute z-50 rounded-md px-3 py-1.5 text-xs font-medium;
     @apply pointer-events-none whitespace-nowrap;
-    color: #fff;
-    background: var(--bg-tooltip);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    color: hsl(var(--popover-foreground));
+    background: hsl(var(--popover));
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-elevated);
   }
 
   /* AdminPage Tab样式 */
   .admin-tab {
-    @apply relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold;
-    @apply transition-all duration-300;
+    @apply relative flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium;
+    @apply transition-colors duration-200;
     color: var(--text-secondary);
   }
 
@@ -955,10 +912,9 @@
   }
 
   .admin-tab.active {
-    color: var(--neon-blue);
+    color: var(--text-primary);
     background: var(--nav-active-bg);
     border: 1px solid var(--border-strong);
-    box-shadow: var(--shadow-neon);
   }
 
   .admin-tab.active::after {
@@ -970,7 +926,6 @@
     height: 2px;
     background: var(--neon-blue);
     border-radius: 2px;
-    box-shadow: var(--neon-glow-shadow-md);
   }
 
   /* 标签页内容区过渡动画 */
@@ -1164,9 +1119,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ============================================================
-   Hills 化桌面壳（M1）
-   - Tauri 窗口无边框 + Mica 透明；前端壳负责纵向布局
-   - 非 Tauri 环境（浏览器）沿用原本不透明背景
+   桌面壳（Tauri）
    ============================================================ */
 
 html, body, #root {
@@ -1177,7 +1130,7 @@ html, body, #root {
   overflow: hidden;
 }
 
-/* 柔和琥珀按钮：用于次级入口（如「自定义筛选」），避免在白底主题里出现过曝色块 */
+/* 柔和琥珀按钮：用于次级入口（如「自定义筛选」） */
 .nv-amber-soft-btn {
   background: var(--accent-amber-soft-bg);
   border: 1px solid var(--accent-amber-soft-border);
@@ -1221,7 +1174,6 @@ html[data-runtime="tauri"] body {
 
 html[data-runtime="tauri"] .nv-app-shell {
   background: transparent;
-  /* Mica 效果下边框更锐利一些 */
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
@@ -1236,47 +1188,60 @@ html[data-runtime="tauri"] #root {
 }
 
 /* ==================== 日间模式语义色矫正 ====================
-   背景：项目里大量组件直接用 Tailwind 暗色调
-   （如 text-emerald-300 / text-amber-300 / text-sky-300 / bg-*-500/10）。
-   这些值在 #0b1120 暗底上对比度足够，但在 #f0f2f5 白底上会"曝光"
-   —— 浅色文字+极浅底糊在一起，提示完全看不清（见扫描归类页 Banner）。
-
-   策略：仅在 [data-theme="light"] 下，把这些常用类名重新映射到
-   "深色文字 + 中等饱和底"组合，**不改任何 tsx**，全站受益。
+   Tailwind 暗色调类（text-emerald-300 等）在白底上会"曝光"，
+   仅在 [data-theme="light"] 下重新映射为深色文字 + 中等饱和底。
 */
 [data-theme="light"] {
-  /* —— 文字色：从浅色调到深色调 —— */
-  /* emerald 翠绿系 → 用于"完成/成功" */
   --light-text-emerald-200: #047857;
   --light-text-emerald-300: #047857;
   --light-text-emerald-400: #047857;
-
-  /* amber 琥珀系 → 用于"待修正/警告" */
   --light-text-amber-200: #b45309;
   --light-text-amber-300: #b45309;
   --light-text-amber-400: #b45309;
-
-  /* sky 天蓝系 → 用于信息提示 / Movies 徽章 */
   --light-text-sky-200: #0369a1;
   --light-text-sky-300: #0369a1;
   --light-text-sky-400: #0369a1;
-
-  /* violet 紫色系 → TV Shows 徽章 */
   --light-text-violet-200: #6d28d9;
   --light-text-violet-300: #6d28d9;
-
-  /* pink 粉色系 → Music 徽章 */
   --light-text-pink-200: #be185d;
   --light-text-pink-300: #be185d;
-
-  /* zinc / red */
   --light-text-zinc-300: #475569;
   --light-text-red-200: #b91c1c;
   --light-text-red-300: #b91c1c;
   --light-text-blue-200: #1d4ed8;
   --light-text-blue-300: #1d4ed8;
-
-  /* —— 底色：从极浅(/10)抬到中浅(/15~/20) + 加 1px 边框感 —— */
+  --light-text-cyan-200: #0e7490;
+  --light-text-cyan-300: #0e7490;
+  --light-text-cyan-400: #0e7490;
+  --light-text-green-200: #047857;
+  --light-text-green-300: #047857;
+  --light-text-green-400: #047857;
+  --light-text-yellow-200: #a16207;
+  --light-text-yellow-300: #a16207;
+  --light-text-yellow-400: #a16207;
+  --light-text-blue-400: #1d4ed8;
+  --light-text-violet-400: #6d28d9;
+  --light-text-purple-200: #6d28d9;
+  --light-text-purple-300: #6d28d9;
+  --light-text-purple-400: #6d28d9;
+  --light-text-rose-200: #be123c;
+  --light-text-rose-300: #be123c;
+  --light-text-rose-400: #be123c;
+  --light-text-orange-300: #c2410c;
+  --light-text-orange-400: #c2410c;
+  --light-text-emerald-100: #047857;
+  --light-text-sky-100: #0369a1;
+  --light-text-blue-100: #1d4ed8;
+  --light-text-red-100: #b91c1c;
+  --light-text-amber-100: #b45309;
+  --light-text-amber-600: #92400e;
+  --light-text-emerald-700: #047857;
+  --light-text-purple-600: #6d28d9;
+  --light-text-purple-700: #5b21b6;
+  --light-text-rose-700: #9f1239;
+  --light-text-blue-500: #1d4ed8;
+  --light-text-green-500: #047857;
+  --light-text-red-500: #b91c1c;
   --light-bg-emerald-10: rgba(16, 185, 129, 0.14);
   --light-bg-emerald-15: rgba(16, 185, 129, 0.18);
   --light-bg-amber-10: rgba(245, 158, 11, 0.16);
@@ -1289,6 +1254,13 @@ html[data-runtime="tauri"] #root {
   --light-bg-pink-15: rgba(236, 72, 153, 0.18);
   --light-bg-blue-10: rgba(59, 130, 246, 0.14);
   --light-bg-red-10: rgba(239, 68, 68, 0.14);
+  --light-bg-cyan-10: rgba(14, 116, 144, 0.12);
+  --light-bg-cyan-15: rgba(14, 116, 144, 0.16);
+  --light-bg-green-10: rgba(4, 120, 87, 0.14);
+  --light-bg-yellow-10: rgba(161, 98, 7, 0.16);
+  --light-bg-orange-10: rgba(194, 65, 12, 0.14);
+  --light-bg-purple-10: rgba(109, 40, 217, 0.14);
+  --light-bg-rose-10: rgba(190, 24, 93, 0.14);
 }
 
 /* —— Tailwind class 覆盖（仅日间模式） —— */
@@ -1310,12 +1282,34 @@ html[data-runtime="tauri"] #root {
 [data-theme="light"] .text-red-300     { color: var(--light-text-red-300) !important; }
 [data-theme="light"] .text-blue-200    { color: var(--light-text-blue-200) !important; }
 [data-theme="light"] .text-blue-300    { color: var(--light-text-blue-300) !important; }
+[data-theme="light"] .text-cyan-200    { color: var(--light-text-cyan-200) !important; }
+[data-theme="light"] .text-cyan-300    { color: var(--light-text-cyan-300) !important; }
+[data-theme="light"] .text-cyan-400    { color: var(--light-text-cyan-400) !important; }
+[data-theme="light"] .text-green-200   { color: var(--light-text-green-200) !important; }
+[data-theme="light"] .text-green-300   { color: var(--light-text-green-300) !important; }
+[data-theme="light"] .text-green-400   { color: var(--light-text-green-400) !important; }
+[data-theme="light"] .text-yellow-200  { color: var(--light-text-yellow-200) !important; }
+[data-theme="light"] .text-yellow-300  { color: var(--light-text-yellow-300) !important; }
+[data-theme="light"] .text-yellow-400  { color: var(--light-text-yellow-400) !important; }
+[data-theme="light"] .text-blue-400    { color: var(--light-text-blue-400) !important; }
+[data-theme="light"] .text-violet-400  { color: var(--light-text-violet-400) !important; }
+[data-theme="light"] .text-purple-200  { color: var(--light-text-purple-200) !important; }
+[data-theme="light"] .text-purple-300  { color: var(--light-text-purple-300) !important; }
+[data-theme="light"] .text-purple-400  { color: var(--light-text-purple-400) !important; }
+[data-theme="light"] .text-rose-200    { color: var(--light-text-rose-200) !important; }
+[data-theme="light"] .text-rose-300    { color: var(--light-text-rose-300) !important; }
+[data-theme="light"] .text-rose-400    { color: var(--light-text-rose-400) !important; }
+[data-theme="light"] .text-orange-300  { color: var(--light-text-orange-300) !important; }
+[data-theme="light"] .text-orange-400  { color: var(--light-text-orange-400) !important; }
+[data-theme="light"] .text-emerald-100 { color: var(--light-text-emerald-100) !important; }
+[data-theme="light"] .text-sky-100     { color: var(--light-text-sky-100) !important; }
+[data-theme="light"] .text-blue-100    { color: var(--light-text-blue-100) !important; }
+[data-theme="light"] .text-red-100     { color: var(--light-text-red-100) !important; }
+[data-theme="light"] .text-amber-100   { color: var(--light-text-amber-100) !important; }
 
-/* 半透明小字也提色（如 text-amber-300/80） */
 [data-theme="light"] .text-amber-300\/80 { color: var(--light-text-amber-200) !important; opacity: 0.92; }
 [data-theme="light"] .text-emerald-300\/80 { color: var(--light-text-emerald-200) !important; opacity: 0.92; }
 
-/* 背景色提色（让浅色提示框在白底上更显眼） */
 [data-theme="light"] .bg-emerald-500\/10 { background-color: var(--light-bg-emerald-10) !important; }
 [data-theme="light"] .bg-emerald-500\/15 { background-color: var(--light-bg-emerald-15) !important; }
 [data-theme="light"] .bg-amber-500\/10   { background-color: var(--light-bg-amber-10) !important; }
@@ -1328,17 +1322,21 @@ html[data-runtime="tauri"] #root {
 [data-theme="light"] .bg-pink-500\/15    { background-color: var(--light-bg-pink-15) !important; }
 [data-theme="light"] .bg-blue-500\/10    { background-color: var(--light-bg-blue-10) !important; }
 [data-theme="light"] .bg-red-500\/10     { background-color: var(--light-bg-red-10) !important; }
+[data-theme="light"] .bg-cyan-500\/10    { background-color: var(--light-bg-cyan-10) !important; }
+[data-theme="light"] .bg-cyan-500\/15    { background-color: var(--light-bg-cyan-15) !important; }
+[data-theme="light"] .bg-cyan-400\/10    { background-color: var(--light-bg-cyan-10) !important; }
+[data-theme="light"] .bg-green-500\/10   { background-color: var(--light-bg-green-10) !important; }
+[data-theme="light"] .bg-yellow-500\/10  { background-color: var(--light-bg-yellow-10) !important; }
+[data-theme="light"] .bg-orange-500\/10  { background-color: var(--light-bg-orange-10) !important; }
+[data-theme="light"] .bg-purple-500\/10  { background-color: var(--light-bg-purple-10) !important; }
+[data-theme="light"] .bg-rose-500\/10    { background-color: var(--light-bg-rose-10) !important; }
 
-/* 边框色统一加深一档，提升白底辨识度 */
 [data-theme="light"] .border-emerald-500\/30 { border-color: rgba(4, 120, 87, 0.45) !important; }
 [data-theme="light"] .border-amber-500\/30   { border-color: rgba(180, 83, 9, 0.45) !important; }
 [data-theme="light"] .border-sky-500\/30     { border-color: rgba(3, 105, 161, 0.45) !important; }
 [data-theme="light"] .border-violet-500\/30  { border-color: rgba(109, 40, 217, 0.45) !important; }
 [data-theme="light"] .border-pink-500\/30    { border-color: rgba(190, 24, 93, 0.45) !important; }
 
-/* surface-* 文字在日间已在 Tailwind surface 色板里翻转过；
-   但 text-surface-300/400/500（业务里"次要文字"）在白底上偶尔太浅，
-   补一档保底加深 */
 [data-theme="light"] .text-surface-300 { color: #475569 !important; }
 [data-theme="light"] .text-surface-400 { color: #475569 !important; }
 [data-theme="light"] .text-surface-500 { color: #64748b !important; }
@@ -1354,4 +1352,15 @@ html[data-runtime="tauri"] #root {
 
 .danmaku-item {
   animation: danmaku-scroll 8s linear forwards;
+}
+
+/* ==================== shadcn base 规则 ==================== */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
 }

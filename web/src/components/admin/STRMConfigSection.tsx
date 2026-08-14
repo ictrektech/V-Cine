@@ -445,7 +445,7 @@ function DomainTable({
           type="button"
           onClick={onAdd}
           className="ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-[11px]"
-          style={{ background: 'var(--neon-blue-15)', color: '#22d3ee' }}
+          style={{ background: 'var(--neon-blue-15)', color: 'var(--neon-blue)' }}
         >
           <Plus size={10} /> 新增
         </button>
