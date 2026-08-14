@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/rsa"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -20,6 +22,9 @@ type AuthService struct {
 	auditRepo  *repository.AuditLogRepo
 	cfg        *config.Config
 	logger     *zap.SugaredLogger
+	vosJWKSMu  sync.Mutex
+	vosJWKS    map[string]*rsa.PublicKey
+	vosJWKSExp time.Time
 }
 
 func NewAuthService(userRepo *repository.UserRepo, inviteRepo *repository.InviteCodeRepo, logRepo *repository.LoginLogRepo, auditRepo *repository.AuditLogRepo, cfg *config.Config, logger *zap.SugaredLogger) *AuthService {

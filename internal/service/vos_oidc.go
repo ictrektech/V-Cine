@@ -89,21 +89,39 @@ func randomPasswordHash() (string, error) {
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return bcrypt.GenerateFromPassword([]byte(hex.EncodeToString(b)), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(hex.EncodeToString(b)), bcrypt.DefaultCost)
+	return string(hash), err
 }
 
 func (s *AuthService) verifyVOSOIDC(raw string) (*vosClaims, error) {
-	keys, err := s.fetchVOSJWKS()
+	keys, err := s.fetchVOSJWKS(false)
 	if err != nil {
 		return nil, err
 	}
+	claims, err := s.parseVOSJWT(raw, keys)
+	if err != nil && errors.Is(err, errUnknownVOSSigningKey) {
+		keys, err = s.fetchVOSJWKS(true)
+		if err != nil {
+			return nil, err
+		}
+		claims, err = s.parseVOSJWT(raw, keys)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return claims, nil
+}
+
+var errUnknownVOSSigningKey = errors.New("unknown VOS signing key")
+
+func (s *AuthService) parseVOSJWT(raw string, keys map[string]*rsa.PublicKey) (*vosClaims, error) {
 	claims := jwt.MapClaims{}
 	parser := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}), jwt.WithIssuer(s.cfg.VOSOIDC.Issuer), jwt.WithAudience(s.cfg.VOSOIDC.ClientID))
-	_, err = parser.ParseWithClaims(raw, claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := parser.ParseWithClaims(raw, claims, func(token *jwt.Token) (interface{}, error) {
 		kid, _ := token.Header["kid"].(string)
 		key := keys[kid]
 		if key == nil {
-			return nil, fmt.Errorf("unknown VOS signing key")
+			return nil, errUnknownVOSSigningKey
 		}
 		return key, nil
 	})
@@ -127,7 +145,12 @@ func (s *AuthService) verifyVOSOIDC(raw string) (*vosClaims, error) {
 	return &vosClaims{Subject: sub, Username: username, Admin: admin}, nil
 }
 
-func (s *AuthService) fetchVOSJWKS() (map[string]*rsa.PublicKey, error) {
+func (s *AuthService) fetchVOSJWKS(force bool) (map[string]*rsa.PublicKey, error) {
+	s.vosJWKSMu.Lock()
+	defer s.vosJWKSMu.Unlock()
+	if !force && time.Now().Before(s.vosJWKSExp) && len(s.vosJWKS) > 0 {
+		return s.vosJWKS, nil
+	}
 	resp, err := (&http.Client{Timeout: 8 * time.Second}).Get(s.cfg.VOSOIDC.JWKSURL)
 	if err != nil {
 		return nil, err
@@ -164,7 +187,9 @@ func (s *AuthService) fetchVOSJWKS() (map[string]*rsa.PublicKey, error) {
 	if len(keys) == 0 {
 		return nil, errors.New("VOS JWKS contains no RSA keys")
 	}
-	return keys, nil
+	s.vosJWKS = keys
+	s.vosJWKSExp = time.Now().Add(time.Hour)
+	return s.vosJWKS, nil
 }
 
 func normalizeVOSUsername(username string) string { return strings.TrimSpace(username) }

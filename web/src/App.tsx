@@ -97,15 +97,13 @@ function ForceChangePasswordRoute() {
 
 export default function App() {
   const setAuth = useAuthStore((s) => s.setAuth)
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   useEffect(() => {
-    if (isAuthenticated) return
     void acquireVOSAccessToken().then(async (accessToken) => {
       if (!accessToken) return
       const response = await authApi.vosOIDC(accessToken)
       if (response.data.token && response.data.user) setAuth(response.data.token, response.data.user)
     }).catch(() => undefined)
-  }, [isAuthenticated, setAuth])
+  }, [setAuth])
   return (
     <ToastProvider>
       <DialogProvider>
