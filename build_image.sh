@@ -152,7 +152,7 @@ ensure_base_images() {
 build_image() {
   ensure_base_images
   log "building ${IMAGE_URI} (${PLATFORM})"
-  DOCKER_BUILDKIT=1 docker build --pull=false \
+  docker buildx build --load --provenance=false --sbom=false --pull=false \
     -f "${DOCKERFILE}" \
     --build-arg NOWEN_VERSION="${VERSION}" \
     -t "${IMAGE_URI}" \
