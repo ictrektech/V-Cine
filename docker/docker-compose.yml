@@ -16,9 +16,9 @@ version: "3.8"
 services:
   nowen-video:
     build:
-      # context 指向项目根（要拿到 web/ cmd/ 等源码）；dockerfile 相对 context 解析
       context: ..
       dockerfile: docker/Dockerfile
+      # 故意不声明 ALPINE_MIRROR build-arg（空值会顶掉 Dockerfile 的 ARG 默认）；换源用 --build-arg
       # 多架构构建（buildx 时生效）
       # platforms:
       #   - linux/amd64

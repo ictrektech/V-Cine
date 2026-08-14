@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { adminApi, libraryApi } from '@/api'
+import { withBasePath } from '@/lib/basePath'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import type { SystemInfo, Library, User, TMDbConfigStatus, DoubanConfigStatus, DoubanImportTokenInfo, DoubanImportTokenStatus, SystemSettings } from '@/types'
 import type { ScanProgressData, ScrapeProgressData, TranscodeProgressData, ScanPhaseData } from '@/hooks/useWebSocket'
@@ -769,7 +770,7 @@ export default function AdminPage() {
       { label: t('admin.quickNavLibrary'), tab: 'library' as TabId, icon: FolderOpen },
       { label: t('admin.quickNavTMDb'), tab: 'library' as TabId, icon: Film },
       { label: t('admin.quickNavUsers'), tab: 'users' as TabId, icon: Users },
-      { label: t('admin.quickNavTranscode'), tab: 'tasks' as TabId, icon: Zap, href: '/preprocess#transcode' },
+      { label: t('admin.quickNavTranscode'), tab: 'tasks' as TabId, icon: Zap, href: withBasePath('/preprocess#transcode') },
       { label: t('admin.quickNavLogs'), tab: 'logs' as TabId, icon: FileText },
       { label: t('admin.quickNavAI'), tab: 'ai' as TabId, icon: Sparkles },
     ]

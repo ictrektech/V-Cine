@@ -40,7 +40,7 @@ type AIUsageBucket struct {
 // AggregateByDay 按天聚合 [from, to) 内的用量
 func (r *AIUsageRepo) AggregateByDay(from, to time.Time, provider string) ([]AIUsageBucket, error) {
 	var buckets []AIUsageBucket
-	bucketExpr := dateFormatExpr(r.db, "%Y-%m-%d", "created_at")
+	bucketExpr := dateFormatExpr("%Y-%m-%d", "created_at")
 	q := r.db.Model(&model.AIUsageRecord{}).
 		Select(bucketExpr + ` AS bucket,
 			COUNT(*) AS calls,
@@ -63,7 +63,7 @@ func (r *AIUsageRepo) AggregateByDay(from, to time.Time, provider string) ([]AIU
 // AggregateByMonth 按月聚合 [from, to) 内的用量
 func (r *AIUsageRepo) AggregateByMonth(from, to time.Time, provider string) ([]AIUsageBucket, error) {
 	var buckets []AIUsageBucket
-	bucketExpr := dateFormatExpr(r.db, "%Y-%m", "created_at")
+	bucketExpr := dateFormatExpr("%Y-%m", "created_at")
 	q := r.db.Model(&model.AIUsageRecord{}).
 		Select(bucketExpr + ` AS bucket,
 			COUNT(*) AS calls,

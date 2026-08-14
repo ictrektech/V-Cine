@@ -80,7 +80,7 @@ type VideoAnalysisTask struct {
 	CreatedAt  time.Time  `json:"created_at" gorm:"index"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 
-	Media Media `json:"-" gorm:"foreignKey:MediaID"`
+	Media Media `json:"-" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (t *VideoAnalysisTask) BeforeCreate(tx *gorm.DB) error {
@@ -221,7 +221,7 @@ type Scene struct {
 
 	CreatedAt time.Time `json:"created_at"`
 
-	VideoAnalysisTask VideoAnalysisTask `json:"-" gorm:"foreignKey:VideoAnalysisTaskID"`
+	VideoAnalysisTask VideoAnalysisTask `json:"-" gorm:"foreignKey:VideoAnalysisTaskID;constraint:OnDelete:CASCADE"`
 }
 
 func (s *Scene) BeforeCreate(tx *gorm.DB) error {

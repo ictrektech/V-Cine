@@ -1,39 +1,38 @@
 # ============================================================
-# nowen-video 开发覆盖（容器内 go run，免重建镜像）
-# 叠加在主 compose 之上，用法：
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
-#   （make dev 已配置为叠加加载）
-#
-# 说明：
-#   - override 同名服务 nowen-video：镜像改用 golang:1.25-alpine，
-#     挂载项目源码到 /app，容器内 `go run ./cmd/server` 直接编译运行当前代码。
-#   - 改代码后重启容器即生效，无需 docker build 重建镜像。
-#   - 端口 override 为 38080:38080：go run 读 config/app.yaml 的 port（38080）。
-#   - 卷/环境继承主 compose；仅追加 GOPROXY（golang 镜像默认走 proxy.golang.org 会超时）。
-#   - 运行时依赖（ffmpeg/python）未内置：纯后端调试可用；若需转码/刮削，
-#     在 golang 镜像基础上叠加依赖（见 Dockerfile 运行阶段依赖列表）。
+# nowen-video 开发覆盖（容器内 go run，免重建镜像）。
+# 用法：make dev（自动构建 dev 镜像，首次稍慢）。
+# 要点：
+#   - 源码挂载到 /app，改代码后 make dev 重启即生效
+#   - ffmpeg 烧进镜像层、Go 缓存走命名卷 → 容器重建（down/up）不重装、不重下
 # ============================================================
 version: "3.8"
 
 services:
   nowen-video:
-    # 重置主 compose 的 build，避免 up 时触发镜像构建
-    build: !reset null
-    image: golang:1.25-alpine
+    # dev 镜像（ffmpeg 在镜像层）见 docker/Dockerfile.dev；up 时缺镜像自动构建
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+      # 故意不声明 ALPINE_MIRROR build-arg：空值会顶掉 Dockerfile.dev 的 ARG 默认；换源用 --build-arg
+    image: ${DEV_IMAGE:-nowen-video-dev}
     working_dir: /app
-    entrypoint: ["sh", "-c", "cd /app && go mod download && go run -ldflags \"-s -w\" ./cmd/server"]
-    # go run 读 config/app.yaml 的 port（38080），reset 主 compose 的 38080:8080
+    entrypoint: ["sh", "/app/scripts/dev-entrypoint.sh"]
     ports: !reset null
     ports:
       - "38080:38080"
     volumes:
-      # 挂载整个项目根（源码 + go.mod + web + scripts），覆盖镜像里的二进制
+      # 源码热更新（覆盖镜像里的二进制）
       - ..:/app
       - /data/xjx/workspace/data/video:/data/xjx/workspace/data/video:ro
+      # Go 模块/编译缓存持久化，重建后增量
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
     environment:
-      # Go 模块代理：与 Dockerfile 一致走国内镜像，避免 proxy.golang.org 超时
+      # Go 国内代理（proxy.golang.org 超时）
       - GOPROXY=https://goproxy.cn,https://goproxy.io,direct
-    # go run 监听 38080，override 主 compose 的 8080 healthcheck
+      # 与上方命名卷路径对齐
+      - GOMODCACHE=/go/pkg/mod
+      - GOCACHE=/root/.cache/go-build
     healthcheck: !reset null
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:38080/api/health || exit 1"]
@@ -41,3 +40,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 120s
+
+volumes:
+  go-mod-cache:
+  go-build-cache:

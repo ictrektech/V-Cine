@@ -20,12 +20,6 @@
 
 # 数据库配置（PostgreSQL 数据库）
 database:
-  driver: sqlite           # 数据库驱动: sqlite / postgresql
-  db_path: ./data/nowen.db
-  wal_mode: true
-  busy_timeout: 5000
-  cache_size: -20000
-  # PostgreSQL 专属配置（仅 driver=postgresql 时生效）
   # host: 127.0.0.1
   # port: 5432
   # user: postgres
@@ -139,7 +133,6 @@ emby:
 # data_dir: ./data
 # cache_dir: ./cache
 # web_dir: ./web/dist
-# db_path: ./data/nowen.db
 # jwt_secret: please-change-this-secret-key
 # ffmpeg_path: ffmpeg
 # ffprobe_path: ffprobe

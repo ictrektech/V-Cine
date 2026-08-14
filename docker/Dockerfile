@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.6
 # =============================================
 # 多架构构建：支持 linux/amd64 / linux/arm64 / linux/arm/v7
 # 使用方式：
@@ -40,7 +39,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/dist ./web/dist
-# 使用纯 Go SQLite (glebarez/sqlite) 和 pgx (gorm.io/driver/postgres)，
+# 使用纯 Go 的 pgx (gorm.io/driver/postgres)，
 # 可以 CGO_ENABLED=0 直接交叉编译
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${NOWEN_VERSION}" -o nowen-video ./cmd/server
@@ -53,42 +52,47 @@ ARG TARGETARCH
 ARG NOWEN_VERSION=0.1.0
 
 # ---- 基础依赖（全架构通用） ----
-RUN apk add --no-cache \
-    ffmpeg \
-    tzdata \
-    ca-certificates \
-    su-exec \
-    coreutils \
-    wget \
-    && rm -rf /var/cache/apk/* \
-    && ln -sf /bin/nice /usr/bin/nice
+# Alpine 镜像源：默认阿里云（--build-arg 可覆盖），失败回退官方源
+ARG ALPINE_MIRROR=https://mirrors.aliyun.com/alpine
+RUN set -eux; \
+    AV=$(cut -d. -f1-2 /etc/alpine-release); \
+    apk add --no-cache \
+        --repository "${ALPINE_MIRROR}/v${AV}/main" \
+        --repository "${ALPINE_MIRROR}/v${AV}/community" \
+        ffmpeg tzdata ca-certificates su-exec coreutils wget \
+    || apk add --no-cache ffmpeg tzdata ca-certificates su-exec coreutils wget; \
+    rm -rf /var/cache/apk/*; \
+    ln -sf /bin/nice /usr/bin/nice
 
 # ---- Python 番号刮削微服务依赖 ----
 # 全部走 Alpine 社区仓库的预编译包，amd64/arm64/armv7 通用，QEMU 下也秒装
 # flask / requests / beautifulsoup4 / lxml 四个核心依赖 + pip（用于 update）
-RUN apk add --no-cache \
-        python3 \
-        py3-pip \
-        py3-flask \
-        py3-requests \
-        py3-beautifulsoup4 \
-        py3-lxml \
-    && rm -rf /var/cache/apk/*
+RUN set -eux; \
+    AV=$(cut -d. -f1-2 /etc/alpine-release); \
+    apk add --no-cache \
+        --repository "${ALPINE_MIRROR}/v${AV}/main" \
+        --repository "${ALPINE_MIRROR}/v${AV}/community" \
+        python3 py3-pip py3-flask py3-requests py3-beautifulsoup4 py3-lxml \
+    || apk add --no-cache python3 py3-pip py3-flask py3-requests py3-beautifulsoup4 py3-lxml; \
+    rm -rf /var/cache/apk/*
 
 # ---- 架构相关的硬件加速驱动 ----
 # - amd64: Intel QSV/VAAPI (intel-media-driver + libva-intel-driver)
 # - arm64 / armv7: 通用 mesa VAAPI 驱动（Mali/Panfrost/RPi/RKMPP 等走 /dev/dri）
 RUN set -eux; \
+    AV=$(cut -d. -f1-2 /etc/alpine-release); \
     if [ "${TARGETARCH}" = "amd64" ]; then \
         apk add --no-cache \
-            intel-media-driver \
-            libva-intel-driver \
-            mesa-va-gallium \
-            libva-utils; \
+            --repository "${ALPINE_MIRROR}/v${AV}/main" \
+            --repository "${ALPINE_MIRROR}/v${AV}/community" \
+            intel-media-driver libva-intel-driver mesa-va-gallium libva-utils \
+        || apk add --no-cache intel-media-driver libva-intel-driver mesa-va-gallium libva-utils; \
     else \
         apk add --no-cache \
-            mesa-va-gallium \
-            libva-utils; \
+            --repository "${ALPINE_MIRROR}/v${AV}/main" \
+            --repository "${ALPINE_MIRROR}/v${AV}/community" \
+            mesa-va-gallium libva-utils \
+        || apk add --no-cache mesa-va-gallium libva-utils; \
     fi; \
     rm -rf /var/cache/apk/*
 
@@ -122,7 +126,6 @@ RUN mkdir -p /data /cache /media \
 ENV NOWEN_APP_PORT=8080
 ENV NOWEN_APP_DATA_DIR=/data
 ENV NOWEN_APP_WEB_DIR=/app/web/dist
-ENV NOWEN_DATABASE_DB_PATH=/data/nowen.db
 ENV NOWEN_CACHE_CACHE_DIR=/cache
 ENV NOWEN_LOGGING_LEVEL=info
 ENV NOWEN_VERSION=${NOWEN_VERSION}

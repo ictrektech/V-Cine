@@ -288,7 +288,12 @@ func (s *StreamService) GetAudioTracks(mediaID string) []AudioTrackInfo {
 
 // buildAudioMediaEntries 为 Master Playlist 构造 #EXT-X-MEDIA:TYPE=AUDIO 行。
 // 当且仅当返回 GROUP-ID="audio" 引用了实际轨道时才应该被注入到 EXT-X-STREAM-INF。
-func buildAudioMediaEntries(mediaID string, tracks []AudioTrackInfo) string {
+//
+// basePath 为接入 VOS 子路径时的前缀（如 /app/com.ictrek.nowen-video）；
+// 音轨 playlist 的 URI 是 path-absolute（/api/audio-track/...），不受 <base> 与
+// 前端 withBasePath() 控制，必须在此补前缀才能经 Traefik 命中应用路由。
+// 根路径部署时 basePath 为空，输出与旧行为完全一致。
+func buildAudioMediaEntries(mediaID string, tracks []AudioTrackInfo, basePath string) string {
 	if len(tracks) <= 1 {
 		return ""
 	}
@@ -316,8 +321,8 @@ func buildAudioMediaEntries(mediaID string, tracks []AudioTrackInfo) string {
 			defaultPicked = true
 		}
 		sb.WriteString(fmt.Sprintf(
-			"#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",NAME=\"%s\",LANGUAGE=\"%s\",DEFAULT=%s,AUTOSELECT=YES,URI=\"/api/audio-track/%s/%d.m3u8\"\n",
-			escapeAttr(name), escapeAttr(lang), isDefault, mediaID, t.AudioIdx,
+			"#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",NAME=\"%s\",LANGUAGE=\"%s\",DEFAULT=%s,AUTOSELECT=YES,URI=\"%s/api/audio-track/%s/%d.m3u8\"\n",
+			escapeAttr(name), escapeAttr(lang), isDefault, basePath, mediaID, t.AudioIdx,
 		))
 	}
 	return sb.String()
@@ -325,7 +330,7 @@ func buildAudioMediaEntries(mediaID string, tracks []AudioTrackInfo) string {
 
 // BuildAudioMediaEntries 为 Master Playlist 构造 #EXT-X-MEDIA:TYPE=AUDIO 行。
 func (s *StreamService) BuildAudioMediaEntries(mediaID string, tracks []AudioTrackInfo) string {
-	return buildAudioMediaEntries(mediaID, tracks)
+	return buildAudioMediaEntries(mediaID, tracks, s.cfg.App.WebBasePath)
 }
 
 // escapeAttr 转义 HLS 属性字符串中的双引号（规范要求）
@@ -364,6 +369,8 @@ func (s *StreamService) GetAudioPlaylist(mediaID string, trackIdx int) (string, 
 	sb.WriteString("#EXT-X-MEDIA-SEQUENCE:0\n")
 	sb.WriteString("#EXT-X-PLAYLIST-TYPE:VOD\n")
 
+	// 兼容 VOS 子路径：分片 URI 是 path-absolute，需带前缀（根路径时前缀为空，行为不变）。
+	audioBase := s.cfg.App.WebBasePath + "/api/audio-track"
 	for i := 0; i < totalSegs; i++ {
 		segDur := float64(onDemandSegmentSeconds)
 		// 最后一片可能不足 2s
@@ -374,7 +381,7 @@ func (s *StreamService) GetAudioPlaylist(mediaID string, trackIdx int) (string, 
 			}
 		}
 		sb.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n", segDur))
-		sb.WriteString(fmt.Sprintf("/api/audio-track/%s/%d/seg_%04d.aac\n", mediaID, trackIdx, i))
+		sb.WriteString(fmt.Sprintf("%s/%s/%d/seg_%04d.aac\n", audioBase, mediaID, trackIdx, i))
 	}
 	sb.WriteString("#EXT-X-ENDLIST\n")
 	return sb.String(), nil

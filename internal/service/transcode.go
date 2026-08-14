@@ -422,8 +422,19 @@ func (s *TranscodeService) worker(id int) {
 	}
 }
 
+// removeRunning 将 job 从运行表移除（幂等）。
+func (s *TranscodeService) removeRunning(job *TranscodeJob) {
+	s.mu.Lock()
+	delete(s.running, job.Task.ID)
+	s.mu.Unlock()
+}
+
 // processJob 处理转码任务
 func (s *TranscodeService) processJob(job *TranscodeJob) {
+	// 返回即任务终结，必须从运行表移除；否则失败 job 残留会让去重逻辑
+	// 返回旧任务而不重启转码（该视频永久无法播放，直到重启）。
+	defer s.removeRunning(job)
+
 	s.logger.Infof("开始转码: %s (%s)", job.Media.Title, job.Quality)
 
 	job.Task.Status = "running"
@@ -501,9 +512,6 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 		s.logger.Infof("转码任务已取消: %s (%s)", job.Media.Title, job.Quality)
 		job.Task.Status = "cancelled"
 		s.repo.Update(job.Task)
-		s.mu.Lock()
-		delete(s.running, job.Task.ID)
-		s.mu.Unlock()
 		s.broadcastTranscodeEvent(EventTranscodeFailed, &TranscodeProgressData{
 			TaskID:  job.Task.ID,
 			MediaID: job.Media.ID,
@@ -574,9 +582,6 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 				s.logger.Infof("回退转码任务已取消: %s (%s)", job.Media.Title, job.Quality)
 				job.Task.Status = "cancelled"
 				s.repo.Update(job.Task)
-				s.mu.Lock()
-				delete(s.running, job.Task.ID)
-				s.mu.Unlock()
 				return
 			case fallbackErr := <-fallbackDone:
 				if fallbackErr != nil {
@@ -618,10 +623,6 @@ success:
 	completedAt := time.Now()
 	job.Task.CompletedAt = &completedAt
 	s.repo.Update(job.Task)
-
-	s.mu.Lock()
-	delete(s.running, job.Task.ID)
-	s.mu.Unlock()
 
 	s.logger.Infof("转码完成: %s (%s)", job.Media.Title, job.Quality)
 

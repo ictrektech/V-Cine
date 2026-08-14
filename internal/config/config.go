@@ -996,7 +996,6 @@ func setDefaults() {
 	viper.SetDefault("data_dir", "./data")
 	viper.SetDefault("cache_dir", "./cache")
 	viper.SetDefault("web_dir", "./web/dist")
-	viper.SetDefault("db_path", "./data/nowen.db")
 	viper.SetDefault("jwt_secret", "nowen-video-secret-change-me")
 	viper.SetDefault("ffmpeg_path", "ffmpeg")
 	viper.SetDefault("ffprobe_path", "ffprobe")
@@ -1131,6 +1130,13 @@ func (c *Config) migrateFromFlatConfig() {
 			c.App.WebDir = c.WebDir
 		} else {
 			c.App.WebDir = "./web/dist"
+		}
+	}
+	// 规范化 web_base_path：剥掉尾斜杠；"/" 视为空（根路径部署）。
+	if c.App.WebBasePath != "" {
+		c.App.WebBasePath = strings.TrimSuffix(c.App.WebBasePath, "/")
+		if c.App.WebBasePath == "/" {
+			c.App.WebBasePath = ""
 		}
 	}
 	if c.App.FFmpegPath == "" {

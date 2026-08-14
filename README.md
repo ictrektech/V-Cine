@@ -7,7 +7,7 @@
 <p>
   <img src="https://img.shields.io/badge/Go-1.22-00ADD8?style=flat-square&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react" alt="React">
-  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=flat-squareSQLite%20%2F%20PostgreSQL-003B57?style=flat-square&logo=postgresqllogo=postgresql" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=flat-square&logo=postgresql" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Docker-Alpine-2496ED?style=flat-square&logo=docker" alt="Docker">
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" alt="License">
 </p>

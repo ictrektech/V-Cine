@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { withBasePath } from '@/lib/basePath'
 
 /**
  * 计算 API 基础地址。
@@ -155,8 +156,9 @@ function doLogout(reason: string, expectedToken: string | null) {
     useAuthStore.getState().logout()
   } catch { /* ignore */ }
   // 已经在登录页就不跳转，避免登录页自身形成整页刷新循环
-  if (!window.location.pathname.startsWith('/login')) {
-    window.location.replace('/login')
+  // 接入子路径时登录页带前缀，需用 withBasePath 对齐
+  if (!window.location.pathname.startsWith(withBasePath('/login'))) {
+    window.location.replace(withBasePath('/login'))
   }
   window.setTimeout(() => { loggingOut = false }, 3000)
 }

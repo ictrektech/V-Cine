@@ -1,25 +1,15 @@
 package repository
 
-import (
-	"gorm.io/gorm"
-)
-
-// dateFormatExpr returns a cross-driver SQL expression for date formatting.
-// SQLite: strftime('%Y-%m-%d', col)  PostgreSQL: TO_CHAR(col, 'YYYY-MM-DD')
-func dateFormatExpr(db *gorm.DB, format, column string) string {
-	if db.Dialector.Name() == "postgres" {
-		switch format {
-		case "%Y-%m-%d":
-			return "TO_CHAR(" + column + ", 'YYYY-MM-DD')"
-		case "%Y-%m":
-			return "TO_CHAR(" + column + ", 'YYYY-MM')"
-		case "%H":
-			return "EXTRACT(HOUR FROM " + column + ")::INTEGER"
-		}
-	}
+// dateFormatExpr returns a PostgreSQL date formatting expression.
+func dateFormatExpr(format, column string) string {
 	switch format {
+	case "%Y-%m-%d":
+		return "TO_CHAR(" + column + ", 'YYYY-MM-DD')"
+	case "%Y-%m":
+		return "TO_CHAR(" + column + ", 'YYYY-MM')"
 	case "%H":
-		return "CAST(strftime('" + format + "', " + column + ") AS INTEGER)"
+		return "EXTRACT(HOUR FROM " + column + ")::INTEGER"
+	default:
+		return "TO_CHAR(" + column + ", 'YYYY-MM-DD')"
 	}
-	return "strftime('" + format + "', " + column + ")"
 }

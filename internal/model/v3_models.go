@@ -23,7 +23,7 @@ type VideoChapter struct {
 	Thumbnail   string    `json:"thumbnail" gorm:"type:text"`         // 章节缩略图路径
 	CreatedAt   time.Time `json:"created_at"`
 
-	Media Media `json:"-" gorm:"foreignKey:MediaID"`
+	Media Media `json:"-" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (vc *VideoChapter) BeforeCreate(tx *gorm.DB) error {
@@ -47,7 +47,7 @@ type VideoHighlight struct {
 	Source    string    `json:"source" gorm:"type:text;default:ai"` // 来源: ai / manual
 	CreatedAt time.Time `json:"created_at"`
 
-	Media Media `json:"-" gorm:"foreignKey:MediaID"`
+	Media Media `json:"-" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (vh *VideoHighlight) BeforeCreate(tx *gorm.DB) error {
@@ -116,7 +116,7 @@ type CoverCandidate struct {
 	IsSelected  bool      `json:"is_selected" gorm:"default:false"`     // 是否被选为封面
 	CreatedAt   time.Time `json:"created_at"`
 
-	Media Media `json:"-" gorm:"foreignKey:MediaID"`
+	Media Media `json:"-" gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE"`
 }
 
 func (cc *CoverCandidate) BeforeCreate(tx *gorm.DB) error {

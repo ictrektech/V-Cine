@@ -413,9 +413,54 @@ func (s *NFOService) FindNFOForMedia(mediaFilePath string) string {
 		return nfoPath
 	}
 
-	// 策略2: 目录下任意 .nfo 文件
+	// 策略2: 目录级 NFO（目录同名 / movie.nfo / video.nfo 等标准命名）
 	dir := s.dirOf(mediaFilePath)
-	return s.FindNFOFile(dir)
+	dirBase := filepath.Base(dir)
+	for _, name := range []string{
+		dirBase + ".nfo",
+		"movie.nfo", "movies.nfo", "video.nfo", "影片.nfo", "电影.nfo",
+	} {
+		p := s.joinPath(dir, name)
+		if _, err := s.statPath(p); err == nil {
+			return p
+		}
+	}
+
+	// 策略3: 与视频文件名模糊匹配的 NFO（同目录多视频时避免错配到其他影片的 NFO）
+	mediaBase := normalizeNFOName(filepath.Base(mediaFilePath))
+	if mediaBase != "" {
+		entries, err := s.readDir(dir)
+		if err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".nfo") {
+					continue
+				}
+				nfoBase := normalizeNFOName(entry.Name())
+				if nfoBase != "" && (mediaBase == nfoBase ||
+					strings.Contains(mediaBase, nfoBase) ||
+					strings.Contains(nfoBase, mediaBase)) {
+					return s.joinPath(dir, entry.Name())
+				}
+			}
+		}
+	}
+
+	// 都不匹配 → 不应用 NFO（避免把同目录其他影片的 NFO 套到本文件上，如 ysjf-lq.mp4 被错配 benz-ceo.nfo）
+	return ""
+}
+
+// normalizeNFOName 规范化文件名用于 NFO 匹配比较：
+// 去扩展名、转小写、去掉空格/标点等装饰字符，仅保留中文、字母、数字。
+func normalizeNFOName(name string) string {
+	base := strings.ToLower(strings.TrimSuffix(name, filepath.Ext(name)))
+	var b strings.Builder
+	b.Grow(len(base))
+	for _, r := range base {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || (r >= '\u4e00' && r <= '\u9fff') {
+			b.WriteRune(r)
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 // ==================== 应用 NFO 数据 ====================

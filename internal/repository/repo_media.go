@@ -229,6 +229,17 @@ func (r *MediaRepo) CleanOrphanedByLibraryIDs(validLibraryIDs []string) (int64, 
 }
 
 func (r *MediaRepo) Update(media *model.Media) error {
+	// collection_id / series_id 为空串时跳过对应列：Save 是全字段更新，会把 "" 写回数据库，
+	// 违反 fk_movie_collections_media / fk_series_episodes 外键（'' 在 PostgreSQL 中会被引用检查，必须存 NULL）。
+	if media.CollectionID == "" && media.SeriesID == "" {
+		return r.db.Omit("collection_id", "series_id").Save(media).Error
+	}
+	if media.CollectionID == "" {
+		return r.db.Omit("collection_id").Save(media).Error
+	}
+	if media.SeriesID == "" {
+		return r.db.Omit("series_id").Save(media).Error
+	}
 	return r.db.Save(media).Error
 }
 

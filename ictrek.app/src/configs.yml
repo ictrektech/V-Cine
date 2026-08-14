@@ -5,9 +5,86 @@ configs:
       zh-CN: Nowen 数据目录
       en: Nowen Workspace
     description:
-      zh-CN: 保存数据库、缓存和 VOS 托管媒体目录的宿主机根目录。
-      en: Host root for the database, cache, and VOS-managed media directory.
+      zh-CN: 保存缓存和 VOS 托管媒体目录的宿主机根目录（数据库为 VOS 共享 PGV，不落本目录）。
+      en: Host root for the cache and VOS-managed media directory (DB is the shared PGV, not stored here).
     default: /data/vos_workspace/nowen
+
+  - name: NOWEN_APP_WEB_BASE_PATH
+    type: string
+    title:
+      zh-CN: 前端挂载前缀
+      en: Web Base Path
+    description:
+      zh-CN: 前端 iframe 挂载子路径（Traefik 会剥回）。设为空串可恢复根路径独立部署。
+      en: Frontend iframe sub-path (stripped by Traefik). Set empty for root-path deployment.
+    default: /app/com.ictrek.nowen-video
+
+  - name: NOWEN_PORT
+    type: integer
+    title:
+      zh-CN: 应用宿主端口
+      en: App Host Port
+    description:
+      zh-CN: "容器 8080 映射到宿主的端口，Traefik 经 172.17.0.1 转发到此端口。注意：改端口需同步修改应用包内的 traefik.yml（file provider 不支持变量插值）。"
+      en: "Host port mapped from container 8080; Traefik forwards via 172.17.0.1. Note: changing this requires editing traefik.yml in the package (file provider has no interpolation)."
+    default: 38085
+    minimum: 1024
+    maximum: 65535
+
+  # ---- PostgreSQL（应用为 PostgreSQL-only，连接 VOS 共享 PGV）----
+  # 默认连接 PGV（vos_default 网络别名 pgv:5432），库/用户/扩展已由 PGV provision 预置；
+  # 填写任意一项即覆盖对应值（指向其他库时需自备 pgvector 扩展）。
+  - name: NOWEN_DATABASE_HOST
+    type: string
+    title:
+      zh-CN: 数据库主机
+      en: Database Host
+    description:
+      zh-CN: PostgreSQL 主机。默认 pgv 指向 VOS 共享 PGV 服务；如用独立库请填写其地址。
+      en: PostgreSQL host. Default 'pgv' points to the shared PGV service; fill in for a standalone DB.
+    default: pgv
+
+  - name: NOWEN_DATABASE_PORT
+    type: integer
+    title:
+      zh-CN: 数据库端口
+      en: Database Port
+    description:
+      zh-CN: PostgreSQL 端口。
+      en: PostgreSQL port.
+    default: 5432
+    minimum: 1
+    maximum: 65535
+
+  - name: NOWEN_DATABASE_USER
+    type: string
+    title:
+      zh-CN: 数据库用户
+      en: Database User
+    description:
+      zh-CN: PostgreSQL 用户（PGV 预置为 nowen）。
+      en: PostgreSQL user (provisioned by PGV as 'nowen').
+    default: nowen
+
+  - name: NOWEN_DATABASE_PASSWORD
+    type: string
+    title:
+      zh-CN: 数据库密码
+      en: Database Password
+    description:
+      zh-CN: PostgreSQL 密码（PGV 预置为 nowen_password）。
+      en: PostgreSQL password (provisioned by PGV as 'nowen_password').
+    default: nowen_password
+
+  - name: NOWEN_DATABASE_DBNAME
+    type: string
+    title:
+      zh-CN: 数据库名
+      en: Database Name
+    description:
+      zh-CN: PostgreSQL 数据库名（PGV 预置为 nowen_video，含 pgvector 扩展）。
+      en: PostgreSQL database name (provisioned by PGV as 'nowen_video', with pgvector extension).
+    default: nowen_video
 
   - name: NOWEN_LOGGING_LEVEL
     type: string
@@ -18,6 +95,7 @@ configs:
       zh-CN: Nowen Video 服务日志级别。
       en: Log level for the Nowen Video service.
     default: info
+    enum: [debug, info, warn, error]
 
   - name: NOWEN_ADULT_SCRAPER_ENABLED
     type: boolean

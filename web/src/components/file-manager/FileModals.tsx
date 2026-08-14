@@ -9,6 +9,7 @@ import {
   HardDrive, History, Languages, ChevronsUpDown, Trash2, ScanSearch, ListTodo,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { withBasePath } from '@/lib/basePath'
 import { formatFileSize, LANGUAGE_OPTIONS } from './constants'
 import { streamApi } from '@/api/stream'
 
@@ -420,7 +421,7 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
                 <div className="space-y-2">
                   <div className="text-sm text-amber-300">视频分析服务未启用或配置无效</div>
                   <button
-                    onClick={() => { window.location.href = '/admin#ai' }}
+                    onClick={() => { window.location.href = withBasePath('/admin#ai') }}
                     className="inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-400/10"
                   >
                     前往系统配置
@@ -548,7 +549,7 @@ export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, videoAn
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
             <div>{disabledReason || '视频分析服务未启用或配置无效'}</div>
             <button
-              onClick={() => { window.location.href = '/admin#ai' }}
+              onClick={() => { window.location.href = withBasePath('/admin#ai') }}
               className="mt-3 inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-400/10"
             >
               前往系统配置

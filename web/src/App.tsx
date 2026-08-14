@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/auth'
 import { ToastProvider } from '@/components/Toast'
 import { DialogProvider } from '@/components/Dialog'
+import { getBasePath, withBasePath } from '@/lib/basePath'
 import { Toaster } from 'react-hot-toast'
 import Layout from '@/components/Layout'
 import TitleBar from '@/components/TitleBar'
@@ -129,7 +130,7 @@ export default function App() {
     <ToastProvider>
       <DialogProvider>
       <Toaster position="top-right" />
-      <BrowserRouter>
+      <BrowserRouter basename={getBasePath() || '/'}>
         {/* 桌面端：首次启动"服务器地址"引导（仅在默认端口探活失败时出现） */}
         <DesktopServerPicker />
         {/* 桌面端事件绑定器（仅 Tauri 环境生效） */}

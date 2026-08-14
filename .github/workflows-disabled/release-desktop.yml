@@ -15,16 +15,16 @@
 #  - secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD (可选)
 name: release-desktop
 
-# on:
-#   push:
-#     tags:
-#       - 'v*.*.*'
-#   workflow_dispatch:
-#     inputs:
-#       target:
-#         description: 'Target platform (windows/macos/linux/all)'
-#         required: false
-#         default: 'windows'
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target platform (windows/macos/linux/all)'
+        required: false
+        default: 'windows'
 
 jobs:
   fetch-assets:
