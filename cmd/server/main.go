@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1068,12 +1069,21 @@ func main() {
 
 	// 静态文件（前端构建产物）
 	r.Static("/assets", cfg.App.WebDir+"/assets")
-	// SPA 兜底：非 /api/ 的未知路径返回前端入口（前置于此已注入 basePath）；
-	// /api/ 的未知路径返回 JSON 404，避免误返回 HTML。
+	// SPA 兜底：非 /api/ 的未知路径，先按 webDir 内真实文件返回
+	// （深层路由下相对引用的 favicon/manifest 等，如 /play/vite.svg），
+	// 再回退到前端入口；/api/ 的未知路径返回 JSON 404，避免误返回 HTML。
 	r.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
+		}
+		rel := strings.TrimPrefix(path.Clean(c.Request.URL.Path), "/")
+		if rel != "" && rel != "." {
+			filePath := filepath.Join(cfg.App.WebDir, filepath.FromSlash(rel))
+			if fi, err := os.Stat(filePath); err == nil && fi.Mode().IsRegular() {
+				c.File(filePath)
+				return
+			}
 		}
 		if indexHTML != nil {
 			c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
@@ -1166,13 +1176,19 @@ func prepareIndexHTML(webDir, webBasePath string, sugar *zap.SugaredLogger) []by
 		sugar.Warnf("读取前端入口 %s 失败（前端可能未构建）: %v", indexPath, err)
 		return nil
 	}
-	if webBasePath == "" {
-		return data
+	// 根部署也注入 <base href="/">：前端按相对路径（vite base './'）引用资源，
+	// 深层路由（如 /play/<id>）下浏览器会把 ./assets/... 解析到路由前缀上而 404；
+	// <base> 让相对引用统一落在站点根；VOS 子路径则落在注入的 iframe 前缀下。
+	baseHref := "/"
+	if webBasePath != "" {
+		baseHref = webBasePath + "/"
 	}
 	html := strings.Replace(string(data), "<head>",
 		fmt.Sprintf(`<head><base href=%q><script>window.__NOWEN_BASE_PATH__=%q;</script>`,
-			webBasePath+"/", webBasePath), 1)
-	sugar.Infof("接入子路径 basePath=%s，index.html 已注入 <base> 与 __NOWEN_BASE_PATH__", webBasePath)
+			baseHref, webBasePath), 1)
+	if webBasePath != "" {
+		sugar.Infof("接入子路径 basePath=%s，index.html 已注入 <base> 与 __NOWEN_BASE_PATH__", webBasePath)
+	}
 	return []byte(html)
 }
 
