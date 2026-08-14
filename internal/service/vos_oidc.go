@@ -43,21 +43,35 @@ func (s *AuthService) LoginWithVOSOIDC(token, ip, ua string) (*TokenResponse, er
 	}
 	user, err := s.userRepo.FindByVOSSubject(claims.Subject)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if existing, findErr := s.userRepo.FindByUsername(claims.Username); findErr == nil && existing.VOSSubject == nil {
-			return nil, ErrVOSIdentityConflict
-		}
-		password, err := randomPasswordHash()
-		if err != nil {
-			return nil, err
-		}
-		role := "user"
-		if claims.Admin {
-			role = "admin"
-		}
-		subject := claims.Subject
-		user = &model.User{Username: claims.Username, Password: password, Role: role, VOSSubject: &subject}
-		if err := s.userRepo.Create(user); err != nil {
-			return nil, err
+		if existing, findErr := s.userRepo.FindByUsername(claims.Username); findErr == nil {
+			// VOS has already verified the immutable subject.  Bind a legacy
+			// local account with the same username so upgrading to VOS SSO does
+			// not strand the default admin (or an existing user) at the login page.
+			if existing.VOSSubject != nil && *existing.VOSSubject != claims.Subject {
+				return nil, ErrVOSIdentityConflict
+			}
+			subject := claims.Subject
+			if err := s.userRepo.UpdateFields(existing.ID, map[string]interface{}{"vos_subject": subject}); err != nil {
+				return nil, err
+			}
+			existing.VOSSubject = &subject
+			user = existing
+		} else if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+			return nil, findErr
+		} else {
+			password, err := randomPasswordHash()
+			if err != nil {
+				return nil, err
+			}
+			role := "user"
+			if claims.Admin {
+				role = "admin"
+			}
+			subject := claims.Subject
+			user = &model.User{Username: claims.Username, Password: password, Role: role, VOSSubject: &subject}
+			if err := s.userRepo.Create(user); err != nil {
+				return nil, err
+			}
 		}
 	} else if err != nil {
 		return nil, err

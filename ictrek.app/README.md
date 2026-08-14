@@ -1,6 +1,8 @@
 # Nowen Video VOS 应用打包说明
 
 本目录包含 VOS app `com.ictrek.nowen-video` 的安装包模板。
+
+VOS OIDC 登录会以已验签的 VOS `sub` 绑定 Nowen 账号；同名的既有本地账号会在首次 VOS 登录时自动绑定，并按 VOS 管理员身份同步为 Nowen 管理员。
 发布流程以 `update_version.sh` 触发的 GitHub Actions 为准。
 
 ## 镜像准备（发布前必做）
