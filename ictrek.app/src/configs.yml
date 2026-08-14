@@ -9,15 +9,10 @@ configs:
       en: Host root for the cache and VOS-managed media directory (DB is the shared PGV, not stored here).
     default: /data/vos_workspace/nowen
 
-  - name: NOWEN_APP_WEB_BASE_PATH
-    type: string
-    title:
-      zh-CN: 前端挂载前缀
-      en: Web Base Path
-    description:
-      zh-CN: 前端 iframe 挂载子路径（Traefik 会剥回）。设为空串可恢复根路径独立部署。
-      en: Frontend iframe sub-path (stripped by Traefik). Set empty for root-path deployment.
-    default: /app/com.ictrek.nowen-video
+  # NOWEN_APP_WEB_BASE_PATH 不暴露为 VOS 可配置项：VOS 下挂载前缀由
+  # traefik.yml / manifest.yml / routers.yml 三重锁死为 /app/com.ictrek.nowen-video，
+  # 用户改动必与路由失配导致白屏；compose 内 ${NOWEN_APP_WEB_BASE_PATH:-...} 默认值兜底，
+  # 独立部署走 config.yaml 的 web_base_path。
 
   - name: NOWEN_PORT
     type: integer
