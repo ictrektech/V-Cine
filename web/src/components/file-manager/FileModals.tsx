@@ -56,18 +56,18 @@ export function ImportFileModal({ libraries, onClose, onSuccess }: ImportFileMod
           <div>
             <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>文件路径 *</label>
             <input type="text" value={importPath} onChange={e => setImportPath(e.target.value)}
-              placeholder="/path/to/movie.mkv" className="input-field w-full px-3 py-2 rounded-lg text-sm" />
+              placeholder="/path/to/movie.mkv" className="input-glass w-full px-3 py-2 rounded-lg text-sm" />
           </div>
           <div>
             <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>标题（留空自动提取）</label>
             <input type="text" value={importTitle} onChange={e => setImportTitle(e.target.value)}
-              placeholder="自动从文件名提取" className="input-field w-full px-3 py-2 rounded-lg text-sm" />
+              placeholder="自动从文件名提取" className="input-glass w-full px-3 py-2 rounded-lg text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>媒体类型</label>
               <select value={importMediaType} onChange={e => setImportMediaType(e.target.value)}
-                className="input-field w-full px-3 py-2 rounded-lg text-sm">
+                className="input-glass w-full px-3 py-2 rounded-lg text-sm">
                 <option value="movie">电影</option>
                 <option value="episode">剧集</option>
               </select>
@@ -75,7 +75,7 @@ export function ImportFileModal({ libraries, onClose, onSuccess }: ImportFileMod
             <div>
               <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>媒体库</label>
               <select value={importLibraryId} onChange={e => setImportLibraryId(e.target.value)}
-                className="input-field w-full px-3 py-2 rounded-lg text-sm">
+                className="input-glass w-full px-3 py-2 rounded-lg text-sm">
                 <option value="">不指定</option>
                 {libraries.map(lib => <option key={lib.id} value={lib.id}>{lib.name}</option>)}
               </select>
@@ -154,7 +154,7 @@ export function ScanDirectoryModal({ libraries, onClose, onSuccess }: ScanDirect
         </h3>
         <div className="flex gap-2 mb-4">
           <input type="text" value={scanPath} onChange={e => setScanPath(e.target.value)}
-            placeholder="输入目录路径，如 /media/movies" className="input-field flex-1 px-3 py-2 rounded-lg text-sm" />
+            placeholder="输入目录路径，如 /media/movies" className="input-glass flex-1 px-3 py-2 rounded-lg text-sm" />
           <button onClick={handleScan} disabled={scanning}
             className="btn-primary flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm whitespace-nowrap">
             {scanning ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
@@ -163,12 +163,12 @@ export function ScanDirectoryModal({ libraries, onClose, onSuccess }: ScanDirect
         </div>
         <div className="flex items-center gap-3 mb-3">
           <select value={importMediaType} onChange={e => setImportMediaType(e.target.value)}
-            className="input-field px-2 py-1 text-xs rounded">
+            className="input-glass px-2 py-1 text-xs rounded">
             <option value="movie">电影</option>
             <option value="episode">剧集</option>
           </select>
           <select value={importLibraryId} onChange={e => setImportLibraryId(e.target.value)}
-            className="input-field px-2 py-1 text-xs rounded">
+            className="input-glass px-2 py-1 text-xs rounded">
             <option value="">不指定媒体库</option>
             {libraries.map(lib => <option key={lib.id} value={lib.id}>{lib.name}</option>)}
           </select>
@@ -273,20 +273,20 @@ export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps)
               <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{field.label}</label>
               <input type={field.type} value={editForm[field.key] as string || ''}
                 onChange={e => setEditForm(prev => ({ ...prev, [field.key]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                placeholder={field.placeholder} className="input-field w-full px-3 py-2 rounded-lg text-sm" />
+                placeholder={field.placeholder} className="input-glass w-full px-3 py-2 rounded-lg text-sm" />
             </div>
           ))}
           <div>
             <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>简介</label>
             <textarea value={editForm.overview as string || ''}
               onChange={e => setEditForm(prev => ({ ...prev, overview: e.target.value }))}
-              rows={4} className="input-field w-full px-3 py-2 rounded-lg text-sm resize-none" />
+              rows={4} className="input-glass w-full px-3 py-2 rounded-lg text-sm resize-none" />
           </div>
           <div>
             <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>媒体类型</label>
             <select value={editForm.media_type as string || 'movie'}
               onChange={e => setEditForm(prev => ({ ...prev, media_type: e.target.value }))}
-              className="input-field w-full px-3 py-2 rounded-lg text-sm">
+              className="input-glass w-full px-3 py-2 rounded-lg text-sm">
               <option value="movie">电影</option>
               <option value="episode">剧集</option>
             </select>
@@ -659,7 +659,7 @@ export function RenameModal({ selectedCount, selectedIds, onClose, onSuccess }: 
           <div className="mb-4 space-y-2">
             <label className="block text-sm" style={{ color: 'var(--text-secondary)' }}>命名模板</label>
             <input type="text" value={renameTemplate} onChange={e => setRenameTemplate(e.target.value)}
-              className="input-field w-full px-3 py-2 rounded-lg text-sm font-mono" />
+              className="input-glass w-full px-3 py-2 rounded-lg text-sm font-mono" />
             <div className="flex flex-wrap gap-1.5">
               {renameTemplates.map((t, i) => (
                 <button key={i} onClick={() => setRenameTemplate(t.pattern)}

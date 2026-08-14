@@ -652,6 +652,26 @@
     color: var(--text-tertiary);
   }
 
+  /* input-glass 兜底：历史组件在用但从未定义样式，Tailwind preflight 只让输入框
+     继承 body 文字色（深色=白），背景却是浏览器默认浅色 → 白字浅底看不见。
+     这里只补主题属性，布局由组件自带类控制；新代码改用 shadcn Input/Textarea。 */
+  .input-glass {
+    color: var(--text-primary);
+    background: var(--bg-input);
+    border: 1px solid hsl(var(--input));
+    @apply transition-colors duration-200;
+  }
+
+  .input-glass::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  /* 原生 select 的 option 弹出层跟随主题，避免深色下白字浅底 */
+  .input-glass option {
+    color: var(--text-primary);
+    background: var(--bg-input);
+  }
+
   /* Storage 模块专用输入框 placeholder — 主题感知 */
   .storage-input::placeholder {
     color: var(--text-muted);

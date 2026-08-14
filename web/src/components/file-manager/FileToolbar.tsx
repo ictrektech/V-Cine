@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { withBasePath } from '@/lib/basePath'
+import { Input } from '@/components/ui/input'
 import { SORT_OPTIONS, SOURCE_OPTIONS } from './constants'
 import {
   Sparkles,
@@ -81,12 +82,12 @@ export default function FileToolbar({
         {/* 搜索 */}
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
-          <input
+          <Input
             type="text"
             placeholder="搜索标题、原始标题、文件路径..."
             value={keyword}
             onChange={e => onKeywordChange(e.target.value)}
-            className="input-field w-full pl-9 pr-3 py-2 text-sm rounded-lg"
+            className="w-full pl-9 pr-3 text-sm rounded-lg"
           />
         </div>
 
@@ -135,24 +136,24 @@ export default function FileToolbar({
       {showFilters && (
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t" style={{ borderColor: 'var(--border-default)' }}>
           <select value={filterLibrary} onChange={e => onFilterLibraryChange(e.target.value)}
-            className="input-field px-3 py-1.5 text-sm rounded-lg">
+            className="input-glass px-3 py-1.5 text-sm rounded-lg">
             <option value="">全部媒体库</option>
             {libraries.map(lib => <option key={lib.id} value={lib.id}>{lib.name}</option>)}
           </select>
           <select value={filterMediaType} onChange={e => onFilterMediaTypeChange(e.target.value)}
-            className="input-field px-3 py-1.5 text-sm rounded-lg">
+            className="input-glass px-3 py-1.5 text-sm rounded-lg">
             <option value="">全部类型</option>
             <option value="movie">电影</option>
             <option value="episode">剧集</option>
           </select>
           <select value={filterScraped} onChange={e => onFilterScrapedChange(e.target.value)}
-            className="input-field px-3 py-1.5 text-sm rounded-lg">
+            className="input-glass px-3 py-1.5 text-sm rounded-lg">
             <option value="">全部状态</option>
             <option value="true">已刮削</option>
             <option value="false">未刮削</option>
           </select>
           <select value={sortBy} onChange={e => onSortByChange(e.target.value)}
-            className="input-field px-3 py-1.5 text-sm rounded-lg">
+            className="input-glass px-3 py-1.5 text-sm rounded-lg">
             {SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
           <button onClick={onToggleSortOrder}
@@ -169,7 +170,7 @@ export default function FileToolbar({
           <div className="h-4 w-px bg-surface-700" />
 
           <select value={scrapeSource} onChange={e => onScrapeSourceChange(e.target.value)}
-            className="input-field px-2 py-1 text-xs rounded">
+            className="input-glass px-2 py-1 text-xs rounded">
             {SOURCE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
           <button onClick={onBatchScrape} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-blue-400 hover:bg-blue-400/10">
