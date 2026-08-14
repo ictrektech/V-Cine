@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { SystemInfo, SystemSettings } from '@/types'
+import type { SystemInfo } from '@/types'
 import type { ScanProgressData, ScrapeProgressData, TranscodeProgressData, ScanPhaseData } from '@/hooks/useWebSocket'
 import {
   Server,
@@ -9,27 +9,19 @@ import {
   Loader2,
   Check,
   X,
-  Settings,
   Activity,
-  FolderCog,
-  Link,
-  Save,
   AlertTriangle,
   Trash2,
   ShieldAlert,
   Merge,
-  Play,
-  Scan,
-  MonitorPlay,
 } from 'lucide-react'
 import { adminApi } from '@/api'
+import { formatHwAccel } from '@/utils/format'
 
 const webAppVersion = import.meta.env.VITE_APP_VERSION || '0.1.0'
 
 interface DashboardTabProps {
   systemInfo: SystemInfo | null
-  sysSettings: SystemSettings
-  setSysSettings: React.Dispatch<React.SetStateAction<SystemSettings>>
   scanProgress: Record<string, ScanProgressData>
   scrapeProgress: Record<string, ScrapeProgressData>
   transcodeProgress: Record<string, TranscodeProgressData>
@@ -40,15 +32,11 @@ interface DashboardTabProps {
 
 export default function DashboardTab({
   systemInfo,
-  sysSettings,
-  setSysSettings,
   scanProgress,
   scrapeProgress,
   transcodeProgress,
   scanPhase,
 }: DashboardTabProps) {
-  const [sysSettingsSaving, setSysSettingsSaving] = useState(false)
-  const [sysSettingsMsg, setSysSettingsMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // 一键清空数据相关状态
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
@@ -88,30 +76,6 @@ export default function DashboardTab({
     matching: '🎬 匹配合集',
     cleaning: '🧹 清理数据',
     completed: '✅ 处理完成',
-  }
-
-  const hwAccelLabel = (hw: string) => {
-    switch (hw) {
-      case 'qsv': return 'Intel QSV'
-      case 'vaapi': return 'VAAPI'
-      case 'nvenc': return 'NVIDIA NVENC'
-      case 'none': return '软件编码'
-      default: return hw
-    }
-  }
-
-  const handleSaveSettings = async () => {
-    setSysSettingsSaving(true)
-    setSysSettingsMsg(null)
-    try {
-      await adminApi.updateSystemSettings(sysSettings)
-      setSysSettingsMsg({ type: 'success', text: '系统设置已保存' })
-      setTimeout(() => setSysSettingsMsg(null), 4000)
-    } catch {
-      setSysSettingsMsg({ type: 'error', text: '保存失败，请稍后重试' })
-    } finally {
-      setSysSettingsSaving(false)
-    }
   }
 
   const handleClearAllData = async () => {
@@ -356,7 +320,7 @@ export default function DashboardTab({
                 <span className="text-xs">硬件加速</span>
               </div>
               <p className="mt-2 text-lg font-bold" style={{ color: systemInfo.hw_accel !== 'none' ? '#16A34A' : '#CA8A04' }}>
-                {hwAccelLabel(systemInfo.hw_accel)}
+                {formatHwAccel(systemInfo.hw_accel)}
               </p>
             </div>
             <div className="glass-panel-subtle rounded-xl p-4">
@@ -371,130 +335,6 @@ export default function DashboardTab({
         </section>
       )}
 
-      {/* 系统设置 */}
-      <section>
-        <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-          <Settings size={20} className="text-neon/60" />
-          系统设置
-        </h2>
-        <div className="glass-panel rounded-xl p-5 space-y-6">
-          <div className="rounded-lg p-3 text-xs" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)', color: 'var(--text-tertiary)' }}>
-            以下设置为系统全局配置，对所有媒体库统一生效。媒体库的独立设置请在「媒体库管理」标签页中配置。
-          </div>
-
-          {/* GPU 加速转码 */}
-          <div>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Zap size={16} style={{ color: 'var(--neon-blue)' }} />
-                  <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>GPU 加速转码</h4>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>启用 GPU 硬件加速转码，显著提升转码速度。</p>
-              </div>
-              <ToggleButton checked={sysSettings.enable_gpu_transcode} onChange={() => setSysSettings((s) => ({ ...s, enable_gpu_transcode: !s.enable_gpu_transcode }))} />
-            </div>
-            {sysSettings.enable_gpu_transcode && (
-              <div className="mt-3 ml-6 flex items-start justify-between gap-4 rounded-lg p-3" style={{ background: 'var(--nav-hover-bg)' }}>
-                <div className="flex-1">
-                  <h4 className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>GPU 不支持时自动回退 CPU</h4>
-                  <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>当 GPU 不支持特定格式解码时，系统自动切换至 CPU 转码。</p>
-                </div>
-                <ToggleButton checked={sysSettings.gpu_fallback_cpu} onChange={() => setSysSettings((s) => ({ ...s, gpu_fallback_cpu: !s.gpu_fallback_cpu }))} />
-              </div>
-            )}
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--border-default)' }} />
-
-          {/* 元数据存储路径 */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <FolderCog size={16} style={{ color: '#F59E0B' }} />
-              <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>媒体元数据存储位置</h4>
-            </div>
-            <p className="mt-1 mb-2.5 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>自定义媒体元数据的保存路径，留空使用默认。</p>
-            <input type="text" value={sysSettings.metadata_store_path} onChange={(e) => setSysSettings((s) => ({ ...s, metadata_store_path: e.target.value }))} className="input w-full" placeholder="留空使用默认路径" />
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--border-default)' }} />
-
-          {/* 播放缓存目录 */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <HardDrive size={16} style={{ color: '#10B981' }} />
-              <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>播放缓存目录</h4>
-            </div>
-            <p className="mt-1 mb-2.5 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>自定义转码缓存目录，留空使用默认。</p>
-            <input type="text" value={sysSettings.play_cache_path} onChange={(e) => setSysSettings((s) => ({ ...s, play_cache_path: e.target.value }))} className="input w-full" placeholder="留空使用默认路径" />
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--border-default)' }} />
-
-          {/* 网盘直连 */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Link size={16} style={{ color: '#F59E0B' }} />
-                <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>网盘优先直连播放</h4>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>播放网盘文件时优先使用直链进行在线播放。</p>
-            </div>
-            <ToggleButton checked={sysSettings.enable_direct_link} onChange={() => setSysSettings((s) => ({ ...s, enable_direct_link: !s.enable_direct_link }))} />
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--border-default)' }} />
-
-          {/* 播放与转码设置 */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <MonitorPlay size={16} style={{ color: '#8B5CF6' }} />
-                <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>优先直接播放</h4>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>开启后播放器默认使用原始格式直接播放，不自动触发转码。关闭后将根据文件格式自动选择直接播放或 HLS 转码。</p>
-            </div>
-            <ToggleButton checked={sysSettings.prefer_direct_play} onChange={() => setSysSettings((s) => ({ ...s, prefer_direct_play: !s.prefer_direct_play }))} />
-          </div>
-
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Scan size={16} style={{ color: '#06B6D4' }} />
-                <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>扫描后自动预处理</h4>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>开启后扫描媒体库完成时自动触发视频预处理和字幕预处理。关闭后需手动在预处理页面提交任务。</p>
-            </div>
-            <ToggleButton checked={sysSettings.auto_preprocess_on_scan} onChange={() => setSysSettings((s) => ({ ...s, auto_preprocess_on_scan: !s.auto_preprocess_on_scan }))} />
-          </div>
-
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Play size={16} style={{ color: '#EC4899' }} />
-                <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>播放时自动转码</h4>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>开启后播放不支持直接播放的格式时自动触发实时转码。关闭后需手动在媒体详情页触发转码。</p>
-            </div>
-            <ToggleButton checked={sysSettings.auto_transcode_on_play} onChange={() => setSysSettings((s) => ({ ...s, auto_transcode_on_play: !s.auto_transcode_on_play }))} />
-          </div>
-
-          {/* 保存 */}
-          <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: '1rem' }}>
-            {sysSettingsMsg && (
-              <div className="mb-3 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm" style={{
-                background: sysSettingsMsg.type === 'success' ? 'rgba(22, 163, 74, 0.08)' : 'rgba(220, 38, 38, 0.08)',
-                color: sysSettingsMsg.type === 'success' ? '#16A34A' : '#DC2626',
-              }}>
-                {sysSettingsMsg.type === 'success' ? <Check size={16} /> : <X size={16} />} {sysSettingsMsg.text}
-              </div>
-            )}
-            <button onClick={handleSaveSettings} disabled={sysSettingsSaving} className="btn-primary gap-1.5 px-5 py-2.5 text-sm">
-              {sysSettingsSaving ? (<><Loader2 size={14} className="animate-spin" />保存中...</>) : (<><Save size={14} />保存设置</>)}
-            </button>
-          </div>
-        </div>
-      </section>
 
       {/* 剧集合并管理 */}
       <section>
@@ -760,18 +600,3 @@ export default function DashboardTab({
 }
 
 // 可复用的 Toggle 按钮
-function ToggleButton({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <button
-      type="button" role="switch" aria-checked={checked}
-      onClick={onChange}
-      className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-300 focus:outline-none"
-      style={{
-        background: checked ? 'var(--neon-blue)' : 'var(--border-default)',
-        boxShadow: checked ? 'var(--neon-glow-shadow-md)' : 'none',
-      }}
-    >
-      <span className="pointer-events-none inline-block h-5 w-5 rounded-full shadow-lg transition-transform duration-300" style={{ transform: checked ? 'translateX(20px) translateY(2px)' : 'translateX(2px) translateY(2px)', background: checked ? '#fff' : 'var(--text-muted)' }} />
-    </button>
-  )
-}

@@ -366,6 +366,8 @@ const jaJP: Record<string, string> = {
   'admin.searchPlaceholder': '設定を検索...',
   'admin.connected': '接続中',
   'admin.disconnected': '未接続',
+  'admin.tabOverview': '概要',
+  'admin.shortOverview': '概要',
   'admin.tabDashboard': 'ダッシュボード',
   'admin.tabLibrary': 'ライブラリ管理',
   'admin.tabUsers': 'ユーザー管理',

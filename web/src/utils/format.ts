@@ -52,3 +52,14 @@ export function formatTime(seconds: number): string {
   if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   return `${m}:${s.toString().padStart(2, '0')}`
 }
+
+/** 硬件加速标签（qsv/vaapi/nvenc → 展示名） */
+export function formatHwAccel(hw?: string): string {
+  switch (hw) {
+    case 'qsv': return 'Intel QSV'
+    case 'vaapi': return 'VAAPI'
+    case 'nvenc': return 'NVIDIA NVENC'
+    case 'none': return '软件编码'
+    default: return hw || '-'
+  }
+}

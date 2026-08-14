@@ -366,6 +366,8 @@ const enUS: Record<string, string> = {
   'admin.searchPlaceholder': 'Search settings...',
   'admin.connected': 'Connected',
   'admin.disconnected': 'Disconnected',
+  'admin.tabOverview': 'Overview',
+  'admin.shortOverview': 'Overview',
   'admin.tabDashboard': 'Dashboard',
   'admin.tabLibrary': 'Library Management',
   'admin.tabUsers': 'User Management',

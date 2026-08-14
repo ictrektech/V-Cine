@@ -47,10 +47,13 @@ import TMDbProxySettings from '@/components/admin/TMDbProxySettings'
 
 import { useTranslation } from '@/i18n'
 import { useDialog } from '@/components/Dialog'
+import AdminOverview from '@/components/admin/AdminOverview'
+import PlaybackDrawer from '@/components/admin/PlaybackDrawer'
 
 // ==================== 标签页定义 ====================
 const TABS = [
-  { id: 'dashboard', labelKey: 'admin.tabDashboard', icon: LayoutDashboard, shortLabelKey: 'admin.shortDashboard' },
+  { id: 'overview', labelKey: 'admin.tabOverview', icon: LayoutDashboard, shortLabelKey: 'admin.shortOverview' },
+  { id: 'dashboard', labelKey: 'admin.tabDashboard', icon: Activity, shortLabelKey: 'admin.shortDashboard' },
   { id: 'library', labelKey: 'admin.tabLibrary', icon: FolderOpen, shortLabelKey: 'admin.shortLibrary' },
   { id: 'users', labelKey: 'admin.tabUsers', icon: Users, shortLabelKey: 'admin.shortUsers' },
   { id: 'logs', labelKey: 'admin.tabLogs', icon: FileText, shortLabelKey: 'admin.shortLogs' },
@@ -241,7 +244,7 @@ export default function AdminPage() {
   const getInitialTab = (): TabId => {
     const hash = window.location.hash.replace('#', '')
     if (TABS.some((t) => t.id === hash)) return hash as TabId
-    return 'dashboard'
+    return 'overview'
   }
 
   const [activeTab, setActiveTab] = useState<TabId>(getInitialTab)
@@ -782,6 +785,20 @@ export default function AdminPage() {
   // 实时进度是否有活动
   const hasActiveProgress = Object.keys(scanProgress).length > 0 || Object.keys(scrapeProgress).length > 0 || Object.keys(transcodeProgress).length > 0
 
+  // 播放与转码 Drawer 开关
+  const [playbackDrawerOpen, setPlaybackDrawerOpen] = useState(false)
+
+  // 概览页状态卡分发：播放转码 → Drawer；其余 → 对应 tab
+  const handleOverviewDrawer = (id: string) => {
+    if (id === 'playback') {
+      setPlaybackDrawerOpen(true)
+    } else if (id === 'metadata') {
+      switchTab('library')
+    } else {
+      switchTab(id as TabId)
+    }
+  }
+
   return (
     <div className="space-y-0">
       {/* ==================== 顶部标题栏 ==================== */}
@@ -864,12 +881,23 @@ export default function AdminPage() {
 
       {/* ==================== 标签页内容区 ==================== */}
       <div className="tab-content-enter" key={activeTab}>
-        {/* ===== 仪表盘标签页 ===== */}
+        {/* ===== 概览标签页（默认落地） ===== */}
+        {activeTab === 'overview' && (
+          <AdminOverview
+            systemInfo={systemInfo}
+            sysSettings={sysSettings}
+            libraries={libraries}
+            users={users}
+            tmdbConfig={tmdbConfig}
+            doubanConfig={doubanConfig}
+            onOpenDrawer={handleOverviewDrawer}
+          />
+        )}
+
+        {/* ===== 仪表盘标签页（监控） ===== */}
         {activeTab === 'dashboard' && (
           <DashboardTab
             systemInfo={systemInfo}
-            sysSettings={sysSettings}
-            setSysSettings={setSysSettings}
             scanProgress={scanProgress}
             scrapeProgress={scrapeProgress}
             transcodeProgress={transcodeProgress}
@@ -1527,6 +1555,14 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ===== 播放与转码 Drawer ===== */}
+      <PlaybackDrawer
+        open={playbackDrawerOpen}
+        onOpenChange={setPlaybackDrawerOpen}
+        sysSettings={sysSettings}
+        setSysSettings={setSysSettings}
+      />
     </div>
   )
 }

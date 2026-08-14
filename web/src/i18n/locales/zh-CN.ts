@@ -417,6 +417,8 @@ const zhCN: Record<string, string> = {
   'admin.searchPlaceholder': '搜索设置项...',
   'admin.connected': '实时连接',
   'admin.disconnected': '未连接',
+  'admin.tabOverview': '概览',
+  'admin.shortOverview': '概览',
   'admin.tabDashboard': '仪表盘',
   'admin.tabLibrary': '媒体库管理',
   'admin.tabUsers': '用户管理',
