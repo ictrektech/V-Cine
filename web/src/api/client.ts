@@ -20,7 +20,14 @@ function resolveApiBaseURL(): string {
   if (typeof window === 'undefined') return '/api'
   const w = window as any
   const isTauri = Boolean(w.__TAURI_INTERNALS__ || w.__TAURI__)
-  if (!isTauri) return '/api'
+  if (!isTauri) {
+    // VOS mounts the iframe at /app/<app-id> and strips that prefix before
+    // proxying. Its injected base path must therefore prefix API calls too.
+    const vosBasePath = typeof w.__NOWEN_BASE_PATH__ === 'string'
+      ? w.__NOWEN_BASE_PATH__.replace(/\/+$/, '')
+      : ''
+    return vosBasePath ? `${vosBasePath}/api` : '/api'
+  }
 
   // 1) 用户显式配置的"远程服务器"地址
   try {
