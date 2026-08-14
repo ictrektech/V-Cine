@@ -82,7 +82,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
   // 强制改密拦截：有 must_change_pwd 标记时强制跳转
-  if (user?.must_change_pwd && window.location.pathname !== '/force-change-password') {
+  const isVOSFrame = typeof window !== 'undefined' && window.parent !== window
+  if (!isVOSFrame && user?.must_change_pwd && window.location.pathname !== '/force-change-password') {
     return <Navigate to="/force-change-password" replace />
   }
   return <>{children}</>

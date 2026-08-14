@@ -83,14 +83,24 @@ func (s *AuthService) LoginWithVOSOIDC(token, ip, ua string) (*TokenResponse, er
 	if claims.Admin {
 		role = "admin"
 	}
+	updates := map[string]interface{}{}
 	if user.Role != role {
-		if err := s.userRepo.UpdateFields(user.ID, map[string]interface{}{"role": role}); err != nil {
+		updates["role"] = role
+	}
+	// VOS is the credential authority for this session.  Legacy local-password
+	// onboarding must never force a VOS user to set or know a Nowen password.
+	if user.MustChangePwd {
+		updates["must_change_pwd"] = false
+	}
+	if len(updates) > 0 {
+		if err := s.userRepo.UpdateFields(user.ID, updates); err != nil {
 			return nil, err
 		}
 		if err := s.userRepo.IncrTokenVersion(user.ID); err != nil {
 			return nil, err
 		}
 		user.Role = role
+		user.MustChangePwd = false
 		user.TokenVersion++
 	}
 	_ = s.userRepo.UpdateLastLogin(user.ID, ip)
