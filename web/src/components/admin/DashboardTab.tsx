@@ -27,7 +27,6 @@ interface DashboardTabProps {
   transcodeProgress: Record<string, TranscodeProgressData>
   scanPhase: Record<string, ScanPhaseData>
   realtimeMessages: string[]
-  switchTab: (tab: string) => void
 }
 
 export default function DashboardTab({
@@ -244,7 +243,7 @@ export default function DashboardTab({
             <Server size={20} className="text-neon/60" />
             系统状态
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div className="glass-panel-subtle rounded-xl p-4">
               <div className="flex items-center gap-2 text-surface-400">
                 <Cpu size={16} className="text-neon/60" />

@@ -222,7 +222,7 @@ export default function StorageTab() {
           </div>
           <ActionButton variant="icon" onClick={loadAll} icon={<RefreshCw size={16} />} aria-label="刷新状态" />
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {providers.map((p) => (
             <ProviderCard
               key={p.key}

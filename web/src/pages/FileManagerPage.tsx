@@ -8,6 +8,8 @@ import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
 import ScrapeManagerPage from '@/pages/ScrapeManagerPage'
+import LibraryManager from '@/components/LibraryManager'
+import { useScanProgress } from '@/hooks/useScanProgress'
 import AdultScraperSection from '@/components/admin/AdultScraperTab'
 import AdultScraperProSection from '@/components/admin/AdultScraperPro'
 import STRMConfigSection from '@/components/admin/STRMConfigSection'
@@ -23,6 +25,7 @@ import {
   PanelLeftOpen,
   ShieldAlert,
   ScanLine,
+  Library as LibraryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -55,6 +58,7 @@ export default function FileManagerPage() {
   // Tab 状态（支持从URL参数读取，如 /files?tab=scrape&tab=adult）
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const tab = searchParams.get('tab')
+    if (tab === 'library') return 'library'
     if (tab === 'scrape') return 'scrape'
     if (tab === 'analysis') return 'analysis'
     if (tab === 'adult') return 'adult'
@@ -177,6 +181,9 @@ export default function FileManagerPage() {
       setLibraries(res.data.data || [])
     } catch { /* ignore */ }
   }, [])
+
+  // 扫描/刮削实时进度（媒体库管理页共用）
+  const { scanning, setScanning, scanProgress, scrapeProgress, scanPhase } = useScanProgress(on, off, fetchLibraries)
 
   const fetchFolderTree = useCallback(async () => {
     setFolderTreeLoading(true)
@@ -638,6 +645,18 @@ export default function FileManagerPage() {
       {/* Tab 切换栏 */}
       <div className="flex items-center gap-1 p-1 rounded-xl glass-panel" style={{ width: 'fit-content' }}>
         <button
+          onClick={() => handleTabChange('library')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+            activeTab === 'library'
+              ? 'bg-neon-blue/10 text-neon shadow-sm'
+              : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
+          )}
+        >
+          <LibraryIcon size={16} />
+          媒体库管理
+        </button>
+        <button
           onClick={() => handleTabChange('files')}
           className={clsx(
             'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
@@ -686,6 +705,19 @@ export default function FileManagerPage() {
           成人刮削
         </button>
       </div>
+
+      {/* ==================== 媒体库管理 Tab ==================== */}
+      {activeTab === 'library' && (
+        <LibraryManager
+          libraries={libraries}
+          setLibraries={setLibraries}
+          scanning={scanning}
+          setScanning={setScanning}
+          scanProgress={scanProgress}
+          scrapeProgress={scrapeProgress}
+          scanPhase={scanPhase}
+        />
+      )}
 
       {/* ==================== 刮削任务 Tab ==================== */}
       {activeTab === 'scrape' && (

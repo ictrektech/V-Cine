@@ -363,7 +363,6 @@ const enUS: Record<string, string> = {
 
   // ==================== Admin (extra) ====================
   'admin.title': 'System Admin',
-  'admin.searchPlaceholder': 'Search settings...',
   'admin.connected': 'Connected',
   'admin.disconnected': 'Disconnected',
   'admin.tabOverview': 'Overview',
@@ -423,16 +422,6 @@ const enUS: Record<string, string> = {
   'admin.feature3': 'Auto-match genre tags for movies/TV shows',
   'admin.recentActivity': 'Recent Activity',
   'admin.noActivity': 'No activity records',
-  'admin.quickNavSystemStatus': 'System Status',
-  'admin.quickNavSystemSettings': 'System Settings',
-  'admin.quickNavRealtimeProgress': 'Realtime Progress',
-  'admin.quickNavActivityLog': 'Activity Log',
-  'admin.quickNavLibrary': 'Library Management',
-  'admin.quickNavTMDb': 'TMDb Scraping Config',
-  'admin.quickNavUsers': 'User Management',
-  'admin.quickNavTranscode': 'Transcode Tasks',
-  'admin.quickNavLogs': 'System Logs',
-  'admin.quickNavAI': 'AI Config',
 
   // ==================== Media Detail (extra) ====================
   'mediaDetail.loadFailed': 'Failed to load media details',

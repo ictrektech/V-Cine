@@ -11,6 +11,7 @@ import {
   Cpu,
   Zap,
   ArrowRight,
+  Activity,
 } from 'lucide-react'
 import { aiApi } from '@/api/ai'
 import { storageApi } from '@/api/storage'
@@ -123,6 +124,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
     { id: 'storage', icon: <HardDrive size={18} className="text-amber-400/70" />, title: '存储', desc: 'WebDAV / Alist / S3 远程存储挂载', state: storageState, value: storageValue },
     { id: 'users', icon: <Users size={18} className="text-emerald-400/70" />, title: '用户管理', desc: '账号、角色与权限', state: 'configured', value: userValue },
     { id: 'logs', icon: <FileText size={18} className="text-sky-400/70" />, title: '日志', desc: '系统运行与访问日志', state: 'configured', value: logValue },
+    { id: 'dashboard', icon: <Activity size={18} className="text-cyan-400/70" />, title: '运行仪表盘', desc: '实时进度、系统状态、数据维护', state: 'configured', value: '查看' },
   ]
 
   // ===== 下一步引导 =====
@@ -181,6 +183,14 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
         <div className="grid gap-2 sm:grid-cols-2">
           <Card card={cards[4]} onClick={() => onOpenDrawer('users')} />
           <Card card={cards[5]} onClick={() => onOpenDrawer('logs')} />
+        </div>
+      </section>
+
+      {/* ===== 运行与维护 ===== */}
+      <section>
+        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>运行与维护</h2>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Card card={cards[6]} onClick={() => onOpenDrawer('dashboard')} />
         </div>
       </section>
 

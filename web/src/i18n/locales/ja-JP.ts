@@ -363,7 +363,6 @@ const jaJP: Record<string, string> = {
 
   // ==================== 管理（追加） ====================
   'admin.title': 'システム管理',
-  'admin.searchPlaceholder': '設定を検索...',
   'admin.connected': '接続中',
   'admin.disconnected': '未接続',
   'admin.tabOverview': '概要',
@@ -422,16 +421,6 @@ const jaJP: Record<string, string> = {
   'admin.feature3': '映画/テレビ番組のジャンルタグを自動マッチ',
   'admin.recentActivity': '最近のアクティビティ',
   'admin.noActivity': 'アクティビティ記録なし',
-  'admin.quickNavSystemStatus': 'システム状態',
-  'admin.quickNavSystemSettings': 'システム設定',
-  'admin.quickNavRealtimeProgress': 'リアルタイム進捗',
-  'admin.quickNavActivityLog': 'アクティビティログ',
-  'admin.quickNavLibrary': 'ライブラリ管理',
-  'admin.quickNavTMDb': 'TMDbスクレイピング設定',
-  'admin.quickNavUsers': 'ユーザー管理',
-  'admin.quickNavTranscode': 'トランスコードタスク',
-  'admin.quickNavLogs': 'システムログ',
-  'admin.quickNavAI': 'AI設定',
 
   // ==================== メディア詳細（追加） ====================
   'mediaDetail.loadFailed': 'メディア詳細の読み込みに失敗しました',

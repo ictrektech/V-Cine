@@ -259,7 +259,7 @@ export function AlistSection() {
 
       {/* 性能（折叠） */}
       <FieldGroup title="性能调优" collapsible defaultOpen={false} description="影响流式播放的缓存和分块读取策略">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="启用元数据缓存">
             <div className="flex items-center h-9">
               <Toggle
@@ -543,7 +543,7 @@ export function S3Section() {
         defaultOpen={false}
         description="影响流式播放的缓存和分块读取策略"
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="启用元数据缓存">
             <div className="flex items-center h-9">
               <Toggle

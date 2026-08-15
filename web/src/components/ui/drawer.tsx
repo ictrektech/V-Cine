@@ -3,9 +3,9 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// ==================== Drawer（右侧抽屉）====================
-// 基于 shadcn Dialog 扩展：桌面右侧滑出（宽 480），移动端全屏。
-// 用法与 Dialog 一致：
+// ==================== Drawer（居中弹窗）====================
+// 基于 shadcn Dialog 扩展：桌面居中弹窗（宽度按 size 分级，高度 90vh 内滚动），
+// 移动端近全屏。API 与 Dialog 一致：
 //   <Drawer open onOpenChange>
 //     <DrawerContent title="..." description="...">
 //       ...
@@ -14,6 +14,16 @@ import { cn } from '@/lib/utils'
 
 const Drawer = DialogPrimitive.Root
 const DrawerClose = DialogPrimitive.Close
+
+// 抽屉宽度分级：按内容密度选择。内容稀疏的用 sm/md，表单/网格多的用 xl/2xl。
+const DRAWER_SIZES: Record<string, string> = {
+  sm: 'max-w-sm',      // 384px
+  md: 'max-w-md',      // 448px
+  lg: 'max-w-3xl',     // 768px（默认）
+  xl: 'max-w-4xl',     // 896px
+  '2xl': 'max-w-5xl',  // 1024px
+  full: 'max-w-[calc(100vw-2rem)]',
+}
 
 const DrawerOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
@@ -32,17 +42,19 @@ DrawerOverlay.displayName = 'DrawerOverlay'
 
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { title?: string; description?: string }
->(({ className, children, title, description, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { title?: string; description?: string; size?: keyof typeof DRAWER_SIZES }
+>(({ className, children, title, description, size = 'lg', ...props }, ref) => (
   <DialogPrimitive.Portal>
     <DrawerOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        // 桌面：右侧抽屉 480px 全高；移动：全屏（w-full sm:w-[480px]）
-        'fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l bg-background shadow-xl duration-200 sm:w-[480px]',
+        // 桌面：居中弹窗（宽度按 size 分级），高度 90vh 内滚动；移动：近全屏
+        'fixed left-[50%] top-[50%] z-50 flex max-h-[90vh] w-[calc(100vw-2rem)] translate-x-[-50%] translate-y-[-50%] flex-col border bg-background shadow-xl duration-200 sm:w-full',
+        DRAWER_SIZES[size],
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
+        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         className,
       )}
       {...props}
@@ -58,8 +70,8 @@ const DrawerContent = React.forwardRef<
           <span className="sr-only">关闭</span>
         </DialogPrimitive.Close>
       </div>
-      {/* 内容区：滚动 */}
-      <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+      {/* 内容区：滚动；overflow-x-hidden 防止内容横向溢出被裁切 */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-5">{children}</div>
     </DialogPrimitive.Content>
   </DialogPrimitive.Portal>
 ))

@@ -177,7 +177,7 @@ export default function LogsTab() {
     <div className="space-y-6">
       {/* ===== 统计卡片 ===== */}
       {stats && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="glass-panel-subtle rounded-xl p-4">
             <div className="flex items-center gap-2 text-sm text-surface-400">
               <FileText size={14} className="text-neon/60" />
@@ -443,7 +443,7 @@ export default function LogsTab() {
                   {/* 展开详情 */}
                   {isExpanded && (
                     <div className="px-4 pb-3 pt-1 animate-slide-up" style={{ background: 'var(--nav-hover-bg)' }}>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         {log.message && (
                           <div>
                             <span className="text-surface-500">消息：</span>

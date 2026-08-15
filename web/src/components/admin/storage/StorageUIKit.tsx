@@ -472,11 +472,11 @@ export function ProviderCard({ icon, name, subtitle, state, accent = 'blue', onC
             {icon}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <div className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
               {name}
             </div>
             {subtitle && (
-              <div className="truncate text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              <div className="text-[11px] mt-0.5 leading-snug line-clamp-2" style={{ color: 'var(--text-tertiary)' }}>
                 {subtitle}
               </div>
             )}

@@ -414,7 +414,6 @@ const zhCN: Record<string, string> = {
 
   // ==================== 管理后台 ====================
   'admin.title': '系统管理',
-  'admin.searchPlaceholder': '搜索设置项...',
   'admin.connected': '实时连接',
   'admin.disconnected': '未连接',
   'admin.tabOverview': '概览',
@@ -474,16 +473,6 @@ const zhCN: Record<string, string> = {
   'admin.feature3': '自动匹配电影/剧集的中文类型标签',
   'admin.recentActivity': '最近活动',
   'admin.noActivity': '暂无活动记录',
-  'admin.quickNavSystemStatus': '系统状态',
-  'admin.quickNavSystemSettings': '系统设置',
-  'admin.quickNavRealtimeProgress': '实时进度',
-  'admin.quickNavActivityLog': '活动日志',
-  'admin.quickNavLibrary': '媒体库管理',
-  'admin.quickNavTMDb': 'TMDb 刮削配置',
-  'admin.quickNavUsers': '用户管理',
-  'admin.quickNavTranscode': '转码任务',
-  'admin.quickNavLogs': '系统日志',
-  'admin.quickNavAI': 'AI 配置',
 
   // ==================== 媒体详情（补充） ====================
   'mediaDetail.loadFailed': '加载媒体详情失败',

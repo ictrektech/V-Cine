@@ -437,7 +437,7 @@ export default function AITab() {
   return (
     <div className="space-y-6">
       {/* ==================== 状态概览卡片 ==================== */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* 服务状态 */}
         <div className="glass-panel rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -611,7 +611,7 @@ export default function AITab() {
             <label className="mb-2 block text-sm font-medium text-theme-secondary">
               LLM 提供商
             </label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {PROVIDERS.map((p) => {
                 const profileConfigured = !!status?.profiles?.[p.id]?.api_key_configured
                 const hasDraft = !!draftProfilesRef.current[p.id] && p.id !== editProvider
@@ -1044,7 +1044,7 @@ export default function AITab() {
         </h2>
 
         <div className="glass-panel rounded-xl p-5">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="text-center">
               <p className="text-2xl font-bold text-neon">{status?.monthly_calls || 0}</p>
               <p className="mt-1 text-xs text-theme-muted">
