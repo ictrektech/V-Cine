@@ -99,3 +99,4 @@ tmp/
 .claude/
 __pycache__/
 .env.prod
+.pnpm-store/

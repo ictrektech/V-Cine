@@ -153,7 +153,7 @@ build-server:
 
 # 仅前端
 build-web:
-	cd web && VITE_APP_VERSION=$(VERSION) npm run build
+	cd web && VITE_APP_VERSION=$(VERSION) bun run build
 
 # ==================== 本地开发（不走 Docker）====================
 

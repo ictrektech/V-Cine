@@ -14,14 +14,14 @@
 # =============================================
 # 阶段1: 构建前端（锁定在构建机本地架构，避免 QEMU 跑 npm 极慢）
 # =============================================
-FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend
+FROM --platform=$BUILDPLATFORM oven/bun:1-alpine AS frontend
 ARG NOWEN_VERSION=0.1.0
 WORKDIR /app/web
-COPY web/package*.json ./
-RUN npm ci
+COPY web/package.json web/bun.lock ./
+RUN bun install --frozen-lockfile
 COPY web/ .
 ENV VITE_APP_VERSION=${NOWEN_VERSION}
-RUN npm run build
+RUN bun run build
 
 # =============================================
 # 阶段2: 构建后端（在构建机本地架构运行 Go 工具链，交叉编译到目标架构）
