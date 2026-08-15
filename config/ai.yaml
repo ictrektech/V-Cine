@@ -56,7 +56,7 @@ provider: custom
 request_interval_ms: 1100
 scene_describe_ai:
     api_base: http://10.144.144.232:21536/v1
-    api_key: ENC:VstsdT2fjc4VWNcg6x17jMqIFRKXPR983TFHKKV5VBFokio=
+    api_key: ENC:3/ssbaKFehYiAzgFcSDQMNiooQelj1tY/zfpUL/QQEmxYeA=
     model: Qwen3.5-4B
 sub_clean_backup: true
 sub_clean_enabled: false
