@@ -181,8 +181,11 @@ export function AlistSection() {
         iconColorClass="text-purple-600 dark:text-purple-300"
       />
 
+      {/* 启用后显示详细配置；未启用保持清爽 */}
+      {config.enabled ? (
+        <>
       {/* 连接配置 */}
-      <FieldGroup title="连接" description="Alist 服务地址与基础路径">
+      <FieldGroup title="连接" description="Alist 服务地址与基础路径" collapsible defaultOpen={!(config.enabled && status?.connected)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="服务器地址" required fullWidth>
             <Input
@@ -215,7 +218,7 @@ export function AlistSection() {
       </FieldGroup>
 
       {/* 鉴权 */}
-      <FieldGroup title="鉴权" description="推荐使用 Token，二者都填时 Token 优先">
+      <FieldGroup title="鉴权" description="推荐使用 Token，二者都填时 Token 优先" collapsible defaultOpen={!(config.enabled && status?.connected)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="用户名">
             <Input
@@ -332,6 +335,12 @@ export function AlistSection() {
           </ActionButton>
         }
       />
+        </>
+      ) : (
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          启用 Alist 存储后，将在这里显示连接与鉴权配置。
+        </p>
+      )}
     </SectionShell>
   )
 }
@@ -446,8 +455,11 @@ export function S3Section() {
         iconColorClass="text-amber-600 dark:text-amber-300"
       />
 
+      {/* 启用后显示详细配置；未启用保持清爽 */}
+      {config.enabled ? (
+        <>
       {/* 连接 */}
-      <FieldGroup title="连接" description="Endpoint、Region 与 Bucket">
+      <FieldGroup title="连接" description="Endpoint、Region 与 Bucket" collapsible defaultOpen={!(config.enabled && status?.connected)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             label="Endpoint"
@@ -506,7 +518,7 @@ export function S3Section() {
       </FieldGroup>
 
       {/* 鉴权 */}
-      <FieldGroup title="鉴权" description="Access Key + Secret Key">
+      <FieldGroup title="鉴权" description="Access Key + Secret Key" collapsible defaultOpen={!(config.enabled && status?.connected)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Access Key" required>
             <Input
@@ -616,6 +628,12 @@ export function S3Section() {
           </ActionButton>
         }
       />
+        </>
+      ) : (
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          启用 S3 存储后，将在这里显示连接与鉴权配置。
+        </p>
+      )}
     </SectionShell>
   )
 }

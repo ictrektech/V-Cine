@@ -292,8 +292,11 @@ export default function StorageTab() {
               accent="neon"
             />
 
+            {/* 启用后显示详细配置；未启用保持清爽 */}
+            {config.enabled ? (
+              <>
             {/* 连接 */}
-            <FieldGroup title="连接" description="WebDAV 服务器地址与基础路径">
+            <FieldGroup title="连接" description="WebDAV 服务器地址与基础路径" collapsible defaultOpen={!(status?.enabled && status?.connected)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="服务器地址" required fullWidth>
                   <Input
@@ -317,7 +320,7 @@ export default function StorageTab() {
             </FieldGroup>
 
             {/* 鉴权 */}
-            <FieldGroup title="鉴权" description="HTTP Basic 认证凭据">
+            <FieldGroup title="鉴权" description="HTTP Basic 认证凭据" collapsible defaultOpen={!(status?.enabled && status?.connected)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="用户名">
                   <Input
@@ -453,6 +456,12 @@ export default function StorageTab() {
                 </ActionButton>
               }
             />
+              </>
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                启用 WebDAV 存储后，将在这里显示连接与鉴权配置。
+              </p>
+            )}
           </SectionShell>
 
           {/* 媒体库挂载（仅 WebDAV 可用时显示） */}

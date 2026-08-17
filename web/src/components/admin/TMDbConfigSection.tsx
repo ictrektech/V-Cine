@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Film, ExternalLink, Key, Eye, EyeOff, Check, X, Loader2, Wifi, Trash2,
+  Film, ExternalLink, Key, Eye, EyeOff, Check, X, Loader2, Wifi, Trash2, Info, ChevronRight,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { adminApi } from '@/api'
@@ -99,23 +99,30 @@ export default function TMDbConfigSection({ tmdbConfig, setTmdbConfig }: Props) 
         {t('admin.metadataConfig')}
       </h2>
       <div className="glass-panel rounded-xl p-5">
-        {/* 说明信息 */}
-        <div className="mb-5 rounded-lg p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            {t('admin.metadataConfigDesc').split('TMDb')[0]}
-            <span className="font-medium text-neon">TMDb（The Movie Database）</span>
-            {t('admin.metadataConfigDesc').split('TMDb（The Movie Database）')[1] || t('admin.metadataConfigDesc').split('TMDb (The Movie Database)')[1]}
-          </p>
-          <a
-            href="https://www.themoviedb.org/settings/api"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-neon hover:text-neon-blue transition-colors"
-          >
-            <ExternalLink size={14} />
-            {t('admin.applyTMDbKey')}
-          </a>
-        </div>
+        {/* 说明信息（折叠，避免长文抢占视觉重点） */}
+        <details className="group mb-5">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium select-none" style={{ color: 'var(--text-tertiary)' }}>
+            <Info size={13} />
+            关于 TMDb
+            <ChevronRight size={12} className="transition-transform group-open:rotate-90" />
+          </summary>
+          <div className="mt-3 rounded-lg p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              {t('admin.metadataConfigDesc').split('TMDb')[0]}
+              <span className="font-medium text-neon">TMDb（The Movie Database）</span>
+              {t('admin.metadataConfigDesc').split('TMDb（The Movie Database）')[1] || t('admin.metadataConfigDesc').split('TMDb (The Movie Database)')[1]}
+            </p>
+            <a
+              href="https://www.themoviedb.org/settings/api"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-neon hover:text-neon-blue transition-colors"
+            >
+              <ExternalLink size={14} />
+              {t('admin.applyTMDbKey')}
+            </a>
+          </div>
+        </details>
 
         {/* 当前状态 */}
         <div className="mb-4 flex items-center gap-3">

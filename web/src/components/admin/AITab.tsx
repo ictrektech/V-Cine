@@ -121,6 +121,8 @@ export default function AITab() {
 
   const [showApiKey, setShowApiKey] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  // 已配置时连接表单默认折叠为摘要（渐进式披露，避免表单淹没功能开关）
+  const [formCollapsed, setFormCollapsed] = useState(true)
 
   // ==================== 多 Provider 配置记忆 ====================
   // 每个 provider 当前会话内未保存的草稿（切换走时暂存，切回时恢复）
@@ -163,6 +165,7 @@ export default function AITab() {
       // 同步到编辑状态（顶层即激活 provider 的当前配置）
       skipDraftSnapshotRef.current = true
       setEditEnabled(s.enabled)
+      setFormCollapsed(s.api_configured)
       setEditProvider(s.provider)
       setEditApiBase(s.api_base || '')
       setEditModel(s.model)
@@ -426,6 +429,9 @@ export default function AITab() {
   const currentProvider = PROVIDERS.find((p) => p.id === editProvider)
   const availableModels = currentProvider?.models || []
 
+  // 配置表单是否展开：未配置或用户主动展开时显示完整表单（已配置默认折叠为摘要）
+  const configFormOpen = !formCollapsed || !status?.api_configured
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -534,8 +540,8 @@ export default function AITab() {
                   )}
                 </p>
                 <p className="mt-1 text-xs text-theme-muted leading-relaxed">
-                  开启后新增媒体库会自动执行：<span className="text-theme-secondary">AI 识别 → 归类 → 命名 → TMDb·豆瓣 元数据刮削 → AI 兜底</span>。
-                  <br />仅写入数据库，<span className="text-green-400">不会修改磁盘上任何原始文件</span>。开启后强制使用云端 LLM 服务商（拒绝 ollama 等本地 AI）。
+                  新增媒体库自动执行：<span className="text-theme-secondary">AI 识别 → 归类 → 命名 → 元数据刮削 → AI 兜底</span>，
+                  仅写数据库不改原文件，强制云端 LLM。
                 </p>
               </div>
             </div>
@@ -565,28 +571,26 @@ export default function AITab() {
         </div>
       </section>
 
-      {/* ==================== 配置管理 ==================== */}
+      {/* ==================== AI 功能开关（高频操作，前置） ==================== */}
       <section>
         <h2
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
-          <Settings size={20} className="text-neon/60" />
-          AI 服务配置
+          <Power size={20} className="text-neon/60" />
+          AI 功能
         </h2>
 
-        <div className="glass-panel rounded-xl p-5 space-y-5">
+        <div className="glass-panel rounded-xl p-5 space-y-4">
           {/* 总开关 */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div
-                className={clsx(
-                  'flex h-10 w-10 items-center justify-center rounded-lg'
-                )}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
                 style={{ background: editEnabled ? 'var(--neon-blue-10)' : 'var(--nav-hover-bg)' }}
               >
                 <Power size={18} className={editEnabled ? 'text-neon' : 'text-surface-500'} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-theme-primary">
                   启用 AI 功能
                 </p>
@@ -597,7 +601,7 @@ export default function AITab() {
             </div>
             <button
               onClick={() => setEditEnabled(!editEnabled)}
-              className="toggle-switch toggle-switch-lg"
+              className="toggle-switch toggle-switch-lg shrink-0"
               role="switch"
               aria-checked={editEnabled}
               aria-label="启用 AI 功能"
@@ -606,6 +610,191 @@ export default function AITab() {
             </button>
           </div>
 
+          {/* 子功能开关卡片（2 列网格，一眼掌握） */}
+          <div className={clsx('grid grid-cols-1 gap-2 sm:grid-cols-2 transition-opacity', !editEnabled && 'opacity-50')}>
+            {[
+              {
+                key: 'search',
+                label: '智能搜索',
+                desc: '自然语言 → 结构化查询参数',
+                icon: Search,
+                value: editSmartSearch,
+                setter: setEditSmartSearch,
+              },
+              {
+                key: 'recommend',
+                label: '推荐理由',
+                desc: 'AI 生成个性化推荐文案',
+                icon: MessageSquare,
+                value: editRecommendReason,
+                setter: setEditRecommendReason,
+              },
+              {
+                key: 'metadata',
+                label: '元数据增强',
+                desc: '传统数据源失败时用 AI 补充',
+                icon: Sparkles,
+                value: editMetadataEnhance,
+                setter: setEditMetadataEnhance,
+              },
+              {
+                key: 'describe',
+                label: '场景描述',
+                desc: '视频场景检测后自动生成文字描述',
+                icon: Film,
+                value: editDescribeEnabled,
+                setter: setEditDescribeEnabled,
+              },
+            ].map((item) => {
+              const Icon = item.icon
+              return (
+                <div
+                  key={item.key}
+                  className="flex items-center justify-between gap-2 rounded-lg p-3"
+                  style={{ background: 'var(--nav-hover-bg)' }}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon size={16} className="text-neon/50 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-theme-primary">{item.label}</p>
+                      <p className="text-xs text-theme-muted truncate">{item.desc}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => item.setter(!item.value)}
+                    className="toggle-switch toggle-switch-sm shrink-0"
+                    role="switch"
+                    aria-checked={item.value}
+                    aria-label={item.label}
+                  >
+                    <span className="toggle-switch-thumb" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* 场景描述视觉模型配置（仅在启用场景描述时显示） */}
+          {editDescribeEnabled && (
+            <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
+              <button
+                onClick={() => setShowDescribe(!showDescribe)}
+                className="flex w-full items-center justify-between text-sm font-medium text-theme-secondary transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Film size={14} className="text-violet-400/60" />
+                  视觉模型配置
+                </span>
+                {showDescribe ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+              <p className="mt-1 text-xs text-theme-muted">
+                场景描述需要视觉模型（如 minicpm-v、gpt-4o-vision），与文字 LLM 分开配置。
+              </p>
+
+              {showDescribe && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-theme-secondary">
+                      API 地址
+                    </label>
+                    <input
+                      type="text"
+                      value={editDescribeAPIBase}
+                      onChange={(e) => setEditDescribeAPIBase(e.target.value)}
+                      className="input font-mono text-sm"
+                      placeholder="http://10.144.144.232:31536/v1"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-theme-secondary">
+                      API 密钥
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showDescribeAPIKey ? 'text' : 'password'}
+                        value={editDescribeAPIKey}
+                        onChange={(e) => setEditDescribeAPIKey(e.target.value)}
+                        className="input pr-10 font-mono text-sm"
+                        placeholder="sk-..."
+                      />
+                      <button
+                        onClick={() => setShowDescribeAPIKey(!showDescribeAPIKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300 transition-colors"
+                      >
+                        {showDescribeAPIKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-theme-secondary">
+                      模型名称
+                    </label>
+                    <input
+                      type="text"
+                      value={editDescribeModel}
+                      onChange={(e) => setEditDescribeModel(e.target.value)}
+                      className="input font-mono text-sm"
+                      placeholder="minicpm-v:latest"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ==================== 模型配置 ==================== */}
+      <section>
+        <h2
+          className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
+        >
+          <Settings size={20} className="text-neon/60" />
+          模型配置
+        </h2>
+
+        <div className="glass-panel rounded-xl p-5 space-y-5">
+          {/* 已配置：折叠为连接摘要（渐进式披露） */}
+          {!configFormOpen && (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                  style={{ background: 'var(--neon-blue-10)' }}
+                >
+                  <Check size={18} className="text-green-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-theme-primary">
+                    已连接 {currentProvider?.name || editProvider}
+                  </p>
+                  <p className="text-xs text-theme-muted truncate">
+                    {editModel} · {editApiBase}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleTestConnection}
+                  disabled={testing}
+                  className="btn-ghost gap-1.5 px-3 py-1.5 text-xs"
+                >
+                  {testing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                  测试连接
+                </button>
+                <button
+                  onClick={() => setFormCollapsed(false)}
+                  className="btn-primary gap-1.5 px-3 py-1.5 text-xs"
+                >
+                  <Settings size={12} />
+                  修改配置
+                </button>
+              </div>
+            </div>
+          )}
+
+          {configFormOpen && (
+            <>
           {/* 提供商选择 */}
           <div>
             <label className="mb-2 block text-sm font-medium text-theme-secondary">
@@ -764,148 +953,6 @@ export default function AITab() {
             )}
           </div>
 
-          {/* 功能开关 */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-theme-secondary">
-              功能开关
-            </label>
-            <div className="space-y-3">
-              {[
-                {
-                  key: 'search',
-                  label: '智能搜索',
-                  desc: '自然语言 → 结构化查询参数',
-                  icon: Search,
-                  value: editSmartSearch,
-                  setter: setEditSmartSearch,
-                },
-                {
-                  key: 'recommend',
-                  label: '推荐理由',
-                  desc: 'AI 生成个性化推荐文案',
-                  icon: MessageSquare,
-                  value: editRecommendReason,
-                  setter: setEditRecommendReason,
-                },
-                {
-                  key: 'metadata',
-                  label: '元数据增强',
-                  desc: '当传统数据源失败时用 AI 补充',
-                  icon: Sparkles,
-                  value: editMetadataEnhance,
-                  setter: setEditMetadataEnhance,
-                },
-                // ── 视频分析（AI 驱动）──
-                {
-                  key: 'describe',
-                  label: '场景描述',
-                  desc: '视频场景检测后自动生成文字描述',
-                  icon: Film,
-                  value: editDescribeEnabled,
-                  setter: setEditDescribeEnabled,
-                },
-              ].map((item) => {
-                const Icon = item.icon
-                return (
-                  <div
-                    key={item.key}
-                    className="flex items-center justify-between rounded-lg p-3"
-                    style={{ background: 'var(--nav-hover-bg)' }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon size={16} className="text-neon/50" />
-                      <div>
-                        <p className="text-sm font-medium text-theme-primary">
-                          {item.label}
-                        </p>
-                        <p className="text-xs text-theme-muted">
-                          {item.desc}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => item.setter(!item.value)}
-                      className="toggle-switch toggle-switch-sm"
-                      role="switch"
-                      aria-checked={item.value}
-                      aria-label={item.label}
-                    >
-                      <span className="toggle-switch-thumb" />
-                    </button>
-                  </div>
-                )
-              })}
-
-              {/* 场景描述视觉模型配置（仅在启用场景描述时显示） */}
-              {editDescribeEnabled && (
-                <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
-                  <button
-                    onClick={() => setShowDescribe(!showDescribe)}
-                    className="flex w-full items-center justify-between text-sm font-medium text-theme-secondary transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Film size={14} className="text-violet-400/60" />
-                      视觉模型配置
-                    </span>
-                    {showDescribe ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
-                  <p className="mt-1 text-xs text-theme-muted">
-                    场景描述需要视觉模型（如 minicpm-v、gpt-4o-vision），与文字 LLM 分开配置。
-                  </p>
-
-                  {showDescribe && (
-                    <div className="mt-3 space-y-3">
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-theme-secondary">
-                          API 地址
-                        </label>
-                        <input
-                          type="text"
-                          value={editDescribeAPIBase}
-                          onChange={(e) => setEditDescribeAPIBase(e.target.value)}
-                          className="input font-mono text-sm"
-                          placeholder="http://10.144.144.232:31536/v1"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-theme-secondary">
-                          API 密钥
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showDescribeAPIKey ? 'text' : 'password'}
-                            value={editDescribeAPIKey}
-                            onChange={(e) => setEditDescribeAPIKey(e.target.value)}
-                            className="input pr-10 font-mono text-sm"
-                            placeholder="sk-..."
-                          />
-                          <button
-                            onClick={() => setShowDescribeAPIKey(!showDescribeAPIKey)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300 transition-colors"
-                          >
-                            {showDescribeAPIKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-theme-secondary">
-                          模型名称
-                        </label>
-                        <input
-                          type="text"
-                          value={editDescribeModel}
-                          onChange={(e) => setEditDescribeModel(e.target.value)}
-                          className="input font-mono text-sm"
-                          placeholder="minicpm-v:latest"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* 高级设置折叠 */}
           <div>
             <button
@@ -1004,7 +1051,18 @@ export default function AITab() {
               {testing ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
               {testing ? '测试中...' : '测试连接'}
             </button>
+            {status?.api_configured && (
+              <button
+                onClick={() => setFormCollapsed(true)}
+                className="btn-ghost gap-1.5 px-4 py-2 text-sm"
+              >
+                <ChevronUp size={14} />
+                收起
+              </button>
+            )}
           </div>
+          </>
+          )}
 
           {/* 连接测试结果 */}
           {testResult && (

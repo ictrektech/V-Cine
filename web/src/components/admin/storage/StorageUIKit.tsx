@@ -76,19 +76,20 @@ interface ToggleProps {
 
 /**
  * 统一的 toggle switch（主题感知）
+ * - 结构与全局 ToggleButton 一致（inline-flex + translateX，无边框，thumb 不会溢出轨道）
  * - 未开启态用深灰背景，和页面底色有强烈对比
  * - 开启态填充 accent 色 + glow
  */
 export function Toggle({ checked, onChange, disabled, accent = 'neon' }: ToggleProps) {
   const accentBg: Record<string, string> = {
-    neon: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary)))',
-    purple: 'linear-gradient(90deg, hsl(var(--accent)), hsl(var(--accent)))',
-    amber: 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+    neon: 'var(--neon-blue)',
+    purple: 'hsl(var(--accent))',
+    amber: '#F59E0B',
   }
   const accentShadow: Record<string, string> = {
-    neon: '0 0 12px hsl(var(--primary) / 0.3), inset 0 1px 2px rgba(255,255,255,0.2)',
-    purple: '0 0 12px hsl(var(--accent) / 0.3), inset 0 1px 2px rgba(255,255,255,0.2)',
-    amber: '0 0 12px rgba(245,158,11,0.45), inset 0 1px 2px rgba(255,255,255,0.2)',
+    neon: 'var(--neon-glow-shadow-md)',
+    purple: '0 0 12px hsl(var(--accent) / 0.3)',
+    amber: '0 0 12px rgba(245,158,11,0.45)',
   }
   return (
     <button
@@ -98,28 +99,20 @@ export function Toggle({ checked, onChange, disabled, accent = 'neon' }: ToggleP
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={clsx(
-        'storage-toggle relative h-6 w-11 shrink-0 rounded-full transition-all duration-200',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50 focus-visible:ring-offset-2',
+        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-300 focus:outline-none',
+        'focus-visible:ring-2 focus-visible:ring-primary-400/50 focus-visible:ring-offset-2',
         disabled && 'opacity-40 cursor-not-allowed'
       )}
       style={{
-        background: checked
-          ? accentBg[accent]
-          : 'var(--storage-toggle-off-bg, rgba(0,0,0,0.18))',
-        border: checked ? '1px solid transparent' : '1px solid var(--storage-toggle-off-border, rgba(0,0,0,0.15))',
-        boxShadow: checked ? accentShadow[accent] : 'inset 0 1px 2px rgba(0,0,0,0.06)',
-        padding: 0,
+        background: checked ? accentBg[accent] : 'var(--storage-toggle-off-bg, rgba(0,0,0,0.18))',
+        boxShadow: checked ? accentShadow[accent] : 'none',
       }}
     >
       <span
-        className={clsx(
-          'absolute top-0.5 h-5 w-5 rounded-full transition-transform duration-200',
-          checked ? 'translate-x-[22px]' : 'translate-x-0.5'
-        )}
+        className="pointer-events-none inline-block h-5 w-5 rounded-full shadow-lg transition-transform duration-300"
         style={{
-          background: '#ffffff',
-          boxShadow:
-            '0 2px 4px rgba(0,0,0,0.25), 0 1px 2px rgba(0,0,0,0.12)',
+          transform: checked ? 'translateX(20px) translateY(2px)' : 'translateX(2px) translateY(2px)',
+          background: checked ? '#ffffff' : 'var(--text-muted)',
         }}
       />
     </button>

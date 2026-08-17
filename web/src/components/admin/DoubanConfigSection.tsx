@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import {
-  Film, ExternalLink, Key, Eye, EyeOff, Check, X, Loader2, Trash2, Zap as ZapIcon, Copy as CopyIcon, ClipboardPaste, Bookmark, RefreshCw,
+  Film, ExternalLink, Key, Eye, EyeOff, Check, X, Loader2, Trash2, Zap as ZapIcon, Copy as CopyIcon, ClipboardPaste, Bookmark, RefreshCw, Info, ChevronRight,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { Modal } from '@/components/ui/modal'
 import { adminApi } from '@/api'
 import { useDialog } from '@/components/Dialog'
 import type { DoubanConfigStatus, DoubanImportTokenInfo, DoubanImportTokenStatus } from '@/types'
@@ -208,25 +209,32 @@ export default function DoubanConfigSection({ doubanConfig, setDoubanConfig }: P
         豆瓣刮削登录配置
       </h2>
       <div className="glass-panel rounded-xl p-5">
-        {/* 说明信息 */}
-        <div className="mb-5 rounded-lg p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            配置豆瓣登录 <span className="font-medium text-neon">Cookie</span> 后可提升豆瓣刮削成功率、降低风控概率，并获取更完整的元数据。
-            未配置时将以匿名模式访问（成功率较低）。
-          </p>
-          <p className="mt-2 text-xs text-surface-400">
-            获取方式：浏览器登录豆瓣 → F12 打开开发者工具 → Network 标签 → 刷新页面 → 任意请求的 Request Headers → 复制完整 <code className="text-neon font-mono">Cookie</code> 值
-          </p>
-          <a
-            href="https://www.douban.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-neon hover:text-neon-blue transition-colors"
-          >
-            <ExternalLink size={14} />
-            打开豆瓣登录
-          </a>
-        </div>
+        {/* 说明信息（折叠，避免长文抢占视觉重点） */}
+        <details className="group mb-5">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium select-none" style={{ color: 'var(--text-tertiary)' }}>
+            <Info size={13} />
+            如何获取豆瓣 Cookie
+            <ChevronRight size={12} className="transition-transform group-open:rotate-90" />
+          </summary>
+          <div className="mt-3 rounded-lg p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              配置豆瓣登录 <span className="font-medium text-neon">Cookie</span> 后可提升豆瓣刮削成功率、降低风控概率，并获取更完整的元数据。
+              未配置时将以匿名模式访问（成功率较低）。
+            </p>
+            <p className="mt-2 text-xs text-surface-400">
+              获取方式：浏览器登录豆瓣 → F12 打开开发者工具 → Network 标签 → 刷新页面 → 任意请求的 Request Headers → 复制完整 <code className="text-neon font-mono">Cookie</code> 值
+            </p>
+            <a
+              href="https://www.douban.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-neon hover:text-neon-blue transition-colors"
+            >
+              <ExternalLink size={14} />
+              打开豆瓣登录
+            </a>
+          </div>
+        </details>
 
         {/* 当前状态 */}
         <div className="mb-4 flex items-center gap-3">
@@ -358,15 +366,8 @@ export default function DoubanConfigSection({ doubanConfig, setDoubanConfig }: P
 
       {/* ===== 懒人版导入引导模态框 ===== */}
       {importOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}
-          onClick={closeImport}
-        >
-          <div
-            className="glass-panel w-full max-w-2xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal onClose={closeImport} className="max-w-2xl">
+          <div className="glass-panel rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10">
@@ -556,7 +557,7 @@ export default function DoubanConfigSection({ doubanConfig, setDoubanConfig }: P
               </>
             )}
           </div>
-        </div>
+        </Modal>
       )}
     </section>
   )

@@ -14,9 +14,11 @@ import {
   Trash2,
   ShieldAlert,
   Merge,
+  ChevronRight,
 } from 'lucide-react'
 import { adminApi } from '@/api'
 import { formatHwAccel } from '@/utils/format'
+import { Modal } from '@/components/ui/modal'
 
 const webAppVersion = import.meta.env.VITE_APP_VERSION || '0.1.0'
 
@@ -342,10 +344,16 @@ export default function DashboardTab({
           剧集合并管理
         </h2>
         <div className="glass-panel rounded-xl p-5 space-y-4">
-          <div className="rounded-lg p-3 text-xs leading-relaxed" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)', color: 'var(--text-tertiary)' }}>
-            自动检测并合并同名但分季的剧集记录（如「女神咖啡厅 第一季」和「女神咖啡厅 第二季」），
-            合并后多个季的剧集将统一在同一个条目下展示，用户看到的是无缝衔接的整体内容。
-          </div>
+          <details className="group">
+            <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium select-none" style={{ color: 'var(--text-tertiary)' }}>
+              什么是剧集合并？
+              <ChevronRight size={12} className="transition-transform group-open:rotate-90" />
+            </summary>
+            <div className="mt-2 rounded-lg p-3 text-xs leading-relaxed" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)', color: 'var(--text-tertiary)' }}>
+              自动检测并合并同名但分季的剧集记录（如「女神咖啡厅 第一季」和「女神咖啡厅 第二季」），
+              合并后多个季的剧集将统一在同一个条目下展示，用户看到的是无缝衔接的整体内容。
+            </div>
+          </details>
 
           <div className="flex items-center gap-3">
             <button
@@ -516,8 +524,12 @@ export default function DashboardTab({
 
       {/* 二次确认弹窗 */}
       {clearDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: 'var(--bg-overlay)' }} onClick={() => !clearLoading && setClearDialogOpen(false)}>
-          <div className="mx-4 w-full max-w-md rounded-2xl p-6 space-y-5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-elevated)' }} onClick={(e) => e.stopPropagation()}>
+        <Modal
+          onClose={() => { setClearDialogOpen(false); setClearConfirmText('') }}
+          dismissible={!clearLoading}
+          className="max-w-md"
+        >
+          <div className="rounded-2xl p-6 space-y-5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-elevated)' }}>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: 'rgba(220, 38, 38, 0.08)' }}>
                 <AlertTriangle size={20} style={{ color: '#DC2626' }} />
@@ -592,7 +604,7 @@ export default function DashboardTab({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )
