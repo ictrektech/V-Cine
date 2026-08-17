@@ -26,6 +26,7 @@ import {
   X,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { Modal } from '@/components/ui/modal'
 
 // 日志级别配置
 const LEVEL_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof Info }> = {
@@ -523,15 +524,8 @@ export default function LogsTab() {
 
       {/* ===== 清理对话框 ===== */}
       {showCleanDialog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)' }}
-          onClick={() => setShowCleanDialog(false)}
-        >
-          <div
-            className="glass-panel w-full max-w-md rounded-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal onClose={() => setShowCleanDialog(false)} className="max-w-md">
+          <div className="glass-panel rounded-2xl p-6">
             <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
               清理旧日志
             </h3>
@@ -568,7 +562,7 @@ export default function LogsTab() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

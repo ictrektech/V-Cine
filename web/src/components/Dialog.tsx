@@ -8,8 +8,8 @@ import {
   useEffect,
   type ReactNode,
 } from 'react'
-import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
+import clsx from 'clsx'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -18,11 +18,15 @@ import {
   HelpCircle,
   X,
 } from 'lucide-react'
-import { modalOverlayVariants, modalContentVariants } from '@/lib/motion'
 
 // ============================================================
 // 全局 Dialog 系统 — 替代浏览器原生 confirm/alert/prompt
 // 风格：深空霓虹 + glassmorphism（与 Toast 同语言）
+//
+// 基于 Radix Dialog 实现，天然支持嵌套在 Drawer 内使用：
+// - Radix Portal 渲染到 body，不受 transform 截断
+// - DismissableLayer 自动处理 pointer-events
+// - FocusScope 栈式接管，内层弹窗自动获得焦点优先级
 // ============================================================
 
 type Variant = 'default' | 'primary' | 'danger' | 'warning' | 'success' | 'error' | 'info'
@@ -150,26 +154,22 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   return (
     <DialogContext.Provider value={value}>
       {children}
-      {createPortal(
-        <AnimatePresence>
-          {stack.map((d) => (
-            <DialogShell
-              key={d.id}
-              state={d}
-              onClose={(result) => {
-                d.resolve(result)
-                pop(d.id)
-              }}
-            />
-          ))}
-        </AnimatePresence>,
-        typeof document !== 'undefined' ? document.body : (null as any)
-      )}
+      {/* 每个 dialog 独立 portal，Radix 自动管理 FocusScope 栈 */}
+      {stack.map((d) => (
+        <DialogShell
+          key={d.id}
+          state={d}
+          onClose={(result) => {
+            d.resolve(result)
+            pop(d.id)
+          }}
+        />
+      ))}
     </DialogContext.Provider>
   )
 }
 
-// ──────────────────── 弹窗主体 ────────────────────
+// ──────────────────── 弹窗主体（基于 Radix Dialog）────────────────────
 
 function DialogShell({
   state,
@@ -182,96 +182,83 @@ function DialogShell({
   const variant: Variant = options.variant ?? (kind === 'confirm' ? 'default' : 'info')
   const dismissible = options.dismissible !== false
 
-  // ESC 关闭（取消语义）
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && dismissible) {
-        e.preventDefault()
-        if (kind === 'confirm') onClose(false)
-        else if (kind === 'prompt') onClose(null)
-        else onClose(undefined)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [dismissible, kind, onClose])
-
-  // 锁滚动（多层弹窗时叠加）
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [])
+  const handleDismiss = useCallback(() => {
+    if (kind === 'confirm') onClose(false)
+    else if (kind === 'prompt') onClose(null)
+    else onClose(undefined)
+  }, [kind, onClose])
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
-      variants={modalOverlayVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      style={{
-        background: 'rgba(0, 0, 0, 0.55)',
-        backdropFilter: 'blur(6px)',
-      }}
-      onClick={() => {
-        if (!dismissible) return
-        if (kind === 'confirm') onClose(false)
-        else if (kind === 'prompt') onClose(null)
-        else onClose(undefined)
+    <DialogPrimitive.Root
+      open
+      onOpenChange={(open) => {
+        if (!open && dismissible) handleDismiss()
       }}
     >
-      <motion.div
-        variants={modalContentVariants}
-        className="relative w-full max-w-md rounded-2xl shadow-2xl"
-        style={{
-          background: 'var(--bg-elevated)',
-          border: '1px solid hsl(var(--border))',
-          backdropFilter: 'blur(24px)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 关闭按钮（右上角） */}
-        {dismissible && (
-          <button
-            type="button"
-            aria-label="关闭"
-            onClick={() => {
-              if (kind === 'confirm') onClose(false)
-              else if (kind === 'prompt') onClose(null)
-              else onClose(undefined)
-            }}
-            className="absolute right-3 top-3 rounded-lg p-1.5 text-surface-500 transition-colors hover:bg-white/5 hover:text-white"
-          >
-            <X size={16} />
-          </button>
-        )}
+      <DialogPrimitive.Portal>
+        {/* 遮罩层 */}
+        <DialogPrimitive.Overlay
+          className="fixed inset-0 z-[1000] animate-in fade-in-0"
+          style={{
+            background: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(6px)',
+          }}
+        />
+        {/* 面板 */}
+        <DialogPrimitive.Content
+          className={clsx(
+            'fixed left-1/2 top-1/2 z-[1000] w-full max-w-md -translate-x-1/2 -translate-y-1/2',
+            'rounded-2xl shadow-2xl outline-none',
+            'animate-in fade-in-0 zoom-in-95',
+          )}
+          style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid hsl(var(--border))',
+            backdropFilter: 'blur(24px)',
+          }}
+          onPointerDownOutside={(e) => {
+            if (!dismissible) e.preventDefault()
+          }}
+          onEscapeKeyDown={(e) => {
+            if (!dismissible) e.preventDefault()
+          }}
+        >
+          {/* 关闭按钮（右上角） */}
+          {dismissible && (
+            <button
+              type="button"
+              aria-label="关闭"
+              onClick={handleDismiss}
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-surface-500 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          )}
 
-        {kind === 'confirm' && (
-          <ConfirmBody
-            options={options as ConfirmOptions}
-            variant={variant}
-            onClose={onClose}
-          />
-        )}
-        {kind === 'alert' && (
-          <AlertBody
-            options={options as AlertOptions}
-            variant={variant}
-            onClose={onClose}
-          />
-        )}
-        {kind === 'prompt' && (
-          <PromptBody
-            options={options as PromptOptions}
-            variant={variant}
-            onClose={onClose}
-          />
-        )}
-      </motion.div>
-    </motion.div>
+          {kind === 'confirm' && (
+            <ConfirmBody
+              options={options as ConfirmOptions}
+              variant={variant}
+              onClose={onClose}
+            />
+          )}
+          {kind === 'alert' && (
+            <AlertBody
+              options={options as AlertOptions}
+              variant={variant}
+              onClose={onClose}
+            />
+          )}
+          {kind === 'prompt' && (
+            <PromptBody
+              options={options as PromptOptions}
+              variant={variant}
+              onClose={onClose}
+            />
+          )}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   )
 }
 

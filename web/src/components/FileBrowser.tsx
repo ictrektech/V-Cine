@@ -10,6 +10,7 @@ import {
   Check,
   HardDrive,
 } from 'lucide-react'
+import { Modal } from '@/components/ui/modal'
 
 interface FsEntry {
   name: string
@@ -66,12 +67,9 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath }: Fi
   if (!open) return null
 
   return (
-    <div
-      className="modal-overlay flex items-center justify-center animate-fade-in"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
+    <Modal onClose={onClose} className="max-w-lg">
       <div
-        className="relative w-full max-w-lg mx-4 rounded-2xl overflow-hidden animate-slide-up"
+        className="rounded-2xl overflow-hidden animate-slide-up"
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-strong)',
@@ -202,6 +200,6 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath }: Fi
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

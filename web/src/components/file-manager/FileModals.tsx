@@ -9,6 +9,7 @@ import {
   HardDrive, History, Languages, ChevronsUpDown, Trash2, ScanSearch, ListTodo,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { Modal } from '@/components/ui/modal'
 import { withBasePath } from '@/lib/basePath'
 import { formatFileSize, LANGUAGE_OPTIONS } from './constants'
 import { streamApi } from '@/api/stream'
@@ -47,8 +48,8 @@ export function ImportFileModal({ libraries, onClose, onSuccess }: ImportFileMod
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} className="max-w-lg">
+      <div className="glass-panel-strong rounded-2xl p-6" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <Plus className="inline-block mr-2 mb-0.5" size={20} /> 导入影视文件
         </h3>
@@ -91,7 +92,7 @@ export function ImportFileModal({ libraries, onClose, onSuccess }: ImportFileMod
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -147,8 +148,8 @@ export function ScanDirectoryModal({ libraries, onClose, onSuccess }: ScanDirect
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-3xl mx-4 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} className="max-w-3xl">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <ScanLine className="inline-block mr-2 mb-0.5" size={20} /> 扫描目录导入
         </h3>
@@ -223,7 +224,7 @@ export function ScanDirectoryModal({ libraries, onClose, onSuccess }: ScanDirect
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -254,8 +255,8 @@ export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} className="max-w-lg">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <Edit3 className="inline-block mr-2 mb-0.5" size={20} /> 编辑文件信息
         </h3>
@@ -297,7 +298,7 @@ export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps)
           <button onClick={handleSave} className="btn-primary px-4 py-2 rounded-lg text-sm">保存</button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -364,8 +365,8 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
   }, [analysisTask])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} className="max-w-2xl">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
             <Eye className="inline-block mr-2 mb-0.5" size={20} /> 文件详情
@@ -477,7 +478,7 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -496,8 +497,8 @@ export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, videoAn
   const [includeDescriptions, setIncludeDescriptions] = useState(false)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} className="max-w-lg">
+      <div className="glass-panel-strong rounded-2xl p-6" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
           <ScanSearch className="inline-block mr-2 mb-0.5" size={20} /> 批量分析视频
         </h3>
@@ -568,7 +569,7 @@ export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, videoAn
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -631,8 +632,8 @@ export function RenameModal({ selectedCount, selectedIds, onClose, onSuccess }: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-3xl mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} className="max-w-3xl">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <Wand2 className="inline-block mr-2 mb-0.5" size={20} /> AI批量重命名
           <span className="text-xs font-normal ml-2 px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400">
@@ -774,7 +775,7 @@ export function RenameModal({ selectedCount, selectedIds, onClose, onSuccess }: 
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -791,8 +792,8 @@ export function OperationLogsModal({ onClose }: OperationLogsModalProps) {
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onClose} className="max-w-2xl">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <History className="inline-block mr-2 mb-0.5" size={20} /> 操作日志
         </h3>
@@ -829,6 +830,6 @@ export function OperationLogsModal({ onClose }: OperationLogsModalProps) {
           <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">关闭</button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

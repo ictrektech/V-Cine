@@ -21,6 +21,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { Modal } from '@/components/ui/modal'
 
 // 内容分级选项
 const RATING_OPTIONS = [
@@ -465,8 +466,8 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
 
       {/* 创建用户弹窗 */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowCreateModal(false)}>
-          <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-md mx-4 space-y-3" onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setShowCreateModal(false)} className="max-w-md">
+          <div className="glass-panel-strong rounded-2xl p-6 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                 <UserPlus size={16} className="text-neon" />
@@ -522,13 +523,13 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* 重置密码弹窗 */}
       {resetPwdUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setResetPwdUser(null)}>
-          <div className="glass-panel-strong rounded-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setResetPwdUser(null)} className="max-w-sm">
+          <div className="glass-panel-strong rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                 <KeyRound size={16} className="text-yellow-400" />
@@ -572,7 +573,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

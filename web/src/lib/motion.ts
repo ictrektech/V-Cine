@@ -26,18 +26,17 @@ export const durations = {
 }
 
 // ==================== 页面过渡变体 ====================
-// ⚠️ 注意：这里不要使用 `filter: blur(...)` 动画。
-// 任何带有非 none filter 的祖先元素会成为 position: fixed 后代的 containing block，
+// ⚠️ 注意：这里不要使用 `filter: blur(...)` 或 `transform` 动画。
+// filter/transform 非 none 的祖先元素会成为 position: fixed 后代的 containing block，
 // 导致页面内的弹窗（fixed inset-0）相对该元素定位而不是 viewport，
-// 表现为弹窗"贴顶 / 偏移 / 不居中"。需要模糊过渡时，请只在不包裹 fixed 弹窗的子区块上使用。
+// 表现为弹窗"贴顶 / 偏移 / 不居中 / 模糊覆盖不全"。
+// 因此页面级过渡只做 opacity 淡入淡出，不做位移动画。
 export const pageVariants: Variants = {
   initial: {
     opacity: 0,
-    y: 12,
   },
   enter: {
     opacity: 1,
-    y: 0,
     transition: {
       duration: durations.page,
       ease: easeSmooth as unknown as [number, number, number, number],
@@ -45,7 +44,6 @@ export const pageVariants: Variants = {
   },
   exit: {
     opacity: 0,
-    y: -8,
     transition: {
       duration: durations.normal,
       ease: easeExit as unknown as [number, number, number, number],
