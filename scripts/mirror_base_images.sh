@@ -14,7 +14,7 @@ set -euo pipefail
 REGISTRY="swr.cn-southwest-2.myhuaweicloud.com"
 NAMESPACE="ictrek"
 BASE_IMAGES=(
-  "node:20-alpine"
+  "oven/bun:1-alpine"
   "golang:1.25-alpine"
   "alpine:3.19"
 )
