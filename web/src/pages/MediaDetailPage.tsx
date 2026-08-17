@@ -544,7 +544,7 @@ export default function MediaDetailPage() {
 
       {/* ==================== 手动匹配弹窗 ==================== */}
       {showMatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="w-full max-w-2xl rounded-2xl p-6 shadow-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}>
             <h3 className="mb-4 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{t('mediaDetail.manualMatch')}</h3>
             {/* 数据源切换 */}
@@ -750,7 +750,7 @@ export default function MediaDetailPage() {
       )}
 
       {showUnmatchConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}>
             <h3 className="mb-2 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{t('mediaDetail.unmatchTitle')}</h3>
             <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -804,7 +804,7 @@ export default function MediaDetailPage() {
 
       {/* ==================== 删除确认弹窗 ==================== */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}>
             <h3 className="mb-2 text-lg font-bold text-red-400">{t('mediaDetail.deleteTitle')}</h3>
             <p className="mb-2 text-sm" style={{ color: 'var(--text-secondary)' }}>

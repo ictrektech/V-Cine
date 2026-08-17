@@ -152,7 +152,7 @@ export default function EditMetadataModal({
     : []
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.7)' }}>
       <div
         className="w-full max-w-3xl rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}

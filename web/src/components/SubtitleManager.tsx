@@ -169,7 +169,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
   const bitmapTracks = embeddedTracks.filter(t => t.bitmap)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.7)' }}>
       <div
         className="relative w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col"
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}
