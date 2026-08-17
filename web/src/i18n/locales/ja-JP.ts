@@ -31,6 +31,7 @@ const jaJP: Record<string, string> = {
   'nav.playlists': 'プレイリスト',
   'nav.stats': '視聴統計',
   'nav.profile': 'プロフィール',
+  'nav.account': 'アカウント',
   'nav.libraries': 'ライブラリ',
   'nav.admin': '管理',
   'nav.scrape': 'スクレイプ管理',

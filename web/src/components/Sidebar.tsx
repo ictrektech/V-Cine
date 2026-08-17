@@ -16,6 +16,7 @@ import {
   Clock,
   ListVideo,
   Settings,
+  UserCog,
   LogOut,
   Film,
   Tv,
@@ -222,15 +223,6 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           {(!collapsed || isMobileOpen) && <span>{t('nav.stats')}</span>}
         </NavLink>
 
-        <NavLink
-          to="/profile"
-          className={({ isActive }) => clsx('nav-item', isActive && 'active')}
-          onClick={onMobileClose}
-        >
-          <Settings size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.profile')}</span>}
-        </NavLink>
-
         {/* 媒体库列表 */}
         {libraries.length > 0 && (
           <>
@@ -378,7 +370,26 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           <LanguageSwitcher />
         )}
 
-        <div className="flex items-center gap-3">
+        {/* 账号区 */}
+        {(!collapsed || isMobileOpen) && (
+          <div className="px-3 pb-1 pt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-neon/40">
+            {t('nav.account')}
+          </div>
+        )}
+        {collapsed && !isMobileOpen && (
+          <div className="my-2 mx-3 border-t border-neon-blue/10" />
+        )}
+        <NavLink
+          to="/profile"
+          aria-label={t('nav.profile')}
+          className={({ isActive }) => clsx('nav-item', isActive && 'active')}
+          onClick={onMobileClose}
+        >
+          <UserCog size={18} />
+          {(!collapsed || isMobileOpen) && <span>{t('nav.profile')}</span>}
+        </NavLink>
+
+        <div className="mt-2 flex items-center gap-3">
           {/* 霓虹头像 */}
           <div className="relative flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
             style={{

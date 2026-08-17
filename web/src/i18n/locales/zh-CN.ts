@@ -31,6 +31,7 @@ const zhCN: Record<string, string> = {
   'nav.playlists': '播放列表',
   'nav.stats': '观影报告',
   'nav.profile': '个人设置',
+  'nav.account': '账号',
   'nav.libraries': '媒体库',
   'nav.admin': '系统管理',
   'nav.scrape': '刮削管理',

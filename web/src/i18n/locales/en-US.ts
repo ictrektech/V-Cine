@@ -31,6 +31,7 @@ const enUS: Record<string, string> = {
   'nav.playlists': 'Playlists',
   'nav.stats': 'Statistics',
   'nav.profile': 'Profile',
+  'nav.account': 'Account',
   'nav.libraries': 'Libraries',
   'nav.admin': 'Admin',
   'nav.scrape': 'Scrape Manager',
