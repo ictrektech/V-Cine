@@ -839,6 +839,12 @@ export interface AIProviderProfileView {
   current_model?: string
   /** V8：模型级 failover 链（仅对当前激活 provider 生效，其他 provider 的链按需激活） */
   model_chain?: string[]
+  /** V9：供应商显示名称 */
+  name?: string
+  /** V9：可用模型列表 */
+  models?: string[]
+  /** V9：UI 显示颜色 class */
+  color?: string
 }
 
 export interface AIStatus {
@@ -867,6 +873,7 @@ export interface AIStatus {
   max_concurrent: number
   request_interval_ms: number
   // 各 provider 的配置档案（key 字段已脱敏，仅返回 api_key_configured 标识）
+  // V9：profiles 现在同时包含供应商元信息（name/models/color）和运行时配置
   profiles?: Record<string, AIProviderProfileView>
 }
 

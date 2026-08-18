@@ -35,34 +35,7 @@ type AIModelInfo struct {
 //
 // 数据来源：各厂商官网公开定价（2024-11）。
 // 更新策略：每季度人工核对；前端如发现价差可由用户在配置中覆盖（后续）。
-var builtinAIModelCatalog = []AIModelInfo{
-	// ===== OpenAI =====
-	{Provider: "openai", ID: "gpt-4o-mini", Label: "GPT-4o mini", ContextLength: 128000, InputPrice: 0.00015, OutputPrice: 0.0006, Recommended: true, Notes: "性价比最高，懒人入库默认推荐"},
-	{Provider: "openai", ID: "gpt-4o", Label: "GPT-4o", ContextLength: 128000, InputPrice: 0.0025, OutputPrice: 0.01, Notes: "通用旗舰，识别效果好"},
-	{Provider: "openai", ID: "gpt-4-turbo", Label: "GPT-4 Turbo", ContextLength: 128000, InputPrice: 0.01, OutputPrice: 0.03, Notes: "老牌旗舰，价格偏高"},
-	{Provider: "openai", ID: "gpt-3.5-turbo", Label: "GPT-3.5 Turbo", ContextLength: 16385, InputPrice: 0.0005, OutputPrice: 0.0015, Notes: "便宜但识别效果一般"},
-
-	// ===== DeepSeek =====
-	{Provider: "deepseek", ID: "deepseek-chat", Label: "DeepSeek-V3 Chat", ContextLength: 64000, InputPrice: 0.00014, OutputPrice: 0.00028, Recommended: true, Notes: "国产性价比之王"},
-	{Provider: "deepseek", ID: "deepseek-reasoner", Label: "DeepSeek-R1 Reasoner", ContextLength: 64000, InputPrice: 0.00055, OutputPrice: 0.00219, Notes: "深度推理，慢但准"},
-
-	// ===== Qwen / 阿里通义 =====
-	{Provider: "qwen", ID: "qwen-plus", Label: "通义千问 Plus", ContextLength: 131072, InputPrice: 0.00056, OutputPrice: 0.00168, Recommended: true, Notes: "中文识别效果好"},
-	{Provider: "qwen", ID: "qwen-turbo", Label: "通义千问 Turbo", ContextLength: 8192, InputPrice: 0.00042, OutputPrice: 0.00084, Notes: "快、便宜"},
-	{Provider: "qwen", ID: "qwen-max", Label: "通义千问 Max", ContextLength: 32768, InputPrice: 0.0028, OutputPrice: 0.0084, Notes: "旗舰，价格偏高"},
-
-	// ===== 智谱 GLM =====
-	{Provider: "zhipu", ID: "glm-4-flash", Label: "GLM-4 Flash", ContextLength: 128000, InputPrice: 0.0, OutputPrice: 0.0, Recommended: true, Notes: "免费版（限速），适合个人玩家"},
-	{Provider: "zhipu", ID: "glm-4-air", Label: "GLM-4 Air", ContextLength: 128000, InputPrice: 0.00014, OutputPrice: 0.00014, Notes: "便宜稳定"},
-	{Provider: "zhipu", ID: "glm-4-plus", Label: "GLM-4 Plus", ContextLength: 128000, InputPrice: 0.0070, OutputPrice: 0.0070, Notes: "旗舰"},
-
-	// ===== Anthropic Claude =====
-	{Provider: "anthropic", ID: "claude-3-5-haiku-20241022", Label: "Claude 3.5 Haiku", ContextLength: 200000, InputPrice: 0.001, OutputPrice: 0.005, Recommended: true, Notes: "快、便宜、上下文长"},
-	{Provider: "anthropic", ID: "claude-3-5-sonnet-20241022", Label: "Claude 3.5 Sonnet", ContextLength: 200000, InputPrice: 0.003, OutputPrice: 0.015, Notes: "通用旗舰"},
-
-	// ===== 本地（占位，价格 0） =====
-	{Provider: "local", ID: "ollama", Label: "本地 Ollama", ContextLength: 32768, InputPrice: 0, OutputPrice: 0, Notes: "本地推理，无 API 费用"},
-}
+var builtinAIModelCatalog = []AIModelInfo{}
 
 // providerFallbackPrice 当 model 不在 catalog 时给一个保守估价（按 provider 平均）
 var providerFallbackPrice = map[string]struct{ In, Out float64 }{

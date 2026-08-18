@@ -120,6 +120,11 @@ func (h *StorageHandler) UpdateWebDAVConfig(c *gin.Context) {
 	// 更新主配置
 	h.cfg.Storage.WebDAV = newCfg
 
+	// 持久化到 config/storage.yaml
+	if err := h.cfg.SaveStorageConfig(); err != nil {
+		h.logger.Errorf("WebDAV 配置已更新但持久化失败: %v", err)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "WebDAV 配置已更新"})
 }
 

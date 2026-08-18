@@ -96,6 +96,9 @@ func (h *StorageHandler) UpdateAlistConfig(c *gin.Context) {
 		return
 	}
 	h.cfg.Storage.Alist = newCfg
+	if err := h.cfg.SaveStorageConfig(); err != nil {
+		h.logger.Errorf("Alist 配置已更新但持久化失败: %v", err)
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "Alist 配置已更新"})
 }
 
@@ -212,6 +215,9 @@ func (h *StorageHandler) UpdateS3Config(c *gin.Context) {
 		return
 	}
 	h.cfg.Storage.S3 = newCfg
+	if err := h.cfg.SaveStorageConfig(); err != nil {
+		h.logger.Errorf("S3 配置已更新但持久化失败: %v", err)
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "S3 配置已更新"})
 }
 

@@ -64,11 +64,13 @@ type AIErrorLog struct {
 
 // AIService AI 功能统一服务
 type AIService struct {
-	// cfgMu 保护 cfg 的读/写，避免“热更新”与“并发请求读取 Profiles map”类场景下发生
-	// concurrent map read and map write 。
+	// cfgMu 保护 cfg 的读/写，避免热更新与并发请求读取发生竞争。
 	cfgMu  sync.RWMutex
 	cfg    config.AIConfig
 	appCfg *config.Config
+
+	// provider 是统一的 AI 配置访问入口（兼容期与 cfg 并存）
+	provider *AIConfigProvider
 
 	mediaRepo *repository.MediaRepo
 	logger    *zap.SugaredLogger
@@ -121,7 +123,7 @@ type aiCacheEntry struct {
 }
 
 // NewAIService 创建 AI 服务
-func NewAIService(cfg config.AIConfig, appCfg *config.Config, mediaRepo *repository.MediaRepo, cacheRepo *repository.AICacheRepo, logger *zap.SugaredLogger) *AIService {
+func NewAIService(cfg config.AIConfig, appCfg *config.Config, mediaRepo *repository.MediaRepo, cacheRepo *repository.AICacheRepo, logger *zap.SugaredLogger, provider *AIConfigProvider) *AIService {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = 30
@@ -145,6 +147,7 @@ func NewAIService(cfg config.AIConfig, appCfg *config.Config, mediaRepo *reposit
 	s := &AIService{
 		cfg:       cfg,
 		appCfg:    appCfg,
+		provider:  provider,
 		mediaRepo: mediaRepo,
 		cacheRepo: cacheRepo,
 		logger:    logger,
@@ -156,8 +159,12 @@ func NewAIService(cfg config.AIConfig, appCfg *config.Config, mediaRepo *reposit
 	}
 
 	if cfg.Enabled {
-		logger.Infof("AI 服务已启用 (提供商: %s, 模型: %s, API: %s)",
-			cfg.Provider, cfg.Model, maskAPIBase(cfg.APIBase))
+		if cfg.APIBase != "" {
+			logger.Infof("AI 服务已启用 (提供商: %s, 模型: %s, API: %s)",
+				cfg.Provider, cfg.ActiveModel, maskAPIBase(cfg.APIBase))
+		} else {
+			logger.Infof("AI 服务已启用但未配置供应商 (提供商: %s)", cfg.Provider)
+		}
 		logger.Infof("AI 功能开关 — 智能搜索: %v, 推荐理由: %v, 元数据增强: %v",
 			cfg.EnableSmartSearch, cfg.EnableRecommendReason, cfg.EnableMetadataEnhance)
 	} else {
@@ -189,9 +196,12 @@ func (s *AIService) Router() *AIRouter {
 
 // IsEnabled 检查 AI 服务是否启用
 //
-// AutoPilot 语义：只要配了 APIKey 与 APIBase，即使 Enabled=false 也会被视为启用，
-// 从而避免「用户填了 key 却忘记打 enabled 开关」造成的 AI 不生效。
+// AutoPilot 语义：只要 profiles 中有配了 APIKey 与 APIBase 的激活 provider，
+// 即使 Enabled=false 也会被视为启用，从而避免「用户填了 key 却忘记打 enabled 开关」造成的 AI 不生效。
 func (s *AIService) IsEnabled() bool {
+	if s.provider != nil {
+		return s.provider.IsEnabled()
+	}
 	s.cfgMu.RLock()
 	defer s.cfgMu.RUnlock()
 	if s.cfg.APIKey == "" || s.cfg.APIBase == "" {
@@ -205,6 +215,9 @@ func (s *AIService) IsEnabled() bool {
 
 // Provider 返回当前生效的 AI 服务商（来自 AI 配置中心，可在管理面板动态切换）
 func (s *AIService) Provider() string {
+	if s.provider != nil {
+		return s.provider.ActiveProvider()
+	}
 	s.cfgMu.RLock()
 	defer s.cfgMu.RUnlock()
 	return s.cfg.Provider
@@ -212,13 +225,19 @@ func (s *AIService) Provider() string {
 
 // Model 返回当前生效的 AI 模型
 func (s *AIService) Model() string {
+	if s.provider != nil {
+		return s.provider.ActiveModel()
+	}
 	s.cfgMu.RLock()
 	defer s.cfgMu.RUnlock()
-	return s.cfg.Model
+	return s.cfg.ActiveModel
 }
 
 // IsSmartSearchEnabled 检查智能搜索是否启用
 func (s *AIService) IsSmartSearchEnabled() bool {
+	if s.provider != nil {
+		return s.provider.IsSmartSearchEnabled()
+	}
 	if !s.IsEnabled() {
 		return false
 	}
@@ -239,6 +258,9 @@ func (s *AIService) IsRecommendReasonEnabled() bool {
 
 // IsMetadataEnhanceEnabled 检查元数据增强是否启用
 func (s *AIService) IsMetadataEnhanceEnabled() bool {
+	if s.provider != nil {
+		return s.provider.IsMetadataEnhanceEnabled()
+	}
 	if !s.IsEnabled() {
 		return false
 	}
@@ -249,6 +271,9 @@ func (s *AIService) IsMetadataEnhanceEnabled() bool {
 
 // IsAutoPilotEnabled 是否处于全自动托管模式
 func (s *AIService) IsAutoPilotEnabled() bool {
+	if s.provider != nil {
+		return s.provider.IsAutoPilotEnabled()
+	}
 	if !s.IsEnabled() {
 		return false
 	}
@@ -257,19 +282,11 @@ func (s *AIService) IsAutoPilotEnabled() bool {
 	return s.cfg.AutoPilot
 }
 
-// snapshotCfg 返回当前 cfg 的一个“使用脚手架”，包含主要只读字段。
-// Profiles 是 map，拷贝为新 map 以避免上层考察 map 时发生读写竞争。
+// snapshotCfg 返回当前 cfg 的一个值拷贝。
 func (s *AIService) snapshotCfg() config.AIConfig {
 	s.cfgMu.RLock()
 	defer s.cfgMu.RUnlock()
-	cp := s.cfg
-	if s.cfg.Profiles != nil {
-		cp.Profiles = make(map[string]config.AIProviderProfile, len(s.cfg.Profiles))
-		for k, v := range s.cfg.Profiles {
-			cp.Profiles[k] = v
-		}
-	}
-	return cp
+	return s.cfg
 }
 
 // ==================== LLM 调用核心 ====================
@@ -296,7 +313,6 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 	}
 
 	// 以“一次快照”在本次调用全程使用同一份 cfg，避免中途热更新导致 model/url 不一致，
-	// 并且避免与 UpdateConfig 发生“concurrent map read and map write”。
 	cfg := s.snapshotCfg()
 
 	// V7：走热路径时顺便检查主 provider 是否可自动恢复
@@ -305,8 +321,19 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 		cfg = s.snapshotCfg()
 	}
 
+	// 从扁平字段解析激活 provider 的配置
+	apiBase := cfg.APIBase
+	apiKey := cfg.APIKey
+	model := cfg.ActiveModel
+	if model == "" {
+		model = cfg.Provider // 兼容旧配置
+	}
+	if apiBase == "" || apiKey == "" {
+		return "", fmt.Errorf("未配置 AI 供应商（provider=%s）", cfg.Provider)
+	}
+
 	// 云端强制：拦截本地 AI（如 ollama），避免「全自动托管」语义下走本地推理
-	if cfg.BlockLocalAI && isLocalAIProvider(cfg.Provider, cfg.APIBase) {
+	if cfg.BlockLocalAI && isLocalAIProvider(cfg.Provider, apiBase) {
 		return "", fmt.Errorf("当前系统禁止本地 AI（provider=%s），请在 AI 配置中选择云端服务商（OpenAI/DeepSeek/通义千问）", cfg.Provider)
 	}
 
@@ -321,7 +348,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 
 	// 构建请求体（一次构建，多次重试复用）
 	reqBody := ChatCompletionRequest{
-		Model: cfg.Model,
+		Model: model,
 		Messages: []ChatMessage{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
@@ -340,7 +367,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 	if err != nil {
 		return "", fmt.Errorf("序列化请求失败: %w", err)
 	}
-	apiURL := strings.TrimRight(cfg.APIBase, "/") + "/chat/completions"
+	apiURL := strings.TrimRight(apiBase, "/") + "/chat/completions"
 
 	const maxAttempts = 4
 	var lastErr error
@@ -355,7 +382,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 			return "", fmt.Errorf("创建请求失败: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 
 		resp, err := s.client.Do(req)
 		if err != nil {
@@ -401,7 +428,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 				chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, chatResp.Usage.TotalTokens, attempt)
 			// V7：通知路由器记录用量
 			if s.router != nil {
-				s.router.MarkSuccess(cfg.Provider, cfg.Model,
+				s.router.MarkSuccess(cfg.Provider, model,
 					chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, 0, "chat_completion")
 			}
 			return result, nil
@@ -689,7 +716,9 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"auto_pilot":              cfg.AutoPilot,
 		"block_local_ai":          cfg.BlockLocalAI,
 		"provider":                cfg.Provider,
-		"model":                   cfg.Model,
+		"active_provider":          cfg.ActiveProvider,
+		"active_model":             cfg.ActiveModel,
+		"model":                   cfg.ActiveModel,
 		"api_base":                cfg.APIBase,
 		"api_configured":          cfg.APIKey != "",
 		"timeout":                 cfg.Timeout,
@@ -706,29 +735,6 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"max_concurrent":          cfg.MaxConcurrent,
 		"request_interval_ms":     cfg.RequestIntervalMs,
 	}
-
-	// 多 provider 配置档案（key 字段脱敏，仅返回 api_key_configured 标识）
-	profilesView := make(map[string]map[string]interface{}, len(cfg.Profiles))
-	for id, p := range cfg.Profiles {
-		view := map[string]interface{}{
-			"api_base":           p.APIBase,
-			"model":              p.Model,
-			"api_key_configured": p.APIKey != "",
-			"enabled":            p.Enabled,
-		}
-		// V8：模型级 failover 元信息
-		if p.CurrentModel != "" {
-			view["current_model"] = p.CurrentModel
-		}
-		// 即便 ModelChain 为空也返回空数组，方便前端识别
-		if p.ModelChain == nil {
-			view["model_chain"] = []string{}
-		} else {
-			view["model_chain"] = p.ModelChain
-		}
-		profilesView[id] = view
-	}
-	status["profiles"] = profilesView
 
 	s.countMu.Lock()
 	status["monthly_calls"] = s.monthlyCount
@@ -758,14 +764,11 @@ func (s *AIService) SetDescribeEnabledCallback(fn func(bool)) {
 //
 // 支持的 updates 字段：
 //   - 顶层基础字段（enabled / provider / api_base / api_key / model / timeout / 各功能开关 / 高级设置）
-//   - profiles: map[string]{api_base, api_key, model} 多 provider 配置档案
+//   - 顶层扁平字段（active_provider / active_model / api_base / api_key / enabled / 各功能开关 / 高级设置）
 //
 // 写入规则：
 //  1. 顶层字段更新到 s.cfg
-//  2. profiles 字段会与现有 s.cfg.Profiles 合并（仅覆盖传入的 provider id）
-//  3. 每个 profile 的 api_key 留空时，保留现有 key（避免误清空）
-//  4. 同步顶层激活配置 → s.cfg.Profiles[provider]，确保两者一致
-//  5. 持久化到 config/ai.yaml
+//  2. 持久化到 config/ai.yaml
 func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 	s.cfgMu.Lock()
 	defer s.cfgMu.Unlock()
@@ -793,18 +796,6 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 		case "provider":
 			if v, ok := val.(string); ok {
 				s.cfg.Provider = v
-			}
-		case "api_base":
-			if v, ok := val.(string); ok {
-				s.cfg.APIBase = v
-			}
-		case "api_key":
-			if v, ok := val.(string); ok {
-				s.cfg.APIKey = v
-			}
-		case "model":
-			if v, ok := val.(string); ok {
-				s.cfg.Model = v
 			}
 		case "timeout":
 			if v, ok := val.(float64); ok {
@@ -858,14 +849,8 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 					s.cfg.SceneDescribeAI.Model = model
 				}
 			}
-		case "profiles":
-			// 多 provider 配置档案合并
-			s.mergeProfilesUpdate(val)
 		}
 	}
-
-	// 顶层激活配置 → 同步到 profiles[provider]，确保保存后两者一致
-	s.syncActiveProfile()
 
 	// 同步到全局配置
 	s.appCfg.AI = s.cfg
@@ -880,84 +865,14 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 	return nil
 }
 
-// mergeProfilesUpdate 合并前端传来的 profiles 增量到 s.cfg.Profiles
-// 调用者请确保已持有 cfgMu.Lock。输入应为 map[string]interface{}，
-// 每个值为 map{api_base, api_key, model}；api_key 为空字符串时保留现有 key
-func (s *AIService) mergeProfilesUpdate(val interface{}) {
-	raw, ok := val.(map[string]interface{})
-	if !ok {
-		return
-	}
-	if s.cfg.Profiles == nil {
-		s.cfg.Profiles = make(map[string]config.AIProviderProfile)
-	}
-	for providerID, profileVal := range raw {
-		pm, ok := profileVal.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		existing := s.cfg.Profiles[providerID]
-		next := existing // 拷贝
-		if v, ok := pm["api_base"].(string); ok {
-			next.APIBase = v
-		}
-		if v, ok := pm["model"].(string); ok {
-			next.Model = v
-		}
-		// api_key 留空时保留原值（避免前端只是显示掩码、未输入新值的情况覆盖）
-		if v, ok := pm["api_key"].(string); ok && v != "" {
-			next.APIKey = v
-		}
-		// V8：enabled / model_chain / current_model 合并
-		if v, ok := pm["enabled"].(bool); ok {
-			next.Enabled = v
-		}
-		if v, ok := pm["current_model"].(string); ok {
-			next.CurrentModel = v
-		}
-		if v, ok := pm["model_chain"]; ok {
-			// 接受 []string、[]interface{}（前端 JSON 传过来通常是 []interface{}）
-			switch arr := v.(type) {
-			case []string:
-				next.ModelChain = append([]string{}, arr...)
-			case []interface{}:
-				out := make([]string, 0, len(arr))
-				for _, item := range arr {
-					if s, ok := item.(string); ok {
-						s = strings.TrimSpace(s)
-						if s != "" {
-							out = append(out, s)
-						}
-					}
-				}
-				next.ModelChain = out
-			}
-		}
-		s.cfg.Profiles[providerID] = next
-	}
-}
-
-// syncActiveProfile 把当前激活 provider 的顶层字段同步到 profiles 表
-// 确保「顶层即激活档案」的不变式。
-//
-// 注意：此函数应**保留**目标 profile 中的 Enabled / ModelChain / CurrentModel
-// 等"非顶层管理"字段，仅同步 api_base / api_key / model。
-func (s *AIService) syncActiveProfile() {
-	if s.cfg.Provider == "" {
-		return
-	}
-	if s.cfg.Profiles == nil {
-		s.cfg.Profiles = make(map[string]config.AIProviderProfile)
-	}
-	existing := s.cfg.Profiles[s.cfg.Provider]
-	existing.APIBase = s.cfg.APIBase
-	existing.APIKey = s.cfg.APIKey
-	existing.Model = s.cfg.Model
-	// 激活的 provider 默认是 enabled（避免老的 enabled:false 卡住后续 failover 链）
-	if !existing.Enabled {
-		existing.Enabled = true
-	}
-	s.cfg.Profiles[s.cfg.Provider] = existing
+// SyncConfig 将 handler 修改后的 appCfg.AI 同步回 service 内部副本。
+// handler 直接操作 h.cfg.AI（即 appCfg.AI）后必须调用此方法，
+// 否则 service 的 s.cfg 副本与磁盘/内存中的实际状态不一致，
+// GetStatus 等读操作将返回过期数据。
+func (s *AIService) SyncConfig() {
+	s.cfgMu.Lock()
+	defer s.cfgMu.Unlock()
+	s.cfg = s.appCfg.AI
 }
 
 // ==================== 连接测试 ====================
@@ -969,12 +884,18 @@ func (s *AIService) TestConnection() (map[string]interface{}, error) {
 	if cfg.APIKey == "" || cfg.APIBase == "" {
 		return nil, fmt.Errorf("API Key 或 API Base 未配置")
 	}
+	apiBase := cfg.APIBase
+	apiKey := cfg.APIKey
+	model := cfg.ActiveModel
+	if model == "" {
+		model = cfg.Provider
+	}
 
 	start := time.Now()
 
 	// 直接构建请求，绕过 ChatCompletion 中的 IsEnabled/预算检查
 	reqBody := ChatCompletionRequest{
-		Model: cfg.Model,
+		Model: model,
 		Messages: []ChatMessage{
 			{Role: "system", Content: "你是一个测试助手。"},
 			{Role: "user", Content: "请回复 OK"},
@@ -988,14 +909,14 @@ func (s *AIService) TestConnection() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("序列化请求失败: %w", err)
 	}
 
-	apiURL := strings.TrimRight(cfg.APIBase, "/") + "/chat/completions"
+	apiURL := strings.TrimRight(apiBase, "/") + "/chat/completions"
 	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	resp, err := s.client.Do(req)
 	latency := time.Since(start).Milliseconds()
@@ -1052,7 +973,7 @@ func (s *AIService) TestConnection() (map[string]interface{}, error) {
 		"response":   result,
 		"latency_ms": latency,
 		"provider":   cfg.Provider,
-		"model":      cfg.Model,
+		"model":      model,
 	}, nil
 }
 

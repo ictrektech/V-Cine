@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -381,6 +383,140 @@ func (h *AIHandler) GetUsageBuckets(c *gin.Context) {
 			"to":              now,
 		},
 	})
+}
+
+// ==================== 供应商管理（V10：单一 provider 模式） ====================
+
+// SetActive 切换激活的 provider 和 model（"一键配置"接口）
+func (h *AIHandler) SetActive(c *gin.Context) {
+	var req struct {
+		Provider string `json:"provider" binding:"required"`
+		Model    string `json:"model"`
+		APIBase  string `json:"api_base"`
+		APIKey   string `json:"api_key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "provider 不能为空"})
+		return
+	}
+
+	// 直接更新扁平字段
+	h.cfg.AI.ActiveProvider = req.Provider
+	h.cfg.AI.Provider = req.Provider
+	if req.Model != "" {
+		h.cfg.AI.ActiveModel = req.Model
+	}
+	if req.APIBase != "" {
+		h.cfg.AI.APIBase = req.APIBase
+	}
+	if req.APIKey != "" {
+		h.cfg.AI.APIKey = req.APIKey
+	}
+
+	// 从预设填充默认 api_base（仅当当前为空时）
+	if h.cfg.AI.APIBase == "" {
+		if preset, ok := config.FindAIProviderPreset(req.Provider); ok {
+			h.cfg.AI.APIBase = preset.APIBase
+		}
+	}
+
+	if err := h.cfg.SaveAIConfig(); err != nil {
+		h.logger.Errorf("保存 AI 配置失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
+		return
+	}
+	h.aiService.SyncConfig()
+
+	c.JSON(http.StatusOK, gin.H{"message": "AI 配置已更新", "data": map[string]interface{}{
+		"active_provider": h.cfg.AI.ActiveProvider,
+		"active_model":    h.cfg.AI.ActiveModel,
+		"api_base":        h.cfg.AI.APIBase,
+	}})
+}
+
+// FetchModels 从 OpenAI 兼容 API 获取模型列表
+func (h *AIHandler) FetchModels(c *gin.Context) {
+	var req struct {
+		BaseURL string `json:"base_url" binding:"required"`
+		APIKey  string `json:"api_key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 base_url"})
+		return
+	}
+
+	// 构建请求 URL（如果 base 已包含 /v1 则不再追加）
+	base := strings.TrimRight(req.BaseURL, "/")
+	var url string
+	if strings.HasSuffix(base, "/v1") {
+		url = base + "/models"
+	} else {
+		url = base + "/v1/models"
+	}
+
+	// 创建 HTTP 请求
+	httpReq, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 URL"})
+		return
+	}
+	if req.APIKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+req.APIKey)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	// 发送请求
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无法连接到 API: " + err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":       "API 返回错误状态码: " + strconv.Itoa(resp.StatusCode),
+			"url":         url,
+			"status_code": resp.StatusCode,
+			"response":    string(respBody),
+		})
+		return
+	}
+
+	// 解析响应（兼容两种格式）
+	// 格式1 OpenAI: {"data":[{"id":"gpt-4o"},...]}
+	// 格式2 Ollama/llama.cpp: {"models":[{"model":"llama3"},...]}
+	var openaiResult struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	var ollamaResult struct {
+		Models []struct {
+			Model string `json:"model"`
+		} `json:"models"`
+	}
+
+	models := make([]string, 0)
+
+	if err := json.Unmarshal(respBody, &openaiResult); err == nil && len(openaiResult.Data) > 0 {
+		for _, m := range openaiResult.Data {
+			if m.ID != "" {
+				models = append(models, m.ID)
+			}
+		}
+	} else if err := json.Unmarshal(respBody, &ollamaResult); err == nil && len(ollamaResult.Models) > 0 {
+		for _, m := range ollamaResult.Models {
+			if m.Model != "" {
+				models = append(models, m.Model)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": models})
 }
 
 // getUsernameFromContext 尝试从 gin context 中读取登录用户名，否则返回 "system"

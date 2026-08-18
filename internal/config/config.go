@@ -158,64 +158,6 @@ type VideoAnalysisConfig struct {
 
 // ==================== 主配置结构体 ====================
 
-// AIProviderProfile 单个 LLM 提供商的配置档案
-// 用于在不同 provider 之间切换时分别记忆 api_base / api_key / model
-//
-// API Key 在持久化（写 yaml）时会经 internal/crypto.Encrypt 包装为 "ENC:..."。
-// Load 时按需解密；旧明文在解密阶段直接透传，保证向后兼容。
-type AIProviderProfile struct {
-	APIBase string `mapstructure:"api_base" yaml:"api_base"`
-	APIKey  string `mapstructure:"api_key" yaml:"api_key"`
-	Model   string `mapstructure:"model" yaml:"model"`
-	// Enabled 是否参与 AIRouter 智能切换链路；为 false 时即使在链路中也会被跳过。
-	// 默认 true（允许使用），仅当用户在 UI 上显式禁用时为 false。
-	Enabled bool `mapstructure:"enabled" yaml:"enabled,omitempty"`
-
-	// ModelChain 模型级故障转移链（V8）。
-	//
-	// 当本 provider 调用某个模型遭遇"模型粒度的配额耗尽"（如阿里云百炼
-	// AllocationQuota.FreeTierOnly / Free allocated quota exceeded / HTTP 403 quota）
-	// 时，AIRouter 会按此链顺序在**同一 provider 内**切换到下一个模型继续服务，
-	// 直到链尾全部用尽再退化到 provider 级 Failover.Chain。
-	//
-	// 数组语义：
-	//   - 第 0 位通常等于 Model（不是必须，AIRouter 会自动把当前 Model 视为起点）
-	//   - 列表中重复 / 空字符串会被忽略
-	//   - 留空表示禁用模型级故障转移（仅 provider 级生效）
-	ModelChain []string `mapstructure:"model_chain" yaml:"model_chain,omitempty"`
-
-	// CurrentModel 当前实际生效的模型 ID（由 AIRouter 维护并落盘）。
-	// 与 Model 的关系：
-	//   - Model        = 用户偏好的"主模型"
-	//   - CurrentModel = 此刻真正在用的模型（可能因模型级 failover 切换）
-	// 留空时视为 == Model。
-	CurrentModel string `mapstructure:"current_model" yaml:"current_model,omitempty"`
-}
-
-// AIFailoverConfig AI 智能切换 / 故障转移策略
-//
-// 当主 provider（cfg.AI.Provider）出现配额耗尽 / 持续 429 / 连续 5xx 时，
-// AIRouter 会按照 Chain 顺序自动切换到下一个 enabled=true 的备用 provider；
-// 主 provider 在 AutoRecoverAfterMin 分钟后会被尝试恢复（轻量探测 + 切回）。
-type AIFailoverConfig struct {
-	// Enabled 是否启用故障转移；关闭后任何错误都直接抛给调用方
-	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
-	// Chain 切换链：按数组顺序尝试。例如 ["qwen", "deepseek", "zhipu"]
-	// 链中 provider 必须在 cfg.AI.Profiles 中有对应档案，否则跳过。
-	Chain []string `mapstructure:"chain" yaml:"chain,omitempty"`
-	// AutoRecoverAfterMin 自动恢复主 provider 的窗口（分钟）。0 表示不自动恢复（需手动 Restore）
-	AutoRecoverAfterMin int `mapstructure:"auto_recover_after_min" yaml:"auto_recover_after_min"`
-	// ConsecutiveErrorThreshold 主 provider 连续错误多少次后判定不可用（默认 3）
-	ConsecutiveErrorThreshold int `mapstructure:"consecutive_error_threshold" yaml:"consecutive_error_threshold"`
-	// CurrentActive 当前实际生效的 provider id（运行时由 AIRouter 维护并落盘）。
-	// 与 cfg.AI.Provider 的关系：
-	//   - cfg.AI.Provider          = 用户偏好的"主 provider"
-	//   - cfg.AI.Failover.CurrentActive = 此刻真正在用的 provider（可能因故障转移变化）
-	CurrentActive string `mapstructure:"current_active" yaml:"current_active,omitempty"`
-	// LastSwitchedAt 最近一次切换时间（Unix 秒，0 表示从未切换）
-	LastSwitchedAt int64 `mapstructure:"last_switched_at" yaml:"last_switched_at,omitempty"`
-}
-
 // AIConfig AI 功能配置
 // EmbeddingAIConfig 图片/文本 embedding 服务配置
 // 对接 emb_server，计算 CLIP 图片 embedding 用于向量检索。
@@ -244,17 +186,14 @@ type AIConfig struct {
 	// 是否禁止使用本地 AI（如 ollama），强制走云端 LLM 服务商
 	// 默认 true：满足「禁用本地 AI 处理，全部调用服务商提供的 AI API」的产品要求
 	BlockLocalAI bool `mapstructure:"block_local_ai"`
-	// LLM 提供商: openai / deepseek / qwen / ollama
+	// LLM 提供商 ID（如 openai / deepseek / ollama）
 	Provider string `mapstructure:"provider"`
-	// API 基础地址（当前激活 provider 的 api_base，与 profiles[provider].api_base 保持一致）
-	APIBase string `mapstructure:"api_base"`
-	// API 密钥（当前激活 provider 的 api_key，与 profiles[provider].api_key 保持一致）
-	APIKey string `mapstructure:"api_key"`
-	// 模型名称（当前激活 provider 的 model，与 profiles[provider].model 保持一致）
-	Model string `mapstructure:"model"`
-	// 各 provider 的配置档案（按 provider id 索引，如 openai/deepseek/qwen/ollama/custom）
-	// 切换 provider 时从此表恢复对应配置，避免重新填 key/base/model
-	Profiles map[string]AIProviderProfile `mapstructure:"profiles" yaml:"profiles,omitempty"`
+	// 当前激活的 provider ID（用于扁平配置模式）
+	ActiveProvider string `mapstructure:"active_provider" yaml:"active_provider,omitempty"`
+	// 当前激活的模型名称
+	ActiveModel    string `mapstructure:"active_model" yaml:"active_model,omitempty"`
+	APIBase        string `mapstructure:"api_base" yaml:"api_base,omitempty"`
+	APIKey         string `mapstructure:"api_key" yaml:"api_key,omitempty"`
 	// 请求超时（秒）
 	Timeout int `mapstructure:"timeout"`
 	// 功能开关
@@ -274,9 +213,6 @@ type AIConfig struct {
 	MonthlyTokenBudget int64 `mapstructure:"monthly_token_budget" yaml:"monthly_token_budget,omitempty"`
 	// WarningThresholdPct 用量预警阈值（百分比，0~100）。默认 80。
 	WarningThresholdPct int `mapstructure:"warning_threshold_pct" yaml:"warning_threshold_pct,omitempty"`
-
-	// Failover 智能切换 / 故障转移配置（V7）
-	Failover AIFailoverConfig `mapstructure:"failover" yaml:"failover,omitempty"`
 
 	// ==================== Embedding 服务配置（emb_server） ====================
 	EmbeddingAI EmbeddingAIConfig `mapstructure:"embedding_ai" yaml:"embedding_ai"`
@@ -732,26 +668,10 @@ func Load() (*Config, error) {
 	if dec, err := secretcrypto.Decrypt(cfg.AI.SceneDescribeAI.APIKey); err == nil {
 		cfg.AI.SceneDescribeAI.APIKey = dec
 	}
-	if cfg.AI.Profiles != nil {
-		decProfiles := make(map[string]AIProviderProfile, len(cfg.AI.Profiles))
-		for k, p := range cfg.AI.Profiles {
-			if dec, err := secretcrypto.Decrypt(p.APIKey); err == nil {
-				p.APIKey = dec
-			}
-			decProfiles[k] = p
-		}
-		cfg.AI.Profiles = decProfiles
-	}
 
-	// 9. AI Failover 默认值兜底
+	// 9. AI 用量预算默认值兜底
 	if cfg.AI.WarningThresholdPct <= 0 || cfg.AI.WarningThresholdPct > 100 {
 		cfg.AI.WarningThresholdPct = 80
-	}
-	if cfg.AI.Failover.ConsecutiveErrorThreshold <= 0 {
-		cfg.AI.Failover.ConsecutiveErrorThreshold = 3
-	}
-	if cfg.AI.Failover.AutoRecoverAfterMin < 0 {
-		cfg.AI.Failover.AutoRecoverAfterMin = 0
 	}
 
 	// 10. 视频分析配置采用安全的保守兜底。URL 和路径的严格校验在创建
@@ -768,6 +688,9 @@ func Load() (*Config, error) {
 	if cfg.VideoAnalysis.JobTimeoutMinutes <= 0 {
 		cfg.VideoAnalysis.JobTimeoutMinutes = 120
 	}
+
+	// 11. V9/V10 迁移已完成，旧的 custom_providers / 顶层字段不再需要迁移。
+	// writeAIYaml 已显式清除这些废弃 key，确保它们不会残留在 yaml 中。
 
 	return cfg, nil
 }
@@ -857,9 +780,6 @@ func setDefaults() {
 	// 默认禁止本地 AI（ollama）：强制使用云端 LLM 服务商
 	viper.SetDefault("ai.block_local_ai", true)
 	viper.SetDefault("ai.provider", "deepseek")
-	viper.SetDefault("ai.api_base", "https://api.deepseek.com/v1")
-	viper.SetDefault("ai.api_key", "")
-	viper.SetDefault("ai.model", "deepseek-chat")
 	viper.SetDefault("ai.timeout", 30)
 	viper.SetDefault("ai.enable_smart_search", true)
 	viper.SetDefault("ai.enable_recommend_reason", true)
@@ -1169,6 +1089,11 @@ func (c *Config) migrateFromFlatConfig() {
 	if c.Cache.CacheDir == "" {
 		c.Cache.CacheDir = "./cache"
 	}
+
+	// V10 迁移：确保 ActiveProvider 与 Provider 同步（旧配置可能只有 Provider 字段）
+	if c.AI.ActiveProvider == "" && c.AI.Provider != "" {
+		c.AI.ActiveProvider = c.AI.Provider
+	}
 }
 
 // ==================== 便捷访问方法（保持已有 API 兼容） ====================
@@ -1321,234 +1246,52 @@ func (c *Config) ClearDoubanCookie() error {
 }
 
 // SaveAdultScraperConfig 将当前 AdultScraper 配置持久化到配置文件
-// 调用前应先在内存中更新 c.AdultScraper 字段，本方法只负责同步到 viper 并写盘
+// 调用前应先在内存中更新 c.AdultScraper 字段，本方法只负责落盘。
+// Cookie 字段会被自动加密（ENC: 前缀）。
 func (c *Config) SaveAdultScraperConfig() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	ac := c.AdultScraper
-	// 同步到 viper（使用 adult_scraper.* 命名空间，与 mapstructure 标签保持一致）
-	viper.Set("adult_scraper.enabled", ac.Enabled)
-	viper.Set("adult_scraper.enable_javbus", ac.EnableJavBus)
-	viper.Set("adult_scraper.javbus_url", ac.JavBusURL)
-	viper.Set("adult_scraper.enable_javdb", ac.EnableJavDB)
-	viper.Set("adult_scraper.javdb_url", ac.JavDBURL)
-	viper.Set("adult_scraper.python_service_url", ac.PythonServiceURL)
-	viper.Set("adult_scraper.python_service_api_key", ac.PythonServiceAPIKey)
-	viper.Set("adult_scraper.auto_start_python", ac.AutoStartPython)
-	viper.Set("adult_scraper.python_executable", ac.PythonExecutable)
-	viper.Set("adult_scraper.python_service_dir", ac.PythonServiceDir)
-	viper.Set("adult_scraper.min_request_interval", ac.MinRequestInterval)
-	viper.Set("adult_scraper.max_request_interval", ac.MaxRequestInterval)
-	viper.Set("adult_scraper.enable_freejavbt", ac.EnableFreejavbt)
-	viper.Set("adult_scraper.freejavbt_url", ac.FreejavbtURL)
-	viper.Set("adult_scraper.enable_jav321", ac.EnableJav321)
-	viper.Set("adult_scraper.jav321_url", ac.Jav321URL)
-	viper.Set("adult_scraper.enable_fanza", ac.EnableFanza)
-	viper.Set("adult_scraper.fanza_url", ac.FanzaURL)
-	viper.Set("adult_scraper.enable_mgstage", ac.EnableMGStage)
-	viper.Set("adult_scraper.mgstage_url", ac.MGStageURL)
-	viper.Set("adult_scraper.enable_fc2hub", ac.EnableFC2Hub)
-	viper.Set("adult_scraper.fc2hub_url", ac.FC2HubURL)
-	viper.Set("adult_scraper.enable_aggregated_mode", ac.EnableAggregatedMode)
-	viper.Set("adult_scraper.enable_poster_crop", ac.EnablePosterCrop)
-	viper.Set("adult_scraper.download_extra_fanart", ac.DownloadExtraFanart)
-	viper.Set("adult_scraper.max_extra_fanart", ac.MaxExtraFanart)
-	viper.Set("adult_scraper.download_actor_photo", ac.DownloadActorPhoto)
-	viper.Set("adult_scraper.fetch_trailer", ac.FetchTrailer)
-	viper.Set("adult_scraper.enable_translate", ac.EnableTranslate)
-	viper.Set("adult_scraper.translate_provider", ac.TranslateProvider)
-	viper.Set("adult_scraper.translate_endpoint", ac.TranslateEndpoint)
-	viper.Set("adult_scraper.translate_api_key", ac.TranslateAPIKey)
-	viper.Set("adult_scraper.translate_api_secret", ac.TranslateAPISecret)
-	viper.Set("adult_scraper.translate_target_lang", ac.TranslateTargetLang)
-	viper.Set("adult_scraper.field_priority", ac.FieldPriority)
-
-	// Cookie 登录（参考 mdcx 的设计，每个站点一个完整 Cookie 字符串）
-	viper.Set("adult_scraper.cookie_javbus", ac.CookieJavBus)
-	viper.Set("adult_scraper.cookie_javdb", ac.CookieJavDB)
-	viper.Set("adult_scraper.cookie_freejavbt", ac.CookieFreejavbt)
-	viper.Set("adult_scraper.cookie_jav321", ac.CookieJav321)
-	viper.Set("adult_scraper.cookie_fanza", ac.CookieFanza)
-	viper.Set("adult_scraper.cookie_mgstage", ac.CookieMGStage)
-	viper.Set("adult_scraper.cookie_fc2hub", ac.CookieFC2Hub)
-
-	return c.saveConfig()
+	encryptPaths := []string{
+		"cookie_javbus", "cookie_javdb", "cookie_freejavbt", "cookie_jav321",
+		"cookie_fanza", "cookie_mgstage", "cookie_fc2hub",
+		"translate_api_key", "translate_api_secret",
+		"python_service_api_key",
+	}
+	return SaveSection(c, "adult_scraper", "adult_scraper.yaml", encryptPaths, func() AdultScraperConfig {
+		return c.AdultScraper
+	})
 }
 
 // SaveSTRMConfig 将当前 STRM 配置持久化到配置文件
 func (c *Config) SaveSTRMConfig() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	sc := c.STRM
-	viper.Set("strm.default_user_agent", sc.DefaultUserAgent)
-	viper.Set("strm.default_referer", sc.DefaultReferer)
-	viper.Set("strm.connect_timeout", sc.ConnectTimeout)
-	viper.Set("strm.rewrite_hls", sc.RewriteHLS)
-	viper.Set("strm.remote_probe", sc.RemoteProbe)
-	viper.Set("strm.remote_probe_timeout", sc.RemoteProbeTimeout)
-	viper.Set("strm.domain_user_agents", sc.DomainUserAgents)
-	viper.Set("strm.domain_referers", sc.DomainReferers)
-	return c.saveConfig()
-}
-
-// SaveAIConfig 将当前 AI 配置（含 profiles）持久化到 config/ai.yaml 分片文件
-// 调用前应先在内存中更新 c.AI 字段，本方法只负责落盘。
-// 仅写 config/ai.yaml（找到的第一个），不污染主 config.yaml。
-// 同时也通过 viper.Set 同步到全局 viper，避免重启前后内存与磁盘不一致。
-func (c *Config) SaveAIConfig() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	ac := c.AI
-
-	// 加密顶层 / profiles / scene_describe_ai 中的 api_key（幂等：已加密的不会重复加密）
-	// 错误仅记录不阻断过程，退而存明文以保证设置不丢失
-	if enc, err := secretcrypto.Encrypt(ac.APIKey); err == nil {
-		ac.APIKey = enc
-	}
-	if enc, err := secretcrypto.Encrypt(ac.SceneDescribeAI.APIKey); err == nil {
-		ac.SceneDescribeAI.APIKey = enc
-	}
-	if ac.Profiles != nil {
-		encProfiles := make(map[string]AIProviderProfile, len(ac.Profiles))
-		for k, p := range ac.Profiles {
-			if enc, err := secretcrypto.Encrypt(p.APIKey); err == nil {
-				p.APIKey = enc
-			}
-			encProfiles[k] = p
-		}
-		ac.Profiles = encProfiles
-	}
-
-	// 1. 同步到全局 viper（ai.* 命名空间）
-	viper.Set("ai.enabled", ac.Enabled)
-	viper.Set("ai.auto_pilot", ac.AutoPilot)
-	viper.Set("ai.block_local_ai", ac.BlockLocalAI)
-	viper.Set("ai.provider", ac.Provider)
-	viper.Set("ai.api_base", ac.APIBase)
-	viper.Set("ai.api_key", ac.APIKey)
-	viper.Set("ai.model", ac.Model)
-	viper.Set("ai.timeout", ac.Timeout)
-	viper.Set("ai.enable_smart_search", ac.EnableSmartSearch)
-	viper.Set("ai.enable_recommend_reason", ac.EnableRecommendReason)
-	viper.Set("ai.enable_metadata_enhance", ac.EnableMetadataEnhance)
-	viper.Set("ai.monthly_budget", ac.MonthlyBudget)
-	viper.Set("ai.cache_ttl_hours", ac.CacheTTLHours)
-	viper.Set("ai.max_concurrent", ac.MaxConcurrent)
-	viper.Set("ai.request_interval_ms", ac.RequestIntervalMs)
-	// V7：Token 预算与智能切换
-	viper.Set("ai.monthly_token_budget", ac.MonthlyTokenBudget)
-	viper.Set("ai.warning_threshold_pct", ac.WarningThresholdPct)
-	viper.Set("ai.failover.enabled", ac.Failover.Enabled)
-	viper.Set("ai.failover.chain", ac.Failover.Chain)
-	viper.Set("ai.failover.auto_recover_after_min", ac.Failover.AutoRecoverAfterMin)
-	viper.Set("ai.failover.consecutive_error_threshold", ac.Failover.ConsecutiveErrorThreshold)
-	viper.Set("ai.failover.current_active", ac.Failover.CurrentActive)
-	viper.Set("ai.failover.last_switched_at", ac.Failover.LastSwitchedAt)
-	viper.Set("ai.scene_describe_ai", map[string]interface{}{
-		"api_base": ac.SceneDescribeAI.APIBase,
-		"api_key":  ac.SceneDescribeAI.APIKey,
-		"model":    ac.SceneDescribeAI.Model,
+	return SaveSection(c, "strm", "strm.yaml", nil, func() STRMConfig {
+		return c.STRM
 	})
-
-	if ac.Profiles != nil {
-		// 转换为可被 yaml 序列化的 map[string]map[string]interface{} 形式
-		profilesMap := make(map[string]map[string]interface{}, len(ac.Profiles))
-		for k, p := range ac.Profiles {
-			profilesMap[k] = map[string]interface{}{
-				"api_base": p.APIBase,
-				"api_key":  p.APIKey,
-				"model":    p.Model,
-				"enabled":  p.Enabled,
-			}
-		}
-		viper.Set("ai.profiles", profilesMap)
-	}
-
-	// 同步加密后的值到内存双向（避免后续液态读到明文）
-	c.AI.APIKey = ac.APIKey
-	c.AI.SceneDescribeAI.APIKey = ac.SceneDescribeAI.APIKey
-	c.AI.Profiles = ac.Profiles
-
-	// 2. 优先写入 config/ai.yaml 分片文件（保持原架构，不污染主 config.yaml）
-	if err := c.writeAIYaml(); err != nil {
-		return fmt.Errorf("写入 ai.yaml 失败: %w", err)
-	}
-	return nil
 }
 
-// writeAIYaml 把 c.AI 的所有字段序列化写回 config/ai.yaml 分片文件
-// 不锁，调用方负责加锁
-func (c *Config) writeAIYaml() error {
-	ac := c.AI
-	aiDirs := []string{"./config", "./data/config", "/etc/nowen-video/config"}
-	var targetFile string
-	for _, dir := range aiDirs {
-		filePath := filepath.Join(dir, "ai.yaml")
-		if _, err := os.Stat(filePath); err == nil {
-			targetFile = filePath
-			break
-		}
+// SaveStorageConfig 将存储配置持久化到 config/storage.yaml 分片文件。
+// 修复此前 handler 直接改 c.Storage.WebDAV = newCfg 但不落盘的 bug。
+// 敏感字段（密码/Token/SecretKey）自动加密。
+func (c *Config) SaveStorageConfig() error {
+	encryptPaths := []string{
+		"webdav.password",
+		"alist.token",
+		"s3.secret_key",
 	}
-	// 没找到现有 ai.yaml 分片文件时，默认写到 ./config/ai.yaml
-	if targetFile == "" {
-		// 确保目录存在
-		_ = os.MkdirAll("./config", 0o755)
-		targetFile = filepath.Join("./config", "ai.yaml")
+	return SaveSection(c, "storage", "storage.yaml", encryptPaths, func() StorageConfig {
+		return c.Storage
+	})
+}
+
+// SaveAIConfig 将当前 AI 配置持久化到 config/ai.yaml 分片文件。
+// 调用前应先在内存中更新 c.AI 字段，本方法只负责落盘。
+// 敏感字段（api_key / scene_describe_ai.api_key）自动加密。
+func (c *Config) SaveAIConfig() error {
+	encryptPaths := []string{
+		"api_key",
+		"scene_describe_ai.api_key",
 	}
-
-	subViper := viper.New()
-	subViper.SetConfigFile(targetFile)
-	// 读取已有内容，保留未由本结构覆盖的字段（如 whisper_*, ocr_*, sub_clean_* 等）
-	_ = subViper.ReadInConfig()
-
-	// 写入主字段
-	subViper.Set("enabled", ac.Enabled)
-	subViper.Set("auto_pilot", ac.AutoPilot)
-	subViper.Set("block_local_ai", ac.BlockLocalAI)
-	subViper.Set("provider", ac.Provider)
-	subViper.Set("api_base", ac.APIBase)
-	subViper.Set("api_key", ac.APIKey)
-	subViper.Set("model", ac.Model)
-	subViper.Set("timeout", ac.Timeout)
-	subViper.Set("enable_smart_search", ac.EnableSmartSearch)
-	subViper.Set("enable_recommend_reason", ac.EnableRecommendReason)
-	subViper.Set("enable_metadata_enhance", ac.EnableMetadataEnhance)
-	subViper.Set("monthly_budget", ac.MonthlyBudget)
-	subViper.Set("cache_ttl_hours", ac.CacheTTLHours)
-	subViper.Set("max_concurrent", ac.MaxConcurrent)
-	subViper.Set("request_interval_ms", ac.RequestIntervalMs)
-	// V7
-	subViper.Set("monthly_token_budget", ac.MonthlyTokenBudget)
-	subViper.Set("warning_threshold_pct", ac.WarningThresholdPct)
-	subViper.Set("failover.enabled", ac.Failover.Enabled)
-
-	// 场景描述视觉模型配置
-	subViper.Set("scene_describe_ai.api_base", ac.SceneDescribeAI.APIBase)
-	subViper.Set("scene_describe_ai.api_key", ac.SceneDescribeAI.APIKey)
-	subViper.Set("scene_describe_ai.model", ac.SceneDescribeAI.Model)
-	subViper.Set("failover.chain", ac.Failover.Chain)
-	subViper.Set("failover.auto_recover_after_min", ac.Failover.AutoRecoverAfterMin)
-	subViper.Set("failover.consecutive_error_threshold", ac.Failover.ConsecutiveErrorThreshold)
-	subViper.Set("failover.current_active", ac.Failover.CurrentActive)
-	subViper.Set("failover.last_switched_at", ac.Failover.LastSwitchedAt)
-
-	if ac.Profiles != nil {
-		profilesMap := make(map[string]map[string]interface{}, len(ac.Profiles))
-		for k, p := range ac.Profiles {
-			profilesMap[k] = map[string]interface{}{
-				"api_base": p.APIBase,
-				"api_key":  p.APIKey,
-				"model":    p.Model,
-				"enabled":  p.Enabled,
-			}
-		}
-		subViper.Set("profiles", profilesMap)
-	}
-
-	return subViper.WriteConfigAs(targetFile)
+	return SaveSection(c, "ai", "ai.yaml", encryptPaths, func() AIConfig {
+		return c.AI
+	})
 }
 
 // saveConfig 将当前配置写入配置文件

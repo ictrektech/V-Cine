@@ -102,6 +102,26 @@ export const aiApi = {
   // 用量曲线（按天聚合）
   getUsageBuckets: (range: 'day' | 'week' | 'month' | 'year' = 'month', provider?: string) =>
     api.get<{ data: import('@/types').AIUsageReport }>('/admin/ai/usage', { params: { range, provider } }),
+
+  // ==================== V9：供应商管理（profiles 即唯一数据源） ====================
+
+  // 供应商列表已包含在 getStatus 返回的 profiles 中，无需单独获取
+
+  // 添加供应商
+  addProvider: (provider: { name: string; api_base: string; api_key?: string; model?: string; models?: string[]; color?: string }) =>
+    api.post<{ message: string; data: { id: string; name: string; api_base: string } }>('/admin/ai/providers', provider),
+
+  // 更新供应商
+  updateProvider: (id: string, updates: { name?: string; api_base?: string; models?: string[]; color?: string }) =>
+    api.put<{ message: string }>(`/admin/ai/providers/${id}`, updates),
+
+  // 删除供应商
+  deleteProvider: (id: string) =>
+    api.delete<{ message: string }>(`/admin/ai/providers/${id}`),
+
+  // 从 API 获取模型列表
+  fetchModels: (base_url: string, api_key?: string) =>
+    api.post<{ data: string[] }>('/admin/ai/providers/fetch-models', { base_url, api_key }),
 }
 
 // ==================== AI 助手 ====================

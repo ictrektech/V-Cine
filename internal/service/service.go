@@ -152,7 +152,8 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// V2.1: 将 VFSManager 注入到 scanner 与 transcoder，支持 webdav:// 路径扫描
 
 	// 创建 AI 服务
-	aiService := NewAIService(cfg.AI, cfg, repos.Media, repos.AICache, logger)
+	aiConfigProvider := NewAIConfigProvider(cfg)
+	aiService := NewAIService(cfg.AI, cfg, repos.Media, repos.AICache, logger, aiConfigProvider)
 
 	// 注入 AI 服务到元数据服务
 	metadata.SetAIService(aiService)

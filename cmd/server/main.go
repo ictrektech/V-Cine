@@ -678,6 +678,10 @@ func main() {
 		admin.GET("/ai/router/logs", handlers.AI.ListFailoverLogs)
 		admin.GET("/ai/usage", handlers.AI.GetUsageBuckets)
 
+		// V10：单一 provider 模式（替代旧多 provider CRUD）
+		admin.POST("/ai/set-active", handlers.AI.SetActive)
+		admin.POST("/ai/providers/fetch-models", handlers.AI.FetchModels)
+
 		// 用户观影统计（管理员）
 		admin.GET("/stats/:userId", handlers.Stats.GetUserStatsAdmin)
 

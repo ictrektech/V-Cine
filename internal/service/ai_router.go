@@ -20,8 +20,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -90,13 +88,9 @@ func NewAIRouter(
 		cfg:         cfg,
 		logger:      logger,
 	}
-	// 启动时尝试恢复之前持久化的 active provider
+	// 启动时初始化 currentActive
 	if cfg != nil {
-		if cfg.AI.Failover.CurrentActive != "" {
-			r.currentActive = cfg.AI.Failover.CurrentActive
-		} else {
-			r.currentActive = cfg.AI.Provider
-		}
+		r.currentActive = cfg.AI.Provider
 	}
 	// 注入到 AIService（让 ChatCompletion 在每次调用前后回调 router）
 	if ai != nil {
@@ -123,53 +117,23 @@ func (r *AIRouter) PreferredProvider() string {
 	return r.cfg.AI.Provider
 }
 
-// FailoverChain 返回当前生效的切换链；自动补齐顶层 provider 到第 0 位
+// FailoverChain 返回当前生效的切换链。
+// V10 重构：failover 功能已删除，只返回主 provider。
 func (r *AIRouter) FailoverChain() []string {
 	if r.cfg == nil {
 		return nil
 	}
 	pref := r.PreferredProvider()
-	if !r.cfg.AI.Failover.Enabled {
-		// 关闭 failover 时只允许使用主 provider
-		if pref == "" {
-			return nil
-		}
-		return []string{pref}
+	if pref == "" {
+		return nil
 	}
-	chain := make([]string, 0, len(r.cfg.AI.Failover.Chain)+1)
-	if pref != "" {
-		chain = append(chain, pref)
-	}
-	for _, p := range r.cfg.AI.Failover.Chain {
-		p = strings.TrimSpace(strings.ToLower(p))
-		if p == "" || p == pref {
-			continue
-		}
-		// 必须在 profiles 中存在且 enabled != false
-		if profile, ok := r.cfg.AI.Profiles[p]; ok {
-			if profile.APIKey == "" {
-				continue // 没填 key 的备用 provider 直接跳过
-			}
-			if !profile.Enabled && r.profileExplicitlyDisabled(p) {
-				continue
-			}
-		} else {
-			continue
-		}
-		chain = append(chain, p)
-	}
-	return chain
+	return []string{pref}
 }
 
-// profileExplicitlyDisabled 判断某 profile 是否被用户显式禁用
-//
-// yaml 中没写 enabled 字段时，默认视为 true（允许参与）。
-// 仅当 yaml 中明确写 enabled: false 才不参与。
-// 为简化判断，这里统一以 r.cfg.AI.Profiles[p].Enabled == false 视为禁用，
-// 调用方在加载侧需保证 enabled 默认为 true。
+// profileExplicitlyDisabled 判断某 profile 是否被用户显式禁用。
+// V10 重构：failover 功能已删除，始终返回 false。
 func (r *AIRouter) profileExplicitlyDisabled(p string) bool {
-	// 当前实现：直接读 Enabled 字段。要求加载时为缺省值默认填 true。
-	// 此函数预留扩展点，未来可改为读取额外的 disabled bitmap。
+	return false
 	return false
 }
 
@@ -203,227 +167,36 @@ func (r *AIRouter) MarkSuccess(provider, modelID string, prompt, completion int,
 func (r *AIRouter) MarkFailure(provider string, statusCode int, body string) (shouldSwitch bool, nextProvider string, reason string) {
 	r.mu.Lock()
 	r.consecutiveErrors++
-	consec := r.consecutiveErrors
 	r.mu.Unlock()
 
 	// 1. 异步写失败的用量记录（PromptTokens=0）
 	go r.recordUsage(provider, "", 0, 0, 0, "error", false)
 
-	// 2. 评估是否需要切换
-	if r.cfg == nil || !r.cfg.AI.Failover.Enabled {
-		return false, "", ""
-	}
-	threshold := r.cfg.AI.Failover.ConsecutiveErrorThreshold
-	if threshold <= 0 {
-		threshold = 3
-	}
-
-	// 配额耗尽：错误体里含 quota / exceeded / insufficient_balance / overload
-	// 同时识别阿里云百炼"单模型免费额度耗尽"特征（AllocationQuota.FreeTierOnly / Free allocated quota exceeded）
-	bodyLower := strings.ToLower(body)
-	quotaHints := []string{"quota", "exceeded", "insufficient_balance", "insufficient quota", "overloaded", "balance"}
-	hitQuota := false
-	for _, h := range quotaHints {
-		if strings.Contains(bodyLower, h) {
-			hitQuota = true
-			break
-		}
-	}
-
-	// V8：识别"单模型免费额度耗尽"——优先在同 provider 内切换 model_chain 中的下一个模型
-	hitModelQuota := isModelQuotaExhausted(statusCode, body)
-	if hitModelQuota {
-		if r.tryAdvanceModel(provider) {
-			// 模型级切换成功，不再触发 provider 级切换
-			return false, "", FailoverReasonModelQuotaExhausted
-		}
-		// 链尾退化：继续走 provider 级切换
-		hitQuota = true
-	}
-
-	switch {
-	case hitQuota:
-		reason = FailoverReasonQuotaExhausted
-		shouldSwitch = true
-	case statusCode == 429 && consec >= threshold:
-		reason = FailoverReasonHTTP429
-		shouldSwitch = true
-	case statusCode >= 500 && statusCode < 600 && consec >= threshold:
-		reason = FailoverReasonHTTP5xx
-		shouldSwitch = true
-	case statusCode == 0 && consec >= threshold:
-		reason = FailoverReasonNetwork
-		shouldSwitch = true
-	}
-
-	if !shouldSwitch {
-		return false, "", ""
-	}
-
-	next, ok := r.pickNextProvider(provider)
-	if !ok {
-		return false, "", ""
-	}
-	if err := r.switchTo(provider, next, reason, fmt.Sprintf("HTTP %d, body=%s", statusCode, truncForLog(body, 200)), "system"); err != nil {
-		r.logger.Warnf("AIRouter 切换失败 %s -> %s: %v", provider, next, err)
-		return false, "", ""
-	}
-	return true, next, reason
+	// 2. V10 重构：failover 功能已删除，不切换
+	return false, "", ""
 }
 
-// isModelQuotaExhausted 判断错误是否属于"单模型粒度的免费额度耗尽"
-//
-// 触发条件（任一命中即可）：
-//   - HTTP 403 + body 含 "AllocationQuota.FreeTierOnly"
-//   - body 含 "Free allocated quota exceeded"
-//   - body 含 "model.*quota.*exhaust" 类描述
-//
-// 注意与 hitQuota（provider 级配额耗尽）的区别：
-// 模型级 quota 一般在同 provider 下换个模型就能继续；
-// provider 级 quota（账号余额耗尽 / insufficient_balance）才需要换 provider。
+// isModelQuotaExhausted V10 重构：failover 功能已删除，始终返回 false。
 func isModelQuotaExhausted(statusCode int, body string) bool {
-	if body == "" {
-		return false
-	}
-	low := strings.ToLower(body)
-	if strings.Contains(body, "AllocationQuota.FreeTierOnly") ||
-		strings.Contains(low, "allocationquota.freetieronly") {
-		return true
-	}
-	if strings.Contains(low, "free allocated quota exceeded") {
-		return true
-	}
-	// 部分服务商：HTTP 403 + body 中含 model + quota
-	if statusCode == 403 && strings.Contains(low, "quota") && strings.Contains(low, "model") {
-		return true
-	}
 	return false
 }
 
-// tryAdvanceModel 尝试把当前 provider 的 model 推进到 model_chain 中的下一项
-//
-// 返回 true 表示已成功切换（已写 AIService 配置 + 持久化 yaml + 写审计日志）；
-// 返回 false 表示链已用尽 / 无可用候选，调用方应退化到 provider 级 failover。
+// tryAdvanceModel V10 重构：failover 功能已删除，始终返回 false。
 func (r *AIRouter) tryAdvanceModel(provider string) bool {
-	if r.cfg == nil {
-		return false
-	}
-	profile, ok := r.cfg.AI.Profiles[provider]
-	if !ok {
-		return false
-	}
-	chain := profile.ModelChain
-	if len(chain) == 0 {
-		return false
-	}
-
-	// 当前正在用的 model：优先 CurrentModel，其次 cfg.AI.Model（仅当 provider 是激活 provider）
-	curModel := strings.TrimSpace(profile.CurrentModel)
-	if curModel == "" {
-		curModel = strings.TrimSpace(profile.Model)
-	}
-	if curModel == "" && provider == r.cfg.AI.Provider {
-		curModel = strings.TrimSpace(r.cfg.AI.Model)
-	}
-
-	next := pickNextModelInChain(chain, curModel)
-	if next == "" || next == curModel {
-		return false
-	}
-
-	if err := r.switchModel(provider, curModel, next,
-		FailoverReasonModelQuotaExhausted,
-		fmt.Sprintf("model %s 配额耗尽，切换到 %s", curModel, next),
-		"system"); err != nil {
-		r.logger.Warnf("AIRouter 模型切换失败 %s: %s -> %s: %v", provider, curModel, next, err)
-		return false
-	}
-	return true
+	return false
 }
 
-// pickNextModelInChain 在模型链中找到 cur 之后第一个非空、非重复且不等于 cur 的模型
-//
-// 当 cur 不在链里时，返回链中第一个不等于 cur 的元素（即从头开始）。
+// pickNextModelInChain V10 重构：failover 功能已删除，始终返回空。
 func pickNextModelInChain(chain []string, cur string) string {
-	cur = strings.TrimSpace(cur)
-	idx := -1
-	for i, m := range chain {
-		if strings.TrimSpace(m) == cur {
-			idx = i
-			break
-		}
-	}
-	for i := idx + 1; i < len(chain); i++ {
-		m := strings.TrimSpace(chain[i])
-		if m == "" || m == cur {
-			continue
-		}
-		return m
-	}
 	return ""
 }
 
-// switchModel 在同一 provider 内切换 model（不改 provider / api_base / api_key）
-//
-// 落地副作用：
-//  1. 更新 AIService 当前生效 model（若 provider 恰好是激活 provider）
-//  2. 更新 cfg.AI.Profiles[provider].CurrentModel 并落盘 yaml
-//  3. 写审计日志（reason=model_quota_exhausted），from/to 字段格式 "<provider>:<model>"
+// switchModel V10 重构：failover 功能已删除，始终返回错误。
 func (r *AIRouter) switchModel(provider, fromModel, toModel, reason, detail, operator string) error {
-	if r.cfg == nil {
-		return errors.New("cfg 未初始化")
-	}
-	provider = strings.ToLower(strings.TrimSpace(provider))
-	toModel = strings.TrimSpace(toModel)
-	if provider == "" || toModel == "" {
-		return errors.New("provider 或 model 为空")
-	}
-	profile, ok := r.cfg.AI.Profiles[provider]
-	if !ok {
-		return fmt.Errorf("profile %s 不存在", provider)
-	}
-
-	// 1. 更新 AIService 配置（仅当 provider 是当前激活 provider）
-	if r.ai != nil && provider == r.cfg.AI.Provider {
-		if err := r.ai.UpdateConfig(map[string]interface{}{
-			"model": toModel,
-		}); err != nil {
-			return fmt.Errorf("更新 AIService model 失败: %w", err)
-		}
-	}
-
-	// 2. 更新 profile.CurrentModel 并落盘
-	profile.CurrentModel = toModel
-	r.cfg.AI.Profiles[provider] = profile
-	// 若 provider 是激活 provider，顺便同步顶层 cfg.AI.Model（保持单字段一致语义）
-	if provider == r.cfg.AI.Provider {
-		r.cfg.AI.Model = toModel
-	}
-	_ = r.cfg.SaveAIConfig()
-
-	// 3. 重置连续错误计数（给新模型一个公平起点）
-	r.mu.Lock()
-	r.consecutiveErrors = 0
-	r.lastSwitchedAt = time.Now()
-	r.mu.Unlock()
-
-	// 4. 审计日志
-	if r.failoverLog != nil {
-		_ = r.failoverLog.Insert(&model.AIFailoverLog{
-			FromProvider: provider + ":" + fromModel,
-			ToProvider:   provider + ":" + toModel,
-			Reason:       reason,
-			Detail:       detail,
-			Operator:     operator,
-		})
-	}
-
-	r.logger.Warnf("AIRouter 模型切换：[%s] %s → %s（原因：%s，操作者：%s）",
-		provider, fromModel, toModel, reason, operator)
-	return nil
+	return errors.New("failover 已禁用")
 }
 
-// pickNextProvider 在切换链中找到 currentFrom 之后第一个可用 provider
+// pickNextProvider V10 重构：failover 功能已删除，始终返回空。
 func (r *AIRouter) pickNextProvider(currentFrom string) (string, bool) {
 	chain := r.FailoverChain()
 	curIdx := -1
@@ -441,122 +214,22 @@ func (r *AIRouter) pickNextProvider(currentFrom string) (string, bool) {
 
 // ForceSwitch 手动强制切换到指定 provider（管理员触发）
 func (r *AIRouter) ForceSwitch(toProvider, operator string) error {
-	if r.cfg == nil {
-		return errors.New("cfg 未初始化")
-	}
-	toProvider = strings.ToLower(strings.TrimSpace(toProvider))
-	if toProvider == "" {
-		return errors.New("provider 不能为空")
-	}
-	if _, ok := r.cfg.AI.Profiles[toProvider]; !ok {
-		return fmt.Errorf("provider %q 不在 profiles 中", toProvider)
-	}
-	from := r.CurrentActive()
-	return r.switchTo(from, toProvider, FailoverReasonManualSwitch, "用户手动切换", operator)
+	return errors.New("failover 已禁用")
 }
 
-// Restore 恢复到主 provider（用户偏好）
+// Restore V10 重构：failover 功能已删除，始终返回 nil。
 func (r *AIRouter) Restore(operator string) error {
-	if r.cfg == nil {
-		return errors.New("cfg 未初始化")
-	}
-	pref := r.PreferredProvider()
-	if pref == "" {
-		return errors.New("主 provider 未配置")
-	}
-	from := r.CurrentActive()
-	if from == pref {
-		return nil // 已经在主 provider，无需切换
-	}
-	return r.switchTo(from, pref, FailoverReasonManualRestore, "用户手动恢复主 provider", operator)
-}
-
-// MaybeAutoRecover 周期性检查是否到达自动恢复时间，并尝试恢复主 provider
-//
-// 由调度器或下一次 Call 触发；为避免热路径成本，使用读锁快速短路。
-func (r *AIRouter) MaybeAutoRecover() {
-	if r.cfg == nil {
-		return
-	}
-	mins := r.cfg.AI.Failover.AutoRecoverAfterMin
-	if mins <= 0 {
-		return
-	}
-	r.mu.RLock()
-	cur := r.currentActive
-	last := r.lastSwitchedAt
-	r.mu.RUnlock()
-
-	pref := r.PreferredProvider()
-	if cur == pref {
-		return // 已经在主 provider
-	}
-	if time.Since(last) < time.Duration(mins)*time.Minute {
-		return
-	}
-	// 进入实际恢复流程（写日志 + 切换状态）
-	if err := r.switchTo(cur, pref, FailoverReasonAutoRecover, "自动恢复窗口已到", "system"); err != nil {
-		r.logger.Warnf("AIRouter 自动恢复失败: %v", err)
-	}
-}
-
-// switchTo 执行实际切换：更新内存状态 + 持久化 + 写日志
-func (r *AIRouter) switchTo(from, to, reason, detail, operator string) error {
-	if to == "" {
-		return errors.New("target provider 为空")
-	}
-
-	// 1. 更新 AIService 当前生效配置
-	if r.cfg != nil {
-		profile, ok := r.cfg.AI.Profiles[to]
-		if !ok {
-			return fmt.Errorf("profile %s 不存在", to)
-		}
-		// V8：跨 provider 切换时，优先使用目标 profile 的 CurrentModel（若曾因模型级 failover 推进过）
-		effectiveModel := profile.Model
-		if cm := strings.TrimSpace(profile.CurrentModel); cm != "" {
-			effectiveModel = cm
-		}
-		updates := map[string]interface{}{
-			"provider": to,
-			"api_base": profile.APIBase,
-			"api_key":  profile.APIKey,
-			"model":    effectiveModel,
-		}
-		if r.ai != nil {
-			if err := r.ai.UpdateConfig(updates); err != nil {
-				return fmt.Errorf("更新 AIService 配置失败: %w", err)
-			}
-		}
-	}
-
-	// 2. 更新内存状态
-	r.mu.Lock()
-	r.currentActive = to
-	r.consecutiveErrors = 0
-	r.lastSwitchedAt = time.Now()
-	r.mu.Unlock()
-
-	// 3. 持久化 currentActive
-	if r.cfg != nil {
-		r.cfg.AI.Failover.CurrentActive = to
-		r.cfg.AI.Failover.LastSwitchedAt = time.Now().Unix()
-		_ = r.cfg.SaveAIConfig() // 失败不阻断
-	}
-
-	// 4. 写切换审计日志
-	if r.failoverLog != nil {
-		_ = r.failoverLog.Insert(&model.AIFailoverLog{
-			FromProvider: from,
-			ToProvider:   to,
-			Reason:       reason,
-			Detail:       detail,
-			Operator:     operator,
-		})
-	}
-
-	r.logger.Warnf("AIRouter 切换：%s → %s（原因：%s，操作者：%s）", from, to, reason, operator)
 	return nil
+}
+
+// MaybeAutoRecover V10 重构：failover 功能已删除，直接返回。
+func (r *AIRouter) MaybeAutoRecover() {
+	return
+}
+
+// switchTo V10 重构：failover 功能已删除，始终返回错误。
+func (r *AIRouter) switchTo(from, to, reason, detail, operator string) error {
+	return errors.New("failover 已禁用")
 }
 
 // recordUsage 写入一条用量记录（异步入口）
@@ -639,21 +312,13 @@ func (r *AIRouter) handleBudgetReached(used, budget int64) {
 	r.mu.Lock()
 	first := !r.lastBudgetReach
 	r.lastBudgetReach = true
-	cur := r.currentActive
 	r.mu.Unlock()
 	if !first {
 		return
 	}
-	r.logger.Errorf("🚨 AI 月度 token 配额已耗尽 (%d / %d)，准备切换到下一个 provider", used, budget)
-	if !r.cfg.AI.Failover.Enabled {
-		return
-	}
-	next, ok := r.pickNextProvider(cur)
-	if !ok {
-		return
-	}
-	_ = r.switchTo(cur, next, FailoverReasonBudgetReached,
-		fmt.Sprintf("月度 token 预算 %d 已耗尽", budget), "system")
+	r.logger.Errorf("🚨 AI 月度 token 配额已耗尽 (%d / %d)", used, budget)
+	// V10 重构：failover 功能已删除，不切换 provider
+	return
 }
 
 // LoadMonthUsage 从仓储补全当月已使用的 token（启动 / 跨月时调用）
@@ -721,26 +386,15 @@ func (r *AIRouter) GetSnapshot() AIRouterSnapshot {
 		MonthlyTokenUsed:  used,
 	}
 	if r.cfg != nil {
-		snap.FailoverEnabled = r.cfg.AI.Failover.Enabled
+		snap.FailoverEnabled = false // V10: failover 已删除
 		snap.Chain = r.FailoverChain()
 		snap.MonthlyTokenBudget = r.cfg.AI.MonthlyTokenBudget
 		snap.WarningThresholdPct = r.cfg.AI.WarningThresholdPct
-		snap.AutoRecoverAfterMin = r.cfg.AI.Failover.AutoRecoverAfterMin
+		snap.AutoRecoverAfterMin = 0 // V10: failover 已删除
 
-		// V8：当前生效 provider 的模型信息
-		if profile, ok := r.cfg.AI.Profiles[cur]; ok {
-			if cm := strings.TrimSpace(profile.CurrentModel); cm != "" {
-				snap.CurrentModel = cm
-			} else {
-				snap.CurrentModel = profile.Model
-			}
-			snap.PreferredModel = profile.Model
-			snap.CurrentModelChain = append([]string(nil), profile.ModelChain...)
-		} else {
-			// 未在 profiles 中（极少数情况），回退到顶层 cfg.AI.Model
-			snap.CurrentModel = r.cfg.AI.Model
-			snap.PreferredModel = r.cfg.AI.Model
-		}
+		// V10: 从扁平字段读取模型信息
+		snap.CurrentModel = r.cfg.AI.ActiveModel
+		snap.PreferredModel = r.cfg.AI.ActiveModel
 	}
 	if snap.MonthlyTokenBudget > 0 {
 		snap.MonthlyTokenPct = int(used * 100 / snap.MonthlyTokenBudget)
@@ -750,54 +404,15 @@ func (r *AIRouter) GetSnapshot() AIRouterSnapshot {
 		now := time.Now()
 		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 		if rows, err := r.usageRepo.SumByProvider(monthStart, now.Add(time.Minute)); err == nil {
-			byProv := make(map[string]repository.AIUsageProviderTotal, len(rows))
 			for _, row := range rows {
-				byProv[row.Provider] = row
-			}
-			// 输出顺序：链 + 其余 profile
-			emitted := make(map[string]bool)
-			for _, p := range snap.Chain {
-				row := byProv[p]
-				profile, ok := r.cfg.AI.Profiles[p]
 				view := ProviderTotalView{
-					Provider:    p,
-					Calls:       row.Calls,
-					TotalTokens: row.TotalTokens,
-					CostCNY:     row.CostCNY,
-					Enabled:     ok,
-					Configured:  ok && profile.APIKey != "",
-				}
-				if ok {
-					if cm := strings.TrimSpace(profile.CurrentModel); cm != "" {
-						view.CurrentModel = cm
-					} else {
-						view.CurrentModel = profile.Model
-					}
-					view.ModelChain = append([]string(nil), profile.ModelChain...)
-				}
-				snap.ProviderTotals = append(snap.ProviderTotals, view)
-				emitted[p] = true
-			}
-			for p, row := range byProv {
-				if emitted[p] {
-					continue
-				}
-				profile, ok := r.cfg.AI.Profiles[p]
-				view := ProviderTotalView{
-					Provider:    p,
-					Calls:       row.Calls,
-					TotalTokens: row.TotalTokens,
-					CostCNY:     row.CostCNY,
-					Enabled:     ok,
-					Configured:  ok && profile.APIKey != "",
-				}
-				if ok {
-					if cm := strings.TrimSpace(profile.CurrentModel); cm != "" {
-						view.CurrentModel = cm
-					} else {
-						view.CurrentModel = profile.Model
-					}
-					view.ModelChain = append([]string(nil), profile.ModelChain...)
+					Provider:     row.Provider,
+					Calls:        row.Calls,
+					TotalTokens:  row.TotalTokens,
+					CostCNY:      row.CostCNY,
+					Enabled:      true,
+					Configured:   true,
+					CurrentModel: r.cfg.AI.ActiveModel,
 				}
 				snap.ProviderTotals = append(snap.ProviderTotals, view)
 			}
