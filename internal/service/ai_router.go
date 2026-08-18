@@ -90,7 +90,7 @@ func NewAIRouter(
 	}
 	// 启动时初始化 currentActive
 	if cfg != nil {
-		r.currentActive = cfg.AI.Provider
+		r.currentActive = cfg.AI.ActiveProvider
 	}
 	// 注入到 AIService（让 ChatCompletion 在每次调用前后回调 router）
 	if ai != nil {
@@ -104,7 +104,7 @@ func (r *AIRouter) CurrentActive() string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if r.currentActive == "" && r.cfg != nil {
-		return r.cfg.AI.Provider
+		return r.cfg.AI.ActiveProvider
 	}
 	return r.currentActive
 }
@@ -114,7 +114,7 @@ func (r *AIRouter) PreferredProvider() string {
 	if r.cfg == nil {
 		return ""
 	}
-	return r.cfg.AI.Provider
+	return r.cfg.AI.ActiveProvider
 }
 
 // FailoverChain 返回当前生效的切换链。

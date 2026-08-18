@@ -159,11 +159,11 @@ func NewAIService(cfg config.AIConfig, appCfg *config.Config, mediaRepo *reposit
 	}
 
 	if cfg.Enabled {
-		if cfg.APIBase != "" {
+		if ap := cfg.ActiveProfile(); ap != nil {
 			logger.Infof("AI 服务已启用 (提供商: %s, 模型: %s, API: %s)",
-				cfg.Provider, cfg.ActiveModel, maskAPIBase(cfg.APIBase))
+				cfg.ActiveProvider, cfg.ActiveModelName(), maskAPIBase(ap.APIBase))
 		} else {
-			logger.Infof("AI 服务已启用但未配置供应商 (提供商: %s)", cfg.Provider)
+			logger.Infof("AI 服务已启用但未配置供应商 (提供商: %s)", cfg.ActiveProvider)
 		}
 		logger.Infof("AI 功能开关 — 智能搜索: %v, 推荐理由: %v, 元数据增强: %v",
 			cfg.EnableSmartSearch, cfg.EnableRecommendReason, cfg.EnableMetadataEnhance)
@@ -204,7 +204,8 @@ func (s *AIService) IsEnabled() bool {
 	}
 	s.cfgMu.RLock()
 	defer s.cfgMu.RUnlock()
-	if s.cfg.APIKey == "" || s.cfg.APIBase == "" {
+	ap := s.cfg.ActiveProfile()
+	if ap == nil || ap.APIKey == "" || ap.APIBase == "" {
 		return false
 	}
 	if s.cfg.AutoPilot {
@@ -220,7 +221,7 @@ func (s *AIService) Provider() string {
 	}
 	s.cfgMu.RLock()
 	defer s.cfgMu.RUnlock()
-	return s.cfg.Provider
+	return s.cfg.ActiveProvider
 }
 
 // Model 返回当前生效的 AI 模型
@@ -321,20 +322,18 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 		cfg = s.snapshotCfg()
 	}
 
-	// 从扁平字段解析激活 provider 的配置
-	apiBase := cfg.APIBase
-	apiKey := cfg.APIKey
-	model := cfg.ActiveModel
-	if model == "" {
-		model = cfg.Provider // 兼容旧配置
+	// 从 Providers 列表解析激活 provider 的配置
+	ap := cfg.ActiveProfile()
+	if ap == nil || ap.APIBase == "" || ap.APIKey == "" {
+		return "", fmt.Errorf("未配置 AI 供应商（provider=%s）", cfg.ActiveProvider)
 	}
-	if apiBase == "" || apiKey == "" {
-		return "", fmt.Errorf("未配置 AI 供应商（provider=%s）", cfg.Provider)
-	}
+	apiBase := ap.APIBase
+	apiKey := ap.APIKey
+	model := cfg.ActiveModelName()
 
 	// 云端强制：拦截本地 AI（如 ollama），避免「全自动托管」语义下走本地推理
-	if cfg.BlockLocalAI && isLocalAIProvider(cfg.Provider, apiBase) {
-		return "", fmt.Errorf("当前系统禁止本地 AI（provider=%s），请在 AI 配置中选择云端服务商（OpenAI/DeepSeek/通义千问）", cfg.Provider)
+	if cfg.BlockLocalAI && isLocalAIProvider(cfg.ActiveProvider, apiBase) {
+		return "", fmt.Errorf("当前系统禁止本地 AI（provider=%s），请在 AI 配置中选择云端服务商（OpenAI/DeepSeek/通义千问）", cfg.ActiveProvider)
 	}
 
 	// 预算检查
@@ -359,7 +358,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 	// 低温 JSON/短文本任务进一步收窄 top_p，降低 deepseek-v4-flash 冗长/发散输出概率。
 	if temperature <= 0.1 && maxTokens > 0 && maxTokens <= 1024 {
 		reqBody.TopP = 0.1
-		if maxTokens >= 128 && supportsJSONResponseFormat(cfg.Provider) {
+		if maxTokens >= 128 && supportsJSONResponseFormat(cfg.ActiveProvider) {
 			reqBody.ResponseFormat = &ChatCompletionResponseFormat{Type: "json_object"}
 		}
 	}
@@ -428,7 +427,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 				chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, chatResp.Usage.TotalTokens, attempt)
 			// V7：通知路由器记录用量
 			if s.router != nil {
-				s.router.MarkSuccess(cfg.Provider, model,
+				s.router.MarkSuccess(cfg.ActiveProvider, model,
 					chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, 0, "chat_completion")
 			}
 			return result, nil
@@ -459,7 +458,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 		s.addErrorLog("chat_completion", errMsg, 0)
 		// V7：通知路由器试图切换（这里不另外重试，避免双重试逻辑交叉）
 		if s.router != nil {
-			s.router.MarkFailure(cfg.Provider, resp.StatusCode, string(respBody))
+			s.router.MarkFailure(cfg.ActiveProvider, resp.StatusCode, string(respBody))
 		}
 		return "", errMsg
 	}
@@ -470,7 +469,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 	s.addErrorLog("chat_completion", lastErr, 0)
 	// V7：重试后仍失败（网络错误路径），同样平衡给 router
 	if s.router != nil {
-		s.router.MarkFailure(cfg.Provider, 0, lastErr.Error())
+		s.router.MarkFailure(cfg.ActiveProvider, 0, lastErr.Error())
 	}
 	return "", lastErr
 }
@@ -715,21 +714,16 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"enabled":                 cfg.Enabled,
 		"auto_pilot":              cfg.AutoPilot,
 		"block_local_ai":          cfg.BlockLocalAI,
-		"provider":                cfg.Provider,
 		"active_provider":          cfg.ActiveProvider,
-		"active_model":             cfg.ActiveModel,
-		"model":                   cfg.ActiveModel,
-		"api_base":                cfg.APIBase,
-		"api_configured":          cfg.APIKey != "",
+		"active_model":             cfg.ActiveModelName(),
 		"timeout":                 cfg.Timeout,
 		"enable_smart_search":     cfg.EnableSmartSearch,
 		"enable_recommend_reason": cfg.EnableRecommendReason,
 		"enable_metadata_enhance": cfg.EnableMetadataEnhance,
 		"describe_enabled":          s.appCfg.VideoAnalysis.DescribeEnabled,
 		"scene_describe_ai": map[string]interface{}{
-			"api_base": cfg.SceneDescribeAI.APIBase,
-			"api_key":  cfg.SceneDescribeAI.APIKey,
-			"model":    cfg.SceneDescribeAI.Model,
+			"provider_id": cfg.SceneDescribeAI.ProviderID,
+			"model":       cfg.SceneDescribeAI.Model,
 		},
 		"cache_ttl_hours":         cfg.CacheTTLHours,
 		"max_concurrent":          cfg.MaxConcurrent,
@@ -739,16 +733,7 @@ func (s *AIService) GetStatus() map[string]interface{} {
 	// 供应商列表（脱敏：不返回 api_key，只返回 api_key_configured）
 	providersView := make([]map[string]interface{}, 0, len(cfg.Providers))
 	for _, p := range cfg.Providers {
-		view := map[string]interface{}{
-			"id":                 p.ID,
-			"name":               p.Name,
-			"api_base":           p.APIBase,
-			"model":              p.Model,
-			"enabled":            p.Enabled,
-			"api_key_configured": p.APIKey != "",
-			"active":             p.ID == cfg.ActiveProvider,
-		}
-		providersView = append(providersView, view)
+		providersView = append(providersView, p.ViewMap(cfg.ActiveProvider))
 	}
 	status["providers"] = providersView
 
@@ -809,9 +794,13 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 			if v, ok := val.(bool); ok {
 				s.cfg.BlockLocalAI = v
 			}
-		case "provider":
+		case "active_provider":
 			if v, ok := val.(string); ok {
-				s.cfg.Provider = v
+				s.cfg.ActiveProvider = v
+			}
+		case "active_model":
+			if v, ok := val.(string); ok {
+				s.cfg.ActiveModel = v
 			}
 		case "timeout":
 			if v, ok := val.(float64); ok {
@@ -855,11 +844,8 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 			}
 		case "scene_describe_ai":
 			if v, ok := val.(map[string]interface{}); ok {
-				if baseURL, ok := v["api_base"].(string); ok {
-					s.cfg.SceneDescribeAI.APIBase = baseURL
-				}
-				if apiKey, ok := v["api_key"].(string); ok {
-					s.cfg.SceneDescribeAI.APIKey = apiKey
+				if providerID, ok := v["provider_id"].(string); ok {
+					s.cfg.SceneDescribeAI.ProviderID = providerID
 				}
 				if model, ok := v["model"].(string); ok {
 					s.cfg.SceneDescribeAI.Model = model
@@ -875,9 +861,9 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 	if err := s.appCfg.SaveAIConfig(); err != nil {
 		s.logger.Warnf("AI 配置已更新但持久化失败: %v", err)
 		// 不阻塞热更新生效，仅警告
-	} else {
-		s.logger.Infof("AI 配置已更新并写入 config/ai.yaml")
+		return nil
 	}
+	s.logger.Infof("AI 配置已更新并写入 config/ai.yaml")
 	return nil
 }
 
@@ -893,18 +879,37 @@ func (s *AIService) SyncConfig() {
 
 // ==================== 连接测试 ====================
 
-// TestConnection 测试 AI API 连接
-// 注意：此方法绕过 IsEnabled() 检查，直接验证 API 密钥和网络连通性
-func (s *AIService) TestConnection() (map[string]interface{}, error) {
+// TestConnection 测试指定 provider 的 API 连接。
+// providerID 为空时测试当前激活的 provider。
+func (s *AIService) TestConnection(providerID string) (map[string]interface{}, error) {
 	cfg := s.snapshotCfg()
-	if cfg.APIKey == "" || cfg.APIBase == "" {
-		return nil, fmt.Errorf("API Key 或 API Base 未配置")
+
+	// 解析 provider 连接信息
+	var apiBase, apiKey, model string
+	if providerID != "" {
+		p := cfg.FindProvider(providerID)
+		if p == nil {
+			return map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("供应商 %q 不存在", providerID),
+			}, fmt.Errorf("供应商 %q 不存在", providerID)
+		}
+		apiBase, apiKey, model = p.APIBase, p.APIKey, p.DefaultModel()
+	} else {
+		ap := cfg.ActiveProfile()
+		if ap == nil || ap.APIKey == "" || ap.APIBase == "" {
+			return map[string]interface{}{
+				"success": false,
+				"error":   "当前激活的供应商未配置 API Base 或 API Key",
+			}, fmt.Errorf("未配置")
+		}
+		apiBase, apiKey, model = ap.APIBase, ap.APIKey, cfg.ActiveModelName()
 	}
-	apiBase := cfg.APIBase
-	apiKey := cfg.APIKey
-	model := cfg.ActiveModel
-	if model == "" {
-		model = cfg.Provider
+	if apiBase == "" || apiKey == "" {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("供应商 %q 未配置 API Base 或 API Key", providerID),
+		}, fmt.Errorf("供应商 %q 未配置", providerID)
 	}
 
 	start := time.Now()
@@ -922,13 +927,13 @@ func (s *AIService) TestConnection() (map[string]interface{}, error) {
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("序列化请求失败: %w", err)
+		return map[string]interface{}{"success": false, "error": fmt.Sprintf("序列化请求失败: %v", err)}, fmt.Errorf("序列化请求失败: %w", err)
 	}
 
 	apiURL := strings.TrimRight(apiBase, "/") + "/chat/completions"
 	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
+		return map[string]interface{}{"success": false, "error": fmt.Sprintf("创建请求失败: %v", err)}, fmt.Errorf("创建请求失败: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -988,7 +993,7 @@ func (s *AIService) TestConnection() (map[string]interface{}, error) {
 		"success":    true,
 		"response":   result,
 		"latency_ms": latency,
-		"provider":   cfg.Provider,
+		"provider":   cfg.ActiveProvider,
 		"model":      model,
 	}, nil
 }

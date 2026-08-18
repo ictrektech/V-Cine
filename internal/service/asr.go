@@ -128,16 +128,20 @@ func NewASRService(appCfg *config.Config, mediaRepo *repository.MediaRepo, logge
 	// 优先使用独立的 Whisper API 配置，留空时回退到 LLM 的 API 配置
 	aiCfg := appCfg.AI
 
-	// Whisper API 地址：优先独立配置，回退到 LLM 配置
+	// Whisper API 地址：优先独立配置，回退到 LLM 配置（从 Providers 列表解析）
 	whisperAPIBase := aiCfg.WhisperAPIBase
 	if whisperAPIBase == "" {
-		whisperAPIBase = aiCfg.APIBase
+		if ap := aiCfg.ActiveProfile(); ap != nil {
+			whisperAPIBase = ap.APIBase
+		}
 	}
 
 	// Whisper API 密钥：优先独立配置，回退到 LLM 配置
 	whisperAPIKey := aiCfg.WhisperAPIKey
 	if whisperAPIKey == "" {
-		whisperAPIKey = aiCfg.APIKey
+		if ap := aiCfg.ActiveProfile(); ap != nil {
+			whisperAPIKey = ap.APIKey
+		}
 	}
 
 	// Whisper 模型名称：优先独立配置，默认 whisper-1

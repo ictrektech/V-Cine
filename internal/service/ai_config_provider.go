@@ -52,7 +52,7 @@ func NewAIConfigProvider(app *config.Config) *AIConfigProvider {
 func (p *AIConfigProvider) ActiveProvider() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.cfg.Provider
+	return p.cfg.ActiveProvider
 }
 
 // ActiveModel 返回当前激活的模型名称。
@@ -62,28 +62,31 @@ func (p *AIConfigProvider) ActiveModel() string {
 	return p.cfg.ActiveModel
 }
 
-// APIBase 返回当前激活 provider 的 API 地址。
+// APIBase 返回当前激活 provider 的 API 地址（从 Providers 列表解析）。
 func (p *AIConfigProvider) APIBase() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.cfg.APIBase
+	if ap := p.cfg.ActiveProfile(); ap != nil {
+		return ap.APIBase
+	}
+	return ""
 }
 
-// APIKey 返回当前激活 provider 的 API 密钥（已解密的明文）。
+// APIKey 返回当前激活 provider 的 API 密钥（从 Providers 列表解析）。
 func (p *AIConfigProvider) APIKey() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.cfg.APIKey
+	if ap := p.cfg.ActiveProfile(); ap != nil {
+		return ap.APIKey
+	}
+	return ""
 }
 
 // IsEnabled 检查 AI 服务是否可用（有激活 provider 且配了 APIKey + APIBase）。
-//
-// AutoPilot 语义：只要配了 APIKey 与 APIBase，
-// 即使 Enabled=false 也会被视为启用。
 func (p *AIConfigProvider) IsEnabled() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	if p.cfg.APIKey == "" || p.cfg.APIBase == "" {
+	if ap := p.cfg.ActiveProfile(); ap == nil || ap.APIKey == "" || ap.APIBase == "" {
 		return false
 	}
 	if p.cfg.AutoPilot {
@@ -203,7 +206,10 @@ func (p *AIConfigProvider) WhisperAPIBase() string {
 	if p.cfg.WhisperAPIBase != "" {
 		return p.cfg.WhisperAPIBase
 	}
-	return p.cfg.APIBase
+	if ap := p.cfg.ActiveProfile(); ap != nil {
+		return ap.APIBase
+	}
+	return ""
 }
 
 // WhisperAPIKey 返回 Whisper API 密钥（留空则复用主 AI APIKey）。
@@ -213,7 +219,10 @@ func (p *AIConfigProvider) WhisperAPIKey() string {
 	if p.cfg.WhisperAPIKey != "" {
 		return p.cfg.WhisperAPIKey
 	}
-	return p.cfg.APIKey
+	if ap := p.cfg.ActiveProfile(); ap != nil {
+		return ap.APIKey
+	}
+	return ""
 }
 
 // WhisperModel 返回 Whisper 模型名称（默认 whisper-1）。
@@ -481,12 +490,6 @@ func (p *AIConfigProvider) Update(fn func(cfg *config.AIConfig)) error {
 }
 
 // SetActive 一键切换激活的 provider 和 model。
-//
-// 用于前端"一键配置"按钮：用户选择某 provider 后，自动填充默认 api_base，
-// 保留用户已填的 api_key（不覆盖）。
-//
-// 如果 provider 在 builtinAIPresets 中有预设，则使用预设的 api_base；
-// 否则需要用户后续手动填写 api_base。
 func (p *AIConfigProvider) SetActive(provider, model string) error {
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	model = strings.TrimSpace(model)
@@ -496,14 +499,8 @@ func (p *AIConfigProvider) SetActive(provider, model string) error {
 
 	return p.Update(func(cfg *config.AIConfig) {
 		cfg.ActiveProvider = provider
-		cfg.Provider = provider // 同步旧字段
-		cfg.ActiveModel = model
-
-		// 从预设填充默认 api_base（仅当当前为空时）
-		if cfg.APIBase == "" {
-			if preset, ok := config.FindAIProviderPreset(provider); ok {
-				cfg.APIBase = preset.APIBase
-			}
+		if model != "" {
+			cfg.ActiveModel = model
 		}
 	})
 }

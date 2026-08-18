@@ -31,7 +31,7 @@ export const aiApi = {
     enable_recommend_reason: boolean
     enable_metadata_enhance: boolean
     describe_enabled: boolean
-    scene_describe_ai: { api_base: string; api_key?: string; model: string }
+    scene_describe_ai: { provider_id: string; model: string }
     monthly_budget: number
     cache_ttl_hours: number
     max_concurrent: number
@@ -45,8 +45,8 @@ export const aiApi = {
     api.post<{ message: string; data: AIStatus }>('/admin/ai/auto-pilot', params || {}),
 
   // 测试 AI 连接（管理员）
-  testConnection: () =>
-    api.post<{ data: AITestResult }>('/admin/ai/test'),
+  testConnection: (providerId?: string) =>
+    api.post<{ data: AITestResult }>('/admin/ai/test', { provider_id: providerId || '' }),
 
   // 清空 AI 缓存（管理员）
   clearCache: () =>
@@ -112,11 +112,11 @@ export const aiApi = {
     api.get<{ data: import('@/types').AIStatus['providers'] }>('/admin/ai/providers'),
 
   // 新增供应商
-  addProvider: (data: { name: string; api_base?: string; api_key?: string; model?: string }) =>
+  addProvider: (data: { name: string; api_base?: string; api_key?: string; models?: Array<{ name: string; is_vision: boolean; is_default: boolean }> }) =>
     api.post<{ message: string; data: import('@/types').AIStatus['providers'] }>('/admin/ai/providers', data),
 
   // 更新供应商
-  updateProvider: (id: string, data: { name?: string; api_base?: string; api_key?: string; model?: string; enabled?: boolean }) =>
+  updateProvider: (id: string, data: { name?: string; api_base?: string; api_key?: string; models?: Array<{ name: string; is_vision: boolean; is_default: boolean }>; enabled?: boolean }) =>
     api.put<{ message: string; data: import('@/types').AIStatus['providers'] }>(`/admin/ai/providers/${id}`, data),
 
   // 删除供应商

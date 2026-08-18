@@ -863,7 +863,7 @@ export interface AIStatus {
   enable_recommend_reason: boolean
   enable_metadata_enhance: boolean
   describe_enabled?: boolean
-  scene_describe_ai?: { api_base: string; api_key?: string; model: string }
+  scene_describe_ai?: { provider_id: string; model: string }
   monthly_calls: number
   monthly_budget: number
   total_prompt_tokens: number
@@ -881,7 +881,7 @@ export interface AIStatus {
     id: string
     name: string
     api_base: string
-    model: string
+    models: Array<{ name: string; is_vision: boolean; is_default: boolean }>
     enabled: boolean
     api_key_configured: boolean
     active: boolean

@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { aiApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
+import { Modal } from '@/components/ui/modal'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useTranslation } from '@/i18n'
 import type { AIStatus, AIErrorLog, AICacheStats, AITestResult } from '@/types'
 import {
   Sparkles,
   Power,
   Eye,
-  EyeOff,
   Cpu,
   Search,
   MessageSquare,
@@ -73,10 +74,8 @@ export default function AITab() {
   const [editMaxConcurrent, setEditMaxConcurrent] = useState(3)
   const [editRequestInterval, setEditRequestInterval] = useState(200)
 
-  const [editDescribeAPIBase, setEditDescribeAPIBase] = useState('')
-  const [editDescribeAPIKey, setEditDescribeAPIKey] = useState('')
+  const [editDescribeProviderID, setEditDescribeProviderID] = useState('')
   const [editDescribeModel, setEditDescribeModel] = useState('')
-  const [showDescribeAPIKey, setShowDescribeAPIKey] = useState(false)
   const [showDescribe, setShowDescribe] = useState(false)
 
   // 缓存
@@ -90,12 +89,15 @@ export default function AITab() {
   const [showErrors, setShowErrors] = useState(false)
 
   // ==================== 供应商列表管理 ====================
-  type ProviderItem = { id: string; name: string; api_base: string; model: string; enabled: boolean; api_key_configured: boolean; active: boolean }
+  type ModelItem = { name: string; is_vision: boolean; is_default: boolean }
+  type ProviderItem = { id: string; name: string; api_base: string; models: ModelItem[]; enabled: boolean; api_key_configured: boolean; active: boolean }
   const [providers, setProviders] = useState<ProviderItem[]>([])
   const [showProviderDialog, setShowProviderDialog] = useState(false)
   const [editingProvider, setEditingProvider] = useState<ProviderItem | null>(null)
-  const [providerForm, setProviderForm] = useState({ name: '', api_base: '', api_key: '', model: '' })
+  const [providerForm, setProviderForm] = useState<{ name: string; api_base: string; api_key: string; models: ModelItem[] }>({ name: '', api_base: '', api_key: '', models: [] })
   const [providerSaving, setProviderSaving] = useState(false)
+  // 测试连接状态：key = provider id，value = { testing, success, message }
+  const [connTests, setConnTests] = useState<Record<string, { testing: boolean; success: boolean; message: string }>>({})
 
 
   // AutoPilot 切换繁忙态
@@ -123,8 +125,8 @@ export default function AITab() {
       setEditRecommendReason(s.enable_recommend_reason)
       setEditMetadataEnhance(s.enable_metadata_enhance)
       setEditDescribeEnabled(s.describe_enabled ?? false)
-      const sc = s.scene_describe_ai || { api_base: '', model: '' }
-      setEditDescribeAPIBase(sc.api_base || '')
+      const sc = s.scene_describe_ai || { provider_id: '', model: '' }
+      setEditDescribeProviderID(sc.provider_id || '')
       setEditDescribeModel(sc.model || '')
       setEditMonthlyBudget(s.monthly_budget)
       setEditCacheTTL(s.cache_ttl_hours || 168)
@@ -169,13 +171,13 @@ export default function AITab() {
   // ==================== 供应商列表操作 ====================
   const openAddProvider = () => {
     setEditingProvider(null)
-    setProviderForm({ name: '', api_base: '', api_key: '', model: '' })
+    setProviderForm({ name: '', api_base: '', api_key: '', models: [] })
     setShowProviderDialog(true)
   }
 
   const openEditProvider = (p: ProviderItem) => {
     setEditingProvider(p)
-    setProviderForm({ name: p.name, api_base: p.api_base, api_key: '', model: p.model })
+    setProviderForm({ name: p.name, api_base: p.api_base, api_key: '', models: [...p.models] })
     setShowProviderDialog(true)
   }
 
@@ -188,11 +190,12 @@ export default function AITab() {
     try {
       if (editingProvider) {
         // 更新
-        const data: { name?: string; api_base?: string; api_key?: string; model?: string } = {}
-        if (providerForm.name.trim()) data.name = providerForm.name.trim()
+        const data: { name: string; api_base?: string; api_key?: string; models?: ModelItem[] } = {
+          name: providerForm.name.trim(),
+          models: providerForm.models,
+        }
         if (providerForm.api_base.trim()) data.api_base = providerForm.api_base.trim()
         if (providerForm.api_key.trim()) data.api_key = providerForm.api_key.trim()
-        if (providerForm.model.trim()) data.model = providerForm.model.trim()
         await aiApi.updateProvider(editingProvider.id, data)
         toast.success('供应商已更新')
       } else {
@@ -201,7 +204,7 @@ export default function AITab() {
           name: providerForm.name.trim(),
           api_base: providerForm.api_base.trim() || undefined,
           api_key: providerForm.api_key.trim() || undefined,
-          model: providerForm.model.trim() || undefined,
+          models: providerForm.models.length > 0 ? providerForm.models : undefined,
         })
         toast.success('供应商已添加')
       }
@@ -233,11 +236,31 @@ export default function AITab() {
 
   const handleSetProviderActive = async (p: ProviderItem) => {
     try {
-      await aiApi.setActive({ provider: p.name, model: p.model || undefined })
+      // 优先用 is_default 标记的模型，否则取第一个
+      const defaultModel = p.models.find(m => m.is_default)?.name || p.models[0]?.name
+      await aiApi.setActive({ provider: p.id, model: defaultModel })
       toast.success(`已切换到「${p.name}」`)
       await fetchStatus()
     } catch {
       toast.error('切换失败')
+    }
+  }
+
+  const handleTestConnection = async (p: ProviderItem) => {
+    setConnTests(prev => ({ ...prev, [p.id]: { testing: true, success: false, message: '' } }))
+    try {
+      const res = await aiApi.testConnection(p.id)
+      const data = res.data?.data
+      if (data?.success) {
+        setConnTests(prev => ({ ...prev, [p.id]: { testing: false, success: true, message: `连接成功 · ${data.latency_ms}ms` } }))
+      } else {
+        setConnTests(prev => ({ ...prev, [p.id]: { testing: false, success: false, message: data?.error || '连接失败' } }))
+      }
+    } catch (e: unknown) {
+      const msg = e && typeof e === 'object' && 'response' in e
+        ? (e as { response?: { data?: { error?: string } } }).response?.data?.error || '请求失败'
+        : '请求失败'
+      setConnTests(prev => ({ ...prev, [p.id]: { testing: false, success: false, message: msg } }))
     }
   }
 
@@ -597,55 +620,57 @@ export default function AITab() {
                 {showDescribe ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
               <p className="mt-1 text-xs text-theme-muted">
-                场景描述需要视觉模型（如 minicpm-v、gpt-4o-vision），与文字 LLM 分开配置。
+                从供应商的视觉模型中选择，用于场景描述。
               </p>
 
               {showDescribe && (
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-secondary">
-                      API 地址
-                    </label>
-                    <input
-                      type="text"
-                      value={editDescribeAPIBase}
-                      onChange={(e) => setEditDescribeAPIBase(e.target.value)}
-                      className="input font-mono text-sm"
-                      placeholder="http://10.144.144.232:31536/v1"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-secondary">
-                      API 密钥
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showDescribeAPIKey ? 'text' : 'password'}
-                        value={editDescribeAPIKey}
-                        onChange={(e) => setEditDescribeAPIKey(e.target.value)}
-                        className="input pr-10 font-mono text-sm"
-                        placeholder="sk-..."
-                      />
-                      <button
-                        onClick={() => setShowDescribeAPIKey(!showDescribeAPIKey)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300 transition-colors"
-                      >
-                        {showDescribeAPIKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-secondary">
-                      模型名称
-                    </label>
-                    <input
-                      type="text"
-                      value={editDescribeModel}
-                      onChange={(e) => setEditDescribeModel(e.target.value)}
-                      className="input font-mono text-sm"
-                      placeholder="minicpm-v:latest"
-                    />
-                  </div>
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs font-medium text-theme-secondary">
+                    视觉模型
+                  </label>
+                  {(() => {
+                    const visionModels = providers.flatMap(p =>
+                      p.models.filter(m => m.is_vision).map(m => ({ ...m, providerID: p.id, providerName: p.name }))
+                    )
+                    if (visionModels.length === 0) {
+                      return <p className="text-xs text-theme-muted py-2">当前未配置视觉模型，请在供应商设置中添加并标记为「视觉」。</p>
+                    }
+                    const currentValue = editDescribeProviderID && editDescribeModel ? `${editDescribeProviderID}::${editDescribeModel}` : ''
+                    return (
+                      <div className="space-y-2">
+                        <Select value={currentValue} onValueChange={(val) => {
+                          if (val) {
+                            const [pid, ...rest] = val.split('::')
+                            setEditDescribeProviderID(pid)
+                            setEditDescribeModel(rest.join('::'))
+                          }
+                        }}>
+                          <SelectTrigger className="w-full text-sm">
+                            <SelectValue placeholder="请选择视觉模型" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {visionModels.map((m, idx) => (
+                              <SelectItem key={idx} value={`${m.providerID}::${m.name}`}>
+                                {m.name} ({m.providerName})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await aiApi.updateConfig({ scene_describe_ai: { provider_id: editDescribeProviderID, model: editDescribeModel } })
+                              toast.success('视觉模型已保存')
+                            } catch { toast.error('保存失败') }
+                          }}
+                          disabled={!editDescribeModel}
+                          className="btn-primary gap-1.5 px-4 py-1.5 text-xs disabled:opacity-50"
+                        >
+                          <Check size={12} /> 保存视觉模型配置
+                        </button>
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
@@ -702,9 +727,17 @@ export default function AITab() {
                       )}
                     </div>
                     <p className="text-xs text-theme-muted truncate mt-0.5">
-                      {p.model || '未配置模型'} · {p.api_base || '默认 API'}
+                      {p.models.length > 0
+                        ? p.models.map(m => `${m.name}${m.is_default ? '(默认)' : ''}${m.is_vision ? '👁' : ''}`).join(', ')
+                        : '未配置模型'}
+                      {' · '}{p.api_base || '默认 API'}
                       {!p.api_key_configured && ' · ⚠️ 未配置密钥'}
                     </p>
+                    {connTests[p.id] && !connTests[p.id].testing && (
+                      <p className={`text-xs mt-0.5 ${connTests[p.id].success ? 'text-green-400' : 'text-red-400'}`}>
+                        {connTests[p.id].success ? '✓ ' : '✗ '}{connTests[p.id].message}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -717,6 +750,17 @@ export default function AITab() {
                       启用
                     </button>
                   )}
+                  <button
+                    onClick={() => handleTestConnection(p)}
+                    disabled={connTests[p.id]?.testing}
+                    className="btn-ghost gap-1 px-2.5 py-1 text-xs text-green-400 hover:text-green-300 disabled:opacity-50"
+                  >
+                    {connTests[p.id]?.testing ? (
+                      <><Loader2 size={12} className="animate-spin" /> 测试中</>
+                    ) : (
+                      <><Wifi size={12} /> 测试</>
+                    )}
+                  </button>
                   <button
                     onClick={() => openEditProvider(p)}
                     className="btn-ghost gap-1 px-2.5 py-1 text-xs"
@@ -750,8 +794,8 @@ export default function AITab() {
 
       {/* ==================== 新增/编辑供应商弹窗 ==================== */}
       {showProviderDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="glass-panel rounded-2xl w-full max-w-md mx-4 p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
+        <Modal onClose={() => setShowProviderDialog(false)} className="max-w-md">
+          <div className="glass-panel rounded-2xl p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
             <h3 className="text-lg font-semibold text-theme-primary">
               {editingProvider ? '编辑供应商' : '新增供应商'}
             </h3>
@@ -795,14 +839,84 @@ export default function AITab() {
                 )}
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-theme-secondary">默认模型</label>
-                <input
-                  type="text"
-                  value={providerForm.model}
-                  onChange={(e) => setProviderForm({ ...providerForm, model: e.target.value })}
-                  className="input w-full font-mono text-sm"
-                  placeholder="deepseek-chat / gpt-4o"
-                />
+                <label className="mb-1 block text-sm font-medium text-theme-secondary">模型列表</label>
+                <div className="space-y-2">
+                  {providerForm.models.map((m, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      {/* 默认模型单选 */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (m.is_default) return // 已是默认，不允许取消
+                          const newModels = providerForm.models.map((item, i) => ({ ...item, is_default: i === idx }))
+                          setProviderForm({ ...providerForm, models: newModels })
+                        }}
+                        className={`h-4 w-4 rounded-full border-2 shrink-0 transition-colors ${
+                          m.is_default
+                            ? 'border-neon bg-neon/20 cursor-default'
+                            : 'border-surface-500 hover:border-surface-400 cursor-pointer'
+                        }`}
+                        title={m.is_default ? '默认模型' : '设为默认模型'}
+                      />
+                      <input
+                        type="text"
+                        value={m.name}
+                        onChange={(e) => {
+                          const newModels = [...providerForm.models]
+                          newModels[idx] = { ...newModels[idx], name: e.target.value }
+                          setProviderForm({ ...providerForm, models: newModels })
+                        }}
+                        className="input flex-1 font-mono text-sm"
+                        placeholder="model-name"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newModels = [...providerForm.models]
+                          newModels[idx] = { ...newModels[idx], is_vision: !newModels[idx].is_vision }
+                          setProviderForm({ ...providerForm, models: newModels })
+                        }}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${
+                          m.is_vision
+                            ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30'
+                            : 'bg-surface-700 text-surface-400 border border-surface-600'
+                        }`}
+                        title={m.is_vision ? '视觉模型（点击取消）' : '标记为视觉模型'}
+                      >
+                        <Eye size={12} className="inline mr-1" />
+                        {m.is_vision ? '视觉' : '文本'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const wasDefault = providerForm.models[idx].is_default
+                          const newModels = providerForm.models.filter((_, i) => i !== idx)
+                          // 如果删除的是默认模型，将第一个设为默认
+                          if (wasDefault && newModels.length > 0) {
+                            newModels[0] = { ...newModels[0], is_default: true }
+                          }
+                          setProviderForm({ ...providerForm, models: newModels })
+                        }}
+                        disabled={providerForm.models.length === 1}
+                        className="text-surface-500 hover:text-red-400 transition-colors p-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={providerForm.models.length === 1 ? '至少保留一个模型' : '删除模型'}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newModels = [...providerForm.models, { name: '', is_vision: false, is_default: providerForm.models.length === 0 }]
+                      setProviderForm({ ...providerForm, models: newModels })
+                    }}
+                    className="flex items-center gap-1 text-xs text-theme-secondary hover:text-neon transition-colors"
+                  >
+                    <Plus size={12} /> 添加模型
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-theme-muted">● 默认模型 · 标记为「视觉」的模型可用于场景描述</p>
               </div>
             </div>
 
@@ -823,7 +937,7 @@ export default function AITab() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ==================== 全局设置 ==================== */}

@@ -158,19 +158,61 @@ type VideoAnalysisConfig struct {
 
 // ==================== 主配置结构体 ====================
 
+// AIModelEntry 供应商下的模型条目
+type AIModelEntry struct {
+	Name      string `json:"name" mapstructure:"name" yaml:"name"`
+	IsVision  bool   `json:"is_vision" mapstructure:"is_vision" yaml:"is_vision"`
+	IsDefault bool   `json:"is_default" mapstructure:"is_default" yaml:"is_default"`
+}
+
 // AIProviderEntry 供应商配置条目（用于多供应商管理）
 //
 // 设计说明：
 //   - 列表（非 map），避免旧 Profiles map 的"重启后自动补全残留"问题
 //   - 每个 provider 的 api_key 在持久化时加密（ENC: 前缀）
-//   - 用户在 UI 上"新增供应商"→ 追加到列表；"启用某个"→ 复制到顶层激活字段
+//   - Models 为该供应商下的模型列表，每个模型可标记是否支持视觉
 type AIProviderEntry struct {
-	ID      string `json:"id" mapstructure:"id" yaml:"id"`           // 唯一标识（如 deepseek / openai / custom_myollama）
-	Name    string `json:"name" mapstructure:"name" yaml:"name"`     // 显示名称（如 "DeepSeek"）
-	APIBase string `json:"api_base" mapstructure:"api_base" yaml:"api_base"`
-	APIKey  string `json:"api_key,omitempty" mapstructure:"api_key" yaml:"api_key,omitempty"`
-	Model   string `json:"model" mapstructure:"model" yaml:"model"`  // 默认模型
-	Enabled bool   `json:"enabled" mapstructure:"enabled" yaml:"enabled"` // 是否在列表中显示（不影响激活）
+	ID      string         `json:"id" mapstructure:"id" yaml:"id"`
+	Name    string         `json:"name" mapstructure:"name" yaml:"name"`
+	APIBase string         `json:"api_base" mapstructure:"api_base" yaml:"api_base"`
+	APIKey  string         `json:"api_key,omitempty" mapstructure:"api_key" yaml:"api_key,omitempty"`
+	Models  []AIModelEntry `json:"models" mapstructure:"models" yaml:"models"`
+	Enabled bool           `json:"enabled" mapstructure:"enabled" yaml:"enabled"`
+}
+
+// DefaultModel 返回默认模型名：优先 is_default 标记，其次第一个，无模型返回空。
+func (p *AIProviderEntry) DefaultModel() string {
+	for _, m := range p.Models {
+		if m.IsDefault {
+			return m.Name
+		}
+	}
+	if len(p.Models) > 0 {
+		return p.Models[0].Name
+	}
+	return ""
+}
+
+// ViewMap 返回脱敏的 provider 视图（api_key 不暴露，仅标记是否已配置）。
+// activeID 用于标记哪个 provider 处于激活状态。
+func (p *AIProviderEntry) ViewMap(activeID string) map[string]interface{} {
+	models := make([]map[string]interface{}, len(p.Models))
+	for i, m := range p.Models {
+		models[i] = map[string]interface{}{
+			"name":       m.Name,
+			"is_vision":  m.IsVision,
+			"is_default": m.IsDefault,
+		}
+	}
+	return map[string]interface{}{
+		"id":                 p.ID,
+		"name":               p.Name,
+		"api_base":           p.APIBase,
+		"models":             models,
+		"enabled":            p.Enabled,
+		"api_key_configured": p.APIKey != "",
+		"active":             p.ID == activeID,
+	}
 }
 
 // AIConfig AI 功能配置
@@ -182,12 +224,12 @@ type EmbeddingAIConfig struct {
 	Model   string `mapstructure:"model" yaml:"model"`
 }
 
-// SceneDescribeAIConfig 场景描述调用的视觉 LLM 配置
-// 与主 AI LLM 分离，因为场景描述需要视觉模型（如 minicpm-v、gpt-4o-vision）
+// SceneDescribeAIConfig 场景描述视觉模型配置
+// 从指定供应商的模型列表中选择视觉模型（is_vision=true 的模型），
+// api_base/api_key 复用该供应商的连接信息。
 type SceneDescribeAIConfig struct {
-	APIBase string `mapstructure:"api_base" yaml:"api_base"`
-	APIKey  string `mapstructure:"api_key" yaml:"api_key"`
-	Model   string `mapstructure:"model" yaml:"model"`
+	ProviderID string `mapstructure:"provider_id" yaml:"provider_id"`
+	Model      string `mapstructure:"model" yaml:"model"`
 }
 
 type AIConfig struct {
@@ -201,17 +243,14 @@ type AIConfig struct {
 	// 是否禁止使用本地 AI（如 ollama），强制走云端 LLM 服务商
 	// 默认 true：满足「禁用本地 AI 处理，全部调用服务商提供的 AI API」的产品要求
 	BlockLocalAI bool `mapstructure:"block_local_ai"`
-	// LLM 提供商 ID（如 openai / deepseek / ollama）
-	Provider string `mapstructure:"provider"`
-	// 当前激活的 provider ID（用于扁平配置模式）
-	ActiveProvider string `mapstructure:"active_provider" yaml:"active_provider,omitempty"`
-	// 当前激活的模型名称
-	ActiveModel    string `mapstructure:"active_model" yaml:"active_model,omitempty"`
-	APIBase        string `mapstructure:"api_base" yaml:"api_base,omitempty"`
-	APIKey         string `mapstructure:"api_key" yaml:"api_key,omitempty"`
-	// Providers 供应商列表（用于多供应商管理）
-	// 用户在 UI 上"新增供应商"→ 追加到列表；"启用某个"→ 复制到顶层激活字段。
-	// 不参与运行时调用（运行时只读顶层 ActiveProvider/APIBase/APIKey）。
+	// 当前激活的 provider ID（如 deepseek / openai / custom_vllm）
+	// 运行时通过 ActiveProfile() 从 Providers 列表中查找 api_base / api_key / model
+	ActiveProvider string `mapstructure:"active_provider"`
+	// 当前激活的模型名称（覆盖 Providers 中的默认 model）
+	ActiveModel    string `mapstructure:"active_model"`
+	// Providers 供应商列表（唯一数据源）
+	// 运行时通过 ActiveProfile() / FindProvider() 从列表中查找 api_base / api_key / model。
+	// ActiveProvider 仅记录激活了哪个 ID，实际连接配置全在 Providers 中。
 	Providers []AIProviderEntry `mapstructure:"providers" yaml:"providers,omitempty"`
 	// 请求超时（秒）
 	Timeout int `mapstructure:"timeout"`
@@ -679,20 +718,18 @@ func Load() (*Config, error) {
 		cfg.Secrets.JWTSecret = loadOrCreatePersistedSecret(cfg.App.DataDir)
 	}
 
-	// 8. 解密 AI API Key（兼容老明文：未加密的字段会被 Decrypt 直接返回）
-	//    解密失败仅记录警告，不阻断启动；用户可通过前端重新填写 key 来修复。
-	if dec, err := secretcrypto.Decrypt(cfg.AI.APIKey); err == nil {
-		cfg.AI.APIKey = dec
-	}
-	if dec, err := secretcrypto.Decrypt(cfg.AI.SceneDescribeAI.APIKey); err == nil {
-		cfg.AI.SceneDescribeAI.APIKey = dec
-	}
-	// 解密 Providers 列表中的 api_key
+	// 8. 解密 AI API Key（兼容老明文和 ENC:ENC: 双重加密残留）
+	//    顶层 api_key 已移除，此处只解密 Providers 列表中的 key
 	for i, p := range cfg.AI.Providers {
 		if p.APIKey != "" {
-			if dec, err := secretcrypto.Decrypt(p.APIKey); err == nil {
-				cfg.AI.Providers[i].APIKey = dec
+			for strings.HasPrefix(p.APIKey, "ENC:") {
+				if dec, err := secretcrypto.Decrypt(p.APIKey); err == nil {
+					p.APIKey = dec
+				} else {
+					break
+				}
 			}
+			cfg.AI.Providers[i].APIKey = p.APIKey
 		}
 	}
 
@@ -821,8 +858,7 @@ func setDefaults() {
 	// VOS 留空才禁用，改地址即改连接目标。
 	viper.SetDefault("ai.embedding_ai.api_base", "http://172.17.0.1:18005")
 	viper.SetDefault("ai.embedding_ai.model", "vit-b-16-siglip2__webli")
-	viper.SetDefault("ai.scene_describe_ai.api_base", "")
-	viper.SetDefault("ai.scene_describe_ai.api_key", "")
+	viper.SetDefault("ai.scene_describe_ai.provider_id", "")
 	viper.SetDefault("ai.scene_describe_ai.model", "")
 
 	// ---- 字幕预处理（ASR/OCR/清洗）默认值 ----
@@ -1116,11 +1152,36 @@ func (c *Config) migrateFromFlatConfig() {
 	if c.Cache.CacheDir == "" {
 		c.Cache.CacheDir = "./cache"
 	}
+}
 
-	// V10 迁移：确保 ActiveProvider 与 Provider 同步（旧配置可能只有 Provider 字段）
-	if c.AI.ActiveProvider == "" && c.AI.Provider != "" {
-		c.AI.ActiveProvider = c.AI.Provider
+// ActiveProfile 根据 ActiveProvider 从 Providers 列表中查找并返回激活的供应商配置。
+// 返回 nil 表示未找到或未配置。
+func (c *AIConfig) ActiveProfile() *AIProviderEntry {
+	return c.FindProvider(c.ActiveProvider)
+}
+
+// FindProvider 按 ID 从 Providers 列表中查找供应商，找不到返回 nil。
+func (c *AIConfig) FindProvider(id string) *AIProviderEntry {
+	if id == "" {
+		return nil
 	}
+	for i := range c.Providers {
+		if c.Providers[i].ID == id {
+			return &c.Providers[i]
+		}
+	}
+	return nil
+}
+
+// ActiveModelName 返回当前激活的模型名（优先 ActiveModel，其次 provider 的 DefaultModel）。
+func (c *AIConfig) ActiveModelName() string {
+	if c.ActiveModel != "" {
+		return c.ActiveModel
+	}
+	if ap := c.ActiveProfile(); ap != nil {
+		return ap.DefaultModel()
+	}
+	return ""
 }
 
 // ==================== 便捷访问方法（保持已有 API 兼容） ====================
@@ -1310,14 +1371,11 @@ func (c *Config) SaveStorageConfig() error {
 
 // SaveAIConfig 将当前 AI 配置持久化到 config/ai.yaml 分片文件。
 // 调用前应先在内存中更新 c.AI 字段，本方法只负责落盘。
-// 敏感字段（api_key / scene_describe_ai.api_key / providers[].api_key）自动加密。
+// Providers 列表中的 api_key 在闭包内手动加密（不走 encryptPaths，因为需要逐条处理）。
+// encryptPaths 为 nil：scene_describe_ai.api_key 已移除，该 section 无敏感字段。
 func (c *Config) SaveAIConfig() error {
-	encryptPaths := []string{
-		"api_key",
-		"scene_describe_ai.api_key",
-	}
-	return SaveSection(c, "ai", "ai.yaml", encryptPaths, func() AIConfig {
-		// 对 Providers 列表中的 api_key 做加密（数组元素无法用 encryptPaths 覆盖）
+	return SaveSection(c, "ai", "ai.yaml", nil, func() AIConfig {
+		// 对 Providers 列表中的 api_key 做加密
 		ac := c.AI
 		if len(ac.Providers) > 0 {
 			encProviders := make([]AIProviderEntry, len(ac.Providers))

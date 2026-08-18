@@ -891,6 +891,18 @@ func (s *VideoAnalysisService) submitStructureWithScenes(ctx context.Context, ta
 	return job.JobID, nil
 }
 
+// resolveSceneDescribeProvider 解析场景描述视觉模型的连接信息。
+// 优先从 scene_describe_ai 指定的 provider 获取，回退到当前激活的 provider。
+func resolveSceneDescribeProvider(cfg *config.Config) (apiBase, apiKey string) {
+	if p := cfg.AI.FindProvider(cfg.AI.SceneDescribeAI.ProviderID); p != nil && p.APIBase != "" {
+		return p.APIBase, p.APIKey
+	}
+	if ap := cfg.AI.ActiveProfile(); ap != nil && ap.APIBase != "" {
+		return ap.APIBase, ap.APIKey
+	}
+	return "", ""
+}
+
 func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *model.VideoAnalysisTask) (string, error) {
 	if task.DescribeJobID != "" {
 		if s.logger != nil {
@@ -908,13 +920,16 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		StructureJobID: task.StructureJobID,
 		Force:          task.Force,
 	}
-	// 注入视觉 LLM 配置（场景描述需要视觉模型，使用独立的 scene_describe_ai 配置）
-	if s.appCfg != nil && s.appCfg.AI.SceneDescribeAI.APIBase != "" {
-		req.ModelCfg = &DescribeModelCfg{
-			BaseURL:        s.appCfg.AI.SceneDescribeAI.APIBase,
-			APIKey:         s.appCfg.AI.SceneDescribeAI.APIKey,
-			ModelName:      s.appCfg.AI.SceneDescribeAI.Model,
-			MaxConcurrency: 3,
+	// 注入视觉 LLM 配置（场景描述需要视觉模型，从指定供应商获取连接信息）
+	if s.appCfg != nil && s.appCfg.AI.SceneDescribeAI.Model != "" {
+		apiBase, apiKey := resolveSceneDescribeProvider(s.appCfg)
+		if apiBase != "" {
+			req.ModelCfg = &DescribeModelCfg{
+				BaseURL:        apiBase,
+				APIKey:         apiKey,
+				ModelName:      s.appCfg.AI.SceneDescribeAI.Model,
+				MaxConcurrency: 3,
+			}
 		}
 	}
 	job, err := s.client.SubmitDescribeJob(ctx, req)
