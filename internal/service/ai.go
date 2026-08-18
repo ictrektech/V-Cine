@@ -710,12 +710,22 @@ func isLocalAIProvider(provider, apiBase string) bool {
 // GetStatus 获取 AI 服务状态（用于前端展示）
 func (s *AIService) GetStatus() map[string]interface{} {
 	cfg := s.snapshotCfg()
+	ap := cfg.ActiveProfile()
+	apiConfigured := ap != nil && ap.APIBase != "" && ap.APIKey != ""
+
+	apiBase := ""
+	if ap != nil {
+		apiBase = ap.APIBase
+	}
+
 	status := map[string]interface{}{
 		"enabled":                 cfg.Enabled,
 		"auto_pilot":              cfg.AutoPilot,
 		"block_local_ai":          cfg.BlockLocalAI,
-		"active_provider":          cfg.ActiveProvider,
-		"active_model":             cfg.ActiveModelName(),
+		"active_provider":         cfg.ActiveProvider,
+		"active_model":            cfg.ActiveModelName(),
+		"api_base":                apiBase,
+		"api_configured":          apiConfigured,
 		"timeout":                 cfg.Timeout,
 		"enable_smart_search":     cfg.EnableSmartSearch,
 		"enable_recommend_reason": cfg.EnableRecommendReason,

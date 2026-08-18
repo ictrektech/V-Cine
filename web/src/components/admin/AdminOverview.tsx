@@ -101,7 +101,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
   // AI 服务
   const aiOk = !!aiStatus?.api_configured
   const aiState: ConfigState = aiOk ? 'configured' : 'unconfigured'
-  const aiValue = aiOk ? (aiStatus?.enabled ? '已启用 · ' + (aiStatus.model || '') : '已配置 · 未启用') : '未配置'
+  const aiValue = aiOk ? (aiStatus?.enabled ? '已启用 · ' + (aiStatus.active_model || '') : '已配置 · 未启用') : '未配置'
 
   // 播放与转码：GPU / 直连
   const playbackValue = sysSettings.enable_gpu_transcode ? 'GPU·开' : 'GPU·关'

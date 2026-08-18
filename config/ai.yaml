@@ -1,5 +1,5 @@
-active_model: qwen3.5-9b-awq
-active_provider: custom_vllm
+active_model: Qwen3.5-4B
+active_provider: custom_ollama
 auto_pilot: true
 auto_subtitle_preprocess: false
 block_local_ai: false
@@ -26,8 +26,7 @@ providers:
       models:
         - name: qwen3.5-9b-awq
           is_vision: false
-        - name: Qwen3.5-4B
-          is_vision: true
+          is_default: true
       enabled: true
     - id: custom_ollama
       name: ollama
@@ -36,10 +35,12 @@ providers:
       models:
         - name: Qwen3.5-4B
           is_vision: true
+          is_default: true
       enabled: true
 request_interval_ms: 1100
 scene_describe_ai:
     model: Qwen3.5-4B
+    provider_id: custom_ollama
 sub_clean_backup: true
 sub_clean_enabled: false
 sub_clean_fallback_enc: gbk

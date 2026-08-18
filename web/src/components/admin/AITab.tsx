@@ -119,7 +119,7 @@ export default function AITab() {
       const s = res.data.data
       setStatus(s)
       setEditEnabled(s.enabled)
-      setEditProvider(s.active_provider || s.provider)
+      setEditProvider(s.active_provider)
       setEditTimeout(s.timeout || 30)
       setEditSmartSearch(s.enable_smart_search)
       setEditRecommendReason(s.enable_recommend_reason)
@@ -497,7 +497,7 @@ export default function AITab() {
           {status?.auto_pilot && status?.api_configured && (
             <div className="mt-3 flex items-center gap-2 text-xs text-green-400">
               <Check size={14} />
-              托管模式已生效：后续扫描入库的文件将自动调用 {status.provider} / {status.model}
+              托管模式已生效：后续扫描入库的文件将自动调用 {status.active_provider} / {status.active_model}
             </div>
           )}
         </div>

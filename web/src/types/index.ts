@@ -854,8 +854,8 @@ export interface AIStatus {
   auto_pilot?: boolean
   // 是否禁用本地 AI（如 ollama）；开启后强制使用云端服务商
   block_local_ai?: boolean
-  provider: string
-  model: string
+  active_provider: string
+  active_model: string
   api_base: string
   api_configured: boolean
   timeout: number
@@ -873,9 +873,6 @@ export interface AIStatus {
   cache_ttl_hours: number
   max_concurrent: number
   request_interval_ms: number
-  // 当前激活的供应商和模型（扁平字段，替代旧的 profiles map）
-  active_provider?: string
-  active_model?: string
   // 多供应商列表
   providers?: Array<{
     id: string
