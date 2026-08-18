@@ -36,8 +36,6 @@ export const aiApi = {
     cache_ttl_hours: number
     max_concurrent: number
     request_interval_ms: number
-    // 各 provider 配置档案（仅传需要更新的 provider；api_key 留空字符串则保留原值）
-    profiles: Record<string, { api_base?: string; api_key?: string; model?: string; model_chain?: string[] }>
   }>) =>
     api.put<{ message: string; data: AIStatus }>('/admin/ai/config', updates),
 
@@ -103,25 +101,11 @@ export const aiApi = {
   getUsageBuckets: (range: 'day' | 'week' | 'month' | 'year' = 'month', provider?: string) =>
     api.get<{ data: import('@/types').AIUsageReport }>('/admin/ai/usage', { params: { range, provider } }),
 
-  // ==================== V9：供应商管理（profiles 即唯一数据源） ====================
+  // ==================== 供应商管理（扁平字段） ====================
 
-  // 供应商列表已包含在 getStatus 返回的 profiles 中，无需单独获取
-
-  // 添加供应商
-  addProvider: (provider: { name: string; api_base: string; api_key?: string; model?: string; models?: string[]; color?: string }) =>
-    api.post<{ message: string; data: { id: string; name: string; api_base: string } }>('/admin/ai/providers', provider),
-
-  // 更新供应商
-  updateProvider: (id: string, updates: { name?: string; api_base?: string; models?: string[]; color?: string }) =>
-    api.put<{ message: string }>(`/admin/ai/providers/${id}`, updates),
-
-  // 删除供应商
-  deleteProvider: (id: string) =>
-    api.delete<{ message: string }>(`/admin/ai/providers/${id}`),
-
-  // 从 API 获取模型列表
-  fetchModels: (base_url: string, api_key?: string) =>
-    api.post<{ data: string[] }>('/admin/ai/providers/fetch-models', { base_url, api_key }),
+  // 设置当前激活的供应商和模型
+  setActive: (params: { provider: string; model?: string; api_base?: string; api_key?: string }) =>
+    api.post<{ message: string; data: AIStatus }>('/admin/ai/set-active', params),
 }
 
 // ==================== AI 助手 ====================

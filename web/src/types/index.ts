@@ -829,6 +829,7 @@ export interface SearchIntent {
 }
 
 // ==================== AI 服务状态 ====================
+/** @deprecated 保留用于历史兼容，新代码请使用 AIStatus 上的扁平字段 active_provider / active_model */
 export interface AIProviderProfileView {
   api_base: string
   model: string
@@ -872,9 +873,9 @@ export interface AIStatus {
   cache_ttl_hours: number
   max_concurrent: number
   request_interval_ms: number
-  // 各 provider 的配置档案（key 字段已脱敏，仅返回 api_key_configured 标识）
-  // V9：profiles 现在同时包含供应商元信息（name/models/color）和运行时配置
-  profiles?: Record<string, AIProviderProfileView>
+  // 当前激活的供应商和模型（扁平字段，替代旧的 profiles map）
+  active_provider?: string
+  active_model?: string
 }
 
 export interface AIErrorLog {
