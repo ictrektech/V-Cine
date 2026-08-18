@@ -736,6 +736,22 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"request_interval_ms":     cfg.RequestIntervalMs,
 	}
 
+	// 供应商列表（脱敏：不返回 api_key，只返回 api_key_configured）
+	providersView := make([]map[string]interface{}, 0, len(cfg.Providers))
+	for _, p := range cfg.Providers {
+		view := map[string]interface{}{
+			"id":                 p.ID,
+			"name":               p.Name,
+			"api_base":           p.APIBase,
+			"model":              p.Model,
+			"enabled":            p.Enabled,
+			"api_key_configured": p.APIKey != "",
+			"active":             p.ID == cfg.ActiveProvider,
+		}
+		providersView = append(providersView, view)
+	}
+	status["providers"] = providersView
+
 	s.countMu.Lock()
 	status["monthly_calls"] = s.monthlyCount
 	status["monthly_budget"] = cfg.MonthlyBudget

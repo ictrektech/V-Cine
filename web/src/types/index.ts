@@ -876,6 +876,16 @@ export interface AIStatus {
   // 当前激活的供应商和模型（扁平字段，替代旧的 profiles map）
   active_provider?: string
   active_model?: string
+  // 多供应商列表
+  providers?: Array<{
+    id: string
+    name: string
+    api_base: string
+    model: string
+    enabled: boolean
+    api_key_configured: boolean
+    active: boolean
+  }>
 }
 
 export interface AIErrorLog {

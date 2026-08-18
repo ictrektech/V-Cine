@@ -158,6 +158,21 @@ type VideoAnalysisConfig struct {
 
 // ==================== 主配置结构体 ====================
 
+// AIProviderEntry 供应商配置条目（用于多供应商管理）
+//
+// 设计说明：
+//   - 列表（非 map），避免旧 Profiles map 的"重启后自动补全残留"问题
+//   - 每个 provider 的 api_key 在持久化时加密（ENC: 前缀）
+//   - 用户在 UI 上"新增供应商"→ 追加到列表；"启用某个"→ 复制到顶层激活字段
+type AIProviderEntry struct {
+	ID      string `json:"id" mapstructure:"id" yaml:"id"`           // 唯一标识（如 deepseek / openai / custom_myollama）
+	Name    string `json:"name" mapstructure:"name" yaml:"name"`     // 显示名称（如 "DeepSeek"）
+	APIBase string `json:"api_base" mapstructure:"api_base" yaml:"api_base"`
+	APIKey  string `json:"api_key,omitempty" mapstructure:"api_key" yaml:"api_key,omitempty"`
+	Model   string `json:"model" mapstructure:"model" yaml:"model"`  // 默认模型
+	Enabled bool   `json:"enabled" mapstructure:"enabled" yaml:"enabled"` // 是否在列表中显示（不影响激活）
+}
+
 // AIConfig AI 功能配置
 // EmbeddingAIConfig 图片/文本 embedding 服务配置
 // 对接 emb_server，计算 CLIP 图片 embedding 用于向量检索。
@@ -194,6 +209,10 @@ type AIConfig struct {
 	ActiveModel    string `mapstructure:"active_model" yaml:"active_model,omitempty"`
 	APIBase        string `mapstructure:"api_base" yaml:"api_base,omitempty"`
 	APIKey         string `mapstructure:"api_key" yaml:"api_key,omitempty"`
+	// Providers 供应商列表（用于多供应商管理）
+	// 用户在 UI 上"新增供应商"→ 追加到列表；"启用某个"→ 复制到顶层激活字段。
+	// 不参与运行时调用（运行时只读顶层 ActiveProvider/APIBase/APIKey）。
+	Providers []AIProviderEntry `mapstructure:"providers" yaml:"providers,omitempty"`
 	// 请求超时（秒）
 	Timeout int `mapstructure:"timeout"`
 	// 功能开关
@@ -667,6 +686,14 @@ func Load() (*Config, error) {
 	}
 	if dec, err := secretcrypto.Decrypt(cfg.AI.SceneDescribeAI.APIKey); err == nil {
 		cfg.AI.SceneDescribeAI.APIKey = dec
+	}
+	// 解密 Providers 列表中的 api_key
+	for i, p := range cfg.AI.Providers {
+		if p.APIKey != "" {
+			if dec, err := secretcrypto.Decrypt(p.APIKey); err == nil {
+				cfg.AI.Providers[i].APIKey = dec
+			}
+		}
 	}
 
 	// 9. AI 用量预算默认值兜底
@@ -1283,14 +1310,28 @@ func (c *Config) SaveStorageConfig() error {
 
 // SaveAIConfig 将当前 AI 配置持久化到 config/ai.yaml 分片文件。
 // 调用前应先在内存中更新 c.AI 字段，本方法只负责落盘。
-// 敏感字段（api_key / scene_describe_ai.api_key）自动加密。
+// 敏感字段（api_key / scene_describe_ai.api_key / providers[].api_key）自动加密。
 func (c *Config) SaveAIConfig() error {
 	encryptPaths := []string{
 		"api_key",
 		"scene_describe_ai.api_key",
 	}
 	return SaveSection(c, "ai", "ai.yaml", encryptPaths, func() AIConfig {
-		return c.AI
+		// 对 Providers 列表中的 api_key 做加密（数组元素无法用 encryptPaths 覆盖）
+		ac := c.AI
+		if len(ac.Providers) > 0 {
+			encProviders := make([]AIProviderEntry, len(ac.Providers))
+			for i, p := range ac.Providers {
+				if p.APIKey != "" && !strings.HasPrefix(p.APIKey, "ENC:") {
+					if enc, err := secretcrypto.Encrypt(p.APIKey); err == nil {
+						p.APIKey = "ENC:" + enc
+					}
+				}
+				encProviders[i] = p
+			}
+			ac.Providers = encProviders
+		}
+		return ac
 	})
 }
 

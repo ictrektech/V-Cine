@@ -30,6 +30,8 @@ import {
   WifiOff,
   Rocket,
   Film,
+  Plus,
+  Pencil,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -77,8 +79,6 @@ export default function AITab() {
   const [showDescribeAPIKey, setShowDescribeAPIKey] = useState(false)
   const [showDescribe, setShowDescribe] = useState(false)
 
-  const [showAdvanced, setShowAdvanced] = useState(false)
-
   // 缓存
   const [cacheStats, setCacheStats] = useState<AICacheStats | null>(null)
   const [clearingCache, setClearingCache] = useState(false)
@@ -87,11 +87,15 @@ export default function AITab() {
   const [errorLogs, setErrorLogs] = useState<AIErrorLog[]>([])
 
   // ==================== 供应商配置（扁平字段） ====================
-  const [editActiveModel, setEditActiveModel] = useState('')
-  const [editAPIBase, setEditAPIBase] = useState('')
-  const [editAPIKey, setEditAPIKey] = useState('')
-  const [showAPIKey, setShowAPIKey] = useState(false)
   const [showErrors, setShowErrors] = useState(false)
+
+  // ==================== 供应商列表管理 ====================
+  type ProviderItem = { id: string; name: string; api_base: string; model: string; enabled: boolean; api_key_configured: boolean; active: boolean }
+  const [providers, setProviders] = useState<ProviderItem[]>([])
+  const [showProviderDialog, setShowProviderDialog] = useState(false)
+  const [editingProvider, setEditingProvider] = useState<ProviderItem | null>(null)
+  const [providerForm, setProviderForm] = useState({ name: '', api_base: '', api_key: '', model: '' })
+  const [providerSaving, setProviderSaving] = useState(false)
 
 
   // AutoPilot 切换繁忙态
@@ -114,8 +118,6 @@ export default function AITab() {
       setStatus(s)
       setEditEnabled(s.enabled)
       setEditProvider(s.active_provider || s.provider)
-      setEditActiveModel(s.active_model || s.model || '')
-      setEditAPIBase(s.api_base || '')
       setEditTimeout(s.timeout || 30)
       setEditSmartSearch(s.enable_smart_search)
       setEditRecommendReason(s.enable_recommend_reason)
@@ -128,6 +130,10 @@ export default function AITab() {
       setEditCacheTTL(s.cache_ttl_hours || 168)
       setEditMaxConcurrent(s.max_concurrent || 3)
       setEditRequestInterval(s.request_interval_ms || 200)
+      // 从 status 中提取供应商列表
+      if (s.providers && Array.isArray(s.providers)) {
+        setProviders(s.providers)
+      }
     } catch {
       // 静默
     }
@@ -160,28 +166,78 @@ export default function AITab() {
     load()
   }, [fetchStatus, fetchCacheStats, fetchErrorLogs])
 
-  // ==================== 一键配置（扁平字段） ====================
-  const handleSetActive = async () => {
-    if (!editProvider.trim()) {
+  // ==================== 供应商列表操作 ====================
+  const openAddProvider = () => {
+    setEditingProvider(null)
+    setProviderForm({ name: '', api_base: '', api_key: '', model: '' })
+    setShowProviderDialog(true)
+  }
+
+  const openEditProvider = (p: ProviderItem) => {
+    setEditingProvider(p)
+    setProviderForm({ name: p.name, api_base: p.api_base, api_key: '', model: p.model })
+    setShowProviderDialog(true)
+  }
+
+  const handleSaveProvider = async () => {
+    if (!providerForm.name.trim()) {
       toast.error('请填写供应商名称')
       return
     }
-    setSaving(true)
+    setProviderSaving(true)
     try {
-      const params: { provider: string; model?: string; api_base?: string; api_key?: string } = {
-        provider: editProvider.trim(),
+      if (editingProvider) {
+        // 更新
+        const data: { name?: string; api_base?: string; api_key?: string; model?: string } = {}
+        if (providerForm.name.trim()) data.name = providerForm.name.trim()
+        if (providerForm.api_base.trim()) data.api_base = providerForm.api_base.trim()
+        if (providerForm.api_key.trim()) data.api_key = providerForm.api_key.trim()
+        if (providerForm.model.trim()) data.model = providerForm.model.trim()
+        await aiApi.updateProvider(editingProvider.id, data)
+        toast.success('供应商已更新')
+      } else {
+        // 新增
+        await aiApi.addProvider({
+          name: providerForm.name.trim(),
+          api_base: providerForm.api_base.trim() || undefined,
+          api_key: providerForm.api_key.trim() || undefined,
+          model: providerForm.model.trim() || undefined,
+        })
+        toast.success('供应商已添加')
       }
-      if (editActiveModel.trim()) params.model = editActiveModel.trim()
-      if (editAPIBase.trim()) params.api_base = editAPIBase.trim()
-      if (editAPIKey.trim()) params.api_key = editAPIKey.trim()
-      await aiApi.setActive(params)
-      toast.success('AI 供应商配置已生效')
-      setEditAPIKey('')  // 清空密钥输入
+      setShowProviderDialog(false)
       await fetchStatus()
     } catch {
-      toast.error('配置失败')
+      toast.error(editingProvider ? '更新失败' : '添加失败')
     } finally {
-      setSaving(false)
+      setProviderSaving(false)
+    }
+  }
+
+  const handleDeleteProvider = async (p: ProviderItem) => {
+    const ok = await dialog.confirm({
+      title: '删除供应商',
+      message: `确定删除「${p.name}」？此操作不可撤销。`,
+      confirmText: '删除',
+      variant: 'warning',
+    })
+    if (!ok) return
+    try {
+      await aiApi.deleteProvider(p.id)
+      toast.success('供应商已删除')
+      await fetchStatus()
+    } catch {
+      toast.error('删除失败')
+    }
+  }
+
+  const handleSetProviderActive = async (p: ProviderItem) => {
+    try {
+      await aiApi.setActive({ provider: p.name, model: p.model || undefined })
+      toast.success(`已切换到「${p.name}」`)
+      await fetchStatus()
+    } catch {
+      toast.error('切换失败')
     }
   }
 
@@ -597,137 +653,224 @@ export default function AITab() {
         </div>
       </section>
 
-      {/* ==================== 供应商配置 ==================== */}
+      {/* ==================== 供应商列表 ==================== */}
       <section>
         <h2
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
           <Settings size={20} className="text-neon/60" />
-          供应商配置
+          供应商列表
+        </h2>
+
+        <div className="glass-panel rounded-xl p-5 space-y-3">
+          {/* 供应商行 */}
+          {providers.length === 0 ? (
+            <div className="py-6 text-center text-sm text-theme-muted">
+              暂无供应商，请点击下方按钮新增
+            </div>
+          ) : (
+            providers.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-lg px-4 py-3 transition-colors"
+                style={{
+                  border: p.active ? '1px solid var(--neon-blue)' : '1px solid var(--border-subtle)',
+                  background: p.active ? 'var(--neon-blue-10)' : 'var(--bg-surface)',
+                }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={clsx(
+                      'h-2.5 w-2.5 rounded-full shrink-0',
+                      p.active ? 'bg-green-400' : 'bg-surface-500'
+                    )}
+                  />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-theme-primary truncate">{p.name}</span>
+                      {p.active && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-neon"
+                          style={{ background: 'var(--neon-blue-10)' }}>
+                          激活中
+                        </span>
+                      )}
+                      {!p.enabled && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-surface-500"
+                          style={{ background: 'var(--nav-hover-bg)' }}>
+                          已禁用
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-theme-muted truncate mt-0.5">
+                      {p.model || '未配置模型'} · {p.api_base || '默认 API'}
+                      {!p.api_key_configured && ' · ⚠️ 未配置密钥'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {!p.active && (
+                    <button
+                      onClick={() => handleSetProviderActive(p)}
+                      className="btn-ghost gap-1 px-2.5 py-1 text-xs text-neon hover:text-neon"
+                    >
+                      <Play size={12} />
+                      启用
+                    </button>
+                  )}
+                  <button
+                    onClick={() => openEditProvider(p)}
+                    className="btn-ghost gap-1 px-2.5 py-1 text-xs"
+                  >
+                    <Pencil size={12} />
+                    设置
+                  </button>
+                  <button
+                    onClick={() => handleDeleteProvider(p)}
+                    className="btn-ghost gap-1 px-2.5 py-1 text-xs text-red-400 hover:text-red-300"
+                  >
+                    <Trash2 size={12} />
+                    删除
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+
+          {/* 新增供应商按钮 */}
+          <button
+            onClick={openAddProvider}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed py-3 text-sm text-theme-secondary transition-colors hover:text-neon"
+            style={{ borderColor: 'var(--border-default)' }}
+          >
+            <Plus size={16} />
+            新增供应商
+          </button>
+        </div>
+      </section>
+
+      {/* ==================== 新增/编辑供应商弹窗 ==================== */}
+      {showProviderDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="glass-panel rounded-2xl w-full max-w-md mx-4 p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
+            <h3 className="text-lg font-semibold text-theme-primary">
+              {editingProvider ? '编辑供应商' : '新增供应商'}
+            </h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-theme-secondary">
+                  名称 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={providerForm.name}
+                  onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })}
+                  className="input w-full"
+                  placeholder="例如：DeepSeek / OpenAI"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-theme-secondary">API Base</label>
+                <input
+                  type="text"
+                  value={providerForm.api_base}
+                  onChange={(e) => setProviderForm({ ...providerForm, api_base: e.target.value })}
+                  className="input w-full font-mono text-sm"
+                  placeholder="https://api.deepseek.com/v1"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-theme-secondary">API Key</label>
+                <input
+                  type="password"
+                  value={providerForm.api_key}
+                  onChange={(e) => setProviderForm({ ...providerForm, api_key: e.target.value })}
+                  className="input w-full font-mono text-sm"
+                  placeholder={editingProvider?.api_key_configured ? '已配置（留空不改）' : 'sk-...'}
+                />
+                {editingProvider?.api_key_configured && !providerForm.api_key && (
+                  <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
+                    <Check size={12} /> 密钥已配置（留空不会清除）
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-theme-secondary">默认模型</label>
+                <input
+                  type="text"
+                  value={providerForm.model}
+                  onChange={(e) => setProviderForm({ ...providerForm, model: e.target.value })}
+                  className="input w-full font-mono text-sm"
+                  placeholder="deepseek-chat / gpt-4o"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowProviderDialog(false)}
+                className="btn-ghost px-4 py-2 text-sm"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveProvider}
+                disabled={providerSaving || !providerForm.name.trim()}
+                className="btn-primary gap-1.5 px-5 py-2 text-sm"
+              >
+                {providerSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== 全局设置 ==================== */}
+      <section>
+        <h2
+          className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
+        >
+          <Settings size={20} className="text-neon/60" />
+          全局设置
         </h2>
 
         <div className="glass-panel rounded-xl p-5 space-y-4">
-          {/* 当前状态指示 */}
-          <div className="flex items-center gap-3 rounded-lg px-4 py-3"
-            style={{
-              border: status?.api_configured ? '1px solid var(--neon-blue)' : '1px solid var(--border-subtle)',
-              background: status?.api_configured ? 'var(--neon-blue-10)' : 'var(--bg-surface)',
-            }}>
-            <div className={clsx(
-              'h-2 w-2 rounded-full shrink-0',
-              status?.api_configured ? 'bg-green-400' : 'bg-surface-500'
-            )} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-theme-primary">{status?.active_provider || status?.provider || '未配置'}</span>
-                {status?.api_configured && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-neon"
-                    style={{ background: 'var(--neon-blue-10)' }}>
-                    使用中
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-theme-muted truncate mt-0.5">
-                {status?.active_model || status?.model || '未配置模型'} · {status?.api_base || '未配置 API'}
-              </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">请求超时（秒）</label>
+              <input type="number" value={editTimeout} onChange={(e) => setEditTimeout(Number(e.target.value))}
+                className="input text-sm" min={5} max={120} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">月度预算上限（0=不限）</label>
+              <input type="number" value={editMonthlyBudget} onChange={(e) => setEditMonthlyBudget(Number(e.target.value))}
+                className="input text-sm" min={0} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">缓存时长（小时）</label>
+              <input type="number" value={editCacheTTL} onChange={(e) => setEditCacheTTL(Number(e.target.value))}
+                className="input text-sm" min={0} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">最大并发数</label>
+              <input type="number" value={editMaxConcurrent} onChange={(e) => setEditMaxConcurrent(Number(e.target.value))}
+                className="input text-sm" min={1} max={10} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">请求间隔（毫秒）</label>
+              <input type="number" value={editRequestInterval} onChange={(e) => setEditRequestInterval(Number(e.target.value))}
+                className="input text-sm" min={0} />
             </div>
           </div>
-
-          {/* 配置表单 */}
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-theme-secondary">
-                供应商 <span className="text-red-400">*</span>
-              </label>
-              <input type="text" value={editProvider} onChange={(e) => setEditProvider(e.target.value)}
-                className="input w-full" placeholder="例如：openai / deepseek / ollama" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-theme-secondary">模型</label>
-              <input type="text" value={editActiveModel} onChange={(e) => setEditActiveModel(e.target.value)}
-                className="input w-full font-mono text-sm" placeholder="例如：gpt-4o / deepseek-chat" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-theme-secondary">API 地址</label>
-              <input type="text" value={editAPIBase} onChange={(e) => setEditAPIBase(e.target.value)}
-                className="input w-full font-mono text-sm" placeholder="https://api.openai.com/v1" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-theme-secondary">API 密钥</label>
-              <div className="relative">
-                <input type={showAPIKey ? 'text' : 'password'} value={editAPIKey} onChange={(e) => setEditAPIKey(e.target.value)}
-                  className="input w-full pr-10 font-mono text-sm"
-                  placeholder={status?.api_configured ? '已配置（输入新值可覆盖）' : 'sk-...'} />
-                <button
-                  onClick={() => setShowAPIKey(!showAPIKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300 transition-colors"
-                >
-                  {showAPIKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {status?.api_configured && !editAPIKey && (
-                <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
-                  <Check size={12} /> 密钥已保存（留空不会清除）
-                </p>
-              )}
-            </div>
-            <button onClick={handleSetActive} disabled={saving || !editProvider.trim()}
-              className="btn-primary gap-1.5 px-5 py-2 text-sm">
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}
-              一键配置
-            </button>
-          </div>
-
-          {/* 高级设置折叠 */}
-          <div className="pt-2 border-t" style={{ borderColor: 'var(--border-default)' }}>
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-2 text-sm font-medium transition-colors text-theme-secondary"
-            >
-              {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              全局设置
-            </button>
-
-            {showAdvanced && (
-              <div className="mt-3 space-y-4 rounded-lg p-4" style={{ background: 'var(--nav-hover-bg)' }}>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-muted">请求超时（秒）</label>
-                    <input type="number" value={editTimeout} onChange={(e) => setEditTimeout(Number(e.target.value))}
-                      className="input text-sm" min={5} max={120} />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-muted">月度预算上限（0=不限）</label>
-                    <input type="number" value={editMonthlyBudget} onChange={(e) => setEditMonthlyBudget(Number(e.target.value))}
-                      className="input text-sm" min={0} />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-muted">缓存时长（小时）</label>
-                    <input type="number" value={editCacheTTL} onChange={(e) => setEditCacheTTL(Number(e.target.value))}
-                      className="input text-sm" min={0} />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-muted">最大并发数</label>
-                    <input type="number" value={editMaxConcurrent} onChange={(e) => setEditMaxConcurrent(Number(e.target.value))}
-                      className="input text-sm" min={1} max={10} />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-muted">请求间隔（毫秒）</label>
-                    <input type="number" value={editRequestInterval} onChange={(e) => setEditRequestInterval(Number(e.target.value))}
-                      className="input text-sm" min={0} />
-                  </div>
-                </div>
-                <button
-                  onClick={handleSaveAdvanced}
-                  disabled={saving}
-                  className="btn-primary gap-1.5 px-4 py-1.5 text-xs"
-                >
-                  {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                  保存设置
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={handleSaveAdvanced}
+            disabled={saving}
+            className="btn-primary gap-1.5 px-4 py-1.5 text-xs"
+          >
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+            保存设置
+          </button>
         </div>
       </section>
 

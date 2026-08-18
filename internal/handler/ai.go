@@ -385,38 +385,231 @@ func (h *AIHandler) GetUsageBuckets(c *gin.Context) {
 	})
 }
 
-// ==================== 供应商管理（V10：单一 provider 模式） ====================
+// ==================== 供应商管理（V11：列表模式） ====================
 
-// SetActive 切换激活的 provider 和 model（"一键配置"接口）
+// ListProviders 获取所有供应商列表
+func (h *AIHandler) ListProviders(c *gin.Context) {
+	providers := make([]gin.H, 0, len(h.cfg.AI.Providers))
+	for _, p := range h.cfg.AI.Providers {
+		providers = append(providers, gin.H{
+			"id":                p.ID,
+			"name":              p.Name,
+			"api_base":          p.APIBase,
+			"model":             p.Model,
+			"enabled":           p.Enabled,
+			"api_key_configured": p.APIKey != "",
+			"active":            p.ID == h.cfg.AI.ActiveProvider,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"providers": providers}})
+}
+
+// AddProvider 添加供应商
+func (h *AIHandler) AddProvider(c *gin.Context) {
+	var req struct {
+		ID      string `json:"id"`
+		Name    string `json:"name" binding:"required"`
+		APIBase string `json:"api_base"`
+		APIKey  string `json:"api_key"`
+		Model   string `json:"model"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name 不能为空"})
+		return
+	}
+
+	// 生成 ID（如果未提供）
+	id := strings.TrimSpace(req.ID)
+	if id == "" {
+		id = "custom_" + strings.ReplaceAll(strings.ToLower(req.Name), " ", "_")
+	}
+
+	// 检查 ID 是否已存在
+	for _, p := range h.cfg.AI.Providers {
+		if p.ID == id {
+			c.JSON(http.StatusConflict, gin.H{"error": "同名供应商已存在"})
+			return
+		}
+	}
+
+	// 如果 api_base 为空，从预设填充
+	if req.APIBase == "" {
+		if preset, ok := config.FindAIProviderPreset(id); ok {
+			req.APIBase = preset.APIBase
+			if req.Model == "" {
+				req.Model = preset.DefaultModel
+			}
+		}
+	}
+
+	h.cfg.AI.Providers = append(h.cfg.AI.Providers, config.AIProviderEntry{
+		ID:      id,
+		Name:    req.Name,
+		APIBase: req.APIBase,
+		APIKey:  req.APIKey,
+		Model:   req.Model,
+		Enabled: true,
+	})
+
+	if err := h.cfg.SaveAIConfig(); err != nil {
+		h.logger.Errorf("保存供应商配置失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
+		return
+	}
+	h.aiService.SyncConfig()
+
+	c.JSON(http.StatusOK, gin.H{"message": "供应商已添加", "data": gin.H{
+		"id": id, "name": req.Name, "api_base": req.APIBase,
+	}})
+}
+
+// UpdateProvider 更新供应商配置（点击"设置"按钮后调用）
+func (h *AIHandler) UpdateProvider(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少供应商 ID"})
+		return
+	}
+
+	var req struct {
+		Name    string `json:"name"`
+		APIBase string `json:"api_base"`
+		APIKey  string `json:"api_key"`
+		Model   string `json:"model"`
+		Enabled *bool  `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	found := false
+	for i, p := range h.cfg.AI.Providers {
+		if p.ID == id {
+			if req.Name != "" {
+				h.cfg.AI.Providers[i].Name = req.Name
+			}
+			if req.APIBase != "" {
+				h.cfg.AI.Providers[i].APIBase = req.APIBase
+			}
+			// api_key 留空时保留原值
+			if req.APIKey != "" {
+				h.cfg.AI.Providers[i].APIKey = req.APIKey
+			}
+			if req.Model != "" {
+				h.cfg.AI.Providers[i].Model = req.Model
+			}
+			if req.Enabled != nil {
+				h.cfg.AI.Providers[i].Enabled = *req.Enabled
+			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "供应商不存在"})
+		return
+	}
+
+	if err := h.cfg.SaveAIConfig(); err != nil {
+		h.logger.Errorf("保存供应商配置失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
+		return
+	}
+	h.aiService.SyncConfig()
+
+	c.JSON(http.StatusOK, gin.H{"message": "供应商已更新"})
+}
+
+// DeleteProvider 删除供应商
+func (h *AIHandler) DeleteProvider(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少供应商 ID"})
+		return
+	}
+
+	found := false
+	newProviders := make([]config.AIProviderEntry, 0, len(h.cfg.AI.Providers))
+	for _, p := range h.cfg.AI.Providers {
+		if p.ID == id {
+			found = true
+			continue
+		}
+		newProviders = append(newProviders, p)
+	}
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "供应商不存在"})
+		return
+	}
+	h.cfg.AI.Providers = newProviders
+
+	// 如果删除的是当前激活的供应商，清空激活字段
+	if h.cfg.AI.ActiveProvider == id {
+		h.cfg.AI.ActiveProvider = ""
+		h.cfg.AI.Provider = ""
+		h.cfg.AI.ActiveModel = ""
+		h.cfg.AI.APIBase = ""
+		h.cfg.AI.APIKey = ""
+	}
+
+	if err := h.cfg.SaveAIConfig(); err != nil {
+		h.logger.Errorf("保存供应商配置失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
+		return
+	}
+	h.aiService.SyncConfig()
+
+	c.JSON(http.StatusOK, gin.H{"message": "供应商已删除"})
+}
+
+// SetActive 切换激活的供应商（从列表中复制配置到顶层扁平字段）
 func (h *AIHandler) SetActive(c *gin.Context) {
 	var req struct {
 		Provider string `json:"provider" binding:"required"`
 		Model    string `json:"model"`
-		APIBase  string `json:"api_base"`
-		APIKey   string `json:"api_key"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "provider 不能为空"})
 		return
 	}
 
-	// 直接更新扁平字段
-	h.cfg.AI.ActiveProvider = req.Provider
-	h.cfg.AI.Provider = req.Provider
-	if req.Model != "" {
-		h.cfg.AI.ActiveModel = req.Model
-	}
-	if req.APIBase != "" {
-		h.cfg.AI.APIBase = req.APIBase
-	}
-	if req.APIKey != "" {
-		h.cfg.AI.APIKey = req.APIKey
+	// 从 Providers 列表中查找配置
+	var found *config.AIProviderEntry
+	for i := range h.cfg.AI.Providers {
+		if h.cfg.AI.Providers[i].ID == req.Provider {
+			found = &h.cfg.AI.Providers[i]
+			break
+		}
 	}
 
-	// 从预设填充默认 api_base（仅当当前为空时）
-	if h.cfg.AI.APIBase == "" {
-		if preset, ok := config.FindAIProviderPreset(req.Provider); ok {
-			h.cfg.AI.APIBase = preset.APIBase
+	if found != nil {
+		// 从列表中复制配置到顶层激活字段
+		h.cfg.AI.ActiveProvider = found.ID
+		h.cfg.AI.Provider = found.ID
+		h.cfg.AI.APIBase = found.APIBase
+		h.cfg.AI.APIKey = found.APIKey
+		// 模型优先用请求参数，其次用列表中的默认模型
+		if req.Model != "" {
+			h.cfg.AI.ActiveModel = req.Model
+		} else {
+			h.cfg.AI.ActiveModel = found.Model
+		}
+	} else {
+		// 不在列表中，可能是内置 preset，直接设置
+		h.cfg.AI.ActiveProvider = req.Provider
+		h.cfg.AI.Provider = req.Provider
+		if req.Model != "" {
+			h.cfg.AI.ActiveModel = req.Model
+		}
+		// 从预设填充默认 api_base
+		if h.cfg.AI.APIBase == "" {
+			if preset, ok := config.FindAIProviderPreset(req.Provider); ok {
+				h.cfg.AI.APIBase = preset.APIBase
+				if h.cfg.AI.ActiveModel == "" {
+					h.cfg.AI.ActiveModel = preset.DefaultModel
+				}
+			}
 		}
 	}
 
@@ -427,7 +620,7 @@ func (h *AIHandler) SetActive(c *gin.Context) {
 	}
 	h.aiService.SyncConfig()
 
-	c.JSON(http.StatusOK, gin.H{"message": "AI 配置已更新", "data": map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{"message": "AI 配置已更新", "data": gin.H{
 		"active_provider": h.cfg.AI.ActiveProvider,
 		"active_model":    h.cfg.AI.ActiveModel,
 		"api_base":        h.cfg.AI.APIBase,

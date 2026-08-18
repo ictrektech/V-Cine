@@ -106,6 +106,26 @@ export const aiApi = {
   // 设置当前激活的供应商和模型
   setActive: (params: { provider: string; model?: string; api_base?: string; api_key?: string }) =>
     api.post<{ message: string; data: AIStatus }>('/admin/ai/set-active', params),
+
+  // 供应商列表
+  listProviders: () =>
+    api.get<{ data: import('@/types').AIStatus['providers'] }>('/admin/ai/providers'),
+
+  // 新增供应商
+  addProvider: (data: { name: string; api_base?: string; api_key?: string; model?: string }) =>
+    api.post<{ message: string; data: import('@/types').AIStatus['providers'] }>('/admin/ai/providers', data),
+
+  // 更新供应商
+  updateProvider: (id: string, data: { name?: string; api_base?: string; api_key?: string; model?: string; enabled?: boolean }) =>
+    api.put<{ message: string; data: import('@/types').AIStatus['providers'] }>(`/admin/ai/providers/${id}`, data),
+
+  // 删除供应商
+  deleteProvider: (id: string) =>
+    api.delete<{ message: string }>(`/admin/ai/providers/${id}`),
+
+  // 获取供应商可用模型列表
+  fetchModels: (data: { base_url: string; api_key?: string }) =>
+    api.post<{ data: string[] }>('/admin/ai/providers/fetch-models', data),
 }
 
 // ==================== AI 助手 ====================

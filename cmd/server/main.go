@@ -678,7 +678,11 @@ func main() {
 		admin.GET("/ai/router/logs", handlers.AI.ListFailoverLogs)
 		admin.GET("/ai/usage", handlers.AI.GetUsageBuckets)
 
-		// V10：单一 provider 模式（替代旧多 provider CRUD）
+		// V11：多供应商管理（列表模式）
+		admin.GET("/ai/providers", handlers.AI.ListProviders)
+		admin.POST("/ai/providers", handlers.AI.AddProvider)
+		admin.PUT("/ai/providers/:id", handlers.AI.UpdateProvider)
+		admin.DELETE("/ai/providers/:id", handlers.AI.DeleteProvider)
 		admin.POST("/ai/set-active", handlers.AI.SetActive)
 		admin.POST("/ai/providers/fetch-models", handlers.AI.FetchModels)
 
