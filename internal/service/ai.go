@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -172,6 +173,17 @@ func NewAIService(cfg config.AIConfig, appCfg *config.Config, mediaRepo *reposit
 	}
 
 	return s
+}
+
+// desensitizeClient 返回脱敏服务专用 HTTP 客户端（TLS 跳过验证 + 独立超时）。
+func desensitizeClient(timeout int) *http.Client {
+	if timeout <= 0 {
+		timeout = 3
+	}
+	return &http.Client{
+		Timeout:   time.Duration(timeout) * time.Second,
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+	}
 }
 
 // SetRouter 注入 AI 智能路由器（V7：故障转移与用量监控）
@@ -345,6 +357,10 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 	s.semaphore <- struct{}{}
 	defer func() { <-s.semaphore }()
 
+	// 数据脱敏：对发给 LLM 的文本做敏感信息脱敏
+	systemPrompt = s.desensitizeText(systemPrompt)
+	userPrompt = s.desensitizeText(userPrompt)
+
 	// 构建请求体（一次构建，多次重试复用）
 	reqBody := ChatCompletionRequest{
 		Model: model,
@@ -502,6 +518,125 @@ func truncateForLog(s string, n int) string {
 		return s
 	}
 	return s[:n] + "..."
+}
+
+// ==================== 数据脱敏 ====================
+
+// desensitizeText 调用 desensitize 服务对文本做敏感信息脱敏。
+// 脱敏服务不可用时返回原文，不阻断业务。
+func (s *AIService) desensitizeText(text string) string {
+	cfg := s.snapshotCfg()
+	if !cfg.Desensitize.Enabled || strings.TrimSpace(cfg.Desensitize.BaseURL) == "" {
+		return text
+	}
+	if strings.TrimSpace(text) == "" {
+		return text
+	}
+
+	type desensitizeReq struct {
+		Text string `json:"text"`
+		NER  bool   `json:"ner"`
+	}
+	type desensitizeReplaced struct {
+		Rule        string `json:"rule"`
+		Placeholder string `json:"placeholder"`
+		Occurrences int    `json:"occurrences"`
+	}
+	type desensitizeResp struct {
+		Text     string                `json:"text"`
+		Replaced []desensitizeReplaced `json:"replaced"`
+	}
+
+	reqBody, _ := json.Marshal(desensitizeReq{Text: text, NER: cfg.Desensitize.NER})
+	apiURL := strings.TrimRight(cfg.Desensitize.BaseURL, "/") + "/api/v1/desensitize/text"
+
+	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(reqBody))
+	if err != nil {
+		return text
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := desensitizeClient(cfg.Desensitize.Timeout).Do(req)
+	if err != nil {
+		s.logger.Warnf("desensitize unavailable, passing through: %v", err)
+		return text
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		s.logger.Warnf("desensitize returned HTTP %d, passing through", resp.StatusCode)
+		return text
+	}
+
+	var result desensitizeResp
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		s.logger.Warnf("desensitize read error, passing through: %v", err)
+		return text
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		s.logger.Warnf("desensitize parse error, passing through: %v", err)
+		return text
+	}
+	if len(result.Replaced) > 0 {
+		s.logger.Debugf("desensitized %d rule(s)", len(result.Replaced))
+	}
+	return result.Text
+}
+
+// TestDesensitize 测试脱敏服务是否健康：POST 真实接口，成功即健康。
+// 返回 success / latency / 命中规则数 / 脱敏结果或错误信息。
+func (s *AIService) TestDesensitize() map[string]interface{} {
+	cfg := s.snapshotCfg()
+	base := strings.TrimRight(cfg.Desensitize.BaseURL, "/")
+	if base == "" {
+		return map[string]interface{}{"success": false, "error": "未配置脱敏服务地址", "configured": false}
+	}
+
+	// 直接 POST 真实接口：成功即健康，失败即不可达
+	sample := "请联系 13800138000 或本人身份证 110101199003078899，地址：北京市朝阳区建国路 88 号"
+	apiURL := base + "/api/v1/desensitize/text"
+
+	start := time.Now()
+	reqBody, _ := json.Marshal(map[string]interface{}{"text": sample, "ner": cfg.Desensitize.NER})
+
+	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(reqBody))
+	if err != nil {
+		return map[string]interface{}{"success": false, "error": err.Error()}
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := desensitizeClient(cfg.Desensitize.Timeout).Do(req)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		return map[string]interface{}{"success": false, "latency_ms": latency, "error": "请求脱敏接口失败: " + err.Error()}
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return map[string]interface{}{
+			"success": false, "latency_ms": latency,
+			"error": fmt.Sprintf("脱敏接口 %s 返回 HTTP %d，请核对服务地址/路径（base_url=%s）", apiURL, resp.StatusCode, base),
+		}
+	}
+
+	var result struct {
+		Text     string `json:"text"`
+		Replaced []struct {
+			Rule string `json:"rule"`
+		} `json:"replaced"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return map[string]interface{}{"success": false, "latency_ms": latency, "error": "响应解析失败: " + err.Error()}
+	}
+
+	return map[string]interface{}{
+		"success":   true,
+		"latency_ms": latency,
+		"rules":     len(result.Replaced),
+		"result":    result.Text,
+	}
 }
 
 // ==================== 缓存 ====================
@@ -738,6 +873,12 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"cache_ttl_hours":         cfg.CacheTTLHours,
 		"max_concurrent":          cfg.MaxConcurrent,
 		"request_interval_ms":     cfg.RequestIntervalMs,
+		"desensitize": map[string]interface{}{
+			"enabled":  cfg.Desensitize.Enabled,
+			"base_url": cfg.Desensitize.BaseURL,
+			"timeout":  cfg.Desensitize.Timeout,
+			"ner":      cfg.Desensitize.NER,
+		},
 	}
 
 	// 供应商列表（脱敏：不返回 api_key，只返回 api_key_configured）
@@ -851,6 +992,21 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 		case "request_interval_ms":
 			if v, ok := val.(float64); ok {
 				s.cfg.RequestIntervalMs = int(v)
+			}
+		case "desensitize":
+			if v, ok := val.(map[string]interface{}); ok {
+				if enabled, ok := v["enabled"].(bool); ok {
+					s.cfg.Desensitize.Enabled = enabled
+				}
+				if baseURL, ok := v["base_url"].(string); ok {
+					s.cfg.Desensitize.BaseURL = baseURL
+				}
+				if timeout, ok := v["timeout"].(float64); ok {
+					s.cfg.Desensitize.Timeout = int(timeout)
+				}
+				if ner, ok := v["ner"].(bool); ok {
+					s.cfg.Desensitize.NER = ner
+				}
 			}
 		case "scene_describe_ai":
 			if v, ok := val.(map[string]interface{}); ok {

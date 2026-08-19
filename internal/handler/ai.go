@@ -86,6 +86,12 @@ func (h *AIHandler) TestAIConnection(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+// TestDesensitizeConnection 测试脱敏服务健康（管理员）
+func (h *AIHandler) TestDesensitizeConnection(c *gin.Context) {
+	result := h.aiService.TestDesensitize()
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 // ClearAICache 清空 AI 缓存（管理员）
 func (h *AIHandler) ClearAICache(c *gin.Context) {
 	count := h.aiService.ClearCache()

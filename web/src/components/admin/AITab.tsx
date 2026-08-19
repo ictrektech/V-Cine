@@ -24,6 +24,7 @@ import {
   BarChart3,
   Settings,
   Shield,
+  Activity,
   RefreshCw,
   ChevronDown,
   ChevronUp,
@@ -77,6 +78,15 @@ export default function AITab() {
   const [editDescribeProviderID, setEditDescribeProviderID] = useState('')
   const [editDescribeModel, setEditDescribeModel] = useState('')
   const [showDescribe, setShowDescribe] = useState(false)
+
+  // 数据脱敏
+  const [editDesensitize, setEditDesensitize] = useState(false)
+  const [editDesensitizeURL, setEditDesensitizeURL] = useState('')
+  const [editDesensitizeTimeout, setEditDesensitizeTimeout] = useState(3)
+  const [editDesensitizeNER, setEditDesensitizeNER] = useState(false)
+  const [dsTest, setDsTest] = useState<{ testing: boolean; success: boolean | null; message: string }>({
+    testing: false, success: null, message: '',
+  })
 
   // 缓存
   const [cacheStats, setCacheStats] = useState<AICacheStats | null>(null)
@@ -132,6 +142,12 @@ export default function AITab() {
       setEditCacheTTL(s.cache_ttl_hours || 168)
       setEditMaxConcurrent(s.max_concurrent || 3)
       setEditRequestInterval(s.request_interval_ms || 200)
+      // 数据脱敏
+      const ds = s.desensitize || { enabled: false, base_url: '', timeout: 3, ner: false }
+      setEditDesensitize(ds.enabled)
+      setEditDesensitizeURL(ds.base_url || '')
+      setEditDesensitizeTimeout(ds.timeout || 3)
+      setEditDesensitizeNER(ds.ner || false)
       // 从 status 中提取供应商列表
       if (s.providers && Array.isArray(s.providers)) {
         setProviders(s.providers)
@@ -273,6 +289,12 @@ export default function AITab() {
         cache_ttl_hours: editCacheTTL,
         max_concurrent: editMaxConcurrent,
         request_interval_ms: editRequestInterval,
+        desensitize: {
+          enabled: editDesensitize,
+          base_url: editDesensitizeURL,
+          timeout: editDesensitizeTimeout,
+          ner: editDesensitizeNER,
+        },
       })
       toast.success('全局设置已保存')
       await fetchStatus()
@@ -280,6 +302,22 @@ export default function AITab() {
       toast.error('保存失败')
     } finally {
       setSaving(false)
+    }
+  }
+
+  // ==================== 数据脱敏测试 ====================
+  const handleTestDesensitize = async () => {
+    setDsTest({ testing: true, success: null, message: '' })
+    try {
+      const res = await aiApi.testDesensitize()
+      const d = res.data.data
+      if (d.success) {
+        setDsTest({ testing: false, success: true, message: `服务正常 · ${d.latency_ms}ms` })
+      } else {
+        setDsTest({ testing: false, success: false, message: d.error || '测试失败' })
+      }
+    } catch {
+      setDsTest({ testing: false, success: false, message: '无法连接测试服务' })
     }
   }
 
@@ -939,6 +977,118 @@ export default function AITab() {
           </div>
         </Modal>
       )}
+
+      {/* ==================== 数据脱敏 ==================== */}
+      <section>
+        <h2
+          className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
+        >
+          <Shield size={20} className="text-neon/60" />
+          数据脱敏
+        </h2>
+
+        <div className="glass-panel rounded-xl p-5 space-y-4">
+          {/* 启用开关 */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                style={{ background: editDesensitize ? 'var(--neon-blue-10)' : 'var(--nav-hover-bg)' }}
+              >
+                <Shield size={18} className={editDesensitize ? 'text-neon' : 'text-surface-500'} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-theme-primary">
+                  启用数据脱敏
+                </p>
+                <p className="text-xs text-theme-muted">
+                  LLM 调用前自动脱敏敏感信息（手机号、身份证、密钥等）
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setEditDesensitize(!editDesensitize)}
+              className="toggle-switch toggle-switch-lg shrink-0"
+              role="switch"
+              aria-checked={editDesensitize}
+              aria-label="启用数据脱敏"
+            >
+              <span className="toggle-switch-thumb" />
+            </button>
+          </div>
+
+          {/* 配置项（启用后展开） */}
+          {editDesensitize && (
+            <div className="rounded-lg border p-4 space-y-3" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-theme-muted">脱敏服务地址</label>
+                  <input
+                    type="text"
+                    value={editDesensitizeURL}
+                    onChange={(e) => setEditDesensitizeURL(e.target.value)}
+                    placeholder="http://desensitize-backend:5000"
+                    className="input text-sm w-full"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-theme-muted">超时（秒）</label>
+                  <input
+                    type="number"
+                    value={editDesensitizeTimeout}
+                    onChange={(e) => setEditDesensitizeTimeout(Number(e.target.value))}
+                    className="input text-sm"
+                    min={1}
+                    max={30}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-theme-primary">NER 语义识别</p>
+                  <p className="text-xs text-theme-muted">开启后额外识别人名、地址等语义信息（有并发限制）</p>
+                </div>
+                <button
+                  onClick={() => setEditDesensitizeNER(!editDesensitizeNER)}
+                  className="toggle-switch toggle-switch-sm shrink-0"
+                  role="switch"
+                  aria-checked={editDesensitizeNER}
+                  aria-label="NER 语义识别"
+                >
+                  <span className="toggle-switch-thumb" />
+                </button>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={handleSaveAdvanced}
+            disabled={saving}
+            className="btn-primary gap-1.5 px-4 py-1.5 text-xs"
+          >
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+            保存脱敏设置
+          </button>
+
+          {/* 测试服务健康 */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleTestDesensitize}
+              disabled={dsTest.testing}
+              className="btn-ghost gap-1.5 px-4 py-1.5 text-xs"
+            >
+              {dsTest.testing ? <Loader2 size={12} className="animate-spin" /> : <Activity size={12} />}
+              测试服务健康
+            </button>
+            {dsTest.message && (
+              <span
+                className={"text-xs " + (dsTest.success ? "text-emerald-400" : "text-red-400")}
+              >
+                {dsTest.message}
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* ==================== 全局设置 ==================== */}
       <section>

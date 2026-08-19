@@ -232,6 +232,16 @@ type SceneDescribeAIConfig struct {
 	Model      string `mapstructure:"model" yaml:"model"`
 }
 
+// DesensitizeConfig 数据脱敏服务配置
+// 在 ChatCompletion 中对发给 LLM 的文本做敏感信息脱敏。
+// 脱敏服务不可用时降级放行，不阻断业务。
+type DesensitizeConfig struct {
+	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
+	BaseURL string `mapstructure:"base_url" yaml:"base_url"` // http://desensitize-backend:5000
+	Timeout int    `mapstructure:"timeout" yaml:"timeout"`   // 秒，默认 3
+	NER     bool   `mapstructure:"ner" yaml:"ner"`           // NER 语义识别（有并发限制）
+}
+
 type AIConfig struct {
 	// 是否启用 AI 功能（总开关）
 	Enabled bool `mapstructure:"enabled"`
@@ -277,6 +287,10 @@ type AIConfig struct {
 
 	// ==================== 场景描述视觉模型配置 ====================
 	SceneDescribeAI SceneDescribeAIConfig `mapstructure:"scene_describe_ai" yaml:"scene_describe_ai"`
+
+	// ==================== 数据脱敏配置 ====================
+	// ChatCompletion 中对发给 LLM 的文本做敏感信息脱敏
+	Desensitize DesensitizeConfig `mapstructure:"desensitize" yaml:"desensitize"`
 
 	// ==================== ASR / Whisper 云端 API 独立配置 ====================
 	// Whisper API 独立地址（留空则复用 APIBase）
@@ -860,6 +874,10 @@ func setDefaults() {
 	viper.SetDefault("ai.embedding_ai.model", "vit-b-16-siglip2__webli")
 	viper.SetDefault("ai.scene_describe_ai.provider_id", "")
 	viper.SetDefault("ai.scene_describe_ai.model", "")
+	viper.SetDefault("ai.desensitize.enabled", false)
+	viper.SetDefault("ai.desensitize.base_url", "")
+	viper.SetDefault("ai.desensitize.timeout", 3)
+	viper.SetDefault("ai.desensitize.ner", false)
 
 	// ---- 字幕预处理（ASR/OCR/清洗）默认值 ----
 	viper.SetDefault("ai.subtitle_preprocess_workers", 1)

@@ -36,6 +36,12 @@ export const aiApi = {
     cache_ttl_hours: number
     max_concurrent: number
     request_interval_ms: number
+    desensitize?: {
+      enabled?: boolean
+      base_url?: string
+      timeout?: number
+      ner?: boolean
+    }
   }>) =>
     api.put<{ message: string; data: AIStatus }>('/admin/ai/config', updates),
 
@@ -47,6 +53,17 @@ export const aiApi = {
   // 测试 AI 连接（管理员）
   testConnection: (providerId?: string) =>
     api.post<{ data: AITestResult }>('/admin/ai/test', { provider_id: providerId || '' }),
+
+  // 测试脱敏服务健康（管理员）
+  testDesensitize: () =>
+    api.post<{ data: {
+      success: boolean
+      error?: string
+      configured?: boolean
+      latency_ms?: number
+      rules?: number
+      result?: string
+    } }>('/admin/ai/desensitize/test'),
 
   // 清空 AI 缓存（管理员）
   clearCache: () =>

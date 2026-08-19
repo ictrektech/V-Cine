@@ -873,6 +873,12 @@ export interface AIStatus {
   cache_ttl_hours: number
   max_concurrent: number
   request_interval_ms: number
+  desensitize?: {
+    enabled: boolean
+    base_url: string
+    timeout: number
+    ner: boolean
+  }
   // 多供应商列表
   providers?: Array<{
     id: string

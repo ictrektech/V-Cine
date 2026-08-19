@@ -659,6 +659,7 @@ func main() {
 		admin.PUT("/ai/config", handlers.AI.UpdateAIConfig)
 		admin.POST("/ai/auto-pilot", handlers.AI.EnableAutoPilot)
 		admin.POST("/ai/test", handlers.AI.TestAIConnection)
+		admin.POST("/ai/desensitize/test", handlers.AI.TestDesensitizeConnection)
 		admin.DELETE("/ai/cache", handlers.AI.ClearAICache)
 		admin.GET("/ai/cache", handlers.AI.GetAICacheStats)
 		admin.GET("/ai/errors", handlers.AI.GetAIErrorLogs)

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/nowen-video/nowen-video/internal/config"
@@ -97,8 +99,6 @@ func TestAICache_MemoryLayer(t *testing.T) {
 
 	// 写入缓存
 	svc.SetCache("test_key", "test_value")
-
-	// 读取缓存
 	val, ok := svc.GetCache("test_key")
 	if !ok {
 		t.Error("缓存应命中")
@@ -111,6 +111,58 @@ func TestAICache_MemoryLayer(t *testing.T) {
 	_, ok = svc.GetCache("nonexistent")
 	if ok {
 		t.Error("不存在的键不应命中缓存")
+	}
+}
+
+// ==================== 脱敏服务健康测试 ====================
+
+func TestDesensitize_Healthy(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/desensitize/text" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"text":"请联系****","replaced":[{"rule":"phone"}]}`))
+	}))
+	defer srv.Close()
+
+	cfg := testAIConfig()
+	cfg.Desensitize.Enabled = true
+	cfg.Desensitize.BaseURL = srv.URL
+	cfg.Desensitize.Timeout = 2
+	svc := &AIService{cfg: cfg, logger: testLogger()}
+
+	res := svc.TestDesensitize()
+	if res["success"] != true {
+		t.Fatalf("期望 success=true, 得到 %v (error=%v)", res["success"], res["error"])
+	}
+	if res["rules"] != 1 {
+		t.Errorf("期望命中 1 条规则, 得到 %v", res["rules"])
+	}
+}
+
+func TestDesensitize_Unreachable(t *testing.T) {
+	cfg := testAIConfig()
+	cfg.Desensitize.Enabled = true
+	cfg.Desensitize.BaseURL = "http://127.0.0.1:1" // 不可达端口
+	cfg.Desensitize.Timeout = 1
+	svc := &AIService{cfg: cfg, logger: testLogger()}
+
+	res := svc.TestDesensitize()
+	if res["success"] != false {
+		t.Fatalf("期望 success=false, 得到 %v", res["success"])
+	}
+	if res["error"] == nil {
+		t.Error("不可达时应返回 error")
+	}
+}
+
+func TestDesensitize_NotConfigured(t *testing.T) {
+	svc := &AIService{cfg: testAIConfig(), logger: testLogger()}
+	res := svc.TestDesensitize()
+	if res["success"] != false {
+		t.Fatalf("期望 success=false, 得到 %v", res["success"])
 	}
 }
 
