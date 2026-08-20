@@ -41,6 +41,9 @@ export const aiApi = {
       base_url?: string
       timeout?: number
       ner?: boolean
+      image_enabled?: boolean
+      image_timeout?: number
+      image_scopes?: string[]
     }
   }>) =>
     api.put<{ message: string; data: AIStatus }>('/admin/ai/config', updates),

@@ -3,6 +3,7 @@ import { aiApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import { Modal } from '@/components/ui/modal'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useTranslation } from '@/i18n'
 import type { AIStatus, AIErrorLog, AICacheStats, AITestResult } from '@/types'
@@ -84,6 +85,9 @@ export default function AITab() {
   const [editDesensitizeURL, setEditDesensitizeURL] = useState('')
   const [editDesensitizeTimeout, setEditDesensitizeTimeout] = useState(3)
   const [editDesensitizeNER, setEditDesensitizeNER] = useState(false)
+  const [editDesensitizeImageEnabled, setEditDesensitizeImageEnabled] = useState(false)
+  const [editDesensitizeImageTimeout, setEditDesensitizeImageTimeout] = useState(30)
+  const [editDesensitizeImageScopes, setEditDesensitizeImageScopes] = useState<string[]>(['embedding'])
   const [dsTest, setDsTest] = useState<{ testing: boolean; success: boolean | null; message: string }>({
     testing: false, success: null, message: '',
   })
@@ -143,11 +147,17 @@ export default function AITab() {
       setEditMaxConcurrent(s.max_concurrent || 3)
       setEditRequestInterval(s.request_interval_ms || 200)
       // 数据脱敏
-      const ds = s.desensitize || { enabled: false, base_url: '', timeout: 3, ner: false }
+      const ds = s.desensitize || { enabled: false, base_url: '', timeout: 3, ner: false } as NonNullable<typeof s.desensitize>
       setEditDesensitize(ds.enabled)
       setEditDesensitizeURL(ds.base_url || '')
       setEditDesensitizeTimeout(ds.timeout || 3)
       setEditDesensitizeNER(ds.ner || false)
+      setEditDesensitizeImageEnabled((ds as { image_enabled?: boolean }).image_enabled || false)
+      setEditDesensitizeImageTimeout((ds as { image_timeout?: number }).image_timeout || 30)
+      {
+        const scopes = (ds as { image_scopes?: string[] }).image_scopes
+        setEditDesensitizeImageScopes(Array.isArray(scopes) ? scopes : ['embedding'])
+      }
       // 从 status 中提取供应商列表
       if (s.providers && Array.isArray(s.providers)) {
         setProviders(s.providers)
@@ -294,6 +304,9 @@ export default function AITab() {
           base_url: editDesensitizeURL,
           timeout: editDesensitizeTimeout,
           ner: editDesensitizeNER,
+          image_enabled: editDesensitizeImageEnabled,
+          image_timeout: editDesensitizeImageTimeout,
+          image_scopes: editDesensitizeImageScopes,
         },
       })
       toast.success('全局设置已保存')
@@ -1058,6 +1071,61 @@ export default function AITab() {
                   <span className="toggle-switch-thumb" />
                 </button>
               </div>
+              <div className="h-px" style={{ background: 'var(--border-default)' }} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-theme-primary">图片脱敏</p>
+                  <p className="text-xs text-theme-muted">开启后对外发图片先经脱敏服务打码（同一服务地址）</p>
+                </div>
+                <button
+                  onClick={() => setEditDesensitizeImageEnabled(!editDesensitizeImageEnabled)}
+                  className="toggle-switch toggle-switch-sm shrink-0"
+                  role="switch"
+                  aria-checked={editDesensitizeImageEnabled}
+                  aria-label="图片脱敏"
+                >
+                  <span className="toggle-switch-thumb" />
+                </button>
+              </div>
+              {editDesensitizeImageEnabled && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-theme-muted">图片超时（秒）</label>
+                    <input
+                      type="number"
+                      value={editDesensitizeImageTimeout}
+                      onChange={(e) => setEditDesensitizeImageTimeout(Number(e.target.value) || 30)}
+                      className="input text-sm"
+                      min={1}
+                      max={120}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-theme-muted">生效范围（可多选）</label>
+                    <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-theme-primary">
+                        <Checkbox
+                          checked={editDesensitizeImageScopes.includes('embedding')}
+                          onCheckedChange={(checked) => {
+                            setEditDesensitizeImageScopes((prev) => checked ? [...prev.filter((s) => s !== 'embedding'), 'embedding'] : prev.filter((s) => s !== 'embedding'))
+                          }}
+                        />
+                        Embedding（视频帧向量化）
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-theme-primary">
+                        <Checkbox
+                          checked={editDesensitizeImageScopes.includes('ai_assistant')}
+                          onCheckedChange={(checked) => {
+                            setEditDesensitizeImageScopes((prev) => checked ? [...prev.filter((s) => s !== 'ai_assistant'), 'ai_assistant'] : prev.filter((s) => s !== 'ai_assistant'))
+                          }}
+                        />
+                        AI 助手图片上传
+                      </label>
+                    </div>
+                    <p className="mt-1 text-[11px] text-theme-muted">可多选，新增功能时在此扩展选项</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <button

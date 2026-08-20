@@ -878,6 +878,9 @@ export interface AIStatus {
     base_url: string
     timeout: number
     ner: boolean
+    image_enabled?: boolean
+    image_timeout?: number
+    image_scopes?: string[]
   }
   // 多供应商列表
   providers?: Array<{

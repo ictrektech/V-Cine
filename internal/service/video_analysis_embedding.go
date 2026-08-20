@@ -19,9 +19,10 @@ import (
 // 接口文档：~/workspace/emb_server/API.md
 // POST /embed?model={model}  →  {"embeddings": [[...]], "dim": 768}
 type EmbeddingClient struct {
-	baseURL    string
-	model      string
-	httpClient *http.Client
+	baseURL          string
+	model            string
+	httpClient       *http.Client
+	DesensitizeImage func(string) string
 }
 
 // NewEmbeddingClient 创建 embedding 客户端
@@ -117,6 +118,9 @@ func (c *EmbeddingClient) ComputeImageEmbedding(ctx context.Context, imagePath s
 	// base64 编码
 	b64 := base64.StdEncoding.EncodeToString(imgData)
 	dataURL := fmt.Sprintf("data:%s;base64,%s", detectVideoAnalysisImageContentType(imagePath), b64)
+	if c.DesensitizeImage != nil {
+		dataURL = c.DesensitizeImage(dataURL)
+	}
 
 	reqBody := imageEmbeddingRequest{
 		Input:     []imageEmbeddingItem{{ImageBase64: dataURL}},

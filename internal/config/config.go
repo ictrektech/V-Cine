@@ -235,11 +235,19 @@ type SceneDescribeAIConfig struct {
 // DesensitizeConfig 数据脱敏服务配置
 // 在 ChatCompletion 中对发给 LLM 的文本做敏感信息脱敏。
 // 脱敏服务不可用时降级放行，不阻断业务。
+const (
+	DesensitizeImageScopeEmbedding   = "embedding"
+	DesensitizeImageScopeAIAssistant = "ai_assistant"
+)
+
 type DesensitizeConfig struct {
-	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
-	BaseURL string `mapstructure:"base_url" yaml:"base_url"` // http://desensitize-backend:5000
-	Timeout int    `mapstructure:"timeout" yaml:"timeout"`   // 秒，默认 3
-	NER     bool   `mapstructure:"ner" yaml:"ner"`           // NER 语义识别（有并发限制）
+	Enabled      bool     `mapstructure:"enabled" yaml:"enabled"`
+	BaseURL      string   `mapstructure:"base_url" yaml:"base_url"` // http://desensitize-backend:5000
+	Timeout      int      `mapstructure:"timeout" yaml:"timeout"`   // 秒，默认 3
+	NER          bool     `mapstructure:"ner" yaml:"ner"`           // NER 语义识别（有并发限制）
+	ImageEnabled bool     `mapstructure:"image_enabled" yaml:"image_enabled"`
+	ImageTimeout int      `mapstructure:"image_timeout" yaml:"image_timeout"` // 秒，默认 30
+	ImageScopes  []string `mapstructure:"image_scopes" yaml:"image_scopes"`  // 生效范围：embedding / ai_assistant
 }
 
 type AIConfig struct {
@@ -878,6 +886,9 @@ func setDefaults() {
 	viper.SetDefault("ai.desensitize.base_url", "")
 	viper.SetDefault("ai.desensitize.timeout", 3)
 	viper.SetDefault("ai.desensitize.ner", false)
+	viper.SetDefault("ai.desensitize.image_enabled", false)
+	viper.SetDefault("ai.desensitize.image_timeout", 30)
+	viper.SetDefault("ai.desensitize.image_scopes", []string{DesensitizeImageScopeEmbedding})
 
 	// ---- 字幕预处理（ASR/OCR/清洗）默认值 ----
 	viper.SetDefault("ai.subtitle_preprocess_workers", 1)

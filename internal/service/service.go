@@ -420,6 +420,9 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			var embeddingClient *EmbeddingClient
 			if cfg.AI.EmbeddingAI.APIBase != "" {
 				if ec, ecErr := NewEmbeddingClient(cfg.AI.EmbeddingAI.APIBase, cfg.AI.EmbeddingAI.Model); ecErr == nil {
+					ec.DesensitizeImage = func(v string) string {
+						return aiService.DesensitizeImageForScope(v, config.DesensitizeImageScopeEmbedding)
+					}
 					embeddingClient = ec
 				} else {
 					logger.Warnf("创建 embedding 客户端失败（不影响视频分析）: %v", ecErr)

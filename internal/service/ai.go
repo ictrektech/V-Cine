@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -522,6 +523,102 @@ func truncateForLog(s string, n int) string {
 
 // ==================== 数据脱敏 ====================
 
+var allowedImageScopes = map[string]bool{config.DesensitizeImageScopeEmbedding: true, config.DesensitizeImageScopeAIAssistant: true}
+
+func sanitizeDesensitizeImageScopes(in []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		s = strings.TrimSpace(s)
+		if s == "" || !allowedImageScopes[s] || seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
+}
+
+// IsImageScopeEnabled 供外部按 scope 判断是否启用图片脱敏。
+func (s *AIService) IsImageScopeEnabled(scope string) bool {
+	cfg := s.snapshotCfg()
+	if !cfg.Desensitize.ImageEnabled || strings.TrimSpace(cfg.Desensitize.BaseURL) == "" || scope == "" {
+		return false
+	}
+	return slices.Contains(cfg.Desensitize.ImageScopes, scope)
+}
+
+// DesensitizeImageForScope 统一图片脱敏入口：按 scope 校验开关与范围，不命中则原样返回。
+// 供 embedding / AI 助手等所有图片上传路径复用。
+func (s *AIService) DesensitizeImageForScope(dataURL, scope string) string {
+	cfg := s.snapshotCfg()
+	if !cfg.Desensitize.ImageEnabled || strings.TrimSpace(cfg.Desensitize.BaseURL) == "" || scope == "" {
+		return dataURL
+	}
+	if !slices.Contains(cfg.Desensitize.ImageScopes, scope) {
+		return dataURL
+	}
+	if strings.TrimSpace(dataURL) == "" {
+		return dataURL
+	}
+	return s.desensitizeImage(dataURL)
+}
+
+func (s *AIService) desensitizeImage(dataURL string) string {
+	cfg := s.snapshotCfg()
+	if strings.TrimSpace(cfg.Desensitize.BaseURL) == "" {
+		return dataURL
+	}
+	timeout := cfg.Desensitize.ImageTimeout
+	if timeout <= 0 {
+		timeout = 30
+	}
+	type reqBody struct {
+		ImageBase64 string `json:"image_base64"`
+	}
+	type replacedItem struct {
+		Rule string `json:"rule"`
+	}
+	type respBody struct {
+		ImageBase64 string        `json:"image_base64"`
+		Replaced    []replacedItem `json:"replaced"`
+	}
+	body, _ := json.Marshal(reqBody{ImageBase64: dataURL})
+	apiURL := strings.TrimRight(cfg.Desensitize.BaseURL, "/") + "/api/v1/desensitize/image"
+	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(body))
+	if err != nil {
+		return dataURL
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := desensitizeClient(timeout).Do(req)
+	if err != nil {
+		s.logger.Warnf("desensitize image unavailable, passing through: %v", err)
+		return dataURL
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		s.logger.Warnf("desensitize image returned HTTP %d, passing through", resp.StatusCode)
+		return dataURL
+	}
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		s.logger.Warnf("desensitize image read error, passing through: %v", err)
+		return dataURL
+	}
+	var result respBody
+	if err := json.Unmarshal(respBytes, &result); err != nil {
+		s.logger.Warnf("desensitize image parse error, passing through: %v", err)
+		return dataURL
+	}
+	if result.ImageBase64 == "" {
+		return dataURL
+	}
+	if len(result.Replaced) > 0 {
+		s.logger.Debugf("desensitized image %d rule(s)", len(result.Replaced))
+	}
+	return result.ImageBase64
+}
+
 // desensitizeText 调用 desensitize 服务对文本做敏感信息脱敏。
 // 脱敏服务不可用时返回原文，不阻断业务。
 func (s *AIService) desensitizeText(text string) string {
@@ -874,10 +971,13 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"max_concurrent":          cfg.MaxConcurrent,
 		"request_interval_ms":     cfg.RequestIntervalMs,
 		"desensitize": map[string]interface{}{
-			"enabled":  cfg.Desensitize.Enabled,
-			"base_url": cfg.Desensitize.BaseURL,
-			"timeout":  cfg.Desensitize.Timeout,
-			"ner":      cfg.Desensitize.NER,
+			"enabled":       cfg.Desensitize.Enabled,
+			"base_url":      cfg.Desensitize.BaseURL,
+			"timeout":       cfg.Desensitize.Timeout,
+			"ner":           cfg.Desensitize.NER,
+			"image_enabled": cfg.Desensitize.ImageEnabled,
+			"image_timeout": cfg.Desensitize.ImageTimeout,
+			"image_scopes":  cfg.Desensitize.ImageScopes,
 		},
 	}
 
@@ -923,7 +1023,6 @@ func (s *AIService) SetDescribeEnabledCallback(fn func(bool)) {
 //  2. 持久化到 config/ai.yaml
 func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 	s.cfgMu.Lock()
-	defer s.cfgMu.Unlock()
 	for key, val := range updates {
 		switch key {
 		case "enabled":
@@ -1007,6 +1106,21 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 				if ner, ok := v["ner"].(bool); ok {
 					s.cfg.Desensitize.NER = ner
 				}
+				if imageEnabled, ok := v["image_enabled"].(bool); ok {
+					s.cfg.Desensitize.ImageEnabled = imageEnabled
+				}
+				if imageTimeout, ok := v["image_timeout"].(float64); ok {
+					s.cfg.Desensitize.ImageTimeout = int(imageTimeout)
+				}
+				if scopes, ok := v["image_scopes"].([]interface{}); ok {
+					raw := make([]string, 0, len(scopes))
+					for _, it := range scopes {
+						if s, ok := it.(string); ok {
+							raw = append(raw, s)
+						}
+					}
+					s.cfg.Desensitize.ImageScopes = sanitizeDesensitizeImageScopes(raw)
+				}
 			}
 		case "scene_describe_ai":
 			if v, ok := val.(map[string]interface{}); ok {
@@ -1022,6 +1136,7 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 
 	// 同步到全局配置
 	s.appCfg.AI = s.cfg
+	s.cfgMu.Unlock()
 
 	// 持久化到 config/ai.yaml
 	if err := s.appCfg.SaveAIConfig(); err != nil {
