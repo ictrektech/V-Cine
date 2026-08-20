@@ -67,7 +67,7 @@ type SystemSettingRepo struct {
 
 func (r *SystemSettingRepo) Get(key string) (string, error) {
 	var setting model.SystemSetting
-	err := r.db.Where("`key` = ?", key).First(&setting).Error
+	err := r.db.Where("key = ?", key).First(&setting).Error
 	if err != nil {
 		return "", err
 	}
@@ -76,7 +76,7 @@ func (r *SystemSettingRepo) Get(key string) (string, error) {
 
 func (r *SystemSettingRepo) Set(key, value string) error {
 	var existing model.SystemSetting
-	err := r.db.Where("`key` = ?", key).First(&existing).Error
+	err := r.db.Where("key = ?", key).First(&existing).Error
 	if err == gorm.ErrRecordNotFound {
 		return r.db.Create(&model.SystemSetting{Key: key, Value: value}).Error
 	}
