@@ -181,7 +181,7 @@ clean:
 	cd web && rm -rf dist/ node_modules/
 
 install-web:
-	cd web && npm install
+	cd web && bun install
 
 tidy:
 	go mod tidy
