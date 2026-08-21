@@ -1,14 +1,8 @@
 # =============================================
-# 多架构构建：支持 linux/amd64 / linux/arm64 / linux/arm/v7
-# 使用方式：
-#   docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 \
-#       -t nowen-video:latest .
-# 说明：
-#   - 前端阶段固定在构建机架构，产物是纯静态文件，与运行架构无关
-#   - 后端走 Go 原生交叉编译（纯 Go pgx，CGO=0）
-#   - 运行阶段按架构条件安装硬件加速驱动 / Python 刮削微服务依赖
-#   - Python 依赖全部来自 Alpine 官方仓库的预编译 wheel（py3-lxml / py3-flask 等），
-#     不走 pip 编译，ARM 下也秒装
+# nowen-video 生产镜像（amd64 · NVIDIA CUDA）
+# 基座：nvidia/cuda:12.8.1-runtime-ubuntu22.04 (Ubuntu 22.04.5 Jammy + CUDA 12.8)
+# 转码：jellyfin-ffmpeg7 (Jammy deb，含 --enable-nvenc/cuda/qsv/vaapi)
+# 多阶段：前端 bun + 后端 Go 交叉编译（CGO_ENABLED=0，纯 Go pgx）
 # =============================================
 
 # =============================================
@@ -16,6 +10,9 @@
 # =============================================
 FROM --platform=$BUILDPLATFORM oven/bun:1-alpine AS frontend
 ARG NOWEN_VERSION=0.1.0
+ARG NPM_MIRROR=https://registry.npmmirror.com
+ENV BUN_CONFIG_REGISTRY=${NPM_MIRROR}
+ENV NPM_CONFIG_REGISTRY=${NPM_MIRROR}
 WORKDIR /app/web
 COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
@@ -26,111 +23,107 @@ RUN bun run build
 # =============================================
 # 阶段2: 构建后端（在构建机本地架构运行 Go 工具链，交叉编译到目标架构）
 # =============================================
-# 注意：镜像 Go 版本必须 >= go.mod 中声明的版本，否则会报
-# "go.mod requires go >= 1.25.0 (running go 1.22.x; GOTOOLCHAIN=local)"
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS backend
 ARG TARGETOS
 ARG TARGETARCH
 ARG NOWEN_VERSION=0.1.0
 WORKDIR /app
-# 使用国内 Go 模块代理（proxy.golang.org 国内不可达），direct 兜底私有/缺失模块
 ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/dist ./web/dist
-# 使用纯 Go 的 pgx (gorm.io/driver/postgres)，
-# 可以 CGO_ENABLED=0 直接交叉编译
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${NOWEN_VERSION}" -o nowen-video ./cmd/server
 
 # =============================================
-# 阶段3: 运行镜像（目标架构的 alpine）
+# 阶段3: 运行镜像（NVIDIA CUDA Runtime + Jellyfin FFmpeg）
 # =============================================
-FROM alpine:3.19
-ARG TARGETARCH
+FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
 ARG NOWEN_VERSION=0.1.0
+ARG UBUNTU_MIRROR=https://mirrors.aliyun.com/ubuntu
+ARG JELLYFIN_REPO=https://mirror.nju.edu.cn/jellyfin/ubuntu
+ARG JELLYFIN_KEY_URL=https://repo.jellyfin.org/jellyfin_team.gpg.key
 
-# ---- 基础依赖（全架构通用） ----
-# Alpine 镜像源：默认阿里云（--build-arg 可覆盖），失败回退官方源
-ARG ALPINE_MIRROR=https://mirrors.aliyun.com/alpine
-RUN set -eux; \
-    AV=$(cut -d. -f1-2 /etc/alpine-release); \
-    apk add --no-cache \
-        --repository "${ALPINE_MIRROR}/v${AV}/main" \
-        --repository "${ALPINE_MIRROR}/v${AV}/community" \
-        ffmpeg tzdata ca-certificates su-exec coreutils wget \
-    || apk add --no-cache ffmpeg tzdata ca-certificates su-exec coreutils wget; \
-    rm -rf /var/cache/apk/*; \
-    ln -sf /bin/nice /usr/bin/nice
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
 
-# ---- Python 番号刮削微服务依赖 ----
-# 全部走 Alpine 社区仓库的预编译包，amd64/arm64/armv7 通用，QEMU 下也秒装
-# flask / requests / beautifulsoup4 / lxml 四个核心依赖 + pip（用于 update）
+# ---- 国内 Ubuntu 镜像加速（默认阿里云；--build-arg UBUNTU_MIRROR= 可关闭）----
+# 同时兼容 /etc/apt/sources.list 与 Deb822 的 ubuntu.sources
 RUN set -eux; \
-    AV=$(cut -d. -f1-2 /etc/alpine-release); \
-    apk add --no-cache \
-        --repository "${ALPINE_MIRROR}/v${AV}/main" \
-        --repository "${ALPINE_MIRROR}/v${AV}/community" \
-        python3 py3-pip py3-flask py3-requests py3-beautifulsoup4 py3-lxml \
-    || apk add --no-cache python3 py3-pip py3-flask py3-requests py3-beautifulsoup4 py3-lxml; \
-    rm -rf /var/cache/apk/*
+    if [ -n "${UBUNTU_MIRROR}" ]; then \
+        find /etc/apt -maxdepth 2 -type f \( -name 'sources.list' -o -name '*.sources' \) \
+            -exec sed -i \
+                -e "s|http://archive.ubuntu.com/ubuntu|${UBUNTU_MIRROR}|g" \
+                -e "s|http://security.ubuntu.com/ubuntu|${UBUNTU_MIRROR}|g" \
+                -e "s|https://archive.ubuntu.com/ubuntu|${UBUNTU_MIRROR}|g" \
+                -e "s|https://security.ubuntu.com/ubuntu|${UBUNTU_MIRROR}|g" \
+                {} +; \
+    fi
 
-# ---- 架构相关的硬件加速驱动 ----
-# - amd64: Intel QSV/VAAPI (intel-media-driver + libva-intel-driver)
-# - arm64 / armv7: 通用 mesa VAAPI 驱动（Mali/Panfrost/RPi/RKMPP 等走 /dev/dri）
+# ---- 系统依赖 + Jellyfin 镜像仓库 + jellyfin-ffmpeg7 + Python 刮削 + 硬件加速驱动 ----
 RUN set -eux; \
-    AV=$(cut -d. -f1-2 /etc/alpine-release); \
-    if [ "${TARGETARCH}" = "amd64" ]; then \
-        apk add --no-cache \
-            --repository "${ALPINE_MIRROR}/v${AV}/main" \
-            --repository "${ALPINE_MIRROR}/v${AV}/community" \
-            intel-media-driver libva-intel-driver mesa-va-gallium libva-utils \
-        || apk add --no-cache intel-media-driver libva-intel-driver mesa-va-gallium libva-utils; \
-    else \
-        apk add --no-cache \
-            --repository "${ALPINE_MIRROR}/v${AV}/main" \
-            --repository "${ALPINE_MIRROR}/v${AV}/community" \
-            mesa-va-gallium libva-utils \
-        || apk add --no-cache mesa-va-gallium libva-utils; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg \
+        wget \
+        tzdata \
+        gosu \
+        coreutils \
+        python3 \
+        python3-pip \
+        python3-flask \
+        python3-requests \
+        python3-bs4 \
+        python3-lxml \
+        intel-media-va-driver \
+        mesa-va-drivers \
+        vainfo \
+        libva2 \
+        libva-drm2; \
+    mkdir -p /etc/apt/keyrings; \
+    curl -fsSL "${JELLYFIN_KEY_URL}" | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg; \
+    chmod 644 /etc/apt/keyrings/jellyfin.gpg; \
+    printf 'Types: deb\nURIs: %s\nSuites: jammy\nComponents: main\nArchitectures: amd64 arm64\nSigned-By: /etc/apt/keyrings/jellyfin.gpg\n' "${JELLYFIN_REPO}" > /etc/apt/sources.list.d/jellyfin.sources; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends jellyfin-ffmpeg7; \
+    ln -sf /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg; \
+    ln -sf /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe; \
+    # 验证：hwaccels 需含 cuda，encoders 需含 h264_nvenc \
+    ffmpeg -hide_banner -version; \
+    ffmpeg -hide_banner -hwaccels; \
+    echo "--- encoders ---"; \
+    ffmpeg -hide_banner -encoders | grep -E "nvenc|qsv|vaapi" || true; \
+    if ! ffmpeg -hide_banner -encoders | grep -q "h264_nvenc"; then \
+        echo "ERROR: jellyfin-ffmpeg missing h264_nvenc" >&2; exit 1; \
     fi; \
-    rm -rf /var/cache/apk/*
+    rm -rf /var/lib/apt/lists/*; \
+    # 兼容部分脚本仍调用 su-exec 的历史路径 \
+    if [ ! -e /usr/local/bin/su-exec ] && command -v gosu >/dev/null 2>&1; then \
+        ln -sf "$(command -v gosu)" /usr/local/bin/su-exec; \
+    fi
 
-# GPU 检测脚本
-RUN printf '#!/bin/sh\n\
-if [ -c /dev/dri/renderD128 ]; then\n\
-  echo "GPU device available: $(vainfo 2>/dev/null | grep -o "driver.*" | head -1)"\n\
-  exit 0\n\
-else\n\
-  echo "No GPU device found, falling back to software transcoding"\n\
-  exit 1\n\
-fi\n' > /usr/local/bin/check-gpu \
-    && chmod +x /usr/local/bin/check-gpu
-
-# 创建非root用户
-RUN addgroup -S nowen && adduser -S nowen -G nowen
+RUN groupadd -r nowen && useradd -r -g nowen -s /bin/bash -m nowen
 
 WORKDIR /app
 
 COPY --from=backend /app/nowen-video /usr/local/bin/nowen-video
-# 前端构建产物
 COPY --from=frontend /app/web/dist /app/web/dist
-# Python 番号刮削微服务源码（Go 后端通过 AdultPythonLauncher 拉起）
 COPY scripts/adult-scraper /app/scripts/adult-scraper
 
-# 创建数据目录并设置权限（确保挂载卷时nowen用户也能写入）
 RUN mkdir -p /data /cache /media \
     && chown -R nowen:nowen /data /cache /media /app/scripts
 
-# 默认环境变量
 ENV NOWEN_APP_PORT=8080
 ENV NOWEN_APP_DATA_DIR=/data
 ENV NOWEN_APP_WEB_DIR=/app/web/dist
 ENV NOWEN_CACHE_CACHE_DIR=/cache
 ENV NOWEN_LOGGING_LEVEL=info
 ENV NOWEN_VERSION=${NOWEN_VERSION}
-# ---- 番号刮削 / Python 微服务默认值（容器内开箱即用） ----
-# 总开关默认关（避免无 NSFW 需求的用户被动加载）；开启方式：设置为 true
 ENV NOWEN_ADULT_SCRAPER_ENABLED=false
 ENV NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON=true
 ENV NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
@@ -139,37 +132,37 @@ ENV TZ=Asia/Shanghai
 
 EXPOSE 8080
 
-# 健康检查
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q --spider http://localhost:8080/api/auth/login || exit 1
 
-# 创建 entrypoint 脚本：支持 PUID/PGID 自定义用户，修复权限后切换用户运行
+# entrypoint：支持 PUID/PGID 自定义用户，修复权限后切换用户运行（Ubuntu 用 gosu）
 RUN printf '#!/bin/sh\n\
-# 支持通过 PUID/PGID 环境变量自定义运行用户（兼容NAS场景）\n\
+set -e\n\
 PUID=${PUID:-$(id -u nowen)}\n\
 PGID=${PGID:-$(id -g nowen)}\n\
-\n\
-# 如果指定了自定义 UID/GID，则修改 nowen 用户\n\
 if [ "$PUID" != "$(id -u nowen)" ] || [ "$PGID" != "$(id -g nowen)" ]; then\n\
-  deluser nowen 2>/dev/null || true\n\
-  delgroup nowen 2>/dev/null || true\n\
-  addgroup -g "$PGID" -S nowen\n\
-  adduser -u "$PUID" -G nowen -S nowen\n\
+  if getent group nowen >/dev/null 2>&1; then\n\
+    groupmod -o -g "$PGID" nowen 2>/dev/null || true\n\
+  else\n\
+    groupadd -o -g "$PGID" nowen 2>/dev/null || true\n\
+  fi\n\
+  if id nowen >/dev/null 2>&1; then\n\
+    usermod -o -u "$PUID" -g "$PGID" nowen 2>/dev/null || true\n\
+  else\n\
+    useradd -o -u "$PUID" -g "$PGID" -M -s /bin/bash nowen 2>/dev/null || true\n\
+  fi\n\
 fi\n\
-\n\
-# 修复数据目录权限\n\
 chown -R nowen:nowen /data /cache 2>/dev/null || true\n\
-# 确保 /media 目录可读（不递归 chown，避免大量文件耗时）\n\
 chown nowen:nowen /media 2>/dev/null || true\n\
-# Python 刮削脚本目录（用户通常不会改，若挂了卷也 chown 一次）\n\
 chown -R nowen:nowen /app/scripts 2>/dev/null || true\n\
-\n\
-# PUID=0 时不需要 su-exec，直接以 root 启动（NAS 场景常用）\n\
 if [ "$PUID" = "0" ]; then\n\
   exec nowen-video\n\
 fi\n\
-\n\
-exec su-exec nowen nowen-video\n' > /entrypoint.sh \
+if command -v gosu >/dev/null 2>&1; then\n\
+  exec gosu nowen nowen-video\n\
+else\n\
+  exec su-exec nowen nowen-video\n\
+fi\n' > /entrypoint.sh \
     && chmod +x /entrypoint.sh
 
 CMD ["/entrypoint.sh"]

@@ -18,7 +18,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      # 故意不声明 ALPINE_MIRROR build-arg（空值会顶掉 Dockerfile 的 ARG 默认）；换源用 --build-arg
+      # 故意不声明 UBUNTU_MIRROR build-arg（空值会顶掉 Dockerfile 的 ARG 默认）；换源用 --build-arg UBUNTU_MIRROR=...
       # 多架构构建（buildx 时生效）
       # platforms:
       #   - linux/amd64
@@ -64,12 +64,15 @@ services:
       - ../config:/app/config
       - ../config.yaml:/app/config.yaml
 
-    # 硬件加速（无需求可注释）
+    # 硬件加速：Intel/AMD/ARM 使用 DRM；NVIDIA 使用 Compose GPU reservation。
     devices:
       - /dev/dri:/dev/dri
       - /dev/fuse:/dev/fuse
 
     environment:
+      # NVIDIA Container Toolkit 可用时，自动注入驱动库与 /dev/nvidia*。
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-compute,video,utility}
       # 容器进程用户（配合上方 user）
       - PUID=0
       - PGID=0
@@ -101,6 +104,10 @@ services:
           memory: 2G
         reservations:
           memory: 512M
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 # ================= 内置 PostgreSQL（可选）=================
 # 默认连外部库（见 config/database.yaml，当前 10.144.144.232:35432），无需本服务。

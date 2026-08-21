@@ -115,9 +115,13 @@ BUILD_PROXY ?=
 # comma 变量：make 的 $(if) 以逗号分参，NO_PROXY 里的逗号必须用变量注入
 comma := ,
 PROXY_ARGS := $(if $(BUILD_PROXY),--build-arg HTTP_PROXY=$(BUILD_PROXY) --build-arg HTTPS_PROXY=$(BUILD_PROXY) --build-arg NO_PROXY=localhost$(comma)127.0.0.1$(comma))
-# Alpine 镜像源：未设置则用 Dockerfile ARG 默认（阿里云）；换源 make build ALPINE_MIRROR=...
+# 镜像源：未设置则用 Dockerfile ARG 默认；Alpine 镜像已废弃（保留兼容），
+# Ubuntu 用 UBUNTU_MIRROR，前端 npm 用 NPM_MIRROR，Jellyfin apt 用 JELLYFIN_REPO
 ALPINE_MIRROR ?=
-MIRROR_ARGS := $(if $(ALPINE_MIRROR),--build-arg ALPINE_MIRROR=$(ALPINE_MIRROR))
+UBUNTU_MIRROR ?=
+NPM_MIRROR ?=
+JELLYFIN_REPO ?=
+MIRROR_ARGS := $(if $(ALPINE_MIRROR),--build-arg ALPINE_MIRROR=$(ALPINE_MIRROR)) $(if $(UBUNTU_MIRROR),--build-arg UBUNTU_MIRROR=$(UBUNTU_MIRROR)) $(if $(NPM_MIRROR),--build-arg NPM_MIRROR=$(NPM_MIRROR)) $(if $(JELLYFIN_REPO),--build-arg JELLYFIN_REPO=$(JELLYFIN_REPO))
 build:
 	docker buildx build --platform $(PLATFORM_GOAL) --load \
 		-f docker/Dockerfile -t $(IMAGE_URL):latest \

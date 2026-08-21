@@ -30,6 +30,8 @@ services:
     environment:
       # Go 国内代理（proxy.golang.org 超时）
       - GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+      # 容器内挂载宿主 git 仓库时，禁用 Go VCS 印章，避免 git dubious ownership 导致 build 失败
+      - GOFLAGS=-buildvcs=false
       # 与上方命名卷路径对齐
       - GOMODCACHE=/go/pkg/mod
       - GOCACHE=/root/.cache/go-build

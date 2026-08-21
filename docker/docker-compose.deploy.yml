@@ -110,6 +110,9 @@ services:
       - NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
       - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
       # - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_API_KEY=your-random-key
+      # ---- NVIDIA（安装 NVIDIA Container Toolkit 后生效）----
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-compute,video,utility}
       - TZ=Asia/Shanghai
     restart: unless-stopped
     deploy:
@@ -119,6 +122,10 @@ services:
           memory: 1G
         reservations:
           memory: 256M
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 # ================= 应用层"超级管理员"获取方式 =================
 # 本项目的权限模型：users.role = "admin" / "user"
@@ -148,10 +155,10 @@ services:
 #    docker buildx inspect --bootstrap
 #
 # 2. 构建并推送 manifest list（amd64 + arm64 + armv7）：
-#    国内网络建议加 --build-arg ALPINE_MIRROR 走镜像源加速（Dockerfile 默认已指向阿里云）：
+#    国内网络建议加 --build-arg UBUNTU_MIRROR 走镜像源加速（如 https://mirrors.aliyun.com/ubuntu）：
 #    docker buildx build \
-#      --platform linux/amd64,linux/arm64,linux/arm/v7 \
-#      --build-arg ALPINE_MIRROR=https://mirrors.aliyun.com/alpine \
+#      --platform linux/amd64,linux/arm64 \
+#      --build-arg UBUNTU_MIRROR=https://mirrors.aliyun.com/ubuntu \
 #      -t cropflre/nowen-video:latest \
 #      -t cropflre/nowen-video:v1.2.0 \
 #      --push .
