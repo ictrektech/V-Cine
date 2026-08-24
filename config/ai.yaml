@@ -2,8 +2,17 @@ active_model: Qwen3.5-4B
 active_provider: custom_ollama
 auto_pilot: true
 auto_subtitle_preprocess: false
-block_local_ai: false
+block_local_ai: true
 cache_ttl_hours: 168
+desensitize:
+    base_url: http://10.144.144.232:1182/api/com.ictrek.desensitize
+    enabled: true
+    image_enabled: true
+    image_scopes:
+        - ai_assistant
+    image_timeout: 30
+    ner: true
+    timeout: 3
 embedding_ai:
     api_base: http://172.17.0.1:18005
     model: vit-b-16-siglip2__webli
