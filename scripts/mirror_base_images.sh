@@ -17,6 +17,7 @@ BASE_IMAGES=(
   "oven/bun:1-alpine"
   "golang:1.25-alpine"
   "nvidia/cuda:12.8.1-runtime-ubuntu22.04"
+  "ubuntu:22.04"
 )
 MIRRORS=(docker.m.daocloud.io docker.1ms.run dockerproxy.com)
 DRY_RUN=0

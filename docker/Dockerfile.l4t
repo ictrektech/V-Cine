@@ -1,0 +1,289 @@
+# =============================================
+# nowen-video 生产镜像（Jetson Orin / L4T · arm64 · 多阶段精简版）
+# 基座：ubuntu:22.04 + NVIDIA L4T apt 包（r36.4），不再使用 9.8GB 的 l4t-jetpack
+# 转码：自编译 FFmpeg 7.1 + Keylost/jetson-ffmpeg（h264_nvmpi / hevc_nvmpi / libx264）
+# 说明：
+#   - 仅适用于 Jetson 设备（L4T R36.x，JetPack 6），并且必须在 Jetson arm64 上构建；
+#   - 运行时必须使用 nvidia runtime + privileged：
+#       docker run --runtime nvidia --privileged \
+#         -e LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/tegra:/usr/local/lib ...
+#   - tegra 多媒体库已通过 nvidia-l4t-* 包打进镜像，无需再挂载宿主机 tegra 目录；
+#   - 构建：docker build -f docker/Dockerfile.l4t -t nowen-video:l4t .
+# =============================================
+
+# =============================================
+# 阶段1: 构建前端（锁定在构建机本地架构，避免 QEMU 跑 npm 极慢）
+# =============================================
+FROM --platform=$BUILDPLATFORM oven/bun:1-alpine AS frontend
+ARG NOWEN_VERSION=0.1.0
+ENV BUN_CONFIG_REGISTRY=https://registry.npmmirror.com
+ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
+WORKDIR /app/web
+COPY web/package.json web/bun.lock ./
+RUN bun install --frozen-lockfile
+COPY web/ .
+ENV VITE_APP_VERSION=${NOWEN_VERSION}
+RUN bun run build
+
+# =============================================
+# 阶段2: 构建后端（Go 交叉编译，CGO_ENABLED=0，适配 linux/arm64）
+# =============================================
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS backend
+ARG TARGETOS
+ARG TARGETARCH
+ARG NOWEN_VERSION=0.1.0
+WORKDIR /app
+ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+COPY --from=frontend /app/web/dist ./web/dist
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${NOWEN_VERSION}" -o nowen-video ./cmd/server
+
+# =============================================
+# 阶段3: 迷你 L4T 基础镜像（Ubuntu 22.04 + NVIDIA L4T runtime 包）
+# =============================================
+FROM ubuntu:22.04 AS l4t-base
+ARG UBUNTU_MIRROR=https://mirrors.aliyun.com
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+
+# 先装 ca-certificates（默认 http 源），再切镜像源，最后加 NVIDIA 源。
+# 不能一开始就切到阿里云 https：此时还没有 ca-certificates，https 证书校验会失败。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        gnupg \
+        wget \
+    && set -eux; \
+       if [ -n "${UBUNTU_MIRROR}" ]; then \
+           find /etc/apt -maxdepth 2 -type f \( -name 'sources.list' -o -name '*.sources' \) -exec \
+               sed -i -e "s|http://ports.ubuntu.com/ubuntu-ports|${UBUNTU_MIRROR}/ubuntu-ports|g" \
+                      -e "s|http://archive.ubuntu.com/ubuntu|${UBUNTU_MIRROR}/ubuntu|g" {} + 2>/dev/null || true; \
+       fi \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/jetson-ota-public.gpg] https://repo.download.nvidia.com/jetson/common r36.4 main" > /etc/apt/sources.list.d/nvidia-l4t-apt-source.list \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/jetson-ota-public.gpg] https://repo.download.nvidia.com/jetson/t234 r36.4 main" >> /etc/apt/sources.list.d/nvidia-l4t-apt-source.list \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/jetson-ota-public.gpg] https://repo.download.nvidia.com/jetson/ffmpeg r36.4 main" >> /etc/apt/sources.list.d/nvidia-l4t-apt-source.list \
+    && wget -qO /etc/jetson-ota-public.key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc \
+    && gpg --dearmor -o /usr/share/keyrings/jetson-ota-public.gpg /etc/jetson-ota-public.key \
+    && apt-get update
+
+# Ubuntu 侧运行依赖（ffmpeg/nvmpi 运行时需要）
+RUN apt-get install -y --no-install-recommends \
+        libdrm2 \
+        libxcb1 \
+        libxau6 \
+        libxdmcp6 \
+        libv4l-0 \
+        libbsd0 \
+        libmd0 \
+        libjpeg8 \
+        libx264-163 \
+        libegl1 \
+        libgles2 \
+        libglvnd0 \
+        libgl1 \
+        libasound2 \
+        libcairo2 \
+        libdatrie1 \
+        libexpat1 \
+        libfontconfig1 \
+        libgstreamer1.0-0 \
+        libgstreamer-plugins-bad1.0-0 \
+        libgstreamer-plugins-base1.0-0 \
+        libharfbuzz0b \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libpangoft2-1.0-0 \
+        libpcre3 \
+        libpixman-1-0 \
+        libx11-6 \
+        libxext6 \
+        libxrender1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# NVIDIA L4T runtime 包：直接解包，避免 docker build 内没有
+# /proc/device-tree/compatible 导致 nvidia-l4t-core 的 preinst 失败。
+RUN apt-get update \
+    && mkdir -p /tmp/l4t-debs \
+    && cd /tmp/l4t-debs \
+    && apt-get download \
+        nvidia-l4t-core \
+        nvidia-l4t-multimedia \
+        nvidia-l4t-multimedia-utils \
+        nvidia-l4t-cuda \
+        nvidia-l4t-nvsci \
+    && for f in /tmp/l4t-debs/*.deb; do dpkg-deb -x "$f" /; done \
+    && rm -rf /tmp/l4t-debs /var/lib/apt/lists/*
+
+# 确保 tegra 软链和 ld.so 配置存在
+RUN ldconfig \
+    && ls -l /usr/lib/aarch64-linux-gnu/tegra >/dev/null 2>&1 || \
+       ln -sfn nvidia /usr/lib/aarch64-linux-gnu/tegra; \
+    cat /etc/ld.so.conf.d/nvidia-tegra.conf 2>/dev/null || \
+       echo "/usr/lib/aarch64-linux-gnu/nvidia" > /etc/ld.so.conf.d/nvidia-tegra.conf
+
+# =============================================
+# 阶段4: 构建带 NVMPI 的 FFmpeg（stubs 构建，基于迷你 L4T 基础镜像）
+# =============================================
+FROM l4t-base AS ffmpeg
+ARG FFMPEG_VERSION=7.1
+
+# 只安装编译依赖，最终镜像不会带这些包
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        ca-certificates \
+        curl \
+        pkg-config \
+        libv4l-dev \
+        libx264-dev \
+        bzip2 \
+        xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Keylost/jetson-ffmpeg 编译需要 /usr/src/jetson_multimedia_api，
+# 这里直接下载 NVIDIA 的 Jetson Multimedia API 包并解包（同样避免 preinst）。
+RUN apt-get update \
+    && mkdir -p /tmp/l4t-debs \
+    && cd /tmp/l4t-debs \
+    && apt-get download nvidia-l4t-jetson-multimedia-api \
+    && for f in /tmp/l4t-debs/*.deb; do dpkg-deb -x "$f" /; done \
+    && rm -rf /tmp/l4t-debs /var/lib/apt/lists/*
+
+# 编译 jetson-ffmpeg（WITH_STUBS=ON：无需把 NVIDIA tegra 库打进构建阶段）
+RUN git clone --depth 1 https://github.com/Keylost/jetson-ffmpeg.git /tmp/jetson-ffmpeg \
+    && cmake -S /tmp/jetson-ffmpeg -B /tmp/jetson-ffmpeg/build -DWITH_STUBS=ON \
+    && cmake --build /tmp/jetson-ffmpeg/build -j6 \
+    && cmake --install /tmp/jetson-ffmpeg/build \
+    && ldconfig
+
+# 编译 patched FFmpeg（优先 gitee 镜像，失败回退 GitHub）
+RUN git clone --depth 1 -b "release/${FFMPEG_VERSION}" \
+        https://gitee.com/mirrors/ffmpeg.git /tmp/ffmpeg \
+    || git clone --depth 1 -b "release/${FFMPEG_VERSION}" \
+        https://github.com/FFmpeg/FFmpeg.git /tmp/ffmpeg \
+    && cd /tmp/jetson-ffmpeg \
+    && ./ffpatch.sh /tmp/ffmpeg \
+    && cd /tmp/ffmpeg \
+    && export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig \
+    && ./configure \
+        --prefix=/usr/local \
+        --enable-shared \
+        --disable-static \
+        --enable-gpl \
+        --enable-libx264 \
+        --enable-nvmpi \
+        --disable-x86asm \
+        --disable-doc \
+        --extra-ldflags="-L/tmp/jetson-ffmpeg/stubs" \
+        --extra-libs="-lnvbufsurface -lnvbufsurftransform -lnvjpeg -lnvv4l2" \
+    && make -j6 \
+    && make install \
+    && ldconfig \
+    && rm -rf /tmp/ffmpeg /tmp/jetson-ffmpeg
+
+# 去掉调试符号，减小复制到运行镜像的体积
+RUN strip /usr/local/bin/ffmpeg /usr/local/bin/ffprobe || true; \
+    find /usr/local/lib -maxdepth 1 -type f -name '*.so*' -exec strip --strip-unneeded {} + 2>/dev/null || true
+
+# =============================================
+# 阶段5: 运行镜像（Ubuntu 22.04 + NVIDIA L4T runtime + NVMPI FFmpeg）
+# =============================================
+FROM l4t-base
+ARG NOWEN_VERSION=0.1.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib/aarch64-linux-gnu/tegra
+
+# 运行依赖（不含编译工具链）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        wget \
+        gosu \
+        coreutils \
+        python3 \
+        python3-pip \
+        python3-flask \
+        python3-requests \
+        python3-bs4 \
+        python3-lxml \
+    && rm -rf /var/lib/apt/lists/* \
+    && if [ ! -e /usr/local/bin/su-exec ] && command -v gosu >/dev/null 2>&1; then \
+        ln -sf "$(command -v gosu)" /usr/local/bin/su-exec; \
+    fi
+
+# 只复制运行需要的 FFmpeg 可执行文件和共享库
+COPY --from=ffmpeg /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg /usr/local/bin/ffprobe /usr/local/bin/ffprobe
+COPY --from=ffmpeg /usr/local/lib /usr/local/lib
+
+RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg \
+    && ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe \
+    && ldconfig
+
+RUN groupadd -r nowen && useradd -r -g nowen -s /bin/bash -m nowen
+
+WORKDIR /app
+
+COPY --from=backend /app/nowen-video /usr/local/bin/nowen-video
+COPY --from=frontend /app/web/dist /app/web/dist
+COPY scripts/adult-scraper /app/scripts/adult-scraper
+
+RUN mkdir -p /data /cache /media \
+    && chown -R nowen:nowen /data /cache /media /app/scripts
+
+ENV NOWEN_APP_PORT=8080
+ENV NOWEN_APP_DATA_DIR=/data
+ENV NOWEN_APP_WEB_DIR=/app/web/dist
+ENV NOWEN_CACHE_CACHE_DIR=/cache
+ENV NOWEN_LOGGING_LEVEL=info
+ENV NOWEN_VERSION=${NOWEN_VERSION}
+ENV NOWEN_ADULT_SCRAPER_ENABLED=false
+ENV NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON=true
+ENV NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
+ENV NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
+ENV TZ=Asia/Shanghai
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q --spider http://localhost:8080/api/auth/login || exit 1
+
+RUN printf '#!/bin/sh\n\
+set -e\n\
+PUID=${PUID:-$(id -u nowen)}\n\
+PGID=${PGID:-$(id -g nowen)}\n\
+if [ "$PUID" != "$(id -u nowen)" ] || [ "$PGID" != "$(id -g nowen)" ]; then\n\
+  if getent group nowen >/dev/null 2>&1; then\n\
+    groupmod -o -g "$PGID" nowen 2>/dev/null || true\n\
+  else\n\
+    groupadd -o -g "$PGID" nowen 2>/dev/null || true\n\
+  fi\n\
+  if id nowen >/dev/null 2>&1; then\n\
+    usermod -o -u "$PUID" -g "$PGID" nowen 2>/dev/null || true\n\
+  else\n\
+    useradd -o -u "$PUID" -g "$PGID" -M -s /bin/bash nowen 2>/dev/null || true\n\
+  fi\n\
+fi\n\
+chown -R nowen:nowen /data /cache 2>/dev/null || true\n\
+chown nowen:nowen /media 2>/dev/null || true\n\
+chown -R nowen:nowen /app/scripts 2>/dev/null || true\n\
+if [ "$PUID" = "0" ]; then\n\
+  exec nowen-video\n\
+fi\n\
+if command -v gosu >/dev/null 2>&1; then\n\
+  exec gosu nowen nowen-video\n\
+else\n\
+  exec su-exec nowen nowen-video\n\
+fi\n' > /entrypoint.sh \
+    && chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]

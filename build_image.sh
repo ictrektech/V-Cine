@@ -13,6 +13,7 @@
 #   ./build_image.sh --no-feishu     # skip the Feishu record
 #   ./build_image.sh --no-build --no-push  # record-only (build+push already done)
 #   ./build_image.sh --version 0.1.3 # override version
+#   ./build_image.sh --profile l4t   # Jetson/L4T build (Dockerfile.l4t, tag l4t_<version>)
 set -euo pipefail
 
 # ---------------- config ----------------
@@ -23,7 +24,6 @@ IMAGE_REPO="${REGISTRY}/${NAMESPACE}/${APP_NAME}"
 COMPONENT_NAME="nowen-video"                 # Feishu column header (row 1)
 FEISHU_SPREADSHEET_TOKEN="Htotsn3oahO1zxt73YMcaB1zn8e"
 FEISHU_CONFIG_FILE="${FEISHU_CONFIG_FILE:-${HOME}/.feishu.json}"
-DOCKERFILE="docker/Dockerfile"
 # Feishu sheets that record the image tag for each arch (same sets as motrix).
 AMD_SHEETS=("AMD_with_cuda" "AMD_with_mxn100")
 ARM_SHEETS=("ARM_without_cuda" "ARM_with_cuda" "l4t" "thor_spark")
@@ -35,12 +35,23 @@ log() { echo "[build] $*"; }
 err() { echo "[build][ERROR] $*" >&2; }
 die() { err "$*"; exit 1; }
 
+# Build profile → (Dockerfile, tag prefix, default Feishu sheet).
+# default keeps the existing docker/Dockerfile + arch-based tag/sheets.
+profile_spec() {
+  case "$1" in
+    default) printf '%s|%s|%s\n' "docker/Dockerfile" "" "" ;;
+    l4t)     printf '%s|%s|%s\n' "docker/Dockerfile.l4t" "l4t" "l4t" ;;
+    *) return 1 ;;
+  esac
+}
+
 # ---------------- args ----------------
 DO_BUILD=1
 DO_PUSH=1
 DO_FEISHU=1
 VERSION_OVERRIDE=""
 SHEETS_OVERRIDE=()
+PROFILE="default"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-build) DO_BUILD=0; shift ;;
@@ -48,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --no-feishu) DO_FEISHU=0; shift ;;
     --version) VERSION_OVERRIDE="${2:-}"; shift 2 ;;
     --sheet) SHEETS_OVERRIDE+=("${2:-}"); shift 2 ;;
+    --profile) PROFILE="${2:-default}"; shift 2 ;;
     -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
     *) die "unknown arg: $1" ;;
   esac
@@ -65,6 +77,11 @@ ARCH="$(arch_from_uname)"
 PLATFORM="linux/$( [ "$ARCH" = amd ] && echo amd64 || echo arm64 )"
 ARCH_FULL="${PLATFORM#linux/}"   # amd64 | arm64 (matches mirror_base_images.sh tags)
 
+if ! PROFILE_SPEC="$(profile_spec "$PROFILE")"; then
+  die "unknown profile: ${PROFILE} (supported: default, l4t)"
+fi
+IFS='|' read -r DOCKERFILE TAG_PREFIX PROFILE_SHEET <<< "${PROFILE_SPEC}"
+
 contains() {
   local e
   for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
@@ -78,7 +95,9 @@ if [[ -n "${NOWEN_RELEASE_SHEETS:-}" ]]; then
 fi
 TARGET_SHEETS+=("${SHEETS_OVERRIDE[@]}")
 if [[ ${#TARGET_SHEETS[@]} -eq 0 ]]; then
-  if [[ "$ARCH" == "amd" ]]; then
+  if [[ -n "$PROFILE_SHEET" ]]; then
+    TARGET_SHEETS=("$PROFILE_SHEET")
+  elif [[ "$ARCH" == "amd" ]]; then
     TARGET_SHEETS=("${AMD_SHEETS[@]}")
   else
     TARGET_SHEETS=("${ARM_SHEETS[@]}")
@@ -95,7 +114,11 @@ done
 VERSION="${VERSION_OVERRIDE:-$(tr -d '[:space:]' < "${VERSION_FILE}")}"
 [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "invalid VERSION: ${VERSION}"
 
-TAG="${ARCH}_${VERSION}"
+if [[ -n "$TAG_PREFIX" ]]; then
+  TAG="${TAG_PREFIX}_${VERSION}"
+else
+  TAG="${ARCH}_${VERSION}"
+fi
 IMAGE_URI="${IMAGE_REPO}:${TAG}"
 
 command -v docker >/dev/null || die "missing docker"
@@ -103,6 +126,7 @@ command -v python3 >/dev/null || die "missing python3"
 [[ -f "${ROOT_DIR}/${DOCKERFILE}" ]] || die "Dockerfile not found: ${ROOT_DIR}/${DOCKERFILE}"
 
 log "ARCH=${ARCH} PLATFORM=${PLATFORM} VERSION=${VERSION}"
+log "PROFILE=${PROFILE} DOCKERFILE=${DOCKERFILE}"
 log "IMAGE=${IMAGE_URI}"
 log "sheets=${TARGET_SHEETS[*]} component=${COMPONENT_NAME}"
 

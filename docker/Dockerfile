@@ -1,6 +1,6 @@
 # =============================================
-# nowen-video 生产镜像（amd64 · NVIDIA CUDA）
-# 基座：nvidia/cuda:12.8.1-runtime-ubuntu22.04 (Ubuntu 22.04.5 Jammy + CUDA 12.8)
+# nowen-video 生产镜像（amd64 · NVIDIA NVENC）
+# 基座：ubuntu:22.04（不内置 CUDA；运行时由 NVIDIA Container Toolkit 注入驱动库）
 # 转码：jellyfin-ffmpeg7 (Jammy deb，含 --enable-nvenc/cuda/qsv/vaapi)
 # 多阶段：前端 bun + 后端 Go 交叉编译（CGO_ENABLED=0，纯 Go pgx）
 # =============================================
@@ -37,9 +37,9 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${NOWEN_VERSION}" -o nowen-video ./cmd/server
 
 # =============================================
-# 阶段3: 运行镜像（NVIDIA CUDA Runtime + Jellyfin FFmpeg）
+# 阶段3: 运行镜像（Ubuntu + Jellyfin FFmpeg；NVIDIA 驱动库由容器运行时注入）
 # =============================================
-FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
+FROM ubuntu:22.04
 ARG NOWEN_VERSION=0.1.0
 ARG UBUNTU_MIRROR=https://mirrors.aliyun.com/ubuntu
 ARG JELLYFIN_REPO=https://mirror.nju.edu.cn/jellyfin/ubuntu
@@ -52,7 +52,10 @@ ENV NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
 
 # ---- 国内 Ubuntu 镜像加速（默认阿里云；--build-arg UBUNTU_MIRROR= 可关闭）----
 # 同时兼容 /etc/apt/sources.list 与 Deb822 的 ubuntu.sources
+# 先装 ca-certificates，否则切到 HTTPS 镜像后 apt 会因无证书校验失败
 RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates; \
     if [ -n "${UBUNTU_MIRROR}" ]; then \
         find /etc/apt -maxdepth 2 -type f \( -name 'sources.list' -o -name '*.sources' \) \
             -exec sed -i \
@@ -61,7 +64,8 @@ RUN set -eux; \
                 -e "s|https://archive.ubuntu.com/ubuntu|${UBUNTU_MIRROR}|g" \
                 -e "s|https://security.ubuntu.com/ubuntu|${UBUNTU_MIRROR}|g" \
                 {} +; \
-    fi
+    fi; \
+    rm -rf /var/lib/apt/lists/*
 
 # ---- 系统依赖 + Jellyfin 镜像仓库 + jellyfin-ffmpeg7 + Python 刮削 + 硬件加速驱动 ----
 RUN set -eux; \
