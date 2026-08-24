@@ -59,6 +59,15 @@ services:
     image: ${NOWEN_VIDEO_ARM_IMAGE}
     profiles: ["arm"]
 
+  # Jetson / L4T：使用 Dockerfile.l4t 构建的 l4t_${VERSION} 镜像，
+  # nvmpi 需要 nvidia runtime + privileged。
+  nowen-video-l4t:
+    <<: *nowen-video-base
+    image: ${NOWEN_VIDEO_L4T_IMAGE}
+    runtime: nvidia
+    privileged: true
+    profiles: ["l4t"]
+
 networks:
   vos_default:
     external: true

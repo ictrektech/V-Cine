@@ -3,8 +3,10 @@
 # GitHub Actions (vos-release.yml) to build the pull-mode package and publish
 # it to the VOS App Store.
 #
-# Run this ONLY after both arch images are built and pushed to SWR:
-#   ./build_image.sh   (on tc232 amd64 and tc192 arm64, or equivalent hosts)
+# Run this ONLY after all required profile images are built and pushed to SWR:
+#   ./build_image.sh                  (tc232 amd64 -> amd_<version>)
+#   ./build_image.sh                  (tc192 arm64 -> arm_<version>)
+#   ./build_image.sh --profile l4t    (Jetson/L4T arm64 -> l4t_<version>)
 #
 #   ./ictrek.app/scripts/push_release.sh   # no args; reads ictrek.app/VERSION
 set -euo pipefail
@@ -31,9 +33,10 @@ if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; t
 fi
 
 echo "About to push ${tag}, which triggers the VOS release pipeline."
-echo "Confirm both images exist on SWR before continuing:"
+echo "Confirm all required profile images exist on SWR before continuing:"
 echo "  swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:amd_${version}"
 echo "  swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:arm_${version}"
+echo "  swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:l4t_${version}"
 read -r -p "Continue? [y/N] " ans
 [[ "${ans}" =~ ^[Yy]$ ]] || { echo "aborted"; exit 1; }
 

@@ -4,7 +4,7 @@ Nowen Video 是用于整理和播放家庭影音库的自托管媒体服务。
 
 ## 安装与访问
 
-安装时按 VOS 主机架构选择 `AMD64` 或 `ARM64` profile。安装完成后，在 VOS 左侧导航进入：
+安装时按 VOS 主机平台选择 profile：`AMD64` / 通用 `ARM64` / Jetson 设备使用 `l4t`。安装完成后，在 VOS 左侧导航进入：
 
 ```text
 Nowen Video -> 家庭影音

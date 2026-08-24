@@ -26,6 +26,7 @@ trap 'rm -rf "${STAGE_DIR}" "${PACKAGE_ROOT}"' EXIT
 cat > "${STAGE_DIR}/.env" <<EOF
 NOWEN_VIDEO_AMD_IMAGE=${IMAGE_REPO}:amd_${APP_VERSION}
 NOWEN_VIDEO_ARM_IMAGE=${IMAGE_REPO}:arm_${APP_VERSION}
+NOWEN_VIDEO_L4T_IMAGE=${IMAGE_REPO}:l4t_${APP_VERSION}
 EOF
 
 python3 - "${SRC_DIR}" "${STAGE_DIR}" "${APP_VERSION}" <<'PY'
@@ -61,8 +62,12 @@ assert not re.search(r"__[A-Z0-9_]+__", "\n".join(text_parts)), "unrendered plac
 compose = (stage / "docker-compose.yml").read_text()
 assert "${NOWEN_VIDEO_AMD_IMAGE}" not in compose, "unrendered amd image variable"
 assert "${NOWEN_VIDEO_ARM_IMAGE}" not in compose, "unrendered arm image variable"
+assert "${NOWEN_VIDEO_L4T_IMAGE}" not in compose, "unrendered l4t image variable"
 assert f"{repo}:amd_{version}" in compose, "missing amd image tag"
 assert f"{repo}:arm_{version}" in compose, "missing arm image tag"
+assert f"{repo}:l4t_{version}" in compose, "missing l4t image tag"
+assert "runtime: nvidia" in compose, "missing nvidia runtime for l4t"
+assert "privileged: true" in compose, "missing privileged for l4t"
 assert "NOWEN_APP_WEB_BASE_PATH" in compose, "missing VOS web base path env"
 assert "NOWEN_DATABASE_HOST" in compose and "pgv" in compose, "missing pgv database host"
 assert "38085" in compose, "missing host port mapping"
