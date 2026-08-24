@@ -85,6 +85,24 @@ export interface VideoAnalysisDetailedStats {
   avg_elapsed_seconds: number
 }
 
+export interface VideoAnalysisHealth {
+  status: string
+  service: string
+}
+
+export interface VideoAnalysisHealthInfo {
+  enabled: boolean
+  available: boolean
+  describe_enabled: boolean
+  scene_base_url: string
+  structure_base_url: string
+  asset_dir: string
+  scene?: VideoAnalysisHealth | null
+  structure?: VideoAnalysisHealth | null
+  scene_error?: string
+  structure_error?: string
+}
+
 export interface VideoAnalysisWarning {
   code?: string
   message: string

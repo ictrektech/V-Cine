@@ -218,6 +218,12 @@ func (h *VideoAnalysisHandler) GetConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": config})
 }
 
+// GetHealth 返回视频分析服务诊断信息（Scene / Structure 健康状态与关键配置）。
+// 与 GetConfig 不同，服务未启用时也返回 200，便于系统设置展示状态。
+func (h *VideoAnalysisHandler) GetHealth(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"data": h.service.GetHealth(c.Request.Context())})
+}
+
 func (h *VideoAnalysisHandler) Cleanup(c *gin.Context) {
 	if h.service == nil || !h.service.IsAvailable() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})

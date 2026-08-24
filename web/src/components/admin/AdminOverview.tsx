@@ -12,11 +12,14 @@ import {
   Zap,
   ArrowRight,
   Activity,
+  ScanLine,
 } from 'lucide-react'
 import { aiApi } from '@/api/ai'
 import { storageApi } from '@/api/storage'
+import { videoAnalysisApi } from '@/api/videoAnalysis'
 import type { SystemInfo, SystemSettings, Library, User, TMDbConfigStatus, DoubanConfigStatus, AIStatus } from '@/types'
 import type { StorageStatus } from '@/api/storage'
+import type { VideoAnalysisHealthInfo } from '@/types/videoAnalysis'
 import { formatHwAccel } from '@/utils/format'
 
 // ==================== 概览（配置状态聚合 + 下一步引导）====================
@@ -84,11 +87,13 @@ function Card({ card, onClick }: { card: StatusCard; onClick: () => void }) {
 export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer }: Props) {
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
   const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null)
+  const [vaHealth, setVaHealth] = useState<VideoAnalysisHealthInfo | null>(null)
 
   // 自取 AI / 存储状态（只读，失败静默）
   useEffect(() => {
     aiApi.getStatus().then((res) => setAiStatus(res.data.data)).catch(() => {})
     storageApi.getStorageStatus().then((res) => setStorageStatus(res.data.data)).catch(() => {})
+    videoAnalysisApi.getHealth().then((res) => setVaHealth(res.data.data)).catch(() => setVaHealth(null))
   }, [])
 
   // ===== 各模块状态计算 =====
@@ -117,9 +122,17 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
   const userValue = users.length + ' 用户'
   const logValue = '查看'
 
+  // 视频分析：Scene / Structure 服务健康（只读诊断）
+  const vaSceneOk = vaHealth?.available ? vaHealth.scene?.status === 'ok' : null
+  const vaStructureOk = vaHealth?.available ? vaHealth.structure?.status === 'ok' : null
+  const vaUnavailable = !vaHealth?.available || !vaHealth?.enabled
+  const vaState: ConfigState = !vaHealth ? 'unconfigured' : vaUnavailable ? 'unconfigured' : vaSceneOk && vaStructureOk ? 'configured' : 'attention'
+  const vaValue = !vaHealth ? '检查中' : vaUnavailable ? '未启用' : vaSceneOk && vaStructureOk ? '场景✓ 结构✓' : vaSceneOk ? '结构异常' : vaStructureOk ? '场景异常' : '服务异常'
+
   const cards: StatusCard[] = [
     { id: 'metadata', icon: <Film size={18} className="text-neon/60" />, title: '元数据刮削', desc: 'TMDb 与豆瓣识别，自动获取海报简介评分', state: metadataState, value: metadataValue },
     { id: 'ai', icon: <Sparkles size={18} className="text-purple-400/70" />, title: 'AI 服务', desc: 'AI 识别、归类、搜索、推荐、元数据增强', state: aiState, value: aiValue },
+    { id: 'video-analysis', icon: <ScanLine size={18} className="text-cyan-400/70" />, title: '视频分析', desc: 'Scene 场景检测 / Structure 结构分析 / 场景描述', state: vaState, value: vaValue },
     { id: 'playback', icon: <MonitorPlay size={18} className="text-violet-400/70" />, title: '播放与转码', desc: 'GPU 转码、直连播放、缓存行为', state: playbackState, value: playbackValue },
     { id: 'storage', icon: <HardDrive size={18} className="text-amber-400/70" />, title: '存储', desc: 'WebDAV / Alist / S3 远程存储挂载', state: storageState, value: storageValue },
     { id: 'users', icon: <Users size={18} className="text-emerald-400/70" />, title: '用户管理', desc: '账号、角色与权限', state: 'configured', value: userValue },
@@ -165,6 +178,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
         <div className="grid gap-2 sm:grid-cols-2">
           <Card card={cards[0]} onClick={() => onOpenDrawer('metadata')} />
           <Card card={cards[1]} onClick={() => onOpenDrawer('ai')} />
+          <Card card={cards[2]} onClick={() => onOpenDrawer('video-analysis')} />
         </div>
       </section>
 
@@ -172,8 +186,8 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
       <section>
         <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>播放与存储设置</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Card card={cards[2]} onClick={() => onOpenDrawer('playback')} />
-          <Card card={cards[3]} onClick={() => onOpenDrawer('storage')} />
+          <Card card={cards[3]} onClick={() => onOpenDrawer('playback')} />
+          <Card card={cards[4]} onClick={() => onOpenDrawer('storage')} />
         </div>
       </section>
 
@@ -181,8 +195,8 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
       <section>
         <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>用户与系统设置</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Card card={cards[4]} onClick={() => onOpenDrawer('users')} />
-          <Card card={cards[5]} onClick={() => onOpenDrawer('logs')} />
+          <Card card={cards[5]} onClick={() => onOpenDrawer('users')} />
+          <Card card={cards[6]} onClick={() => onOpenDrawer('logs')} />
         </div>
       </section>
 
@@ -190,7 +204,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
       <section>
         <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>运行与维护</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Card card={cards[6]} onClick={() => onOpenDrawer('dashboard')} />
+          <Card card={cards[7]} onClick={() => onOpenDrawer('dashboard')} />
         </div>
       </section>
 

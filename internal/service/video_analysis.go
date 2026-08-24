@@ -141,6 +141,59 @@ func (s *VideoAnalysisService) GetConfig() VideoAnalysisConfig {
 	}
 }
 
+// VideoAnalysisHealthInfo 视频分析服务诊断信息（供系统设置只读展示）
+type VideoAnalysisHealthInfo struct {
+	Enabled          bool                 `json:"enabled"`
+	Available        bool                 `json:"available"`
+	DescribeEnabled  bool                 `json:"describe_enabled"`
+	SceneBaseURL     string               `json:"scene_base_url"`
+	StructureBaseURL string               `json:"structure_base_url"`
+	AssetDir         string               `json:"asset_dir"`
+	Scene            *VideoAnalysisHealth `json:"scene,omitempty"`
+	Structure        *VideoAnalysisHealth `json:"structure,omitempty"`
+	SceneError       string               `json:"scene_error,omitempty"`
+	StructureError   string               `json:"structure_error,omitempty"`
+}
+
+// GetHealth 返回 Scene / Structure 服务健康状态与关键配置（只读诊断）。
+// 即使服务未启用也返回 200，便于前端展示“未启用/不可用”状态。
+func (s *VideoAnalysisService) GetHealth(ctx context.Context) VideoAnalysisHealthInfo {
+	if s == nil {
+		return VideoAnalysisHealthInfo{}
+	}
+
+	info := VideoAnalysisHealthInfo{
+		Available:       s.IsAvailable(),
+		DescribeEnabled: s.describeEnabled,
+	}
+	if s.appCfg != nil {
+		info.Enabled = s.appCfg.VideoAnalysis.Enabled
+		info.SceneBaseURL = s.appCfg.VideoAnalysis.SceneBaseURL
+		info.StructureBaseURL = s.appCfg.VideoAnalysis.StructureBaseURL
+		info.AssetDir = s.appCfg.VideoAnalysis.AssetDir
+	}
+	if !info.Available {
+		return info
+	}
+
+	if hc, ok := s.client.(interface {
+		CheckSceneHealth(context.Context) (*VideoAnalysisHealth, error)
+		CheckStructureHealth(context.Context) (*VideoAnalysisHealth, error)
+	}); ok {
+		if scene, err := hc.CheckSceneHealth(ctx); err != nil {
+			info.SceneError = err.Error()
+		} else {
+			info.Scene = scene
+		}
+		if structure, err := hc.CheckStructureHealth(ctx); err != nil {
+			info.StructureError = err.Error()
+		} else {
+			info.Structure = structure
+		}
+	}
+	return info
+}
+
 // SearchScenesByText 通过文本 embedding 搜索场景
 func (s *VideoAnalysisService) SearchScenesByText(embedding []float32, limit int) ([]repository.SceneSearchResult, error) {
 	if s.sceneRepo == nil {

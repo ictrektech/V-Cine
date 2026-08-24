@@ -2,6 +2,7 @@ import api from './client'
 import type {
   VideoAnalysisBatchResult,
   VideoAnalysisDetailedStats,
+  VideoAnalysisHealthInfo,
   VideoAnalysisResult,
   VideoAnalysisStatistics,
   VideoAnalysisTask,
@@ -39,6 +40,9 @@ export const videoAnalysisApi = {
 
   getConfig: () =>
     api.get<{ data: { describe_enabled: boolean } }>('/admin/video-analysis/config'),
+
+  getHealth: () =>
+    api.get<{ data: VideoAnalysisHealthInfo }>('/admin/video-analysis/health'),
 
   getResult: (mediaId: string, taskId?: string) =>
     api.get<{ data: VideoAnalysisResult }>(`/media/${mediaId}/video-analysis`, { params: taskId ? { task_id: taskId } : undefined }),

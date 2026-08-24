@@ -186,7 +186,7 @@ export default function FileToolbar({
           </button>
           {!videoAnalysisEnabled && (
             <button
-              onClick={() => { window.location.href = withBasePath('/admin#ai') }}
+              onClick={() => { window.location.href = withBasePath('/admin') }}
               className="rounded px-2 py-1 text-[11px] text-amber-300 transition-colors hover:bg-amber-400/10"
               title={videoAnalysisDisabledReason || '前往视频分析相关配置'}
             >

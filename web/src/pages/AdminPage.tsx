@@ -13,9 +13,10 @@ import { AIDrawer, StorageDrawer, UsersDrawer, LogsDrawer, DashboardDrawer } fro
 import { useTranslation } from '@/i18n'
 import AdminOverview from '@/components/admin/AdminOverview'
 import PlaybackDrawer from '@/components/admin/PlaybackDrawer'
+import VideoAnalysisDrawer from '@/components/admin/VideoAnalysisDrawer'
 
 // 概览页状态卡对应的全部 Drawer
-const DRAWER_IDS = ['metadata', 'playback', 'ai', 'storage', 'users', 'logs', 'dashboard'] as const
+const DRAWER_IDS = ['metadata', 'playback', 'ai', 'storage', 'users', 'logs', 'dashboard', 'video-analysis'] as const
 type DrawerId = (typeof DRAWER_IDS)[number]
 
 export default function AdminPage() {
@@ -140,6 +141,7 @@ export default function AdminPage() {
 
       {/* ===== 其余模块 Drawer ===== */}
       <AIDrawer open={activeDrawer === 'ai'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
+      <VideoAnalysisDrawer open={activeDrawer === 'video-analysis'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
       <StorageDrawer open={activeDrawer === 'storage'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
       <UsersDrawer open={activeDrawer === 'users'} onOpenChange={(open) => { if (!open) closeDrawer() }} users={users} setUsers={setUsers} />
       <LogsDrawer open={activeDrawer === 'logs'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
