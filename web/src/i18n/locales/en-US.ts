@@ -33,9 +33,9 @@ const enUS: Record<string, string> = {
   'nav.profile': 'Profile',
   'nav.account': 'Account',
   'nav.libraries': 'Libraries',
-  'nav.admin': 'Admin',
+  'nav.admin': 'System Settings',
   'nav.scrape': 'Scrape Manager',
-  'nav.files': 'File Manager',
+  'nav.files': 'Media Library Manager',
   'nav.management': 'Management',
   'nav.logout': 'Logout',
   'nav.darkMode': 'Dark Mode',
@@ -363,7 +363,7 @@ const enUS: Record<string, string> = {
   'stats.mostWatched': 'Most Watched',
 
   // ==================== Admin (extra) ====================
-  'admin.title': 'System Admin',
+  'admin.title': 'System Settings',
   'admin.connected': 'Connected',
   'admin.disconnected': 'Disconnected',
   'admin.tabOverview': 'Overview',

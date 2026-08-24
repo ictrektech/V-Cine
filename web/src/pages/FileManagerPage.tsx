@@ -624,10 +624,10 @@ export default function FileManagerPage() {
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
             <FolderOpen className="inline-block mr-2 mb-1" size={24} />
-            影视文件管理
+            媒体库管理
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
-            管理影视文件、智能刮削元数据、AI批量重命名
+            管理媒体库与影视文件、智能刮削元数据、AI批量重命名
           </p>
         </div>
         {activeTab === 'files' && (
@@ -654,7 +654,7 @@ export default function FileManagerPage() {
           )}
         >
           <LibraryIcon size={16} />
-          媒体库管理
+          媒体库
         </button>
         <button
           onClick={() => handleTabChange('files')}

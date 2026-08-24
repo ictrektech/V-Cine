@@ -720,7 +720,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
                         </h4>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                        新视频入库后自动提交视频分析任务，按顺序执行场景检测与结构分析。关闭后仍可在文件管理中手动发起分析。
+                        新视频入库后自动提交视频分析任务，按顺序执行场景检测与结构分析。关闭后仍可在媒体库管理中手动发起分析。
                       </p>
                     </div>
                     <ToggleSwitch

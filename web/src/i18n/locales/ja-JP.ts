@@ -33,9 +33,9 @@ const jaJP: Record<string, string> = {
   'nav.profile': 'プロフィール',
   'nav.account': 'アカウント',
   'nav.libraries': 'ライブラリ',
-  'nav.admin': '管理',
+  'nav.admin': 'システム設定',
   'nav.scrape': 'スクレイプ管理',
-  'nav.files': 'ファイル管理',
+  'nav.files': 'メディアライブラリ管理',
   'nav.management': '管理メニュー',
   'nav.logout': 'ログアウト',
   'nav.darkMode': 'ダークモード',
@@ -363,7 +363,7 @@ const jaJP: Record<string, string> = {
   'stats.mostWatched': '最も視聴した作品',
 
   // ==================== 管理（追加） ====================
-  'admin.title': 'システム管理',
+  'admin.title': 'システム設定',
   'admin.connected': '接続中',
   'admin.disconnected': '未接続',
   'admin.tabOverview': '概要',

@@ -33,9 +33,9 @@ const zhCN: Record<string, string> = {
   'nav.profile': '个人设置',
   'nav.account': '账号',
   'nav.libraries': '媒体库',
-  'nav.admin': '系统管理',
+  'nav.admin': '系统设置',
   'nav.scrape': '刮削管理',
-  'nav.files': '文件管理',
+  'nav.files': '媒体库管理',
   'nav.management': '管理',
   'nav.logout': '退出登录',
   'nav.darkMode': '夜间模式',
@@ -414,7 +414,7 @@ const zhCN: Record<string, string> = {
   'stats.mostWatched': '看得最多',
 
   // ==================== 管理后台 ====================
-  'admin.title': '系统管理',
+  'admin.title': '系统设置',
   'admin.connected': '实时连接',
   'admin.disconnected': '未连接',
   'admin.tabOverview': '概览',
