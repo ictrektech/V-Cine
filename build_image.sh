@@ -157,15 +157,15 @@ ensure_base_images() {
   done < <(
     awk '
       toupper($1) == "FROM" {
-        img = ""; stage = ""
+        img = ""; alias = ""
         for (i = 2; i <= NF; i++) {
-          if (toupper($i) == "AS" && (i+1) <= NF) { stage = $(i+1); break }
+          if (toupper($i) == "AS" && (i+1) <= NF) { alias = $(i+1); break }
           if ($i ~ /^--/) continue
-          img = $i; break
+          if (img == "") img = $i
         }
         if (img == "" || img in aliases) next
         print img
-        if (stage != "") aliases[stage] = 1
+        if (alias != "") aliases[alias] = 1
       }
     ' "${ROOT_DIR}/${DOCKERFILE}" | sort -u
   )
