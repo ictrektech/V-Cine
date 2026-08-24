@@ -36,7 +36,7 @@ profiles:
     description:
       zh-CN: 适用于 AMD64 VOS 主机。
       en: For AMD64 VOS hosts.
-    conflicts: [arm]
+    conflicts: [arm, l4t]
   - name: arm
     title:
       zh-CN: ARM64
@@ -44,7 +44,15 @@ profiles:
     description:
       zh-CN: 适用于 ARM64 VOS 主机。
       en: For ARM64 VOS hosts.
-    conflicts: [amd]
+    conflicts: [amd, l4t]
+  - name: l4t
+    title:
+      zh-CN: Jetson / L4T
+      en: Jetson / L4T
+    description:
+      zh-CN: Jetson / L4T 平台，使用 nvidia runtime 与硬件编解码。
+      en: Jetson / L4T platform, uses nvidia runtime and hardware codec.
+    conflicts: [amd, arm]
 
 storage:
   directories:
