@@ -98,8 +98,8 @@ video_analysis:
   path_mappings:
     - source: /media
       target: /photos
-  # Structure 九宫格缓存根目录（与 Structure 的 CACHE_BASE_PATH 对齐，一般固定为该路径）
-  cache_root: /data/video-structure-cache
+  # Nowen 自己的结构化产物数据目录（staging 搬移后的持久位置，与 staging 同文件系统）
+  asset_dir: /data/nowen-video-structure
   max_concurrent: 2
   poll_interval_seconds: 2
   job_timeout_minutes: 120

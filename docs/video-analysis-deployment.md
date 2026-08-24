@@ -17,14 +17,14 @@ video_analysis:
   enabled: true
   scene_base_url: "http://localhost:8910"
   structure_base_url: "http://localhost:8911"
-  asset_dir: "/data/video-structure"   # Nowen 自己的结构化产物数据目录
+  asset_dir: "/data/nowen-video-structure"   # Nowen 自己的结构化产物数据目录
   max_concurrent: 2
   poll_interval_seconds: 2
   job_timeout_minutes: 120
   describe_enabled: false  # 场景描述功能，默认关闭
 ```
 
-**`asset_dir`（结构化产物数据目录）**：结构服务把产物暂存在 staging，Nowen 轮询到 succeeded 后把 `result.staging_dir` 整个 `mv` 到 `asset_dir/<hash>/`（搬走即归 Nowen 持久持有）。`asset_dir` 默认 `/data/video-structure`，部署时按需指定。
+**`asset_dir`（结构化产物数据目录）**：结构服务把产物暂存在 staging，Nowen 轮询到 succeeded 后把 `result.staging_dir` 整个 `mv` 到 `asset_dir/<hash>/`（搬走即归 Nowen 持久持有）。`asset_dir` 默认 `/data/nowen-video-structure`，部署时按需指定。
 
 ### 2. 路径映射
 
@@ -56,7 +56,7 @@ services:
       # staging 临时卷（可写子挂载覆盖父 ro；rename 需写父目录）
       - video-structure-cache:/data/video-structure-cache:rw
       # asset_dir（Nowen 持久持有，与 staging 同文件系统）
-      - nowen-video-structure:/data/video-structure:rw
+      - nowen-video-structure:/data/nowen-video-structure:rw
 
   video-structure:
     volumes:
@@ -102,7 +102,7 @@ services:
       - ./config:/app/config
       - /media:/media:ro
       - video-structure-cache:/data/video-structure-cache:rw   # staging 可写
-      - nowen-video-structure:/data/video-structure:rw         # asset_dir
+      - nowen-video-structure:/data/nowen-video-structure:rw         # asset_dir
     environment:
       - VIDEO_ANALYSIS_ENABLED=true
       - VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
@@ -138,7 +138,7 @@ video_analysis:
   path_mappings:
     - source: "/media"
       target: "/photos"
-  asset_dir: "/data/video-structure"
+  asset_dir: "/data/nowen-video-structure"
   max_concurrent: 2
 ```
 

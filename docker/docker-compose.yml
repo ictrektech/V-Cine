@@ -59,7 +59,7 @@ services:
       # 结构服务 staging 临时卷（可写；产物由 Nowen mv 搬走后归 Nowen 所有）
       - /data/video-structure-cache:/data/video-structure-cache:rw
       # Nowen 自己的结构化产物数据目录（asset_dir，与 staging 同文件系统以保证 rename）
-      - /data/nowen-video-structure:/data/video-structure:rw
+      - /data/nowen-video-structure:/data/nowen-video-structure:rw
       # 配置必须持久化（含 .master.key，丢了解不开 ENC 密钥）
       - ../config:/app/config
       - ../config.yaml:/app/config.yaml

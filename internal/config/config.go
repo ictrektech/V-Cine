@@ -853,7 +853,7 @@ func setDefaults() {
 	viper.SetDefault("video_analysis.scene_base_url", "http://localhost:8910")
 	viper.SetDefault("video_analysis.structure_base_url", "http://localhost:8911")
 	viper.SetDefault("video_analysis.path_mappings", []VideoAnalysisPathMapping{})
-	viper.SetDefault("video_analysis.asset_dir", "/data/video-structure")
+	viper.SetDefault("video_analysis.asset_dir", "/data/nowen-video-structure")
 	viper.SetDefault("video_analysis.max_concurrent", 2)
 	viper.SetDefault("video_analysis.poll_interval_seconds", 2)
 	viper.SetDefault("video_analysis.job_timeout_minutes", 120)
