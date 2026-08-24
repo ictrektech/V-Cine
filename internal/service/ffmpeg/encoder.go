@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // Profile 目标码率/分辨率配置。
@@ -27,7 +28,8 @@ type BuildOptions struct {
 	ExtraInput []string // 可选，-i 前额外插入的前置参数（例如 WebDAV 的 -reconnect 等）
 
 	// ---------- 编码器相关 ----------
-	HWAccel     string  // "", "none", "nvenc", "qsv", "vaapi"
+	HWAccel     string  // "", "none", "nvenc", "nvmpi", "qsv", "vaapi"
+	InputCodec  string  // 源视频编码（h264/hevc/vp9...），nvmpi 用它选择硬件解码器；空则软解
 	Profile     Profile // 目标分辨率/码率
 	VAAPIDevice string  // vaapi 模式下的设备路径（如 /dev/dri/renderD128）
 	X264Preset  string  // software 模式下 -preset，留空则使用 "medium"
@@ -94,6 +96,25 @@ func BuildHLSArgs(opts BuildOptions) []string {
 	switch opts.HWAccel {
 	case HWAccelNVENC:
 		baseArgs = append(baseArgs, "-hwaccel", "cuda", "-hwaccel_output_format", "cuda")
+	case HWAccelNVMPI:
+		// nvmpi 不是通用 -hwaccel 方法，必须把解码器写在 -i 前面；
+		// 解码器要与源编码匹配，否则会空转/输出为空。
+		switch strings.ToLower(opts.InputCodec) {
+		case "h264", "avc":
+			baseArgs = append(baseArgs, "-c:v", "h264_nvmpi")
+		case "hevc", "h265":
+			baseArgs = append(baseArgs, "-c:v", "hevc_nvmpi")
+		case "vp8":
+			baseArgs = append(baseArgs, "-c:v", "vp8_nvmpi")
+		case "vp9":
+			baseArgs = append(baseArgs, "-c:v", "vp9_nvmpi")
+		case "mpeg2video", "mpeg2":
+			baseArgs = append(baseArgs, "-c:v", "mpeg2_nvmpi")
+		case "mpeg4":
+			baseArgs = append(baseArgs, "-c:v", "mpeg4_nvmpi")
+		default:
+			// 未知编码不强制 nvmpi 解码，回退软件解码；编码仍走 h264_nvmpi
+		}
 	case HWAccelQSV:
 		baseArgs = append(baseArgs, "-hwaccel", "qsv")
 		if opts.QSVAttachOutputFormat {
@@ -187,6 +208,21 @@ func buildVideoArgs(opts BuildOptions, gopStr string) []string {
 			"-vf", scale,
 		)
 		return args
+
+	case HWAccelNVMPI:
+		if scale == "" {
+			scale = fmt.Sprintf("scale=%d:%d", p.Width, p.Height)
+		}
+		return []string{
+			"-c:v", "h264_nvmpi",
+			"-b:v", p.VideoBitrate,
+			"-maxrate", maxRate,
+			"-bufsize", bufSize,
+			"-g", gopStr,
+			"-keyint_min", gopStr,
+			"-pix_fmt", "yuv420p",
+			"-vf", scale,
+		}
 
 	case HWAccelQSV:
 		preset := opts.QSVPreset

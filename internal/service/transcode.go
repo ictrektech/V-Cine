@@ -254,6 +254,7 @@ func (s *TranscodeService) buildFFmpegArgs(media *model.Media, inputPath, output
 		InputPath:             inputPath,
 		OutputDir:             outputDir,
 		HWAccel:               s.hwAccel,
+		InputCodec:            media.VideoCodec,
 		Profile:               ffmpeg.Profile{Width: qc.Width, Height: qc.Height, VideoBitrate: qc.VideoBitrate, AudioBitrate: qc.AudioBitrate},
 		VAAPIDevice:           s.cfg.App.VAAPIDevice,
 		X264Preset:            "ultrafast",

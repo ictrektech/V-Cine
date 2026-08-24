@@ -2283,6 +2283,9 @@ func (s *PreprocessService) transcodeWithFallback(
 		} else {
 			attempts = []string{ffmpeg.HWAccelNVENC, ffmpeg.HWAccelQSV, ffmpeg.HWAccelVAAPI, ffmpeg.HWAccelNone}
 		}
+	case ffmpeg.HWAccelNVMPI:
+		// Jetson 上不需要回退到 QSV/VAAPI，失败直接软编
+		attempts = []string{ffmpeg.HWAccelNVMPI, ffmpeg.HWAccelNone}
 	case ffmpeg.HWAccelQSV:
 		if runtime.GOOS == "windows" {
 			attempts = []string{ffmpeg.HWAccelQSV, ffmpeg.HWAccelNone}
@@ -2311,6 +2314,7 @@ func (s *PreprocessService) transcodeWithFallback(
 			OutputDir:  outputDir,
 			ExtraInput: httpInputArgs,
 			HWAccel:    attemptName,
+			InputCodec: task.SourceCodec,
 			Profile: ffmpeg.Profile{
 				Width:        variant.Width,
 				Height:       variant.Height,

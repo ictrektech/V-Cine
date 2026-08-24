@@ -15,6 +15,7 @@ import (
 const (
 	HWAccelNone  = "none"
 	HWAccelNVENC = "nvenc"
+	HWAccelNVMPI = "nvmpi"
 	HWAccelQSV   = "qsv"
 	HWAccelVAAPI = "vaapi"
 )
@@ -30,12 +31,21 @@ const (
 func DetectHWAccel(cfg *config.Config, logger *zap.SugaredLogger) string {
 	ffmpegPath := cfg.App.FFmpegPath
 
-	// 1) NVIDIA NVENC
+	// 1) NVIDIA NVENC / Jetson NVMPI
 	if detectNvidiaSmi(logger) {
 		cmd := exec.Command(ffmpegPath, "-hide_banner", "-encoders")
-		if output, err := cmd.Output(); err == nil && strings.Contains(string(output), "h264_nvenc") {
-			logger.Info("检测到NVIDIA GPU，使用NVENC硬件加速")
-			return HWAccelNVENC
+		if output, err := cmd.Output(); err == nil {
+			out := string(output)
+			// Jetson 上同样存在 nvidia-smi，但编解码器是 h264_nvmpi / hevc_nvmpi，
+			// 不是桌面 GPU 的 h264_nvenc，所以优先检查 nvmpi。
+			if strings.Contains(out, "h264_nvmpi") {
+				logger.Info("检测到Jetson NVMPI，使用NVMPI硬件加速")
+				return HWAccelNVMPI
+			}
+			if strings.Contains(out, "h264_nvenc") {
+				logger.Info("检测到NVIDIA GPU，使用NVENC硬件加速")
+				return HWAccelNVENC
+			}
 		}
 	}
 
