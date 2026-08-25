@@ -38,6 +38,9 @@ services:
       NOWEN_VOS_OIDC_CLIENT_ID: com.ictrek.nowen-video
       # ---- Embedding 向量检索（依赖独立部署的 emb_server，默认连宿主 18005）----
       NOWEN_AI_EMBEDDING_AI_API_BASE: "${NOWEN_AI_EMBEDDING_AI_API_BASE:-http://172.17.0.1:18005}"
+      # ---- 视频分析 Scene / Structure 外部服务地址（安装初始值，运行期可在 Nowen 管理后台修改）----
+      NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL: "${NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL:-http://172.17.0.1:48910}"
+      NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL: "${NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL:-http://172.17.0.1:48911}"
       TZ: "${TZ:-Asia/Shanghai}"
     # 宿主端口：Traefik file provider 经 docker0 网关 172.17.0.1 转发到该端口
     ports:

@@ -105,6 +105,28 @@ configs:
       en: emb_server base URL. Default http://172.17.0.1:18005 (same-host deployment); leave empty to disable scene vector search.
     default: http://172.17.0.1:18005
 
+  # ---- 视频分析 Scene（detect）/ Structure 外部服务地址 ----
+  # 仅作为安装初始值；运行期修改请到 Nowen 管理后台「视频分析设置」。
+  - name: NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL
+    type: string
+    title:
+      zh-CN: 视频分析 Scene 服务地址
+      en: Scene Detection Service URL
+    description:
+      zh-CN: 场景检测（detect）服务地址。默认 http://172.17.0.1:48910（VOS 主机同机部署）；仅作为安装初始值，运行期请到 Nowen 管理后台「视频分析设置」修改。
+      en: Scene detection service base URL. Default http://172.17.0.1:48910 (same-host deployment); initial value only, change it at runtime in Nowen video-analysis settings.
+    default: http://172.17.0.1:48910
+
+  - name: NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL
+    type: string
+    title:
+      zh-CN: 视频分析 Structure 服务地址
+      en: Video Structure Service URL
+    description:
+      zh-CN: 视频结构化（structure）服务地址。默认 http://172.17.0.1:48911（VOS 主机同机部署）；仅作为安装初始值，运行期请到 Nowen 管理后台「视频分析设置」修改。
+      en: Video structure service base URL. Default http://172.17.0.1:48911 (same-host deployment); initial value only, change it at runtime in Nowen video-analysis settings.
+    default: http://172.17.0.1:48911
+
   - name: NOWEN_ADULT_SCRAPER_ENABLED
     type: boolean
     title:
