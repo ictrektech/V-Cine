@@ -80,9 +80,9 @@ export default function VideoAnalysisDrawer({ open, onOpenChange }: VideoAnalysi
   useEffect(() => {
     if (open) {
       load()
-      if (editing) loadSettings()
+      loadSettings()
     }
-  }, [open, editing, load, loadSettings])
+  }, [open, load, loadSettings])
 
   const sceneOk = health ? (health.available ? health.scene?.status === 'ok' : false) : null
   const structureOk = health ? (health.available ? health.structure?.status === 'ok' : false) : null
@@ -143,14 +143,14 @@ export default function VideoAnalysisDrawer({ open, onOpenChange }: VideoAnalysi
             </div>
           )}
 
-          {editing && settingsLoading && (
+          {editing && settingsLoading && !settings && (
             <div className="py-16 text-center" aria-busy="true">
               <Loader2 className="mx-auto animate-spin text-neon" />
               <p className="mt-2 text-sm text-surface-400">正在读取设置…</p>
             </div>
           )}
 
-          {editing && !settingsLoading && settings && (
+          {editing && settings && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-base"><Server className="h-4 w-4" />基础配置</CardTitle>
