@@ -141,7 +141,11 @@ export default function AdminPage() {
 
       {/* ===== 其余模块 Drawer ===== */}
       <AIDrawer open={activeDrawer === 'ai'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
-      <VideoAnalysisDrawer open={activeDrawer === 'video-analysis'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
+      <VideoAnalysisDrawer
+        open={activeDrawer === 'video-analysis'}
+        onOpenChange={(open) => { if (!open) closeDrawer() }}
+        onNavigateToAI={() => setActiveDrawer('ai')}
+      />
       <StorageDrawer open={activeDrawer === 'storage'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
       <UsersDrawer open={activeDrawer === 'users'} onOpenChange={(open) => { if (!open) closeDrawer() }} users={users} setUsers={setUsers} />
       <LogsDrawer open={activeDrawer === 'logs'} onOpenChange={(open) => { if (!open) closeDrawer() }} />

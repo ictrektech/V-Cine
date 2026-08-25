@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { videoAnalysisApi } from '@/api'
+import { aiApi, videoAnalysisApi } from '@/api'
+import type { AIStatus } from '@/types'
 import type { VideoAnalysisHealthInfo, VideoAnalysisSettings } from '@/types/videoAnalysis'
 import { cn } from '@/lib/utils'
 import { extractErrMsg } from '@/utils/error'
@@ -15,6 +17,7 @@ import { extractErrMsg } from '@/utils/error'
 interface VideoAnalysisDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onNavigateToAI: () => void
 }
 
 function ServiceBadge({ ok, okText = '在线', failText = '离线' }: { ok: boolean | null; okText?: string; failText?: string }) {
@@ -39,7 +42,7 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
   )
 }
 
-export default function VideoAnalysisDrawer({ open, onOpenChange }: VideoAnalysisDrawerProps) {
+export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI }: VideoAnalysisDrawerProps) {
   const [health, setHealth] = useState<VideoAnalysisHealthInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -48,6 +51,9 @@ export default function VideoAnalysisDrawer({ open, onOpenChange }: VideoAnalysi
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
+  const [describeProviderID, setDescribeProviderID] = useState('')
+  const [describeModel, setDescribeModel] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -77,15 +83,31 @@ export default function VideoAnalysisDrawer({ open, onOpenChange }: VideoAnalysi
     }
   }, [])
 
+  const loadAIModels = useCallback(async () => {
+    try {
+      const res = await aiApi.getStatus()
+      setAiStatus(res.data.data)
+      const sc = res.data.data.scene_describe_ai
+      setDescribeProviderID(sc?.provider_id || '')
+      setDescribeModel(sc?.model || '')
+    } catch {
+      // AI 服务不可用时模型选择保持为空
+    }
+  }, [])
+
   useEffect(() => {
     if (open) {
       load()
       loadSettings()
+      loadAIModels()
     }
-  }, [open, load, loadSettings])
+  }, [open, load, loadSettings, loadAIModels])
 
   const sceneOk = health ? (health.available ? health.scene?.status === 'ok' : false) : null
   const structureOk = health ? (health.available ? health.structure?.status === 'ok' : false) : null
+  const visionModels = (aiStatus?.providers || []).flatMap(p =>
+    p.models.filter(m => m.is_vision).map(m => ({ providerID: p.id, providerName: p.name, model: m.name }))
+  )
 
   const save = async () => {
     if (!settings) return
@@ -93,6 +115,9 @@ export default function VideoAnalysisDrawer({ open, onOpenChange }: VideoAnalysi
     setError('')
     try {
       await videoAnalysisApi.updateSettings(settings)
+      if (describeProviderID && describeModel) {
+        await aiApi.updateConfig({ scene_describe_ai: { provider_id: describeProviderID, model: describeModel } })
+      }
       setSaved(true)
       setEditing(false)
       await load()
@@ -176,6 +201,35 @@ export default function VideoAnalysisDrawer({ open, onOpenChange }: VideoAnalysi
                   <span className="text-sm text-muted-foreground">场景描述</span>
                   <Switch checked={settings.describe_enabled} onCheckedChange={(checked) => setSettings({ ...settings, describe_enabled: checked })} />
                 </label>
+                {settings.describe_enabled && (
+                  <div>
+                    <div className="mb-1 text-xs text-muted-foreground">场景描述模型</div>
+                    {visionModels.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">当前没有可用的视觉模型，请先在 AI 服务中配置。</p>
+                    ) : (
+                      <Select
+                        value={describeProviderID && describeModel ? `${describeProviderID}::${describeModel}` : ''}
+                        onValueChange={(val) => {
+                          if (val) {
+                            const [pid, ...rest] = val.split('::')
+                            setDescribeProviderID(pid)
+                            setDescribeModel(rest.join('::'))
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full"><SelectValue placeholder="请选择场景描述模型" /></SelectTrigger>
+                        <SelectContent>
+                          {visionModels.map((m, idx) => (
+                            <SelectItem key={idx} value={`${m.providerID}::${m.model}`}>{m.model} ({m.providerName})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <button type="button" onClick={onNavigateToAI} className="mt-1 text-xs text-muted-foreground underline-offset-2 hover:text-neon hover:underline">
+                      前往 AI 服务配置视觉模型 →
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

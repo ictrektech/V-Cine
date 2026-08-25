@@ -459,7 +459,7 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
                       onClick={() => onAnalyze(false, true)}
                       className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${videoAnalysisDescribeEnabled ? 'text-violet-300 hover:bg-violet-400/10' : 'opacity-50 cursor-not-allowed'}`}
                       disabled={!videoAnalysisDescribeEnabled}
-                      title={!videoAnalysisDescribeEnabled ? '需要在配置中开启场景描述功能（describe_enabled）' : ''}
+                      title={!videoAnalysisDescribeEnabled ? '需要在「视频分析」设置中开启场景描述功能' : ''}
                     >
                       <Sparkles size={14} /> 分析并生成描述
                     </button>
@@ -540,7 +540,7 @@ export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, videoAn
                 <div className="text-xs mt-1 text-amber-300">需要先启用视频分析服务</div>
               )}
               {videoAnalysisEnabled && !videoAnalysisDescribeEnabled && (
-                <div className="text-xs mt-1 text-amber-300">需要在配置中开启场景描述功能（describe_enabled）</div>
+                <div className="text-xs mt-1 text-amber-300">需要在「视频分析」设置中开启场景描述功能</div>
               )}
             </div>
           </label>
