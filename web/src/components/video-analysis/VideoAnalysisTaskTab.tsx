@@ -28,7 +28,12 @@ function formatTime(value: string | null) {
   return value ? new Date(value).toLocaleString() : '—'
 }
 
-export default function VideoAnalysisTaskTab() {
+interface VideoAnalysisTaskTabProps {
+  disabled?: boolean
+  disabledReason?: string
+}
+
+export default function VideoAnalysisTaskTab({ disabled = false, disabledReason = '' }: VideoAnalysisTaskTabProps) {
   const toast = useToast()
   const dialog = useDialog()
   const { on, off } = useWebSocket()
@@ -76,6 +81,7 @@ export default function VideoAnalysisTaskTab() {
   }, [page, query, searchParams, setSearchParams, status])
 
   const load = useCallback(async (quiet = false) => {
+    if (disabled) return
     if (!quiet) setLoading(true)
     try {
       const [taskResponse, statsResponse, detailedResponse] = await Promise.all([
@@ -93,7 +99,7 @@ export default function VideoAnalysisTaskTab() {
     } finally {
       if (!quiet) setLoading(false)
     }
-  }, [page, status, query])
+  }, [page, status, query, disabled])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
@@ -251,7 +257,9 @@ export default function VideoAnalysisTaskTab() {
       </div>
 
       <div className="glass-panel rounded-xl overflow-hidden">
-        {loading ? (
+        {disabled ? (
+          <div className="py-16 px-4 text-center" role="status"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">视频分析未启用</h3><p className="mt-1 text-sm text-surface-400">{disabledReason || '需要安装场景检测与视频结构化组件，并在配置中启用。'}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><button onClick={() => { window.location.href = withBasePath('/admin') }} className="btn-ghost rounded-lg px-4 py-2 text-sm text-amber-300 hover:bg-amber-400/10">前往系统配置</button></div></div>
+        ) : loading ? (
           <div className="py-16 text-center" aria-busy="true"><Loader2 className="mx-auto animate-spin text-neon" /><p className="mt-2 text-sm text-surface-400">正在加载任务…</p></div>
         ) : unavailable ? (
           <div className="py-16 px-4 text-center" role="alert"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">无法加载视频分析任务</h3><p className="mt-1 text-sm text-surface-400">请检查网络，或确认 video_analysis、Scene 与 Structure 服务已正确配置。</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><button onClick={() => load()} className="btn-ghost rounded-lg px-4 py-2 text-sm">重新检查</button><button onClick={() => { window.location.href = withBasePath('/admin') }} className="btn-ghost rounded-lg px-4 py-2 text-sm text-amber-300 hover:bg-amber-400/10">前往系统配置</button></div></div>

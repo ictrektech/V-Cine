@@ -90,6 +90,14 @@ export interface VideoAnalysisHealth {
   service: string
 }
 
+export interface VideoAnalysisSettings {
+  enabled: boolean
+  scene_base_url: string
+  structure_base_url: string
+  asset_dir: string
+  describe_enabled: boolean
+}
+
 export interface VideoAnalysisHealthInfo {
   enabled: boolean
   available: boolean

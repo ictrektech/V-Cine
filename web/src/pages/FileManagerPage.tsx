@@ -729,7 +729,12 @@ export default function FileManagerPage() {
       )}
 
       {/* ==================== 视频分析任务 Tab ==================== */}
-      {activeTab === 'analysis' && <VideoAnalysisTaskTab />}
+      {activeTab === 'analysis' && (
+        <VideoAnalysisTaskTab
+          disabled={!videoAnalysisEnabled}
+          disabledReason={videoAnalysisDisabledReason}
+        />
+      )}
 
       {/* ==================== 成人刮削 Tab ==================== */}
       {activeTab === 'adult' && (

@@ -4,6 +4,7 @@ import type {
   VideoAnalysisDetailedStats,
   VideoAnalysisHealthInfo,
   VideoAnalysisResult,
+  VideoAnalysisSettings,
   VideoAnalysisStatistics,
   VideoAnalysisTask,
   VideoAnalysisTaskPage,
@@ -43,6 +44,12 @@ export const videoAnalysisApi = {
 
   getHealth: () =>
     api.get<{ data: VideoAnalysisHealthInfo }>('/admin/video-analysis/health'),
+
+  getSettings: () =>
+    api.get<{ data: VideoAnalysisSettings }>('/admin/video-analysis/settings'),
+
+  updateSettings: (data: VideoAnalysisSettings) =>
+    api.put('/admin/video-analysis/settings', data),
 
   getResult: (mediaId: string, taskId?: string) =>
     api.get<{ data: VideoAnalysisResult }>(`/media/${mediaId}/video-analysis`, { params: taskId ? { task_id: taskId } : undefined }),
