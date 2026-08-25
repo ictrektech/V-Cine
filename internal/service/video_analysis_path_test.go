@@ -7,6 +7,21 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 )
 
+func TestVideoPathMapperIdentityWhenNoMappings(t *testing.T) {
+	mapper, err := NewVideoPathMapper(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := mapper.Map("/media/movie.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "/media/movie.mp4" {
+		t.Fatalf("Map() = %q, want identity %q", got, "/media/movie.mp4")
+	}
+}
+
 func TestVideoPathMapperUsesLongestMatchingPrefix(t *testing.T) {
 	mapper, err := NewVideoPathMapper([]config.VideoAnalysisPathMapping{
 		{Source: "/media", Target: "/photos"},

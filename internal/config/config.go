@@ -247,7 +247,7 @@ type DesensitizeConfig struct {
 	NER          bool     `mapstructure:"ner" yaml:"ner"`           // NER 语义识别（有并发限制）
 	ImageEnabled bool     `mapstructure:"image_enabled" yaml:"image_enabled"`
 	ImageTimeout int      `mapstructure:"image_timeout" yaml:"image_timeout"` // 秒，默认 30
-	ImageScopes  []string `mapstructure:"image_scopes" yaml:"image_scopes"`  // 生效范围：embedding / ai_assistant
+	ImageScopes  []string `mapstructure:"image_scopes" yaml:"image_scopes"`   // 生效范围：embedding / ai_assistant
 }
 
 type AIConfig struct {
@@ -265,7 +265,7 @@ type AIConfig struct {
 	// 运行时通过 ActiveProfile() 从 Providers 列表中查找 api_base / api_key / model
 	ActiveProvider string `mapstructure:"active_provider"`
 	// 当前激活的模型名称（覆盖 Providers 中的默认 model）
-	ActiveModel    string `mapstructure:"active_model"`
+	ActiveModel string `mapstructure:"active_model"`
 	// Providers 供应商列表（唯一数据源）
 	// 运行时通过 ActiveProfile() / FindProvider() 从列表中查找 api_base / api_key / model。
 	// ActiveProvider 仅记录激活了哪个 ID，实际连接配置全在 Providers 中。
@@ -1396,6 +1396,37 @@ func (c *Config) SaveStorageConfig() error {
 	return SaveSection(c, "storage", "storage.yaml", encryptPaths, func() StorageConfig {
 		return c.Storage
 	})
+}
+
+// GetVideoAnalysisConfig 返回视频分析配置的线程安全副本。
+func (c *Config) GetVideoAnalysisConfig() VideoAnalysisConfig {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.VideoAnalysis
+}
+
+// UpdateVideoAnalysisConfig 在锁内更新并持久化视频分析配置；
+// 落盘失败时回滚内存中的变更。
+func (c *Config) UpdateVideoAnalysisConfig(update func(*VideoAnalysisConfig)) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	old := c.VideoAnalysis
+	update(&c.VideoAnalysis)
+	if err := saveSectionLocked(c, "video_analysis", "video_analysis.yaml", nil, func() VideoAnalysisConfig {
+		return c.VideoAnalysis
+	}); err != nil {
+		c.VideoAnalysis = old
+		return err
+	}
+	return nil
+}
+
+// SetVideoAnalysisDescribeEnabled 仅更新内存中的 describe_enabled（热更新，不落盘）。
+func (c *Config) SetVideoAnalysisDescribeEnabled(enabled bool) {
+	c.mu.Lock()
+	c.VideoAnalysis.DescribeEnabled = enabled
+	c.mu.Unlock()
 }
 
 // SaveAIConfig 将当前 AI 配置持久化到 config/ai.yaml 分片文件。

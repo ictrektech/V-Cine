@@ -958,6 +958,8 @@ func main() {
 		admin.GET("/video-analysis/statistics/detailed", handlers.VideoAnalysis.DetailedStatistics)
 		admin.GET("/video-analysis/config", handlers.VideoAnalysis.GetConfig)
 		admin.GET("/video-analysis/health", handlers.VideoAnalysis.GetHealth)
+		admin.GET("/video-analysis/settings", handlers.VideoAnalysis.GetSettings)
+		admin.PUT("/video-analysis/settings", handlers.VideoAnalysis.UpdateSettings)
 		admin.POST("/video-analysis/cleanup", handlers.VideoAnalysis.Cleanup)
 		admin.GET("/video-analysis/scenes/search", handlers.VideoAnalysis.SearchScenes)
 		admin.GET("/video-analysis/tasks/:id/scenes", handlers.VideoAnalysis.ListScenesByTask)

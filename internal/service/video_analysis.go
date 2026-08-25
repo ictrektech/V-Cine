@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
@@ -76,18 +77,24 @@ type VideoAnalysisBatchResult struct {
 }
 
 type VideoAnalysisService struct {
-	tasks           *repository.VideoAnalysisTaskRepo
-	media           *repository.MediaRepo
-	client          videoAnalysisExternalClient
-	pathMapper      *VideoPathMapper
-	sceneRepo       *repository.SceneRepo
-	embeddingClient *EmbeddingClient
-	assetDir        string
-	describeEnabled bool
-	wsHub           *WSHub
-	logger          *zap.SugaredLogger
-	pollInterval    time.Duration
-	jobTimeout      time.Duration
+	tasks            *repository.VideoAnalysisTaskRepo
+	media            *repository.MediaRepo
+	client           videoAnalysisExternalClient
+	pathMapper       *VideoPathMapper
+	sceneRepo        *repository.SceneRepo
+	embeddingClient  *EmbeddingClient
+	assetDir         string
+	describeEnabled  bool
+	enabled          bool
+	sceneBaseURL     string
+	structureBaseURL string
+
+	mu sync.RWMutex
+
+	wsHub        *WSHub
+	logger       *zap.SugaredLogger
+	pollInterval time.Duration
+	jobTimeout   time.Duration
 
 	// appCfg 全局配置引用（用于读取 LLM 配置，动态注入 describe 阶段）
 	appCfg *config.Config
@@ -113,16 +120,47 @@ func NewVideoAnalysisService(
 	if jobTimeout <= 0 {
 		jobTimeout = 2 * time.Hour
 	}
-	return &VideoAnalysisService{
+	s := &VideoAnalysisService{
 		tasks: tasks, media: media, client: client, pathMapper: pathMapper, sceneRepo: sceneRepo, embeddingClient: embeddingClient,
 		assetDir:        strings.TrimSpace(assetDir),
 		describeEnabled: describeEnabled, wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
 		appCfg: appCfg,
 	}
+	if appCfg != nil {
+		// 记录服务启动时实际使用的配置；运行期修改配置不影响已启动的服务。
+		s.enabled = appCfg.VideoAnalysis.Enabled
+		s.sceneBaseURL = appCfg.VideoAnalysis.SceneBaseURL
+		s.structureBaseURL = appCfg.VideoAnalysis.StructureBaseURL
+	}
+	return s
 }
 
 func (s *VideoAnalysisService) SetDescribeEnabled(enabled bool) {
+	s.mu.Lock()
 	s.describeEnabled = enabled
+	s.mu.Unlock()
+}
+
+// SetBaseURLs 热更新运行中的 Scene / Structure 服务地址，保存后立即生效。
+func (s *VideoAnalysisService) SetBaseURLs(sceneBaseURL, structureBaseURL string) error {
+	sceneBase, err := normalizeAnalysisBaseURL(sceneBaseURL)
+	if err != nil {
+		return fmt.Errorf("invalid scene base URL: %w", err)
+	}
+	structureBase, err := normalizeAnalysisBaseURL(structureBaseURL)
+	if err != nil {
+		return fmt.Errorf("invalid structure base URL: %w", err)
+	}
+	if updater, ok := s.client.(interface{ SetBaseURLs(string, string) error }); ok {
+		if err := updater.SetBaseURLs(sceneBase.String(), structureBase.String()); err != nil {
+			return err
+		}
+	}
+	s.mu.Lock()
+	s.sceneBaseURL = sceneBase.String()
+	s.structureBaseURL = structureBase.String()
+	s.mu.Unlock()
+	return nil
 }
 
 func (s *VideoAnalysisService) IsAvailable() bool {
@@ -136,6 +174,8 @@ type VideoAnalysisConfig struct {
 
 // GetConfig 返回视频分析服务配置
 func (s *VideoAnalysisService) GetConfig() VideoAnalysisConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return VideoAnalysisConfig{
 		DescribeEnabled: s.describeEnabled,
 	}
@@ -162,16 +202,14 @@ func (s *VideoAnalysisService) GetHealth(ctx context.Context) VideoAnalysisHealt
 		return VideoAnalysisHealthInfo{}
 	}
 
-	info := VideoAnalysisHealthInfo{
-		Available:       s.IsAvailable(),
-		DescribeEnabled: s.describeEnabled,
-	}
-	if s.appCfg != nil {
-		info.Enabled = s.appCfg.VideoAnalysis.Enabled
-		info.SceneBaseURL = s.appCfg.VideoAnalysis.SceneBaseURL
-		info.StructureBaseURL = s.appCfg.VideoAnalysis.StructureBaseURL
-		info.AssetDir = s.appCfg.VideoAnalysis.AssetDir
-	}
+	info := VideoAnalysisHealthInfo{Available: s.IsAvailable()}
+	s.mu.RLock()
+	info.DescribeEnabled = s.describeEnabled
+	info.Enabled = s.enabled
+	info.SceneBaseURL = s.sceneBaseURL
+	info.StructureBaseURL = s.structureBaseURL
+	info.AssetDir = s.assetDir
+	s.mu.RUnlock()
 	if !info.Available {
 		return info
 	}

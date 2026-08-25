@@ -224,6 +224,37 @@ func TestVideoAnalysisClientSurfacesRequestTimeout(t *testing.T) {
 	}
 }
 
+func TestVideoAnalysisClientSetBaseURLs(t *testing.T) {
+	client, err := NewVideoAnalysisClient("http://old-scene:8910", "http://old-structure:8911", http.DefaultClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := client.SetBaseURLs("http://new-scene:8910", "http://new-structure:8911"); err != nil {
+		t.Fatal(err)
+	}
+	if got := client.sceneBase.Load().String(); got != "http://new-scene:8910" {
+		t.Fatalf("scene base = %q, want %q", got, "http://new-scene:8910")
+	}
+	if got := client.structureBase.Load().String(); got != "http://new-structure:8911" {
+		t.Fatalf("structure base = %q, want %q", got, "http://new-structure:8911")
+	}
+}
+
+func TestVideoAnalysisClientSetBaseURLsRejectsInvalid(t *testing.T) {
+	client, err := NewVideoAnalysisClient("http://old-scene:8910", "http://old-structure:8911", http.DefaultClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := client.SetBaseURLs("://bad", "http://ok:8911"); err == nil {
+		t.Fatal("expected invalid scene URL error")
+	}
+	if got := client.sceneBase.Load().String(); got != "http://old-scene:8910" {
+		t.Fatalf("scene base should remain unchanged, got %q", got)
+	}
+}
+
 func writeAnalysisResponse(t *testing.T, w http.ResponseWriter, status, code int, message string, data any) {
 	t.Helper()
 	w.Header().Set("Content-Type", "application/json")

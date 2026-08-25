@@ -962,7 +962,7 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"enable_smart_search":     cfg.EnableSmartSearch,
 		"enable_recommend_reason": cfg.EnableRecommendReason,
 		"enable_metadata_enhance": cfg.EnableMetadataEnhance,
-		"describe_enabled":          s.appCfg.VideoAnalysis.DescribeEnabled,
+		"describe_enabled":          s.appCfg.GetVideoAnalysisConfig().DescribeEnabled,
 		"scene_describe_ai": map[string]interface{}{
 			"provider_id": cfg.SceneDescribeAI.ProviderID,
 			"model":       cfg.SceneDescribeAI.Model,
@@ -1071,7 +1071,7 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 			}
 		case "describe_enabled":
 			if v, ok := val.(bool); ok {
-				s.appCfg.VideoAnalysis.DescribeEnabled = v
+				s.appCfg.SetVideoAnalysisDescribeEnabled(v)
 				if s.describeEnabledSetter != nil {
 					s.describeEnabledSetter(v)
 				}

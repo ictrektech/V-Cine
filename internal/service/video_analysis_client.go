@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -99,8 +100,8 @@ func (e *VideoAnalysisAPIError) Error() string {
 }
 
 type VideoAnalysisClient struct {
-	sceneBase     *url.URL
-	structureBase *url.URL
+	sceneBase     atomic.Pointer[url.URL]
+	structureBase atomic.Pointer[url.URL]
 	httpClient    *http.Client
 }
 
@@ -116,7 +117,25 @@ func NewVideoAnalysisClient(sceneBaseURL, structureBaseURL string, client *http.
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
-	return &VideoAnalysisClient{sceneBase: sceneBase, structureBase: structureBase, httpClient: client}, nil
+	c := &VideoAnalysisClient{httpClient: client}
+	c.sceneBase.Store(sceneBase)
+	c.structureBase.Store(structureBase)
+	return c, nil
+}
+
+// SetBaseURLs 热更新 Scene / Structure 服务地址，后续请求立即使用新地址。
+func (c *VideoAnalysisClient) SetBaseURLs(sceneBaseURL, structureBaseURL string) error {
+	sceneBase, err := normalizeAnalysisBaseURL(sceneBaseURL)
+	if err != nil {
+		return fmt.Errorf("invalid scene base URL: %w", err)
+	}
+	structureBase, err := normalizeAnalysisBaseURL(structureBaseURL)
+	if err != nil {
+		return fmt.Errorf("invalid structure base URL: %w", err)
+	}
+	c.sceneBase.Store(sceneBase)
+	c.structureBase.Store(structureBase)
+	return nil
 }
 
 func (c *VideoAnalysisClient) SubmitDetectJob(ctx context.Context, request DetectJobRequest) (*ExternalJobRef, error) {
@@ -124,17 +143,17 @@ func (c *VideoAnalysisClient) SubmitDetectJob(ctx context.Context, request Detec
 		return nil, errors.New("video_path is required")
 	}
 	var result ExternalJobRef
-	if err := c.doJSON(ctx, http.MethodPost, c.sceneBase, "/api/v2/scenes/detect/jobs", request, &result); err != nil {
+	if err := c.doJSON(ctx, http.MethodPost, c.sceneBase.Load(), "/api/v2/scenes/detect/jobs", request, &result); err != nil {
 		return nil, err
 	}
-	if err := c.validateJobRef(c.sceneBase, &result); err != nil {
+	if err := c.validateJobRef(c.sceneBase.Load(), &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
 func (c *VideoAnalysisClient) GetDetectJob(ctx context.Context, jobID string) (*ExternalJob, error) {
-	return c.getJob(ctx, c.sceneBase, "/api/v2/scenes/detect/jobs/", jobID)
+	return c.getJob(ctx, c.sceneBase.Load(), "/api/v2/scenes/detect/jobs/", jobID)
 }
 
 func (c *VideoAnalysisClient) SubmitStructureJob(ctx context.Context, request StructureJobRequest) (*ExternalJobRef, error) {
@@ -145,17 +164,17 @@ func (c *VideoAnalysisClient) SubmitStructureJob(ctx context.Context, request St
 		return nil, errors.New("detect_job_id or scenes is required")
 	}
 	var result ExternalJobRef
-	if err := c.doJSON(ctx, http.MethodPost, c.structureBase, "/api/v2/video/structure/jobs", request, &result); err != nil {
+	if err := c.doJSON(ctx, http.MethodPost, c.structureBase.Load(), "/api/v2/video/structure/jobs", request, &result); err != nil {
 		return nil, err
 	}
-	if err := c.validateJobRef(c.structureBase, &result); err != nil {
+	if err := c.validateJobRef(c.structureBase.Load(), &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
 func (c *VideoAnalysisClient) GetStructureJob(ctx context.Context, jobID string) (*ExternalJob, error) {
-	return c.getJob(ctx, c.structureBase, "/api/v2/video/structure/jobs/", jobID)
+	return c.getJob(ctx, c.structureBase.Load(), "/api/v2/video/structure/jobs/", jobID)
 }
 
 func (c *VideoAnalysisClient) SubmitDescribeJob(ctx context.Context, request DescribeJobRequest) (*ExternalJobRef, error) {
@@ -163,22 +182,22 @@ func (c *VideoAnalysisClient) SubmitDescribeJob(ctx context.Context, request Des
 		return nil, errors.New("structure_job_id is required")
 	}
 	var result ExternalJobRef
-	if err := c.doJSON(ctx, http.MethodPost, c.structureBase, "/api/v2/video/describe/jobs", request, &result); err != nil {
+	if err := c.doJSON(ctx, http.MethodPost, c.structureBase.Load(), "/api/v2/video/describe/jobs", request, &result); err != nil {
 		return nil, err
 	}
-	if err := c.validateJobRef(c.structureBase, &result); err != nil {
+	if err := c.validateJobRef(c.structureBase.Load(), &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
 func (c *VideoAnalysisClient) GetDescribeJob(ctx context.Context, jobID string) (*ExternalJob, error) {
-	return c.getJob(ctx, c.structureBase, "/api/v2/video/describe/jobs/", jobID)
+	return c.getJob(ctx, c.structureBase.Load(), "/api/v2/video/describe/jobs/", jobID)
 }
 
 func (c *VideoAnalysisClient) CheckSceneHealth(ctx context.Context) (*VideoAnalysisHealth, error) {
 	var result VideoAnalysisHealth
-	if err := c.doJSON(ctx, http.MethodGet, c.sceneBase, "/api/health", nil, &result); err != nil {
+	if err := c.doJSON(ctx, http.MethodGet, c.sceneBase.Load(), "/api/health", nil, &result); err != nil {
 		return nil, err
 	}
 	if result.Status == "" || result.Service == "" {
@@ -189,7 +208,7 @@ func (c *VideoAnalysisClient) CheckSceneHealth(ctx context.Context) (*VideoAnaly
 
 func (c *VideoAnalysisClient) CheckStructureHealth(ctx context.Context) (*VideoAnalysisHealth, error) {
 	var result VideoAnalysisHealth
-	if err := c.doJSON(ctx, http.MethodGet, c.structureBase, "/api/health", nil, &result); err != nil {
+	if err := c.doJSON(ctx, http.MethodGet, c.structureBase.Load(), "/api/health", nil, &result); err != nil {
 		return nil, err
 	}
 	if result.Status == "" || result.Service == "" {

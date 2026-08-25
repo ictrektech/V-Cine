@@ -41,6 +41,12 @@ func (m *VideoPathMapper) Map(videoPath string) (string, error) {
 		return "", fmt.Errorf("video path must be absolute")
 	}
 
+	// 无映射规则时按原路径透传：Nowen 与外部分析服务看到相同路径，
+	// 这是最常见部署，path_mappings 可省略。
+	if len(m.mappings) == 0 {
+		return cleanPath, nil
+	}
+
 	for _, mapping := range m.mappings {
 		rel, err := filepath.Rel(mapping.Source, cleanPath)
 		if err != nil || escapesRoot(rel) {

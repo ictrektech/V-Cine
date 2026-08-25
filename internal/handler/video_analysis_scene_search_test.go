@@ -76,7 +76,7 @@ func setupSceneSearchHandler(t *testing.T) (*VideoAnalysisHandler, *repository.V
 		t.Fatal(err)
 	}
 	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, repos.Scene, embClient, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, nil)
-	return NewVideoAnalysisHandler(vaService, nil), repos.VideoAnalysis, repos.Scene, media.ID
+	return NewVideoAnalysisHandler(vaService, nil, &config.Config{}), repos.VideoAnalysis, repos.Scene, media.ID
 }
 
 // TestVideoAnalysisHandlerSearchScenesModes 验证 SearchScenes 的 mode 参数：

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -57,5 +58,67 @@ video_analysis:
 	}
 	if cfg.VideoAnalysis.MaxConcurrent != 2 || cfg.VideoAnalysis.PollIntervalSeconds != 2 || cfg.VideoAnalysis.JobTimeoutMinutes != 120 {
 		t.Fatalf("defaults not applied: %+v", cfg.VideoAnalysis)
+	}
+}
+
+func TestUpdateVideoAnalysisConfigPersists(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWorkingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWorkingDir) })
+
+	cfg := &Config{}
+	if err := cfg.UpdateVideoAnalysisConfig(func(v *VideoAnalysisConfig) {
+		v.Enabled = true
+		v.SceneBaseURL = "http://scene:8910"
+		v.StructureBaseURL = "http://structure:8911"
+		v.AssetDir = "/data/nowen-video-structure"
+		v.DescribeEnabled = true
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if !cfg.VideoAnalysis.Enabled || cfg.VideoAnalysis.SceneBaseURL != "http://scene:8910" {
+		t.Fatalf("unexpected updated config: %+v", cfg.VideoAnalysis)
+	}
+
+	data, err := os.ReadFile(filepath.Join(tempDir, "config", "video_analysis.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "enabled: true") || !strings.Contains(string(data), "scene_base_url: http://scene:8910") {
+		t.Fatalf("shard file missing expected values:\n%s", data)
+	}
+}
+
+func TestUpdateVideoAnalysisConfigRollsBackOnSaveError(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWorkingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWorkingDir) })
+
+	// 让目标“文件”是一个目录，使 WriteFile 失败，验证内存回滚。
+	if err := os.MkdirAll(filepath.Join(tempDir, "config", "video_analysis.yaml"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{}
+	if err := cfg.UpdateVideoAnalysisConfig(func(v *VideoAnalysisConfig) {
+		v.Enabled = true
+	}); err == nil {
+		t.Fatal("expected save error")
+	}
+	if cfg.VideoAnalysis.Enabled {
+		t.Fatal("expected in-memory config to roll back after save failure")
 	}
 }

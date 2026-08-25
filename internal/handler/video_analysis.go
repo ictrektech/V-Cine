@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/service"
 	"gorm.io/gorm"
@@ -15,10 +17,11 @@ import (
 type VideoAnalysisHandler struct {
 	service *service.VideoAnalysisService
 	worker  *service.VideoAnalysisWorker
+	cfg     *config.Config
 }
 
-func NewVideoAnalysisHandler(service *service.VideoAnalysisService, worker *service.VideoAnalysisWorker) *VideoAnalysisHandler {
-	return &VideoAnalysisHandler{service: service, worker: worker}
+func NewVideoAnalysisHandler(service *service.VideoAnalysisService, worker *service.VideoAnalysisWorker, cfg *config.Config) *VideoAnalysisHandler {
+	return &VideoAnalysisHandler{service: service, worker: worker, cfg: cfg}
 }
 
 func (h *VideoAnalysisHandler) SubmitMedia(c *gin.Context) {
@@ -222,6 +225,93 @@ func (h *VideoAnalysisHandler) GetConfig(c *gin.Context) {
 // 与 GetConfig 不同，服务未启用时也返回 200，便于系统设置展示状态。
 func (h *VideoAnalysisHandler) GetHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": h.service.GetHealth(c.Request.Context())})
+}
+
+// videoAnalysisSettingsView 是前端读取的视频分析配置视图。
+type videoAnalysisSettingsView struct {
+	Enabled          bool   `json:"enabled"`
+	SceneBaseURL     string `json:"scene_base_url"`
+	StructureBaseURL string `json:"structure_base_url"`
+	AssetDir         string `json:"asset_dir"`
+	DescribeEnabled  bool   `json:"describe_enabled"`
+}
+
+// updateVideoAnalysisSettingsRequest 是前端可更新的视频分析配置子集。
+// asset_dir 属于数据目录，只读展示，不通过该接口修改。
+type updateVideoAnalysisSettingsRequest struct {
+	Enabled          bool   `json:"enabled"`
+	SceneBaseURL     string `json:"scene_base_url"`
+	StructureBaseURL string `json:"structure_base_url"`
+	DescribeEnabled  bool   `json:"describe_enabled"`
+}
+
+// GetSettings 返回视频分析可配置项（不要求服务可用，供设置页编辑）。
+func (h *VideoAnalysisHandler) GetSettings(c *gin.Context) {
+	cfg := h.cfg.GetVideoAnalysisConfig()
+	c.JSON(http.StatusOK, gin.H{"data": videoAnalysisSettingsView{
+		Enabled:          cfg.Enabled,
+		SceneBaseURL:     cfg.SceneBaseURL,
+		StructureBaseURL: cfg.StructureBaseURL,
+		AssetDir:         cfg.AssetDir,
+		DescribeEnabled:  cfg.DescribeEnabled,
+	}})
+}
+
+// UpdateSettings 保存视频分析可配置项。
+// scene_base_url / structure_base_url / describe_enabled 保存后立即生效，
+// enabled 仍需要重启生效。
+// asset_dir 只读，不在此接口修改；max_concurrent / poll_interval_seconds / job_timeout_minutes 保持现有值。
+func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
+	var req updateVideoAnalysisSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "配置格式错误"})
+		return
+	}
+
+	updated := h.cfg.GetVideoAnalysisConfig()
+	updated.Enabled = req.Enabled
+	updated.SceneBaseURL = strings.TrimSpace(req.SceneBaseURL)
+	updated.StructureBaseURL = strings.TrimSpace(req.StructureBaseURL)
+	updated.DescribeEnabled = req.DescribeEnabled
+
+	if updated.Enabled {
+		if updated.SceneBaseURL == "" || updated.StructureBaseURL == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "启用视频分析需要填写 Scene 与 Structure 服务地址"})
+			return
+		}
+		if updated.AssetDir == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "启用视频分析需要配置产物目录 asset_dir"})
+			return
+		}
+		if _, err := service.NewVideoPathMapper(updated.PathMappings); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	// 服务运行时地址会热更新，保存前先校验格式，避免配置已落盘但热更新失败；
+	// 启用时即使服务尚未启动也要校验，避免保存后重启才发现地址非法。
+	if updated.Enabled || h.service != nil {
+		if _, err := service.NewVideoAnalysisClient(updated.SceneBaseURL, updated.StructureBaseURL, nil); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "服务地址格式无效: " + err.Error()})
+			return
+		}
+	}
+
+	if err := h.cfg.UpdateVideoAnalysisConfig(func(cfg *config.VideoAnalysisConfig) {
+		*cfg = updated
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		return
+	}
+	// scene_base_url / structure_base_url 支持热更新，保存后立即生效
+	if h.service != nil {
+		if err := h.service.SetBaseURLs(updated.SceneBaseURL, updated.StructureBaseURL); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "热更新服务地址失败: " + err.Error()})
+			return
+		}
+		h.service.SetDescribeEnabled(updated.DescribeEnabled)
+	}
+	c.Status(http.StatusOK)
 }
 
 func (h *VideoAnalysisHandler) Cleanup(c *gin.Context) {

@@ -15,7 +15,8 @@ import (
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/service"
 
-	"github.com/nowen-video/nowen-video/internal/testutil")
+	"github.com/nowen-video/nowen-video/internal/testutil"
+)
 
 func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repository.VideoAnalysisTaskRepo, string, string) {
 	t.Helper()
@@ -40,7 +41,7 @@ func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repo
 		t.Fatal(err)
 	}
 	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, nil, nil, assetDir, false, nil, nil, time.Millisecond, time.Second, nil)
-	return NewVideoAnalysisHandler(vaService, nil), repos.VideoAnalysis, media.ID, assetDir
+	return NewVideoAnalysisHandler(vaService, nil, &config.Config{}), repos.VideoAnalysis, media.ID, assetDir
 }
 
 type fakeHandlerVideoAnalysisClient struct{}

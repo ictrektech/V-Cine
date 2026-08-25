@@ -39,7 +39,11 @@ var sectionDirs = []string{"./config", "./data/config", "/etc/nowen-video/config
 func SaveSection[T any](c *Config, sectionName, fileName string, encryptPaths []string, snapshot func() T) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	return saveSectionLocked(c, sectionName, fileName, encryptPaths, snapshot)
+}
 
+// saveSectionLocked 是 SaveSection 的锁内实现，调用方必须已持有 c.mu。
+func saveSectionLocked[T any](c *Config, sectionName, fileName string, encryptPaths []string, snapshot func() T) error {
 	section := snapshot()
 
 	// 结构体 → map：用 mapstructure tag 作为 key，保证字段名与 viper 读取时一致
