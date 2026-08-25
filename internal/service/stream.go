@@ -22,10 +22,11 @@ import (
 
 // MediaPlayInfo 媒体播放信息（前端根据此信息决定播放模式）
 type MediaPlayInfo struct {
-	MediaID          string  `json:"media_id"`
-	DirectPlayURL    string  `json:"direct_play_url"`    // 直接播放地址（如果支持）
-	HlsURL           string  `json:"hls_url"`            // HLS转码播放地址
-	CanDirectPlay    bool    `json:"can_direct_play"`    // 浏览器是否可直接播放
+	MediaID             string  `json:"media_id"`
+	DirectPlayURL       string  `json:"direct_play_url"`       // 直接播放地址（如果支持）
+	HlsURL              string  `json:"hls_url"`               // HLS转码播放地址
+	AutoTranscodeOnPlay bool    `json:"auto_transcode_on_play"` // 系统设置：播放时是否自动触发转码
+	CanDirectPlay       bool    `json:"can_direct_play"`       // 浏览器是否可直接播放
 	FileExt          string  `json:"file_ext"`           // 文件扩展名
 	VideoCodec       string  `json:"video_codec"`        // 视频编码
 	AudioCodec       string  `json:"audio_codec"`        // 音频编码
@@ -87,13 +88,14 @@ var mimeTypes = map[string]string{
 
 // StreamService 流媒体服务
 type StreamService struct {
-	mediaRepo  *repository.MediaRepo
-	seriesRepo *repository.SeriesRepo
-	transcoder *TranscodeService
-	preprocess *PreprocessService
-	cfg        *config.Config
-	logger     *zap.SugaredLogger
-	vfsMgr     *VFSManager // V2.1: VFS 管理器，支持 webdav:// 路径
+	mediaRepo   *repository.MediaRepo
+	seriesRepo  *repository.SeriesRepo
+	transcoder  *TranscodeService
+	preprocess  *PreprocessService
+	settingRepo *repository.SystemSettingRepo
+	cfg         *config.Config
+	logger      *zap.SugaredLogger
+	vfsMgr      *VFSManager // V2.1: VFS 管理器，支持 webdav:// 路径
 }
 
 func NewStreamService(
@@ -115,6 +117,11 @@ func NewStreamService(
 // SetVFSManager 设置 VFS 管理器（V2.1）
 func (s *StreamService) SetVFSManager(vfsMgr *VFSManager) {
 	s.vfsMgr = vfsMgr
+}
+
+// SetSettingRepo 注入系统设置仓储，用于读取播放偏好设置。
+func (s *StreamService) SetSettingRepo(repo *repository.SystemSettingRepo) {
+	s.settingRepo = repo
 }
 
 // statMediaFile 返回文件判断：同时支持本地路径和 webdav:// 路径
@@ -315,6 +322,14 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 		Duration:      media.Duration,
 		CanDirectPlay: canDirect,
 		IsSTRM:        false,
+	}
+
+	// 读取系统设置：播放时是否自动触发转码（默认开启，保持原有自动转码行为）
+	info.AutoTranscodeOnPlay = true
+	if s.settingRepo != nil {
+		if val, err := s.settingRepo.Get("auto_transcode_on_play"); err == nil {
+			info.AutoTranscodeOnPlay = val == "true" || val == "1"
+		}
 	}
 
 	if canDirect {
@@ -587,6 +602,13 @@ func (s *StreamService) GetSegmentPlaylist(mediaID, quality string) (string, err
 		content, err := os.ReadFile(m3u8Path)
 		if err == nil && strings.Contains(string(content), ".ts") {
 			return string(content), nil
+		}
+	}
+
+	// 系统设置关闭时禁止自动触发新的实时转码
+	if s.settingRepo != nil {
+		if val, err := s.settingRepo.Get("auto_transcode_on_play"); err == nil && val != "true" && val != "1" {
+			return "", fmt.Errorf("播放时自动转码已关闭，请到媒体详情页手动提交转码")
 		}
 	}
 

@@ -29,7 +29,7 @@ export default function AdminPage() {
     enable_gpu_transcode: true,
     gpu_fallback_cpu: true,
     auto_preprocess_on_scan: false,
-    auto_transcode_on_play: false,
+    auto_transcode_on_play: true,
   })
 
   // 元数据刮削配置状态（Drawer 显示用）

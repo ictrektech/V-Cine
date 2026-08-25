@@ -531,6 +531,7 @@ export interface MediaPlayInfo {
   media_id: string
   direct_play_url: string
   hls_url: string
+  auto_transcode_on_play?: boolean // 系统设置：播放时是否自动触发转码
   can_direct_play: boolean
   file_ext: string
   video_codec: string

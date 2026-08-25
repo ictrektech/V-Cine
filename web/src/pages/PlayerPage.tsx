@@ -266,6 +266,17 @@ export default function PlayerPage() {
     }
   }
 
+  // 播放时自动转码已关闭时，不自动落到实时 HLS 转码；已有预处理流不受影响
+  if (mode === 'hls' && !isPreprocessed && playInfo.auto_transcode_on_play === false) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-center">
+        <p className="text-lg font-semibold text-white">该视频需要转码播放</p>
+        <p className="max-w-md text-sm text-surface-400">「播放时自动转码」已关闭，请到媒体详情页手动提交转码后再播放。</p>
+        <button onClick={handleBack} className="btn-ghost rounded-lg px-4 py-2 text-sm text-white/80 hover:bg-white/10">返回</button>
+      </div>
+    )
+  }
+
   return (
     <div className="relative flex h-screen w-screen overflow-hidden bg-black">
       <div className="relative min-w-0 flex-1">
