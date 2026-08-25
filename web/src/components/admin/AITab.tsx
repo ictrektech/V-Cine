@@ -4,8 +4,8 @@ import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import { Modal } from '@/components/ui/modal'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useTranslation } from '@/i18n'
+import { extractErrMsg } from '@/utils/error'
 import type { AIStatus, AIErrorLog, AICacheStats, AITestResult } from '@/types'
 import {
   Sparkles,
@@ -32,7 +32,6 @@ import {
   Wifi,
   WifiOff,
   Rocket,
-  Film,
   Plus,
   Pencil,
 } from 'lucide-react'
@@ -62,6 +61,7 @@ export default function AITab() {
   const [status, setStatus] = useState<AIStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingFeatures, setSavingFeatures] = useState(false)
 
   // 配置编辑
   const [editEnabled, setEditEnabled] = useState(false)
@@ -70,15 +70,10 @@ export default function AITab() {
   const [editSmartSearch, setEditSmartSearch] = useState(true)
   const [editRecommendReason, setEditRecommendReason] = useState(true)
   const [editMetadataEnhance, setEditMetadataEnhance] = useState(true)
-  const [editDescribeEnabled, setEditDescribeEnabled] = useState(false)
   const [editMonthlyBudget, setEditMonthlyBudget] = useState(0)
   const [editCacheTTL, setEditCacheTTL] = useState(168)
   const [editMaxConcurrent, setEditMaxConcurrent] = useState(3)
   const [editRequestInterval, setEditRequestInterval] = useState(200)
-
-  const [editDescribeProviderID, setEditDescribeProviderID] = useState('')
-  const [editDescribeModel, setEditDescribeModel] = useState('')
-  const [showDescribe, setShowDescribe] = useState(false)
 
   // 数据脱敏
   const [editDesensitize, setEditDesensitize] = useState(false)
@@ -138,10 +133,6 @@ export default function AITab() {
       setEditSmartSearch(s.enable_smart_search)
       setEditRecommendReason(s.enable_recommend_reason)
       setEditMetadataEnhance(s.enable_metadata_enhance)
-      setEditDescribeEnabled(s.describe_enabled ?? false)
-      const sc = s.scene_describe_ai || { provider_id: '', model: '' }
-      setEditDescribeProviderID(sc.provider_id || '')
-      setEditDescribeModel(sc.model || '')
       setEditMonthlyBudget(s.monthly_budget)
       setEditCacheTTL(s.cache_ttl_hours || 168)
       setEditMaxConcurrent(s.max_concurrent || 3)
@@ -315,6 +306,24 @@ export default function AITab() {
       toast.error('保存失败')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSaveFeatures = async () => {
+    setSavingFeatures(true)
+    try {
+      await aiApi.updateConfig({
+        enabled: editEnabled,
+        enable_smart_search: editSmartSearch,
+        enable_recommend_reason: editRecommendReason,
+        enable_metadata_enhance: editMetadataEnhance,
+      })
+      toast.success('AI 功能已保存')
+      await fetchStatus()
+    } catch (e) {
+      toast.error(extractErrMsg(e) || '保存 AI 功能失败')
+    } finally {
+      setSavingFeatures(false)
     }
   }
 
@@ -620,14 +629,6 @@ export default function AITab() {
                 value: editMetadataEnhance,
                 setter: setEditMetadataEnhance,
               },
-              {
-                key: 'describe',
-                label: '场景描述',
-                desc: '视频场景检测后自动生成文字描述',
-                icon: Film,
-                value: editDescribeEnabled,
-                setter: setEditDescribeEnabled,
-              },
             ].map((item) => {
               const Icon = item.icon
               return (
@@ -657,75 +658,12 @@ export default function AITab() {
             })}
           </div>
 
-          {/* 场景描述视觉模型配置（仅在启用场景描述时显示） */}
-          {editDescribeEnabled && (
-            <div className="rounded-lg border p-3" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
-              <button
-                onClick={() => setShowDescribe(!showDescribe)}
-                className="flex w-full items-center justify-between text-sm font-medium text-theme-secondary transition-colors"
-              >
-                <span className="flex items-center gap-2">
-                  <Film size={14} className="text-violet-400/60" />
-                  视觉模型配置
-                </span>
-                {showDescribe ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-              <p className="mt-1 text-xs text-theme-muted">
-                从供应商的视觉模型中选择，用于场景描述。
-              </p>
-
-              {showDescribe && (
-                <div className="mt-3">
-                  <label className="mb-1 block text-xs font-medium text-theme-secondary">
-                    视觉模型
-                  </label>
-                  {(() => {
-                    const visionModels = providers.flatMap(p =>
-                      p.models.filter(m => m.is_vision).map(m => ({ ...m, providerID: p.id, providerName: p.name }))
-                    )
-                    if (visionModels.length === 0) {
-                      return <p className="text-xs text-theme-muted py-2">当前未配置视觉模型，请在供应商设置中添加并标记为「视觉」。</p>
-                    }
-                    const currentValue = editDescribeProviderID && editDescribeModel ? `${editDescribeProviderID}::${editDescribeModel}` : ''
-                    return (
-                      <div className="space-y-2">
-                        <Select value={currentValue} onValueChange={(val) => {
-                          if (val) {
-                            const [pid, ...rest] = val.split('::')
-                            setEditDescribeProviderID(pid)
-                            setEditDescribeModel(rest.join('::'))
-                          }
-                        }}>
-                          <SelectTrigger className="w-full text-sm">
-                            <SelectValue placeholder="请选择视觉模型" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {visionModels.map((m, idx) => (
-                              <SelectItem key={idx} value={`${m.providerID}::${m.name}`}>
-                                {m.name} ({m.providerName})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await aiApi.updateConfig({ scene_describe_ai: { provider_id: editDescribeProviderID, model: editDescribeModel } })
-                              toast.success('视觉模型已保存')
-                            } catch { toast.error('保存失败') }
-                          }}
-                          disabled={!editDescribeModel}
-                          className="btn-primary gap-1.5 px-4 py-1.5 text-xs disabled:opacity-50"
-                        >
-                          <Check size={12} /> 保存视觉模型配置
-                        </button>
-                      </div>
-                    )
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
+          <div className="flex items-center justify-end gap-2 border-t pt-4" style={{ borderColor: 'var(--border-subtle)' }}>
+            <button onClick={handleSaveFeatures} disabled={savingFeatures} className="btn-primary gap-1.5 px-4 py-1.5 text-xs disabled:opacity-50">
+              {savingFeatures ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check size={14} />}
+              保存 AI 功能
+            </button>
+          </div>
         </div>
       </section>
 
