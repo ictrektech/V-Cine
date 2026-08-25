@@ -486,9 +486,6 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// 延迟注入：StreamService 需要 PreprocessService（用于自动选择预处理内容）
 	svcs.Stream.SetPreprocessService(preprocessService)
 
-	// 延迟注入：StreamService 需要 SystemSettingRepo（用于读取播放偏好设置）
-	svcs.Stream.SetSettingRepo(repos.SystemSetting)
-
 	// 延迟注入：PreprocessService 需要 SystemSettingRepo（用于读取 ABR 策略等配置）
 	preprocessService.SetSettingRepo(repos.SystemSetting)
 

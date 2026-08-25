@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { Check, X, Loader2, Zap, FolderCog, HardDrive, Link, MonitorPlay, Scan, Play, Save, ChevronDown, ChevronUp } from 'lucide-react'
+import { Check, X, Loader2, Zap, Scan, Play, Save, ChevronDown, ChevronUp } from 'lucide-react'
 import { adminApi } from '@/api'
 import type { SystemSettings } from '@/types'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { ToggleButton } from '@/components/admin/ToggleButton'
 
 // ==================== 播放与转码 Drawer ====================
-// 系统全局播放/转码/缓存设置。核心项（GPU/直连/直接播放）默认展示，
-// 低频项（回退/路径/自动预处理/自动转码）折叠为「高级设置」。
+// 系统全局播放/转码/缓存设置。核心项（GPU 加速转码）默认展示，
+// 低频项（回退/自动预处理/自动转码）折叠为「高级设置」。
 
 type Props = {
   open: boolean
@@ -39,7 +39,7 @@ export default function PlaybackDrawer({ open, onOpenChange, sysSettings, setSys
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent title="播放与转码" description="播放、转码与缓存的行为设置（系统全局，对所有媒体库生效）">
+      <DrawerContent title="播放与转码" description="播放与转码的行为设置（系统全局，对所有媒体库生效）">
         <div className="space-y-6">
           {/* 提示 */}
           <div className="rounded-lg p-3 text-xs" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)', color: 'var(--text-tertiary)' }}>
@@ -56,30 +56,6 @@ export default function PlaybackDrawer({ open, onOpenChange, sysSettings, setSys
               <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>启用 GPU 硬件加速转码，显著提升转码速度。</p>
             </div>
             <ToggleButton checked={sysSettings.enable_gpu_transcode} onChange={S('enable_gpu_transcode')} />
-          </div>
-
-          {/* 核心：网盘优先直连播放 */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Link size={16} style={{ color: '#F59E0B' }} />
-                <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>网盘优先直连播放</h4>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>播放网盘文件时优先使用直链进行在线播放。</p>
-            </div>
-            <ToggleButton checked={sysSettings.enable_direct_link} onChange={S('enable_direct_link')} />
-          </div>
-
-          {/* 核心：优先直接播放 */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <MonitorPlay size={16} style={{ color: '#8B5CF6' }} />
-                <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>优先直接播放</h4>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>开启后播放器默认使用原始格式直接播放，不自动触发转码。关闭后将根据文件格式自动选择直接播放或 HLS 转码。</p>
-            </div>
-            <ToggleButton checked={sysSettings.prefer_direct_play} onChange={S('prefer_direct_play')} />
           </div>
 
           {/* ===== 高级设置（折叠）===== */}
@@ -105,26 +81,6 @@ export default function PlaybackDrawer({ open, onOpenChange, sysSettings, setSys
                   <ToggleButton checked={sysSettings.gpu_fallback_cpu} onChange={S('gpu_fallback_cpu')} />
                 </div>
               )}
-
-              {/* 元数据存储路径 */}
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <FolderCog size={16} style={{ color: '#F59E0B' }} />
-                  <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>媒体元数据存储位置</h4>
-                </div>
-                <p className="mt-1 mb-2.5 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>自定义媒体元数据的保存路径，留空使用默认。</p>
-                <input type="text" value={sysSettings.metadata_store_path} onChange={(e) => setSysSettings((s) => ({ ...s, metadata_store_path: e.target.value }))} className="input w-full" placeholder="留空使用默认路径" />
-              </div>
-
-              {/* 播放缓存目录 */}
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <HardDrive size={16} style={{ color: '#10B981' }} />
-                  <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>播放缓存目录</h4>
-                </div>
-                <p className="mt-1 mb-2.5 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>自定义转码缓存目录，留空使用默认。</p>
-                <input type="text" value={sysSettings.play_cache_path} onChange={(e) => setSysSettings((s) => ({ ...s, play_cache_path: e.target.value }))} className="input w-full" placeholder="留空使用默认路径" />
-              </div>
 
               {/* 扫描后自动预处理 */}
               <div className="flex items-start justify-between gap-4">

@@ -543,7 +543,6 @@ export interface MediaPlayInfo {
   thumbnail_url?: string // 预处理封面缩略图
   sprite_url?: string // 进度条雪碧图地址（预处理完成后可用）
   sprite_vtt_url?: string // 进度条雪碧图 WebVTT 索引地址
-  prefer_direct_play?: boolean // 系统设置：优先直接播放
   can_remux?: boolean // 是否支持 remux（容器不兼容但编码兼容）
   remux_url?: string // Remux 播放地址（零转码，仅转封装）
 }
@@ -753,12 +752,8 @@ export interface TMDbImageInfo {
 export interface SystemSettings {
   enable_gpu_transcode: boolean
   gpu_fallback_cpu: boolean
-  metadata_store_path: string
-  play_cache_path: string
-  enable_direct_link: boolean
   auto_preprocess_on_scan: boolean   // 扫描后自动触发预处理
   auto_transcode_on_play: boolean    // 播放时自动触发转码
-  prefer_direct_play: boolean        // 优先直接播放（禁用自动转码）
 }
 
 // ==================== 豆瓣数据源 ====================

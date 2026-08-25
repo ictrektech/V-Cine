@@ -152,14 +152,10 @@ func (h *AdminHandler) GetContentRating(c *gin.Context) {
 
 // 系统设置键名常量
 const (
-	SettingGPUTranscode     = "enable_gpu_transcode"
-	SettingGPUFallbackCPU   = "gpu_fallback_cpu"
-	SettingMetadataPath     = "metadata_store_path"
-	SettingPlayCachePath    = "play_cache_path"
-	SettingDirectLink       = "enable_direct_link"
-	SettingAutoPreprocess   = "auto_preprocess_on_scan" // 扫描后自动触发预处理
-	SettingAutoTranscode    = "auto_transcode_on_play"  // 播放时自动触发转码
-	SettingPreferDirectPlay = "prefer_direct_play"      // 优先直接播放（禁用自动转码）
+	SettingGPUTranscode   = "enable_gpu_transcode"
+	SettingGPUFallbackCPU = "gpu_fallback_cpu"
+	SettingAutoPreprocess = "auto_preprocess_on_scan" // 扫描后自动触发预处理
+	SettingAutoTranscode  = "auto_transcode_on_play"  // 播放时自动触发转码
 )
 
 // GetSystemSettings 获取系统全局设置
@@ -172,14 +168,10 @@ func (h *AdminHandler) GetSystemSettings(c *gin.Context) {
 
 	// 返回带默认值的设置
 	settings := gin.H{
-		SettingGPUTranscode:     getBoolSetting(all, SettingGPUTranscode, true),
-		SettingGPUFallbackCPU:   getBoolSetting(all, SettingGPUFallbackCPU, true),
-		SettingMetadataPath:     getStrSetting(all, SettingMetadataPath, ""),
-		SettingPlayCachePath:    getStrSetting(all, SettingPlayCachePath, ""),
-		SettingDirectLink:       getBoolSetting(all, SettingDirectLink, false),
-		SettingAutoPreprocess:   getBoolSetting(all, SettingAutoPreprocess, false),  // 默认关闭：扫描后不自动预处理
-		SettingAutoTranscode:    getBoolSetting(all, SettingAutoTranscode, false),   // 默认关闭：播放时不自动转码
-		SettingPreferDirectPlay: getBoolSetting(all, SettingPreferDirectPlay, true), // 默认开启：优先直接播放
+		SettingGPUTranscode:   getBoolSetting(all, SettingGPUTranscode, true),
+		SettingGPUFallbackCPU: getBoolSetting(all, SettingGPUFallbackCPU, true),
+		SettingAutoPreprocess: getBoolSetting(all, SettingAutoPreprocess, false), // 默认关闭：扫描后不自动预处理
+		SettingAutoTranscode:  getBoolSetting(all, SettingAutoTranscode, false),  // 默认关闭：播放时不自动转码
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": settings})
@@ -187,14 +179,10 @@ func (h *AdminHandler) GetSystemSettings(c *gin.Context) {
 
 // UpdateSystemSettingsRequest 更新系统设置请求
 type UpdateSystemSettingsRequest struct {
-	EnableGPUTranscode *bool   `json:"enable_gpu_transcode"`
-	GPUFallbackCPU     *bool   `json:"gpu_fallback_cpu"`
-	MetadataStorePath  *string `json:"metadata_store_path"`
-	PlayCachePath      *string `json:"play_cache_path"`
-	EnableDirectLink   *bool   `json:"enable_direct_link"`
-	AutoPreprocess     *bool   `json:"auto_preprocess_on_scan"`
-	AutoTranscode      *bool   `json:"auto_transcode_on_play"`
-	PreferDirectPlay   *bool   `json:"prefer_direct_play"`
+	EnableGPUTranscode *bool `json:"enable_gpu_transcode"`
+	GPUFallbackCPU     *bool `json:"gpu_fallback_cpu"`
+	AutoPreprocess     *bool `json:"auto_preprocess_on_scan"`
+	AutoTranscode      *bool `json:"auto_transcode_on_play"`
 }
 
 // UpdateSystemSettings 更新系统全局设置
@@ -212,23 +200,11 @@ func (h *AdminHandler) UpdateSystemSettings(c *gin.Context) {
 	if req.GPUFallbackCPU != nil {
 		kvs[SettingGPUFallbackCPU] = boolToStr(*req.GPUFallbackCPU)
 	}
-	if req.MetadataStorePath != nil {
-		kvs[SettingMetadataPath] = *req.MetadataStorePath
-	}
-	if req.PlayCachePath != nil {
-		kvs[SettingPlayCachePath] = *req.PlayCachePath
-	}
-	if req.EnableDirectLink != nil {
-		kvs[SettingDirectLink] = boolToStr(*req.EnableDirectLink)
-	}
 	if req.AutoPreprocess != nil {
 		kvs[SettingAutoPreprocess] = boolToStr(*req.AutoPreprocess)
 	}
 	if req.AutoTranscode != nil {
 		kvs[SettingAutoTranscode] = boolToStr(*req.AutoTranscode)
-	}
-	if req.PreferDirectPlay != nil {
-		kvs[SettingPreferDirectPlay] = boolToStr(*req.PreferDirectPlay)
 	}
 
 	if len(kvs) == 0 {
@@ -255,14 +231,6 @@ func getBoolSetting(m map[string]string, key string, defaultVal bool) bool {
 		return defaultVal
 	}
 	return v == "true" || v == "1"
-}
-
-func getStrSetting(m map[string]string, key string, defaultVal string) string {
-	v, ok := m[key]
-	if !ok {
-		return defaultVal
-	}
-	return v
 }
 
 func boolToStr(b bool) string {
