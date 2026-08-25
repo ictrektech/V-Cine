@@ -8,18 +8,20 @@ import (
 	"sync"
 
 	"github.com/nowen-video/nowen-video/internal/config"
+	"github.com/nowen-video/nowen-video/internal/repository"
 	"go.uber.org/zap"
 )
 
 // ABRService 自适应码率（Adaptive Bitrate）服务
 // 引入 ABR 技术，支持 GPU 加速的多路并行转码
 type ABRService struct {
-	cfg      *config.Config
-	logger   *zap.SugaredLogger
-	mu       sync.RWMutex
-	wsHub    *WSHub
-	cacheDir string
-	hwAccel  string
+	cfg         *config.Config
+	logger      *zap.SugaredLogger
+	mu          sync.RWMutex
+	wsHub       *WSHub
+	cacheDir    string
+	hwAccel     string
+	settingRepo *repository.SystemSettingRepo
 }
 
 // ABRProfile ABR 配置文件
@@ -80,6 +82,15 @@ func (s *ABRService) SetWSHub(hub *WSHub) {
 	s.wsHub = hub
 }
 
+// SetSettingRepo 注入系统设置仓储，用于读取 enable_gpu_transcode。
+func (s *ABRService) SetSettingRepo(repo *repository.SystemSettingRepo) {
+	s.settingRepo = repo
+}
+
+func (s *ABRService) getEffectiveHWAccel() string {
+	return effectiveHWAccel(s.hwAccel, s.settingRepo)
+}
+
 // CleanABRCache 清理 ABR 缓存
 func (s *ABRService) CleanABRCache(mediaID string) error {
 	cacheDir := filepath.Join(s.cacheDir, mediaID)
@@ -136,14 +147,15 @@ func parseBitrate(s string) int {
 
 // GetGPUInfo 获取 GPU 信息
 func (s *ABRService) GetGPUInfo() *GPUInfo {
+	hwAccel := s.getEffectiveHWAccel()
 	info := &GPUInfo{
-		Type: s.hwAccel,
+		Type: hwAccel,
 	}
-	if s.hwAccel == "none" {
+	if hwAccel == "none" {
 		return info
 	}
 	info.Available = true
-	switch s.hwAccel {
+	switch hwAccel {
 	case "nvenc":
 		info.Name = "NVIDIA GPU"
 		info.Encoders = []string{"h264_nvenc", "hevc_nvenc"}

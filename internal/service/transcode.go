@@ -59,15 +59,16 @@ type QualityConfig struct {
 
 // TranscodeService 转码服务
 type TranscodeService struct {
-	repo      *repository.TranscodeRepo
-	cfg       *config.Config
-	logger    *zap.SugaredLogger
-	jobs      chan *TranscodeJob
-	mu        sync.RWMutex
-	running   map[string]*TranscodeJob
-	hwAccel   string    // 检测到的硬件加速方式
-	hwAccelMu sync.Once // 硬件加速检测只执行一次
-	wsHub     *WSHub    // WebSocket事件广播
+	repo        *repository.TranscodeRepo
+	cfg         *config.Config
+	logger      *zap.SugaredLogger
+	settingRepo *repository.SystemSettingRepo // 系统设置（enable_gpu_transcode）
+	jobs        chan *TranscodeJob
+	mu          sync.RWMutex
+	running     map[string]*TranscodeJob
+	hwAccel     string    // 检测到的硬件加速方式
+	hwAccelMu   sync.Once // 硬件加速检测只执行一次
+	wsHub       *WSHub    // WebSocket事件广播
 
 	// ==================== 节流统计（供 admin 观测）====================
 	// 累积挂起时长（秒），atomic 读写
@@ -219,6 +220,26 @@ func (s *TranscodeService) detectHWAccel() string {
 	return ffmpeg.DetectHWAccel(s.cfg, s.logger)
 }
 
+// SetSettingRepo 注入系统设置仓储，用于读取 enable_gpu_transcode。
+func (s *TranscodeService) SetSettingRepo(repo *repository.SystemSettingRepo) {
+	s.settingRepo = repo
+}
+
+// effectiveHWAccel 返回当前实际生效的硬件加速方式：
+// 系统设置关闭 GPU 加速时强制软件编码，否则使用启动时检测到的硬件加速。
+func effectiveHWAccel(detected string, repo *repository.SystemSettingRepo) string {
+	if repo != nil {
+		if val, err := repo.Get("enable_gpu_transcode"); err == nil && (val == "false" || val == "0") {
+			return ffmpeg.HWAccelNone
+		}
+	}
+	return detected
+}
+
+func (s *TranscodeService) getEffectiveHWAccel() string {
+	return effectiveHWAccel(s.hwAccel, s.settingRepo)
+}
+
 // buildFFmpegArgs 根据硬件加速模式构建FFmpeg参数
 // media 参数用于 HDR 检测：HEVC/VP9/AV1 源视频会自动追加 tonemap 滤镜，避免 SDR 设备播放偏灰
 // startOffset>0 时启用 -ss input seeking，实现 seek 后快速续转（Emby 秒开关键）
@@ -231,10 +252,11 @@ func (s *TranscodeService) buildFFmpegArgs(media *model.Media, inputPath, output
 	if !ok {
 		qc = qualityPresets["720p"]
 	}
+	hwAccel := s.getEffectiveHWAccel()
 
 	// 只有软件编码分支需要 HDR tonemap 滤镜；硬件加速分支保持默认 scale_xxx。
 	var videoFilter string
-	if s.hwAccel == ffmpeg.HWAccelNone || s.hwAccel == "" {
+	if hwAccel == ffmpeg.HWAccelNone || hwAccel == "" {
 		videoFilter = s.buildFFmpegHDRTonemapFilter(media, qc.Width, qc.Height)
 	}
 
@@ -246,14 +268,14 @@ func (s *TranscodeService) buildFFmpegArgs(media *model.Media, inputPath, output
 
 	// QSV 场景在 transcode 中使用 CQP 质量模式（不锁码率），与 preprocess 码率模式不同
 	qsvGlobalQuality := 0
-	if s.hwAccel == ffmpeg.HWAccelQSV {
+	if hwAccel == ffmpeg.HWAccelQSV {
 		qsvGlobalQuality = 23
 	}
 
 	return ffmpeg.BuildHLSArgs(ffmpeg.BuildOptions{
 		InputPath:             inputPath,
 		OutputDir:             outputDir,
-		HWAccel:               s.hwAccel,
+		HWAccel:               hwAccel,
 		InputCodec:            media.VideoCodec,
 		Profile:               ffmpeg.Profile{Width: qc.Width, Height: qc.Height, VideoBitrate: qc.VideoBitrate, AudioBitrate: qc.AudioBitrate},
 		VAAPIDevice:           s.cfg.App.VAAPIDevice,
@@ -528,7 +550,7 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 		s.logger.Warnf("转码失败(hwAccel=%s): %s, 错误: %v，尝试回退到软件编码", s.hwAccel, job.Media.Title, waitErr)
 
 		// 硬件加速失败时自动回退到软件编码（仅非 software 模式时回退）
-		if s.hwAccel != "none" {
+		if s.getEffectiveHWAccel() != "none" {
 			// 清理已生成的分片文件，保留目录以便重试
 			entries, _ := os.ReadDir(job.Task.OutputDir)
 			for _, e := range entries {
@@ -835,9 +857,9 @@ func (s *TranscodeService) GetRunningJobs() []*TranscodeJob {
 	return jobs
 }
 
-// GetHWAccelInfo 获取硬件加速信息
+// GetHWAccelInfo 获取当前实际生效的硬件加速信息
 func (s *TranscodeService) GetHWAccelInfo() string {
-	return s.hwAccel
+	return s.getEffectiveHWAccel()
 }
 
 // GetAvailableQualities 根据原始视频分辨率动态计算可用的转码质量等级
@@ -1002,7 +1024,7 @@ func (s *TranscodeService) GetStatistics() TranscodeStatistics {
 		RunningCount:   running,
 		ActiveWorkers:  running, // 内存中的 running map 即活跃 worker
 		MaxWorkers:     maxW,
-		HWAccel:        s.hwAccel,
+		HWAccel:        s.getEffectiveHWAccel(),
 		DiskUsageBytes: s.GetCacheDiskUsage(),
 		DiskUsageDir:   dir,
 	}

@@ -97,6 +97,10 @@ func (s *PreprocessService) SetSettingRepo(repo *repository.SystemSettingRepo) {
 	s.settingRepo = repo
 }
 
+func (s *PreprocessService) getEffectiveHWAccel() string {
+	return effectiveHWAccel(s.hwAccel, s.settingRepo)
+}
+
 // NewPreprocessService 创建预处理服务
 func NewPreprocessService(
 	cfg *config.Config,
@@ -907,7 +911,7 @@ func (s *PreprocessService) GetStatistics() map[string]interface{} {
 		"max_workers":    atomic.LoadInt32(&s.maxWorkers),
 		"active_workers": atomic.LoadInt32(&s.workerCount),
 		"queue_size":     len(s.jobQueue),
-		"hw_accel":       s.hwAccel,
+		"hw_accel":       s.getEffectiveHWAccel(),
 		"mode":           "single-task", // 单任务串行模式
 	}
 }
@@ -2263,9 +2267,9 @@ func (s *PreprocessService) transcodeWithFallback(
 	httpInputArgs := BuildFFmpegInputArgs(task.InputPath)
 
 	// GPU 安全保护：检查是否需要降级为 CPU 编码
-	actualHWAccel := s.hwAccel
-	if s.gpuMonitor != nil && s.hwAccel != "none" {
-		useGPU, accel := s.gpuMonitor.ShouldUseGPU(s.hwAccel)
+	actualHWAccel := s.getEffectiveHWAccel()
+	if s.gpuMonitor != nil && actualHWAccel != "none" {
+		useGPU, accel := s.gpuMonitor.ShouldUseGPU(actualHWAccel)
 		if !useGPU {
 			actualHWAccel = accel // 降级为 "none"（CPU 编码）
 			s.logger.Warnf("GPU 安全保护: 任务 %s 降级为 CPU 编码", task.MediaTitle)
@@ -2667,7 +2671,7 @@ func (s *PreprocessService) GetSystemLoad() map[string]interface{} {
 		"max_workers":    atomic.LoadInt32(&s.maxWorkers),
 		"cur_workers":    atomic.LoadInt32(&s.curWorkers),
 		"queue_size":     len(s.jobQueue),
-		"hw_accel":       s.hwAccel,
+		"hw_accel":       s.getEffectiveHWAccel(),
 	}
 
 	// 添加 GPU 实时指标

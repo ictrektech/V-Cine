@@ -102,6 +102,7 @@ type Services struct {
 
 func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap.SugaredLogger) *Services {
 	transcoder := NewTranscodeService(repos.Transcode, cfg, logger)
+	transcoder.SetSettingRepo(repos.SystemSetting)
 	scanner := NewScannerService(repos.Media, repos.Series, cfg, logger)
 	metadata := NewMetadataService(repos.Media, repos.Series, repos.Person, repos.MediaPerson, cfg, logger)
 
@@ -246,6 +247,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// 使用 TranscodeService 检测后的实际硬件加速模式（而非配置中的 "auto"）
 	detectedHWAccel := transcoder.GetHWAccelInfo()
 	abrService := NewABRService(cfg, detectedHWAccel, logger)
+	abrService.SetSettingRepo(repos.SystemSetting)
 	abrService.SetWSHub(wsHub)
 
 	// 创建 GPU 安全监控服务
