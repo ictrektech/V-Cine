@@ -95,9 +95,11 @@ video_analysis:
   enabled: false
   scene_base_url: http://localhost:8910
   structure_base_url: http://localhost:8911
-  path_mappings:
-    - source: /media
-      target: /photos
+  # path_mappings 可选：不配置时按原路径透传（Nowen 与分析服务路径一致时无需配置）。
+  # 仅当两边看到的视频路径不同时才需要配置，例如 Nowen 看到 /media，分析服务看到 /photos。
+  # path_mappings:
+  #   - source: /media
+  #     target: /photos
   # Nowen 自己的结构化产物数据目录（staging 搬移后的持久位置，与 staging 同文件系统）
   asset_dir: /data/nowen-video-structure
   max_concurrent: 2
