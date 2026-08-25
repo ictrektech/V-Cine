@@ -4,6 +4,8 @@ import { useSearchParams } from 'react-router-dom'
 import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
 import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/videoAnalysis'
 import { aiApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
+import { extractErrMsg } from '@/utils/error'
+import { withBasePath } from '@/lib/basePath'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
@@ -415,7 +417,52 @@ export default function FileManagerPage() {
     }
   }, [dialog, showVideoAnalysisBatchIssues, toast])
 
+  const checkVideoAnalysisHealth = useCallback(async (includeDescriptions: boolean): Promise<string | null> => {
+    try {
+      const h = (await videoAnalysisApi.getHealth()).data.data
+      if (!h.available) {
+        return videoAnalysisDisabledReason || '视频分析服务当前不可用，请检查 Scene / Structure 配置'
+      }
+      if (!h.scene || h.scene.status !== 'ok') {
+        return `Scene 检测服务不可用${h.scene_base_url ? `（${h.scene_base_url}）` : ''}，请检查服务地址或确认服务已启动`
+      }
+      if (!h.structure || h.structure.status !== 'ok') {
+        return `Structure 结构化服务不可用${h.structure_base_url ? `（${h.structure_base_url}）` : ''}，请检查服务地址或确认服务已启动`
+      }
+      if (includeDescriptions) {
+        if (!h.describe_enabled) {
+          return '场景描述未开启，请到「视频分析」设置中开启'
+        }
+        try {
+          const sc = (await aiApi.getStatus()).data.data.scene_describe_ai
+          if (!sc?.provider_id || !sc?.model) {
+            return '未配置场景描述模型，请到 AI 服务中选择视觉模型'
+          }
+        } catch {
+          return '无法读取 AI 模型配置，请稍后重试'
+        }
+      }
+      return null
+    } catch (e) {
+      return extractErrMsg(e) || '无法获取视频分析健康状态'
+    }
+  }, [videoAnalysisDisabledReason])
+
+  const showHealthWarning = useCallback(async (message?: string) => {
+    if (await dialog.confirm({
+      title: '视频分析服务不可用',
+      message: message || '视频分析服务状态异常，无法提交任务',
+      confirmText: '前往设置',
+      variant: 'warning',
+    })) window.location.href = withBasePath('/admin')
+  }, [dialog])
+
   const submitBatchAnalyze = useCallback(async (force = false, includeDescriptions = false) => {
+    const message = await checkVideoAnalysisHealth(includeDescriptions)
+    if (message) {
+      await showHealthWarning(message)
+      return
+    }
     try {
       const res = await videoAnalysisApi.batchSubmit({ media_ids: Array.from(selectedIds), force, include_descriptions: includeDescriptions })
       const result = res.data.data
@@ -439,7 +486,7 @@ export default function FileManagerPage() {
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '批量视频分析提交失败')
     }
-  }, [selectedIds, showVideoAnalysisResultToast, searchParams, setSearchParams, toast])
+  }, [checkVideoAnalysisHealth, selectedIds, showHealthWarning, showVideoAnalysisResultToast, searchParams, setSearchParams, toast])
 
   const handleBatchAnalyze = useCallback(async () => {
     if (selectedIds.size === 0) return
@@ -453,6 +500,11 @@ export default function FileManagerPage() {
   const handleAnalyzeFile = useCallback(async (media: Media, force = false, includeDescriptions = false) => {
     if (!videoAnalysisEnabled) {
       toast.warning(videoAnalysisDisabledReason || '视频分析服务未启用或配置无效')
+      return
+    }
+    const message = await checkVideoAnalysisHealth(includeDescriptions)
+    if (message) {
+      await showHealthWarning(message)
       return
     }
     if (force) {
@@ -476,7 +528,7 @@ export default function FileManagerPage() {
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '视频分析提交失败')
     }
-  }, [dialog, searchParams, setSearchParams, toast, videoAnalysisDisabledReason, videoAnalysisEnabled])
+  }, [checkVideoAnalysisHealth, dialog, searchParams, setSearchParams, showHealthWarning, toast, videoAnalysisDisabledReason, videoAnalysisEnabled])
 
   const handleRetryAnalysisTask = useCallback(async (taskId: string) => {
     try {
