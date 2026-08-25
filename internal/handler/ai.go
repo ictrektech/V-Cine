@@ -137,8 +137,9 @@ func (h *AIHandler) TestSmartSearch(c *gin.Context) {
 // 接受可选的 provider 预设与 api_key，会在一次调用中：
 //  1. 强制开启 ai.enabled / ai.auto_pilot
 //  2. 强制启用三个子功能开关（智能搜索、推荐理由、元数据增强）
-//  3. 拒绝本地 AI（block_local_ai=true）
-//  4. 按预设 provider 自动填好 api_base / model（用户只需提供 api_key）
+//  3. 按预设 provider 自动填好 api_base / model（用户只需提供 api_key）
+//
+// 不再强制 block_local_ai：允许本地模型参与托管模式，由用户自行选择。
 //
 // 请求体示例：
 //
@@ -159,7 +160,6 @@ func (h *AIHandler) EnableAutoPilot(c *gin.Context) {
 	updates := map[string]interface{}{
 		"enabled":                 true,
 		"auto_pilot":              true,
-		"block_local_ai":          true,
 		"enable_smart_search":     true,
 		"enable_recommend_reason": true,
 		"enable_metadata_enhance": true,

@@ -863,8 +863,8 @@ func setDefaults() {
 	viper.SetDefault("ai.enabled", false)
 	// AutoPilot 默认关闭：保留老用户行为不变；新用户在 UI 一键开启即可
 	viper.SetDefault("ai.auto_pilot", false)
-	// 默认禁止本地 AI（ollama）：强制使用云端 LLM 服务商
-	viper.SetDefault("ai.block_local_ai", true)
+	// 默认允许本地 AI（ollama 等），由用户自行选择；需要强制云端时再设置 block_local_ai: true
+	viper.SetDefault("ai.block_local_ai", false)
 	viper.SetDefault("ai.provider", "deepseek")
 	viper.SetDefault("ai.timeout", 30)
 	viper.SetDefault("ai.enable_smart_search", true)

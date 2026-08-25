@@ -111,6 +111,8 @@ export default function AITab() {
 
   // AutoPilot 切换繁忙态
   const [autoPilotBusy, setAutoPilotBusy] = useState(false)
+  const [showAutoPilotWarning, setShowAutoPilotWarning] = useState(false)
+  const [autoPilotCountdown, setAutoPilotCountdown] = useState(3)
 
   // 功能测试
   const [testingSearch, setTestingSearch] = useState(false)
@@ -184,6 +186,12 @@ export default function AITab() {
     }
     load()
   }, [fetchStatus, fetchCacheStats, fetchErrorLogs])
+
+  useEffect(() => {
+    if (!showAutoPilotWarning || autoPilotCountdown <= 0) return
+    const timer = setTimeout(() => setAutoPilotCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [showAutoPilotWarning, autoPilotCountdown])
 
   // ==================== 供应商列表操作 ====================
   const openAddProvider = () => {
@@ -344,8 +352,7 @@ export default function AITab() {
   }
 
   // ==================== AutoPilot 切换 ====================
-  const handleToggleAutoPilot = async (enable: boolean) => {
-    if (autoPilotBusy) return
+  const performToggleAutoPilot = async (enable: boolean) => {
     setAutoPilotBusy(true)
     try {
       if (enable) {
@@ -364,6 +371,27 @@ export default function AITab() {
     } finally {
       setAutoPilotBusy(false)
     }
+  }
+
+  const handleToggleAutoPilot = async (enable: boolean) => {
+    if (autoPilotBusy) return
+    if (enable) {
+      setShowAutoPilotWarning(true)
+      setAutoPilotCountdown(3)
+      return
+    }
+    await performToggleAutoPilot(false)
+  }
+
+  const confirmEnableAutoPilot = async () => {
+    setShowAutoPilotWarning(false)
+    setAutoPilotCountdown(3)
+    await performToggleAutoPilot(true)
+  }
+
+  const cancelAutoPilotWarning = () => {
+    setShowAutoPilotWarning(false)
+    setAutoPilotCountdown(3)
   }
 
   // ==================== 缓存管理 ====================
@@ -533,7 +561,7 @@ export default function AITab() {
                 </p>
                 <p className="mt-1 text-xs text-theme-muted leading-relaxed">
                   新增媒体库自动执行：<span className="text-theme-secondary">AI 识别 → 归类 → 命名 → 元数据刮削 → AI 兜底</span>，
-                  仅写数据库不改原文件，强制云端 LLM。
+                  仅写数据库不改原文件，建议使用能力较强的模型以保证自动刮削质量。
                 </p>
               </div>
             </div>
@@ -780,6 +808,26 @@ export default function AITab() {
           </button>
         </div>
       </section>
+
+      {/* ==================== 开启全自动托管模式提示 ==================== */}
+      {showAutoPilotWarning && (
+        <Modal onClose={cancelAutoPilotWarning} className="max-w-md">
+          <div className="glass-panel rounded-2xl p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
+            <h3 className="text-lg font-semibold text-theme-primary">开启全自动托管模式</h3>
+            <p className="text-sm text-theme-muted leading-relaxed">
+              全自动托管会持续调用 AI 完成识别、命名和刮削，建议使用能力较强的模型以保证自动刮削质量。
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={cancelAutoPilotWarning} className="btn-ghost px-4 py-2 rounded-lg text-sm">
+                取消
+              </button>
+              <button onClick={confirmEnableAutoPilot} disabled={autoPilotCountdown > 0} className="btn-primary gap-1.5 px-4 py-2 text-sm disabled:opacity-50">
+                {autoPilotCountdown > 0 ? `开启（${autoPilotCountdown}s）` : '开启'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* ==================== 新增/编辑供应商弹窗 ==================== */}
       {showProviderDialog && (
