@@ -23,24 +23,24 @@ import (
 // MediaPlayInfo 媒体播放信息（前端根据此信息决定播放模式）
 type MediaPlayInfo struct {
 	MediaID             string  `json:"media_id"`
-	DirectPlayURL       string  `json:"direct_play_url"`       // 直接播放地址（如果支持）
-	HlsURL              string  `json:"hls_url"`               // HLS转码播放地址
-	HlsResolution       string  `json:"hls_resolution"`        // HLS 转码输出分辨率（如 1080p）
+	DirectPlayURL       string  `json:"direct_play_url"`        // 直接播放地址（如果支持）
+	HlsURL              string  `json:"hls_url"`                // HLS转码播放地址
+	HlsResolution       string  `json:"hls_resolution"`         // HLS 转码输出分辨率（如 1080p）
 	AutoTranscodeOnPlay bool    `json:"auto_transcode_on_play"` // 系统设置：播放时是否自动触发转码
-	CanDirectPlay       bool    `json:"can_direct_play"`       // 浏览器是否可直接播放
-	FileExt          string  `json:"file_ext"`           // 文件扩展名
-	VideoCodec       string  `json:"video_codec"`        // 视频编码
-	AudioCodec       string  `json:"audio_codec"`        // 音频编码
-	Duration         float64 `json:"duration"`           // 时长（秒）
-	IsSTRM           bool    `json:"is_strm"`            // 是否为 STRM 远程流
-	IsPreprocessed   bool    `json:"is_preprocessed"`    // 是否已预处理
-	PreprocessedURL  string  `json:"preprocessed_url"`   // 预处理后的 HLS 地址
-	PreprocessStatus string  `json:"preprocess_status"`  // 预处理状态: none / pending / running / completed
-	ThumbnailURL     string  `json:"thumbnail_url"`      // 预处理封面缩略图
-	SpriteURL        string  `json:"sprite_url"`         // 进度条雪碧图地址（预处理完成后可用）
-	SpriteVTTURL     string  `json:"sprite_vtt_url"`     // 进度条雪碧图 WebVTT 索引地址
-	CanRemux         bool    `json:"can_remux"`          // 是否支持 remux（MKV等容器内编码兼容但容器不兼容）
-	RemuxURL         string  `json:"remux_url"`          // Remux 播放地址（零转码，仅转封装）
+	CanDirectPlay       bool    `json:"can_direct_play"`        // 浏览器是否可直接播放
+	FileExt             string  `json:"file_ext"`               // 文件扩展名
+	VideoCodec          string  `json:"video_codec"`            // 视频编码
+	AudioCodec          string  `json:"audio_codec"`            // 音频编码
+	Duration            float64 `json:"duration"`               // 时长（秒）
+	IsSTRM              bool    `json:"is_strm"`                // 是否为 STRM 远程流
+	IsPreprocessed      bool    `json:"is_preprocessed"`        // 是否已预处理
+	PreprocessedURL     string  `json:"preprocessed_url"`       // 预处理后的 HLS 地址
+	PreprocessStatus    string  `json:"preprocess_status"`      // 预处理状态: none / pending / running / completed
+	ThumbnailURL        string  `json:"thumbnail_url"`          // 预处理封面缩略图
+	SpriteURL           string  `json:"sprite_url"`             // 进度条雪碧图地址（预处理完成后可用）
+	SpriteVTTURL        string  `json:"sprite_vtt_url"`         // 进度条雪碧图 WebVTT 索引地址
+	CanRemux            bool    `json:"can_remux"`              // 是否支持 remux（MKV等容器内编码兼容但容器不兼容）
+	RemuxURL            string  `json:"remux_url"`              // Remux 播放地址（零转码，仅转封装）
 }
 
 // 浏览器可直接播放的文件格式

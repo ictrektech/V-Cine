@@ -24,19 +24,19 @@ func (h *Handler) SessionsHandler(c *gin.Context) {
 	// 构建当前会话信息
 	authHdr := parseEmbyAuthHeader(c.GetHeader("X-Emby-Authorization"))
 	sess := SessionInfo{
-		Id:                 newSessionID(userID, authHdr.DeviceId),
-		UserId:             h.idMap.ToEmbyID(userID),
-		UserName:           c.GetString("username"),
-		Client:             authHdr.Client,
-		DeviceName:         authHdr.Device,
-		DeviceId:           authHdr.DeviceId,
-		ApplicationVersion: authHdr.Version,
-		ServerId:           h.serverID,
-		IsActive:           true,
+		Id:                    newSessionID(userID, authHdr.DeviceId),
+		UserId:                h.idMap.ToEmbyID(userID),
+		UserName:              c.GetString("username"),
+		Client:                authHdr.Client,
+		DeviceName:            authHdr.Device,
+		DeviceId:              authHdr.DeviceId,
+		ApplicationVersion:    authHdr.Version,
+		ServerId:              h.serverID,
+		IsActive:              true,
 		SupportsRemoteControl: true,
-		PlayableMediaTypes: []string{"Video", "Audio"},
-		SupportedCommands:  []string{},
-		LastActivityDate:   formatEmbyTime(nowUTC()),
+		PlayableMediaTypes:    []string{"Video", "Audio"},
+		SupportedCommands:     []string{},
+		LastActivityDate:      formatEmbyTime(nowUTC()),
 	}
 
 	c.JSON(http.StatusOK, []SessionInfo{sess})
@@ -59,16 +59,16 @@ func (h *Handler) SessionsHandler(c *gin.Context) {
 
 // playbackReport 是所有三个上报接口共用的字段子集（用 Emby 的 PascalCase 命名）。
 type playbackReport struct {
-	ItemId           string `json:"ItemId"`
-	MediaSourceId    string `json:"MediaSourceId"`
-	PositionTicks    int64  `json:"PositionTicks"`
-	PlaybackRate     float64 `json:"PlaybackRate"`
-	IsPaused         bool   `json:"IsPaused"`
-	IsMuted          bool   `json:"IsMuted"`
-	EventName        string `json:"EventName"`
-	PlaySessionId    string `json:"PlaySessionId"`
-	VolumeLevel      int    `json:"VolumeLevel"`
-	CanSeek          bool   `json:"CanSeek"`
+	ItemId        string  `json:"ItemId"`
+	MediaSourceId string  `json:"MediaSourceId"`
+	PositionTicks int64   `json:"PositionTicks"`
+	PlaybackRate  float64 `json:"PlaybackRate"`
+	IsPaused      bool    `json:"IsPaused"`
+	IsMuted       bool    `json:"IsMuted"`
+	EventName     string  `json:"EventName"`
+	PlaySessionId string  `json:"PlaySessionId"`
+	VolumeLevel   int     `json:"VolumeLevel"`
+	CanSeek       bool    `json:"CanSeek"`
 }
 
 // PlayingStartHandler 对应 POST /Sessions/Playing。

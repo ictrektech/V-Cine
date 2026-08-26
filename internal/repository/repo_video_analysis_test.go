@@ -7,7 +7,8 @@ import (
 	"github.com/nowen-video/nowen-video/internal/model"
 	"gorm.io/gorm"
 
-	"github.com/nowen-video/nowen-video/internal/testutil")
+	"github.com/nowen-video/nowen-video/internal/testutil"
+)
 
 func setupVideoAnalysisRepo(t *testing.T) *VideoAnalysisTaskRepo {
 	t.Helper()

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
 	"github.com/mitchellh/mapstructure"
+	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
 	"gopkg.in/yaml.v3"
 )
 

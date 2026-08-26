@@ -7,7 +7,8 @@ import (
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"go.uber.org/zap"
 
-	"github.com/nowen-video/nowen-video/internal/testutil")
+	"github.com/nowen-video/nowen-video/internal/testutil"
+)
 
 func TestFileManagerDeleteCleansVideoAnalysisTasks(t *testing.T) {
 	db := testutil.NewTestDB(t)

@@ -6,7 +6,8 @@ import (
 
 	"github.com/nowen-video/nowen-video/internal/model"
 
-	"github.com/nowen-video/nowen-video/internal/testutil")
+	"github.com/nowen-video/nowen-video/internal/testutil"
+)
 
 func setupMediaRepo(t *testing.T) *MediaRepo {
 	t.Helper()

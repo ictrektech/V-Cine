@@ -169,7 +169,7 @@ func (h *AdminHandler) GetSystemSettings(c *gin.Context) {
 	settings := gin.H{
 		SettingGPUTranscode:   getBoolSetting(all, SettingGPUTranscode, true),
 		SettingAutoPreprocess: getBoolSetting(all, SettingAutoPreprocess, false), // 默认关闭：扫描后不自动预处理
-		SettingAutoTranscode:  getBoolSetting(all, SettingAutoTranscode, true),  // 默认开启：保持原有自动转码行为
+		SettingAutoTranscode:  getBoolSetting(all, SettingAutoTranscode, true),   // 默认开启：保持原有自动转码行为
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": settings})
