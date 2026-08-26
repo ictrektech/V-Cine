@@ -36,7 +36,11 @@ func NewWebDAVService(cfg *config.Config, logger *zap.SugaredLogger, vfsMgr *VFS
 func (s *WebDAVService) Initialize() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.initializeLocked()
+}
 
+// initializeLocked 执行初始化，调用方必须已持有 s.mu
+func (s *WebDAVService) initializeLocked() error {
 	webdavCfg := s.config.Storage.WebDAV
 
 	// 检查是否启用 WebDAV
@@ -167,8 +171,10 @@ func (s *WebDAVService) testConnection(webdavFS *WebDAVFS) error {
 
 // getConfigHash 生成配置哈希，用于客户端缓存
 func (s *WebDAVService) getConfigHash(cfg config.WebDAVConfig) string {
-	// 使用配置的关键字段生成哈希
-	hash := fmt.Sprintf("%s:%s:%s", cfg.ServerURL, cfg.Username, cfg.BasePath)
+	// 使用影响客户端创建的关键字段生成哈希（启用状态、凭据、基础路径、超时与缓存等）
+	hash := fmt.Sprintf("%t:%s:%s:%s:%s:%d:%t:%d:%d:%d",
+		cfg.Enabled, cfg.ServerURL, cfg.Username, cfg.Password, cfg.BasePath,
+		cfg.Timeout, cfg.EnableCache, cfg.CacheTTLHours, cfg.ReadBlockSizeMB, cfg.ReadBlockCount)
 	return hash
 }
 
@@ -190,9 +196,9 @@ func (s *WebDAVService) UpdateConfig(newCfg config.WebDAVConfig) error {
 	// 清除旧的客户端缓存
 	s.clients = make(map[string]*WebDAVFS)
 
-	// 重新初始化
+	// 重新初始化（调用方已持有 s.mu）
 	if newCfg.Enabled {
-		return s.Initialize()
+		return s.initializeLocked()
 	}
 
 	s.logger.Info("WebDAV 配置已更新")
