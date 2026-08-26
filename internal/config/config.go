@@ -688,6 +688,14 @@ type Config struct {
 
 // ==================== 加载逻辑 ====================
 
+// decryptSecretValue 解密带 ENC: 前缀的敏感字段，兼容老明文和双重加密残留。
+func decryptSecretValue(s string) string {
+	if dec, err := secretcrypto.Decrypt(s); err == nil {
+		return dec
+	}
+	return s
+}
+
 // Load 加载配置，支持以下方式（优先级从低到高）：
 //  1. 内置默认值
 //  2. 主配置文件 config.yaml（兼容旧版扁平格式）
@@ -744,16 +752,28 @@ func Load() (*Config, error) {
 	//    顶层 api_key 已移除，此处只解密 Providers 列表中的 key
 	for i, p := range cfg.AI.Providers {
 		if p.APIKey != "" {
-			for strings.HasPrefix(p.APIKey, "ENC:") {
-				if dec, err := secretcrypto.Decrypt(p.APIKey); err == nil {
-					p.APIKey = dec
-				} else {
-					break
-				}
-			}
-			cfg.AI.Providers[i].APIKey = p.APIKey
+			cfg.AI.Providers[i].APIKey = decryptSecretValue(p.APIKey)
 		}
 	}
+	cfg.AI.WhisperAPIKey = decryptSecretValue(cfg.AI.WhisperAPIKey)
+
+	// 8.1 解密存储后端敏感字段（WebDAV / Alist / S3）
+	cfg.Storage.WebDAV.Password = decryptSecretValue(cfg.Storage.WebDAV.Password)
+	cfg.Storage.Alist.Password = decryptSecretValue(cfg.Storage.Alist.Password)
+	cfg.Storage.Alist.Token = decryptSecretValue(cfg.Storage.Alist.Token)
+	cfg.Storage.S3.SecretKey = decryptSecretValue(cfg.Storage.S3.SecretKey)
+
+	// 8.2 解密 Adult Scraper 敏感字段（Cookie / 翻译密钥 / Python 服务密钥）
+	cfg.AdultScraper.CookieJavBus = decryptSecretValue(cfg.AdultScraper.CookieJavBus)
+	cfg.AdultScraper.CookieJavDB = decryptSecretValue(cfg.AdultScraper.CookieJavDB)
+	cfg.AdultScraper.CookieFreejavbt = decryptSecretValue(cfg.AdultScraper.CookieFreejavbt)
+	cfg.AdultScraper.CookieJav321 = decryptSecretValue(cfg.AdultScraper.CookieJav321)
+	cfg.AdultScraper.CookieFanza = decryptSecretValue(cfg.AdultScraper.CookieFanza)
+	cfg.AdultScraper.CookieMGStage = decryptSecretValue(cfg.AdultScraper.CookieMGStage)
+	cfg.AdultScraper.CookieFC2Hub = decryptSecretValue(cfg.AdultScraper.CookieFC2Hub)
+	cfg.AdultScraper.TranslateAPIKey = decryptSecretValue(cfg.AdultScraper.TranslateAPIKey)
+	cfg.AdultScraper.TranslateAPISecret = decryptSecretValue(cfg.AdultScraper.TranslateAPISecret)
+	cfg.AdultScraper.PythonServiceAPIKey = decryptSecretValue(cfg.AdultScraper.PythonServiceAPIKey)
 
 	// 9. AI 用量预算默认值兜底
 	if cfg.AI.WarningThresholdPct <= 0 || cfg.AI.WarningThresholdPct > 100 {
@@ -1442,7 +1462,7 @@ func (c *Config) SaveAIConfig() error {
 			for i, p := range ac.Providers {
 				if p.APIKey != "" && !strings.HasPrefix(p.APIKey, "ENC:") {
 					if enc, err := secretcrypto.Encrypt(p.APIKey); err == nil {
-						p.APIKey = "ENC:" + enc
+						p.APIKey = enc
 					}
 				}
 				encProviders[i] = p
