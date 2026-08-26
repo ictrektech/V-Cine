@@ -13,6 +13,7 @@ import {
   Server,
   RefreshCw,
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { AlistSection, S3Section } from './RemoteStorageSections'
 import {
   ProviderCard,
@@ -20,7 +21,6 @@ import {
   FieldGroup,
   Field,
   Input,
-  Toggle,
   ActionBar,
   ActionButton,
   Toast,
@@ -70,6 +70,7 @@ export default function StorageTab() {
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [passwordDirty, setPasswordDirty] = useState(false)
+  const [hasPassword, setHasPassword] = useState(false)
   const [registeringLib, setRegisteringLib] = useState<string | null>(null)
 
   // Alist / S3 状态（仅用于概览卡，详细表单仍由各自 Section 自己拉取）
@@ -89,7 +90,9 @@ export default function StorageTab() {
         libraryApi.list(),
         storageApi.getStorageStatus().catch(() => null),
       ])
-      setConfig({ ...DEFAULT_CONFIG, ...cfgRes.data.data })
+      const data = cfgRes.data.data
+      setHasPassword(!!data.password)
+      setConfig({ ...DEFAULT_CONFIG, ...data, password: '' })
       setStatus(webdavStatusRes.data.data)
       setLibraries(libsRes.data.data || [])
       setPasswordDirty(false)
@@ -137,7 +140,12 @@ export default function StorageTab() {
       })
       setToast({ ok: true, msg: 'WebDAV 连接测试成功' })
     } catch (e: any) {
-      setToast({ ok: false, msg: e?.response?.data?.error || '连接测试失败' })
+      const raw = e?.response?.data?.error || '连接测试失败'
+      const missingCreds = !hasPassword && (!config.username.trim() || !config.password.trim())
+      const msg = missingCreds
+        ? '连接失败：账号/密码未填写完整，请确认服务器是否需要认证'
+        : raw
+      setToast({ ok: false, msg })
     } finally {
       setTesting(false)
     }
@@ -289,7 +297,6 @@ export default function StorageTab() {
               description="启用后可为媒体库挂载远程 WebDAV 目录"
               checked={config.enabled}
               onChange={(v) => setConfig({ ...config, enabled: v })}
-              accent="neon"
             />
 
             {/* 启用后显示详细配置；未启用保持清爽 */}
@@ -340,7 +347,7 @@ export default function StorageTab() {
                       setPasswordDirty(true)
                     }}
                     disabled={!config.enabled}
-                    placeholder={passwordDirty ? '' : '留空保持原密码'}
+                    placeholder={passwordDirty ? '' : (hasPassword ? '已设置密码，留空保持不变' : '未设置密码')}
                     autoComplete="current-password"
                     suffix={
                       <EyeToggle
@@ -399,11 +406,10 @@ export default function StorageTab() {
                 </Field>
                 <Field label="启用元数据缓存">
                   <div className="flex items-center h-9">
-                    <Toggle
+                    <Switch
                       checked={config.enable_cache}
-                      onChange={(v) => setConfig({ ...config, enable_cache: v })}
+                      onCheckedChange={(v) => setConfig({ ...config, enable_cache: v })}
                       disabled={!config.enabled}
-                      accent="neon"
                     />
                   </div>
                 </Field>
@@ -418,6 +424,13 @@ export default function StorageTab() {
                 </Field>
               </div>
             </FieldGroup>
+
+              </>
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                启用 WebDAV 存储后，将在这里显示连接与鉴权配置。
+              </p>
+            )}
 
             {toast && <Toast ok={toast.ok} msg={toast.msg} onDismiss={() => setToast(null)} />}
 
@@ -456,12 +469,6 @@ export default function StorageTab() {
                 </ActionButton>
               }
             />
-              </>
-            ) : (
-              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                启用 WebDAV 存储后，将在这里显示连接与鉴权配置。
-              </p>
-            )}
           </SectionShell>
 
           {/* 媒体库挂载（仅 WebDAV 可用时显示） */}
