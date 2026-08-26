@@ -100,3 +100,4 @@ tmp/
 __pycache__/
 .env.prod
 .pnpm-store/
+config/*.yaml
