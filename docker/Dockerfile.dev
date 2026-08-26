@@ -12,24 +12,10 @@ FROM golang:1.25-alpine AS golang
 # 阶段2: 开发/运行环境（与生产同基座，便于硬件加速行为一致）
 FROM ubuntu:22.04
 
-# Go 模块代理：避免构建时直连 proxy.golang.org 超时；可用 --build-arg GOPROXY=... 覆盖。
-ARG GOPROXY=https://goproxy.cn,https://goproxy.io,direct
-ENV GOPROXY=${GOPROXY}
-ENV GOROOT=/usr/local/go
-ENV GOPATH=/go
-# 容器内挂载宿主 git 仓库时，Go 默认 buildvcs 会因 git dubious ownership 失败；dev 不需要 VCS 信息
-ENV GOFLAGS=-buildvcs=false
-ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
-
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
-
-COPY --from=golang /usr/local/go /usr/local/go
-
-# 保持与 golang 官方镜像一致的 GOPATH 布局（docker-compose.dev.yml 挂载 /go/pkg/mod）
-RUN mkdir -p /go/bin /go/pkg/mod && chmod -R 777 /go
 
 # ---- 国内 Ubuntu 镜像加速（默认阿里云；--build-arg UBUNTU_MIRROR= 可关闭）----
 # 同时兼容 /etc/apt/sources.list 与 Deb822 的 ubuntu.sources
@@ -86,6 +72,20 @@ RUN set -eux; \
     fi; \
     rm -rf /var/lib/apt/lists/*; \
     git config --global --add safe.directory '*'
+
+# ---- Go 工具链：放在 apt 依赖之后，Go 镜像 / GOPROXY 变化不会导致 apt 缓存失效 ----
+ARG GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+ENV GOPROXY=${GOPROXY}
+ENV GOROOT=/usr/local/go
+ENV GOPATH=/go
+# 容器内挂载宿主 git 仓库时，Go 默认 buildvcs 会因 git dubious ownership 失败；dev 不需要 VCS 信息
+ENV GOFLAGS=-buildvcs=false
+ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
+
+COPY --from=golang /usr/local/go /usr/local/go
+
+# 保持与 golang 官方镜像一致的 GOPATH 布局（docker-compose.dev.yml 挂载 /go/pkg/mod）
+RUN mkdir -p /go/bin /go/pkg/mod && chmod -R 777 /go
 
 # ---- Air：监听源码变化并自动重编译/重启 Go 服务 ----
 ARG AIR_VERSION=v1.63.0
