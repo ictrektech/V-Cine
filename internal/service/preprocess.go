@@ -1066,6 +1066,22 @@ func (s *PreprocessService) CleanPreprocessCache(mediaID string) error {
 	return nil
 }
 
+// DeleteByMediaID 删除某媒体的预处理任务与缓存（运行中任务跳过）。
+func (s *PreprocessService) DeleteByMediaID(mediaID string) error {
+	if task, err := s.repo.FindActiveByMediaID(mediaID); err == nil && task != nil {
+		s.logger.Warnf("跳过删除预处理缓存: media_id=%s 任务运行中", mediaID)
+		return nil
+	}
+	cacheDir := filepath.Join(s.cfg.Cache.CacheDir, "preprocess", mediaID)
+	if err := os.RemoveAll(cacheDir); err != nil {
+		return err
+	}
+	if _, err := s.repo.DeleteByMediaID(mediaID); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ==================== 存储占用统计 ====================
 
 // PreprocessStorageItem 单个媒体的预处理产物占用

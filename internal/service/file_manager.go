@@ -29,6 +29,8 @@ type FileManagerService struct {
 
 	// 视频分析任务清理（可选注入）
 	videoAnalysisRepo *repository.VideoAnalysisTaskRepo
+	// 删除媒体时清理转码/预处理/ABR 缓存（可选注入）
+	cacheCleaner *MediaCacheCleaner
 
 	// 内存缓存（只读快缓存，为了兼容旧 API）
 	opLogMu sync.Mutex
@@ -134,6 +136,11 @@ func (s *FileManagerService) SetWSHub(hub *WSHub) {
 // SetVideoAnalysisTaskRepo 设置视频分析任务仓库（用于媒体删除时清理关联任务）
 func (s *FileManagerService) SetVideoAnalysisTaskRepo(repo *repository.VideoAnalysisTaskRepo) {
 	s.videoAnalysisRepo = repo
+}
+
+// SetCacheCleaner 设置删除媒体时的缓存清理器（延迟注入）。
+func (s *FileManagerService) SetCacheCleaner(cleaner *MediaCacheCleaner) {
+	s.cacheCleaner = cleaner
 }
 
 // ==================== 文件列表与查询 ====================
@@ -665,6 +672,11 @@ func (s *FileManagerService) DeleteFile(mediaID, userID string) error {
 				s.logger.Infof("已清理 %d 个视频分析任务: media_id=%s", deletedCount, mediaID)
 			}
 		}
+	}
+
+	// 删除媒体记录后清理相关转码/预处理/ABR 缓存（best-effort）
+	if s.cacheCleaner != nil {
+		s.cacheCleaner.Clean(mediaID)
 	}
 
 	// 记录操作日志

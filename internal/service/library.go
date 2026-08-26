@@ -36,6 +36,7 @@ type LibraryService struct {
 	fileWatcher            *FileWatcherService   // 文件监听服务
 	videoAnalysis          *VideoAnalysisService // 外部视频分析服务（可选）
 	videoAnalysisWorker    *VideoAnalysisWorker  // 视频分析任务 worker（可选）
+	cacheCleaner           *MediaCacheCleaner    // 删除媒体时清理转码/预处理/ABR 缓存（可选）
 }
 
 func NewLibraryService(
@@ -80,6 +81,11 @@ func (s *LibraryService) SetFileWatcher(fw *FileWatcherService) {
 func (s *LibraryService) SetVideoAnalysis(va *VideoAnalysisService, worker *VideoAnalysisWorker) {
 	s.videoAnalysis = va
 	s.videoAnalysisWorker = worker
+}
+
+// SetCacheCleaner 设置删除媒体时的缓存清理器（延迟注入）。
+func (s *LibraryService) SetCacheCleaner(cleaner *MediaCacheCleaner) {
+	s.cacheCleaner = cleaner
 }
 
 // SetSeriesService 设置剧集合集服务（延迟注入，用于扫描后自动合并重复剧集）
@@ -570,7 +576,16 @@ func (s *LibraryService) DeleteMedia(mediaID string) error {
 		}
 	}
 
-	return s.mediaRepo.DeleteByID(mediaID)
+	if err := s.mediaRepo.DeleteByID(mediaID); err != nil {
+		return err
+	}
+
+	// 删除媒体记录后清理相关转码/预处理/ABR 缓存（best-effort）
+	if s.cacheCleaner != nil {
+		s.cacheCleaner.Clean(mediaID)
+	}
+
+	return nil
 }
 
 // UpdateMedia 更新媒体信息

@@ -492,6 +492,11 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// 延迟注入：PreprocessService 需要 SystemSettingRepo（用于读取 ABR 策略等配置）
 	preprocessService.SetSettingRepo(repos.SystemSetting)
 
+	// 删除媒体时自动清理转码/预处理/ABR 缓存
+	cacheCleaner := NewMediaCacheCleaner(transcoder, preprocessService, abrService, logger)
+	libService.SetCacheCleaner(cacheCleaner)
+	fileManager.SetCacheCleaner(cacheCleaner)
+
 	// V2.1 延迟注入：Scanner 与 Stream 都需要 VFSManager（支持 webdav:// 路径）
 	scanner.SetVFSManager(vfsManager)
 	svcs.Stream.SetVFSManager(vfsManager)

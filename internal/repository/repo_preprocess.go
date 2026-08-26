@@ -150,3 +150,9 @@ func (r *PreprocessRepo) DeleteByIDs(ids []string) (int64, error) {
 	result := r.db.Where("id IN ? AND status != ?", ids, "running").Delete(&model.PreprocessTask{})
 	return result.RowsAffected, result.Error
 }
+
+// DeleteByMediaID 删除某媒体的预处理任务（调用方需保证无活跃任务）
+func (r *PreprocessRepo) DeleteByMediaID(mediaID string) (int64, error) {
+	result := r.db.Where("media_id = ?", mediaID).Delete(&model.PreprocessTask{})
+	return result.RowsAffected, result.Error
+}

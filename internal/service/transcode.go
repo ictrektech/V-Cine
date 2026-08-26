@@ -1103,6 +1103,30 @@ func (s *TranscodeService) DeleteTask(taskID string) error {
 	return s.repo.DeleteByID(taskID)
 }
 
+// CleanMediaCache 删除某媒体的转码任务与输出缓存（运行中任务跳过）。
+func (s *TranscodeService) CleanMediaCache(mediaID string) error {
+	tasks, err := s.repo.ListByMediaID(mediaID)
+	if err != nil {
+		return err
+	}
+	ids := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		if task.Status == "running" || task.Status == "pending" {
+			s.logger.Warnf("跳过删除转码缓存: media_id=%s 任务运行中", mediaID)
+			return nil
+		}
+		ids = append(ids, task.ID)
+	}
+	if _, err := s.repo.DeleteByIDs(ids); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(filepath.Join(s.cfg.Cache.CacheDir, "transcode", mediaID)); err != nil {
+		return err
+	}
+	s.InvalidateCacheDiskUsage()
+	return nil
+}
+
 // RetryTask 重试失败/取消的转码任务
 //
 // 实现：直接调用 startTranscodeInternal（已有 mediaID+quality 去重逻辑），

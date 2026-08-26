@@ -33,6 +33,12 @@ func (r *TranscodeRepo) FindByMediaAndQuality(mediaID, quality string) (*model.T
 	return &task, err
 }
 
+func (r *TranscodeRepo) ListByMediaID(mediaID string) ([]model.TranscodeTask, error) {
+	var tasks []model.TranscodeTask
+	err := r.db.Where("media_id = ?", mediaID).Find(&tasks).Error
+	return tasks, err
+}
+
 func (r *TranscodeRepo) ListRunning() ([]model.TranscodeTask, error) {
 	var tasks []model.TranscodeTask
 	err := r.db.Where("status IN ?", []string{"pending", "running"}).Find(&tasks).Error
