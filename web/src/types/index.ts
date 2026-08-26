@@ -531,6 +531,7 @@ export interface MediaPlayInfo {
   media_id: string
   direct_play_url: string
   hls_url: string
+  hls_resolution?: string // HLS 转码输出分辨率，如 1080p
   auto_transcode_on_play?: boolean // 系统设置：播放时是否自动触发转码
   can_direct_play: boolean
   file_ext: string

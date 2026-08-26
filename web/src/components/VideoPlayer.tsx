@@ -35,6 +35,8 @@ import SubtitleContentSearch from './SubtitleContentSearch'
 interface VideoPlayerProps {
   src: string
   mode?: 'direct' | 'hls' | 'remux'
+  /** HLS 转码输出分辨率，如 1080p，仅显示用 */
+  hlsResolution?: string
   mediaId: string
   title?: string
   startPosition?: number
@@ -45,6 +47,8 @@ interface VideoPlayerProps {
   nextTitle?: string
   /** 是否为 STRM 远程流 */
   isStrm?: boolean
+  /** 是否为预处理 HLS（秒开流），用于区分实时转码 HLS */
+  isPreprocessed?: boolean
   /** API 返回的完整视频时长（秒），用于在实时转码 EVENT 模式下显示完整时长 */
   knownDuration?: number
   /** Remux 播放失败回调，触发后 PlayerPage 会自动降级到 HLS 转码模式 */
@@ -58,6 +62,7 @@ interface VideoPlayerProps {
 export default function VideoPlayer({
   src,
   mode = 'hls',
+  hlsResolution,
   mediaId,
   title,
   startPosition = 0,
@@ -65,6 +70,7 @@ export default function VideoPlayer({
   onNext,
   nextTitle,
   isStrm = false,
+  isPreprocessed = false,
   knownDuration,
   onPreprocessReady,
   onRemuxFallback,
@@ -1329,7 +1335,7 @@ export default function VideoPlayer({
               {title}
             </h2>
             <span className="badge-neon text-[10px]">
-              {isStrm ? 'STRM远程流' : mode === 'direct' ? '直接播放' : mode === 'remux' ? 'Remux播放' : 'HLS转码'}
+              {isStrm ? 'STRM远程流' : mode === 'direct' ? '直接播放' : mode === 'remux' ? 'Remux播放' : `HLS${isPreprocessed ? '' : '转码'}${hlsResolution ? ` · ${hlsResolution}` : ''}`}
             </span>
             {playbackRate !== 1 && (
               <span className="badge-neon text-[10px]">{playbackRate}x</span>

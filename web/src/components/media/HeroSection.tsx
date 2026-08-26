@@ -50,6 +50,16 @@ interface HeroSectionProps {
   onTranscode?: () => void
 }
 
+function getPlaybackLabel(playInfo: MediaPlayInfo | null, t: (key: string) => string): string {
+  if (!playInfo) return ''
+  if (playInfo.is_strm) return 'STRM 远程流'
+  if (playInfo.is_preprocessed) {
+    return playInfo.hls_resolution ? `HLS · ${playInfo.hls_resolution}` : 'HLS 秒开'
+  }
+  if (playInfo.can_direct_play) return t('hero.directPlay')
+  return playInfo.hls_resolution ? `HLS · ${playInfo.hls_resolution}` : t('hero.needTranscode')
+}
+
 export default function HeroSection({
   media,
   playInfo,
@@ -90,6 +100,8 @@ export default function HeroSection({
     onAddToPlaylist(playlistId)
     setShowPlaylistMenu(false)
   }
+
+  const playbackLabel = getPlaybackLabel(playInfo, t)
 
   return (
     <>
@@ -431,11 +443,11 @@ export default function HeroSection({
                       'rounded-lg px-2.5 py-1 text-xs font-semibold',
                       playInfo.is_strm
                         ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                        : playInfo.can_direct_play
-                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                          : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                        : (playInfo.is_preprocessed || !playInfo.can_direct_play)
+                          ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                          : 'bg-green-500/10 text-green-400 border border-green-500/20'
                     )}>
-                      {playInfo.is_strm ? 'STRM 远程流' : playInfo.can_direct_play ? t('hero.directPlay') : t('hero.needTranscode')}
+                      {playbackLabel}
                     </span>
                   )}
                 </div>

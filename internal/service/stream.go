@@ -25,6 +25,7 @@ type MediaPlayInfo struct {
 	MediaID             string  `json:"media_id"`
 	DirectPlayURL       string  `json:"direct_play_url"`       // 直接播放地址（如果支持）
 	HlsURL              string  `json:"hls_url"`               // HLS转码播放地址
+	HlsResolution       string  `json:"hls_resolution"`        // HLS 转码输出分辨率（如 1080p）
 	AutoTranscodeOnPlay bool    `json:"auto_transcode_on_play"` // 系统设置：播放时是否自动触发转码
 	CanDirectPlay       bool    `json:"can_direct_play"`       // 浏览器是否可直接播放
 	FileExt          string  `json:"file_ext"`           // 文件扩展名
@@ -330,6 +331,11 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 		if val, err := s.settingRepo.Get("auto_transcode_on_play"); err == nil {
 			info.AutoTranscodeOnPlay = val == "true" || val == "1"
 		}
+	}
+
+	// HLS 转码输出分辨率：显示目标最高档位
+	if qs := s.getAvailableQualities(media); len(qs) > 0 {
+		info.HlsResolution = qs[len(qs)-1]
 	}
 
 	if canDirect {

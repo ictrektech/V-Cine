@@ -372,9 +372,11 @@ export default function PlayerPage() {
           <VideoPlayer
             src={src}
             mode={mode as 'direct' | 'hls' | 'remux'}
+            hlsResolution={playInfo.hls_resolution}
             mediaId={id}
             title={playerTitle}
             isStrm={playInfo.is_strm}
+            isPreprocessed={!!isPreprocessed}
             knownDuration={playInfo.duration}
             startPosition={switchPosition ?? initialStartPosition}
             spriteVttUrl={playInfo.sprite_vtt_url ? streamApi.withTokenUrl(playInfo.sprite_vtt_url) : undefined}
