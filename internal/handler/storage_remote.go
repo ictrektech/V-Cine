@@ -118,12 +118,20 @@ func (h *StorageHandler) TestAlistConnection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效: " + err.Error()})
 		return
 	}
+	password := req.Password
+	token := req.Token
+	saved := h.cfg.Storage.Alist
+	if password == "" && token == "" && strings.TrimRight(req.ServerURL, "/") == saved.ServerURL {
+		password = saved.Password
+		token = saved.Token
+	}
+
 	if err := h.remoteStorageService.TestAlist(config.AlistConfig{
 		Enabled:   true,
 		ServerURL: strings.TrimRight(req.ServerURL, "/"),
 		Username:  req.Username,
-		Password:  req.Password,
-		Token:     req.Token,
+		Password:  password,
+		Token:     token,
 		BasePath:  req.BasePath,
 		Timeout:   30,
 	}); err != nil {
@@ -226,7 +234,7 @@ type TestS3Request struct {
 	Endpoint  string `json:"endpoint" binding:"required"`
 	Region    string `json:"region"`
 	AccessKey string `json:"access_key" binding:"required"`
-	SecretKey string `json:"secret_key" binding:"required"`
+	SecretKey string `json:"secret_key"`
 	Bucket    string `json:"bucket" binding:"required"`
 	BasePath  string `json:"base_path"`
 	PathStyle bool   `json:"path_style"`
@@ -239,12 +247,23 @@ func (h *StorageHandler) TestS3Connection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效: " + err.Error()})
 		return
 	}
+	secretKey := req.SecretKey
+	saved := h.cfg.Storage.S3
+	if secretKey == "" && req.AccessKey == saved.AccessKey &&
+		strings.TrimRight(req.Endpoint, "/") == saved.Endpoint && req.Bucket == saved.Bucket {
+		secretKey = saved.SecretKey
+	}
+	if secretKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Secret Key 不能为空"})
+		return
+	}
+
 	if err := h.remoteStorageService.TestS3(config.S3Config{
 		Enabled:   true,
 		Endpoint:  strings.TrimRight(req.Endpoint, "/"),
 		Region:    req.Region,
 		AccessKey: req.AccessKey,
-		SecretKey: req.SecretKey,
+		SecretKey: secretKey,
 		Bucket:    req.Bucket,
 		BasePath:  req.BasePath,
 		PathStyle: req.PathStyle,

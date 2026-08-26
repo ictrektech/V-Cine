@@ -144,11 +144,16 @@ func (h *StorageHandler) TestWebDAVConnection(c *gin.Context) {
 		return
 	}
 
+	password := req.Password
+	if password == "" && req.Username == h.cfg.Storage.WebDAV.Username && req.ServerURL == h.cfg.Storage.WebDAV.ServerURL {
+		password = h.cfg.Storage.WebDAV.Password
+	}
+
 	testCfg := config.WebDAVConfig{
 		Enabled:   true,
 		ServerURL: req.ServerURL,
 		Username:  req.Username,
-		Password:  req.Password,
+		Password:  password,
 		BasePath:  req.BasePath,
 		Timeout:   30,
 	}
