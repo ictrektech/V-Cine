@@ -56,7 +56,7 @@ func (h *StorageHandler) GetWebDAVConfig(c *gin.Context) {
 // UpdateWebDAVConfigRequest 更新 WebDAV 配置请求
 type UpdateWebDAVConfigRequest struct {
 	Enabled       bool   `json:"enabled"`
-	ServerURL     string `json:"server_url" binding:"required_if=Enabled true"`
+	ServerURL     string `json:"server_url"`
 	Username      string `json:"username"`
 	Password      string `json:"password"`
 	BasePath      string `json:"base_path"`
