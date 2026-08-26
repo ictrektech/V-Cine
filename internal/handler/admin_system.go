@@ -153,7 +153,6 @@ func (h *AdminHandler) GetContentRating(c *gin.Context) {
 // 系统设置键名常量
 const (
 	SettingGPUTranscode   = "enable_gpu_transcode"
-	SettingGPUFallbackCPU = "gpu_fallback_cpu"
 	SettingAutoPreprocess = "auto_preprocess_on_scan" // 扫描后自动触发预处理
 	SettingAutoTranscode  = "auto_transcode_on_play"  // 播放时自动触发转码
 )
@@ -169,7 +168,6 @@ func (h *AdminHandler) GetSystemSettings(c *gin.Context) {
 	// 返回带默认值的设置
 	settings := gin.H{
 		SettingGPUTranscode:   getBoolSetting(all, SettingGPUTranscode, true),
-		SettingGPUFallbackCPU: getBoolSetting(all, SettingGPUFallbackCPU, true),
 		SettingAutoPreprocess: getBoolSetting(all, SettingAutoPreprocess, false), // 默认关闭：扫描后不自动预处理
 		SettingAutoTranscode:  getBoolSetting(all, SettingAutoTranscode, true),  // 默认开启：保持原有自动转码行为
 	}
@@ -180,7 +178,6 @@ func (h *AdminHandler) GetSystemSettings(c *gin.Context) {
 // UpdateSystemSettingsRequest 更新系统设置请求
 type UpdateSystemSettingsRequest struct {
 	EnableGPUTranscode *bool `json:"enable_gpu_transcode"`
-	GPUFallbackCPU     *bool `json:"gpu_fallback_cpu"`
 	AutoPreprocess     *bool `json:"auto_preprocess_on_scan"`
 	AutoTranscode      *bool `json:"auto_transcode_on_play"`
 }
@@ -196,9 +193,6 @@ func (h *AdminHandler) UpdateSystemSettings(c *gin.Context) {
 	kvs := make(map[string]string)
 	if req.EnableGPUTranscode != nil {
 		kvs[SettingGPUTranscode] = boolToStr(*req.EnableGPUTranscode)
-	}
-	if req.GPUFallbackCPU != nil {
-		kvs[SettingGPUFallbackCPU] = boolToStr(*req.GPUFallbackCPU)
 	}
 	if req.AutoPreprocess != nil {
 		kvs[SettingAutoPreprocess] = boolToStr(*req.AutoPreprocess)

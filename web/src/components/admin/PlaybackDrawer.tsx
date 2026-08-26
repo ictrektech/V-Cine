@@ -71,17 +71,6 @@ export default function PlaybackDrawer({ open, onOpenChange, sysSettings, setSys
 
           {showAdvanced && (
             <div className="space-y-5">
-              {/* GPU 回退（GPU 开启后显示） */}
-              {sysSettings.enable_gpu_transcode && (
-                <div className="flex items-start justify-between gap-4 rounded-lg p-3" style={{ background: 'var(--nav-hover-bg)' }}>
-                  <div className="flex-1">
-                    <h4 className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>GPU 不支持时自动回退 CPU</h4>
-                    <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>当 GPU 不支持特定格式解码时，系统自动切换至 CPU 转码。</p>
-                  </div>
-                  <ToggleButton checked={sysSettings.gpu_fallback_cpu} onChange={S('gpu_fallback_cpu')} />
-                </div>
-              )}
-
               {/* 扫描后自动预处理 */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">

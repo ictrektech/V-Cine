@@ -753,7 +753,6 @@ export interface TMDbImageInfo {
 // ==================== 系统全局设置 ====================
 export interface SystemSettings {
   enable_gpu_transcode: boolean
-  gpu_fallback_cpu: boolean
   auto_preprocess_on_scan: boolean   // 扫描后自动触发预处理
   auto_transcode_on_play: boolean    // 播放时自动触发转码
 }

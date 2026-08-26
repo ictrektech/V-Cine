@@ -27,7 +27,6 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [sysSettings, setSysSettings] = useState<SystemSettings>({
     enable_gpu_transcode: true,
-    gpu_fallback_cpu: true,
     auto_preprocess_on_scan: false,
     auto_transcode_on_play: true,
   })
