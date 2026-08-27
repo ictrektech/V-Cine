@@ -11,7 +11,7 @@ import {
 import clsx from 'clsx'
 import { withBasePath } from '@/lib/basePath'
 import { Input } from '@/components/ui/input'
-import { SORT_OPTIONS, SOURCE_OPTIONS } from './constants'
+import { SORT_OPTIONS, SOURCE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from './constants'
 import {
   Sparkles,
   Wand2,
@@ -51,6 +51,7 @@ interface FileToolbarProps {
   onBatchAnalyze: () => void
   videoAnalysisEnabled?: boolean
   videoAnalysisDisabledReason?: string
+  selectedAllRemote?: boolean
   onBatchRename: () => void
   onBatchDelete: () => void
   onClearSelection: () => void
@@ -71,10 +72,18 @@ export default function FileToolbar({
   viewMode, onViewModeChange,
   selectedCount,
   scrapeSource, onScrapeSourceChange,
-  onBatchScrape, onBatchAnalyze, videoAnalysisEnabled = true, videoAnalysisDisabledReason,
+  onBatchScrape, onBatchAnalyze, videoAnalysisEnabled = true, videoAnalysisDisabledReason, selectedAllRemote = false,
   onBatchRename, onBatchDelete, onClearSelection,
   children,
 }: FileToolbarProps) {
+  const analysisDisabled = !videoAnalysisEnabled || selectedAllRemote
+  let analysisTitle: string | undefined
+  if (!videoAnalysisEnabled) {
+    analysisTitle = videoAnalysisDisabledReason || '视频分析服务未启用'
+  } else if (selectedAllRemote) {
+    analysisTitle = REMOTE_ANALYSIS_DISABLED_TIP
+  }
+
   return (
     <div className="glass-panel rounded-xl p-4 space-y-3">
       {/* 第一行：搜索和操作按钮 */}
@@ -178,8 +187,8 @@ export default function FileToolbar({
           </button>
           <button
             onClick={onBatchAnalyze}
-            disabled={!videoAnalysisEnabled}
-            title={!videoAnalysisEnabled ? (videoAnalysisDisabledReason || '视频分析服务未启用') : undefined}
+            disabled={analysisDisabled}
+            title={analysisTitle}
             className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-cyan-400 hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
           >
             <ScanSearch size={14} /> 分析视频

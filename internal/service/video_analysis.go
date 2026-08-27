@@ -326,6 +326,9 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 	if media.StreamURL != "" {
 		return nil, errors.New("remote STRM media is not supported by video analysis")
 	}
+	if IsRemotePath(media.FilePath) {
+		return nil, errors.New("remote media is not supported by video analysis")
+	}
 	mappedPath, err := s.pathMapper.Map(media.FilePath)
 	if err != nil {
 		return nil, err
@@ -439,6 +442,8 @@ func classifyVideoAnalysisSkip(err error) (kind, message string, ok bool) {
 	switch {
 	case strings.Contains(msg, "remote STRM media is not supported"):
 		return "unsupported_strm", "STRM/远程流媒体暂不支持视频分析", true
+	case strings.Contains(msg, "remote media is not supported"):
+		return "unsupported_remote", "远程视频暂不支持视频分析", true
 	case strings.Contains(msg, "stat video file"):
 		return "unreadable_file", "视频文件不存在或不可读取", true
 	case strings.Contains(msg, "video path is not a regular file"):

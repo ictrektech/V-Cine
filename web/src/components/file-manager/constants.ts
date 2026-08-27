@@ -1,5 +1,8 @@
 import type { Media, Library, FileManagerStats } from '@/types'
 
+// 远程视频禁用的提示文案
+export const REMOTE_ANALYSIS_DISABLED_TIP = '远程挂载视频暂不支持结构化分析'
+
 // 数据源选项
 export const SOURCE_OPTIONS = [
   { value: '', label: '自动 (TMDb)' },

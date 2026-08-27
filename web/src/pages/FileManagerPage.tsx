@@ -6,6 +6,7 @@ import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/
 import { aiApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { extractErrMsg } from '@/utils/error'
 import { withBasePath } from '@/lib/basePath'
+import { storageTypeFromPath } from '@/lib/storageSchemes'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
@@ -98,6 +99,22 @@ export default function FileManagerPage() {
 
   // 选择
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // 已见文件的远程标记（跨页保留，用于批量分析按钮禁用判断）
+  const [remoteFlags, setRemoteFlags] = useState<Record<string, boolean>>({})
+  useEffect(() => {
+    setRemoteFlags(prev => {
+      const next = { ...prev }
+      let changed = false
+      for (const f of files) {
+        const remote = storageTypeFromPath(f.file_path || '') !== 'local'
+        if (next[f.id] !== remote) {
+          next[f.id] = remote
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [files])
 
   // 视图模式
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
@@ -548,6 +565,8 @@ export default function FileManagerPage() {
 
   const totalPages = Math.ceil(total / pageSize)
 
+  const selectedAllRemote = selectedIds.size > 0 && Array.from(selectedIds).every(id => remoteFlags[id] !== false)
+
   // 每页数量可选项
   const pageSizeOptions = [20, 50, 100, 200]
 
@@ -831,6 +850,7 @@ export default function FileManagerPage() {
           onBatchAnalyze={handleBatchAnalyze}
           videoAnalysisEnabled={videoAnalysisEnabled}
           videoAnalysisDisabledReason={videoAnalysisDisabledReason}
+          selectedAllRemote={selectedAllRemote}
           onBatchRename={() => setActiveDialog('rename')}
           onBatchDelete={handleBatchDelete}
           onClearSelection={() => setSelectedIds(new Set())}

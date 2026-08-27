@@ -11,8 +11,9 @@ import {
 import clsx from 'clsx'
 import { Modal } from '@/components/ui/modal'
 import { withBasePath } from '@/lib/basePath'
-import { formatFileSize, LANGUAGE_OPTIONS } from './constants'
+import { formatFileSize, LANGUAGE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from './constants'
 import { streamApi } from '@/api/stream'
+import { storageTypeFromPath } from '@/lib/storageSchemes'
 
 // ==================== 导入文件对话框 ====================
 interface ImportFileModalProps {
@@ -364,6 +365,15 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
     }
   }, [analysisTask])
 
+  const isRemoteVideo = storageTypeFromPath(media.file_path || '') !== 'local'
+  const analysisDescribeDisabled = isRemoteVideo || !videoAnalysisDescribeEnabled
+  let analysisDescribeTitle = ''
+  if (isRemoteVideo) {
+    analysisDescribeTitle = REMOTE_ANALYSIS_DISABLED_TIP
+  } else if (!videoAnalysisDescribeEnabled) {
+    analysisDescribeTitle = '需要在「视频分析」设置中开启场景描述功能'
+  }
+
   return (
     <Modal onClose={onClose} className="max-w-2xl">
       <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -446,20 +456,30 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
                   <ListTodo size={14} /> {analysisMeta?.action === 'result' ? '查看结果' : analysisMeta?.action === 'progress' ? '查看进度' : '查看分析任务'}
                 </button>
                 {(analysisMeta?.action === 'retry') && analysisTask && (
-                  <button onClick={() => onRetryAnalysis(analysisTask)} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-amber-300 hover:bg-amber-400/10">
+                  <button
+                    onClick={() => onRetryAnalysis(analysisTask)}
+                    className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${isRemoteVideo ? 'opacity-50 cursor-not-allowed text-surface-400' : 'text-amber-300 hover:bg-amber-400/10'}`}
+                    disabled={isRemoteVideo}
+                    title={isRemoteVideo ? REMOTE_ANALYSIS_DISABLED_TIP : ''}
+                  >
                     <ScanSearch size={14} /> 重新分析
                   </button>
                 )}
                 {(!analysisMeta || analysisMeta.action === 'analyze' || analysisMeta.action === 'retry') && (
                   <>
-                    <button onClick={() => onAnalyze()} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-cyan-300 hover:bg-cyan-400/10">
+                    <button
+                      onClick={() => onAnalyze()}
+                      className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${isRemoteVideo ? 'opacity-50 cursor-not-allowed text-surface-400' : 'text-cyan-300 hover:bg-cyan-400/10'}`}
+                      disabled={isRemoteVideo}
+                      title={isRemoteVideo ? REMOTE_ANALYSIS_DISABLED_TIP : ''}
+                    >
                       <ScanSearch size={14} /> 分析视频
                     </button>
                     <button
                       onClick={() => onAnalyze(false, true)}
-                      className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${videoAnalysisDescribeEnabled ? 'text-violet-300 hover:bg-violet-400/10' : 'opacity-50 cursor-not-allowed'}`}
-                      disabled={!videoAnalysisDescribeEnabled}
-                      title={!videoAnalysisDescribeEnabled ? '需要在「视频分析」设置中开启场景描述功能' : ''}
+                      className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${analysisDescribeDisabled ? 'opacity-50 cursor-not-allowed' : 'text-violet-300 hover:bg-violet-400/10'}`}
+                      disabled={analysisDescribeDisabled}
+                      title={analysisDescribeTitle}
                     >
                       <Sparkles size={14} /> 分析并生成描述
                     </button>

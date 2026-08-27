@@ -259,6 +259,22 @@ func TestVideoAnalysisBatchSubmitSkipsUnsupportedSTRM(t *testing.T) {
 	}
 }
 
+func TestVideoAnalysisBatchSubmitSkipsUnsupportedRemote(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, _, mediaID := setupVideoAnalysisService(t, client)
+	if err := service.media.DB().Model(&model.Media{}).Where("id = ?", mediaID).Update("file_path", "webdav://example.com/media.mp4").Error; err != nil {
+		t.Fatal(err)
+	}
+
+	result := service.BatchSubmit([]string{mediaID}, VideoAnalysisSubmitOptions{Trigger: model.VideoAnalysisTriggerAuto})
+	if result.Created != 0 || result.Reused != 0 || result.Skipped != 1 || len(result.Errors) != 0 || len(result.SkippedErrors) != 1 {
+		t.Fatalf("result = %+v", result)
+	}
+	if result.SkippedErrors[0].Kind != "unsupported_remote" {
+		t.Fatalf("skip kind = %q", result.SkippedErrors[0].Kind)
+	}
+}
+
 func TestVideoAnalysisBatchSubmitSkipsUnreadableFile(t *testing.T) {
 	client := &fakeVideoAnalysisClient{}
 	service, _, mediaID := setupVideoAnalysisService(t, client)
