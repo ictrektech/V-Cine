@@ -614,6 +614,7 @@ func main() {
 		admin.GET("/storage/webdav/status", handlers.Storage.GetWebDAVStatus)
 		admin.POST("/storage/webdav/libraries/register", handlers.Storage.RegisterWebDAVLibrary)
 		admin.GET("/storage/status", handlers.Storage.GetStorageStatus)
+		admin.GET("/storage/browse", handlers.Storage.BrowseRemoteDir)
 
 		// ==================== V2.3: Alist 聚合网盘管理 ====================
 		admin.GET("/storage/alist", handlers.Storage.GetAlistConfig)

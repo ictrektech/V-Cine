@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { adminApi } from '@/api'
+import { adminApi, storageApi } from '@/api'
+import type { StorageType } from '@/lib/storageSchemes'
 import {
   Folder,
   FolderOpen,
@@ -15,7 +16,6 @@ import { Modal } from '@/components/ui/modal'
 interface FsEntry {
   name: string
   path: string
-  is_dir: boolean
 }
 
 interface FileBrowserProps {
@@ -23,9 +23,10 @@ interface FileBrowserProps {
   onClose: () => void
   onSelect: (path: string) => void
   initialPath?: string
+  storageType?: StorageType
 }
 
-export default function FileBrowser({ open, onClose, onSelect, initialPath }: FileBrowserProps) {
+export default function FileBrowser({ open, onClose, onSelect, initialPath, storageType = 'local' }: FileBrowserProps) {
   const [currentPath, setCurrentPath] = useState(initialPath || '/')
   const [parentPath, setParentPath] = useState('')
   const [items, setItems] = useState<FsEntry[]>([])
@@ -36,7 +37,9 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath }: Fi
     setLoading(true)
     setError('')
     try {
-      const res = await adminApi.browseFS(path)
+      const res = storageType === 'local'
+        ? await adminApi.browseFS(path)
+        : await storageApi.browseRemote(storageType, path)
       const data = res.data.data
       setCurrentPath(data.current)
       setParentPath(data.parent)
@@ -47,7 +50,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath }: Fi
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [storageType])
 
   useEffect(() => {
     if (open) {
@@ -191,7 +194,11 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath }: Fi
               取消
             </button>
             <button
-              onClick={() => { onSelect(currentPath); onClose() }}
+              onClick={() => {
+                const selected = storageType === 'local' ? currentPath : currentPath.replace(/^\//, '') || '/'
+                onSelect(selected)
+                onClose()
+              }}
               className="btn-primary gap-1.5 px-4 py-2 text-sm"
             >
               <Check size={14} />

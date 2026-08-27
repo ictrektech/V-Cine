@@ -113,6 +113,17 @@ export interface TestWebDAVRequest {
   base_path?: string
 }
 
+export interface RemoteBrowseItem {
+  name: string
+  path: string
+}
+
+export interface RemoteBrowseResponse {
+  current: string
+  parent: string
+  items: RemoteBrowseItem[]
+}
+
 export const storageApi = {
   // ---------- WebDAV ----------
   getWebDAVConfig: () =>
@@ -127,6 +138,13 @@ export const storageApi = {
     api.post<{ message: string }>('/admin/storage/webdav/libraries/register', {
       library_id: libraryId,
     }),
+
+  // ---------- 远程存储目录浏览 ----------
+  browseRemote: (type: 'webdav' | 'alist' | 's3', path: string) =>
+    api.get<{ data: RemoteBrowseResponse }>(
+      '/admin/storage/browse',
+      { params: { type, path } }
+    ),
 
   // ---------- V2.3: Alist ----------
   getAlistConfig: () =>

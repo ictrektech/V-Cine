@@ -19,8 +19,13 @@ import {
   Trash2,
   Sparkles,
   Info,
+  HardDrive,
+  Cloud,
+  Server,
+  Database,
 } from 'lucide-react'
 import FileBrowser from './FileBrowser'
+import { type StorageType, REMOTE_SCHEMES, joinRemotePath, pathPlaceholder } from '@/lib/storageSchemes'
 
 
 // 内容类型配置
@@ -60,6 +65,42 @@ const LIBRARY_TYPES = [
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.08)',
     border: 'rgba(16, 185, 129, 0.2)',
+  },
+]
+
+// 存储类型配置
+const STORAGE_TYPES = [
+  {
+    value: 'local' as const,
+    label: '本地路径',
+    icon: HardDrive,
+    color: '#10B981',
+    bg: 'rgba(16, 185, 129, 0.08)',
+    border: 'rgba(16, 185, 129, 0.2)',
+  },
+  {
+    value: 'webdav' as const,
+    label: 'WebDAV',
+    icon: Cloud,
+    color: 'var(--neon-blue)',
+    bg: 'var(--neon-blue-8)',
+    border: 'var(--neon-blue-20)',
+  },
+  {
+    value: 'alist' as const,
+    label: 'Alist',
+    icon: Server,
+    color: '#A855F7',
+    bg: 'rgba(168, 85, 247, 0.08)',
+    border: 'rgba(168, 85, 247, 0.2)',
+  },
+  {
+    value: 's3' as const,
+    label: 'S3',
+    icon: Database,
+    color: '#F59E0B',
+    bg: 'rgba(245, 158, 11, 0.08)',
+    border: 'rgba(245, 158, 11, 0.2)',
   },
 ]
 
@@ -158,6 +199,7 @@ function ToggleSwitch({
 
 export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLibraryModalProps) {
   const [selectedType, setSelectedType] = useState<CreateLibraryRequest['type']>('movie')
+  const [storageType, setStorageType] = useState<StorageType>('local')
   const [name, setName] = useState('')
   // 多路径模式：第一个是主路径，其余是附加路径
   const [paths, setPaths] = useState<string[]>([''])
@@ -176,6 +218,7 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
   useEffect(() => {
     if (open) {
       setSelectedType('movie')
+      setStorageType('local')
       setName('')
       setPaths([''])
       setShowAdvanced(false)
@@ -250,10 +293,13 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
       nameInputRef.current?.focus()
       return
     }
-    const cleanedPaths = paths.map((p) => p.trim()).filter((p) => p.length > 0)
+    let cleanedPaths = paths.map((p) => p.trim()).filter((p) => p.length > 0)
     if (cleanedPaths.length === 0) {
       setError('请至少添加一个媒体文件夹路径')
       return
+    }
+    if (storageType !== 'local') {
+      cleanedPaths = cleanedPaths.map((p) => joinRemotePath(storageType, p))
     }
     // 去重检查
     const dedup = Array.from(new Set(cleanedPaths))
@@ -420,6 +466,37 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
               </div>
             </div>
 
+            {/* ===== 存储类型 ===== */}
+            <div>
+              <label
+                className="mb-3 block text-sm font-semibold"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                存储类型
+              </label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {STORAGE_TYPES.map((type) => {
+                  const Icon = type.icon
+                  const isSelected = storageType === type.value
+                  return (
+                    <button
+                      key={type.value}
+                      onClick={() => setStorageType(type.value)}
+                      className="flex flex-col items-center gap-1.5 rounded-xl p-3 transition-all"
+                      style={{
+                        background: isSelected ? type.bg : 'transparent',
+                        border: `1.5px solid ${isSelected ? type.border : 'var(--border-default)'}`,
+                        color: isSelected ? type.color : 'var(--text-secondary)',
+                      }}
+                    >
+                      <Icon size={20} />
+                      <span className="text-xs font-medium">{type.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             {/* ===== 媒体文件夹 ===== */}
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -444,7 +521,15 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
                 className="mb-2.5 text-xs leading-relaxed"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                可添加多个媒体文件夹路径，如 <code className="rounded px-1 py-0.5 text-neon" style={{ background: 'var(--nav-hover-bg)' }}>/media/movies</code>。第一个路径将作为主路径。
+                {storageType === 'local' ? (
+                  <>
+                    可添加多个媒体文件夹路径，如 <code className="rounded px-1 py-0.5 text-neon" style={{ background: 'var(--nav-hover-bg)' }}>/media/movies</code>。第一个路径将作为主路径。
+                  </>
+                ) : (
+                  <>
+                    填写远程存储中的相对路径，如 <code className="rounded px-1 py-0.5 text-neon" style={{ background: 'var(--nav-hover-bg)' }}>media</code>，系统会自动加上 <code className="rounded px-1 py-0.5 text-neon" style={{ background: 'var(--nav-hover-bg)' }}>{REMOTE_SCHEMES[storageType]}</code> 前缀。
+                  </>
+                )}
               </p>
               <div className="space-y-2">
                 {paths.map((p, idx) => (
@@ -457,7 +542,7 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
                         border: '1.5px dashed var(--border-hover)',
                         color: 'var(--text-tertiary)',
                       }}
-                      title="浏览服务器目录"
+                      title={storageType === 'local' ? '浏览服务器目录' : '浏览远程目录'}
                     >
                       <FolderPlus size={18} />
                     </button>
@@ -470,7 +555,7 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
                         setError('')
                       }}
                       className="input flex-1"
-                      placeholder={idx === 0 ? '主路径，如: /media/movies 或 D:\\Videos' : '额外路径'}
+                      placeholder={pathPlaceholder(storageType, idx)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                     />
                     {paths.length > 1 && (
@@ -1016,17 +1101,18 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
         </div>
       </div>
 
-      {/* 服务端文件浏览器 */}
+      {/* 文件浏览器（本地 / 远程目录） */}
       <FileBrowser
         open={browsingIndex !== null}
         onClose={() => setBrowsingIndex(null)}
+        storageType={storageType}
         onSelect={(selectedPath) => {
           if (browsingIndex !== null) {
             setPaths((prev) => prev.map((x, i) => (i === browsingIndex ? selectedPath : x)))
             setError('')
           }
         }}
-        initialPath={(browsingIndex !== null ? paths[browsingIndex] : '') || '/'}
+        initialPath={storageType === 'local' ? (browsingIndex !== null ? paths[browsingIndex] : '') || '/' : '/'}
       />
     </div>
   )
