@@ -64,6 +64,7 @@ type VFS interface {
 	// Stat 获取文件信息
 	Stat(path string) (fs.FileInfo, error)
 	// Walk 递归遍历目录
+	// 约定：远程实现（webdav/alist/s3）回调里的 path 包含 root 前缀，由 VFSManager 负责去掉并拼回完整带前缀路径。
 	Walk(root string, fn filepath.WalkFunc) error
 	// Type 返回文件系统类型标识
 	Type() string
@@ -241,14 +242,21 @@ func (m *VFSManager) ReadDir(path string) ([]fs.DirEntry, error) {
 func (m *VFSManager) Walk(root string, fn filepath.WalkFunc) error {
 	vfs, realRoot := m.ResolvePath(root)
 
-	// 对于远程路径：VFS Walk 返回的是相对路径，需要拼接回完整的前缀形式
+	// 对于远程路径：VFS Walk 回调里的 path 已包含 realRoot，需要去掉后再拼回带前缀的完整路径
 	switch vfs.Type() {
 	case "webdav", "alist", "s3":
 		base := trimRemoteRoot(root)
 		return vfs.Walk(realRoot, func(p string, info os.FileInfo, err error) error {
-			fullPath := base + "/" + strings.TrimLeft(p, "/")
-			if p == "" || p == "." {
-				fullPath = base
+			rel := strings.TrimPrefix(p, realRoot)
+			rel = strings.TrimLeft(rel, "/")
+			fullPath := base
+			if rel != "" {
+				// base 形如 "webdav://" 时直接拼接，避免出现 "webdav:///path"
+				if strings.HasSuffix(base, "://") {
+					fullPath = base + rel
+				} else {
+					fullPath = base + "/" + rel
+				}
 			}
 			return fn(fullPath, info, err)
 		})
