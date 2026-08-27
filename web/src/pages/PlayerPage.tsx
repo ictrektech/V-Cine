@@ -266,6 +266,29 @@ export default function PlayerPage() {
     }
   }
 
+  // 视频正在/等待预处理时，阻止进入播放并给出友好提示
+  if (!isPreprocessed && ['running', 'pending', 'queued'].includes(playInfo.preprocess_status || '')) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-center">
+        <Loader2 size={32} className="animate-spin text-neon-blue" />
+        <p className="text-lg font-semibold text-white">
+          {playInfo.preprocess_status === 'running' ? '视频正在预处理中' : '视频等待预处理'}
+        </p>
+        <p className="max-w-md text-sm text-surface-400">
+          预处理完成后即可流畅播放，请稍后再试。
+        </p>
+        <div className="flex items-center gap-3">
+          <button onClick={handleBack} className="btn-ghost rounded-lg px-4 py-2 text-sm text-white/80 hover:bg-white/10">
+            返回
+          </button>
+          <button onClick={() => navigate('/preprocess')} className="btn-primary rounded-lg px-4 py-2 text-sm">
+            查看进度
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // 播放时自动转码已关闭时，不自动落到实时 HLS 转码；已有预处理流不受影响
   if (mode === 'hls' && !isPreprocessed && playInfo.auto_transcode_on_play === false) {
     return (
