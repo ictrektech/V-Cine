@@ -2933,12 +2933,17 @@ func (s *ScannerService) probeMediaInfo(media *model.Media) {
 		return
 	}
 
+	// 远程路径：转换为 FFmpeg 可读取的 HTTP URL，避免直接用 webdav:// / alist:// / s3://
+	inputPath := media.FilePath
+	if IsRemotePath(inputPath) {
+		inputPath = ResolveRemoteFFmpegURL(s.cfg, inputPath)
+	}
 	cmd := exec.Command(s.cfg.App.FFprobePath,
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
 		"-show_streams",
-		media.FilePath,
+		inputPath,
 	)
 
 	output, err := cmd.Output()
