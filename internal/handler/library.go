@@ -124,8 +124,11 @@ func (h *LibraryHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// 逐个校验每个路径是否存在且为目录
+	// 逐个校验每个路径是否存在且为目录（webdav:// / alist:// / s3:// 远程路径跳过本地校验）
 	for _, p := range paths {
+		if service.IsRemotePath(p) {
+			continue
+		}
 		info, err := os.Stat(p)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -292,6 +295,9 @@ func (h *LibraryHandler) Update(c *gin.Context) {
 		}
 		if changed {
 			for _, p := range newPaths {
+				if service.IsRemotePath(p) {
+					continue
+				}
 				pathInfo, pathErr := os.Stat(p)
 				if pathErr != nil {
 					if os.IsNotExist(pathErr) {

@@ -262,7 +262,13 @@ func (s *LibraryService) Scan(id string) error {
 			return
 		}
 		totalEntries := 0
+		hasRemotePath := false
 		for _, p := range allPaths {
+			// webdav:// / alist:// / s3:// 远程路径由 scanner 通过 VFS 校验，不走本地 os.Stat
+			if IsRemotePath(p) {
+				hasRemotePath = true
+				continue
+			}
 			info, err := os.Stat(p)
 			if err != nil {
 				s.logger.Errorf("媒体库路径不可访问: %s (媒体库: %s) err=%v", p, lib.Name, err)
@@ -275,7 +281,7 @@ func (s *LibraryService) Scan(id string) error {
 			entries, _ := os.ReadDir(p)
 			totalEntries += len(entries)
 		}
-		if totalEntries == 0 {
+		if totalEntries == 0 && !hasRemotePath {
 			s.logger.Warnf("媒体库所有路径均为空 (媒体库: %s)", lib.Name)
 		}
 
@@ -752,6 +758,10 @@ func (s *LibraryService) Reindex(id string) error {
 
 		// 异步检查路径（网络驱动器可能较慢，不阻塞 HTTP 响应）
 		for _, p := range lib.AllPaths() {
+			// webdav:// / alist:// / s3:// 远程路径由 scanner 通过 VFS 校验，不走本地 os.Stat
+			if IsRemotePath(p) {
+				continue
+			}
 			info, err := os.Stat(p)
 			if err != nil {
 				s.logger.Errorf("媒体库路径不可访问: %s (媒体库: %s) err=%v", p, lib.Name, err)

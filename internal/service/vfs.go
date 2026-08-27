@@ -36,6 +36,15 @@ func IsRemotePath(path string) bool {
 	return false
 }
 
+// trimRemoteRoot 保留远程 scheme 前缀，只裁剪路径部分的尾部斜杠。
+// 例如 "webdav://" 应保留为 "webdav://"，而不是被 TrimRight 削成 "webdav:/"。
+func trimRemoteRoot(root string) string {
+	if i := strings.Index(root, "://"); i >= 0 {
+		return root[:i+3] + strings.TrimRight(root[i+3:], "/")
+	}
+	return strings.TrimRight(root, "/")
+}
+
 // ==================== VFS 虚拟文件系统接口 ====================
 // 抽象文件系统访问，为未来支持 WebDAV / 网盘 / SMB 等远程存储预留扩展接口
 
@@ -235,7 +244,7 @@ func (m *VFSManager) Walk(root string, fn filepath.WalkFunc) error {
 	// 对于远程路径：VFS Walk 返回的是相对路径，需要拼接回完整的前缀形式
 	switch vfs.Type() {
 	case "webdav", "alist", "s3":
-		base := strings.TrimSuffix(root, "/")
+		base := trimRemoteRoot(root)
 		return vfs.Walk(realRoot, func(p string, info os.FileInfo, err error) error {
 			fullPath := base + "/" + strings.TrimLeft(p, "/")
 			if p == "" || p == "." {
