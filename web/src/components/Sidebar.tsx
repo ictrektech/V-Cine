@@ -1,12 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { libraryApi } from '@/api'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
-import type { Library } from '@/types'
+import { loadCachedLibraries, saveCachedLibraries } from '@/lib/libraryCache'
 import LanguageSwitcher from './LanguageSwitcher'
 import { useTranslation } from '@/i18n'
 import {
@@ -49,27 +50,28 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   const { theme, toggleTheme } = useThemeStore()
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [libraries, setLibraries] = useState<Library[]>([])
+  const queryClient = useQueryClient()
+  const { data: libraries = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['libraries'],
+    queryFn: async () => {
+      const res = await libraryApi.list()
+      const libs = res.data.data
+      saveCachedLibraries(libs)
+      return libs
+    },
+    placeholderData: loadCachedLibraries,
+  })
   const [collapsed, setCollapsed] = useState(false)
   const { on, off } = useWebSocket()
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // 加载媒体库列表
-  const fetchLibraries = useCallback(() => {
-    libraryApi.list().then((res) => {
-      setLibraries(res.data.data)
-    }).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    fetchLibraries()
-  }, [fetchLibraries])
 
   // 监听 WebSocket 事件，实时更新媒体库列表
   useEffect(() => {
     const debouncedRefresh = () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
-      refreshTimerRef.current = setTimeout(() => fetchLibraries(), 500)
+      refreshTimerRef.current = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['libraries'] })
+      }, 500)
     }
 
     // 全局海报版本 bump：刮削/扫描完成后让所有 MediaCard 的图片 URL 更新，破除浏览器缓存
@@ -91,7 +93,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
       off(WS_EVENTS.SCRAPE_COMPLETED, bumpOnMediaChange)
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
     }
-  }, [on, off, fetchLibraries])
+  }, [on, off, queryClient])
 
   const handleLogout = () => {
     logout()
@@ -106,6 +108,37 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
       case 'other': return <Video size={18} />
       default: return <FolderOpen size={18} />
     }
+  }
+
+  let libraryContent
+  if (libraries.length > 0) {
+    libraryContent = libraries.map((lib) => (
+      <NavLink
+        key={lib.id}
+        to={`/library/${lib.id}`}
+        className={({ isActive }) => clsx('nav-item', isActive && 'active')}
+        onClick={onMobileClose}
+      >
+        {iconForType(lib.type)}
+        {(!collapsed || isMobileOpen) && <span>{lib.name}</span>}
+      </NavLink>
+    ))
+  } else if (isError) {
+    libraryContent = (
+      <div className="mx-3 my-1 flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs text-surface-500">
+        <span>媒体库加载失败</span>
+        <button onClick={() => refetch()} className="text-neon hover:underline">重试</button>
+      </div>
+    )
+  } else {
+    libraryContent = [0, 1, 2].map((i) => (
+      <div key={i} className="mx-3 my-1 flex items-center gap-3 rounded-lg px-3 py-2">
+        <div className="h-4 w-4 shrink-0 animate-pulse rounded" style={{ background: 'var(--bg-skeleton-from)' }} />
+        {(!collapsed || isMobileOpen) && (
+          <div className="h-3 flex-1 animate-pulse rounded" style={{ background: 'var(--bg-skeleton-from)' }} />
+        )}
+      </div>
+    ))
   }
 
   // 桌面端用 collapsed，移动端始终展开全宽
@@ -224,7 +257,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         </NavLink>
 
         {/* 媒体库列表 */}
-        {libraries.length > 0 && (
+        {(libraries.length > 0 || isLoading || isError) && (
           <>
             {(!collapsed || isMobileOpen) && (
               <div className="px-3 pb-1 pt-6 text-[10px] font-bold uppercase tracking-[0.2em] text-neon/40">
@@ -235,17 +268,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               <div className="my-3 mx-3 border-t border-neon-blue/10" />
             )}
 
-            {libraries.map((lib) => (
-              <NavLink
-                key={lib.id}
-                to={`/library/${lib.id}`}
-                className={({ isActive }) => clsx('nav-item', isActive && 'active')}
-                onClick={onMobileClose}
-              >
-                {iconForType(lib.type)}
-                {(!collapsed || isMobileOpen) && <span>{lib.name}</span>}
-              </NavLink>
-            ))}
+            {libraryContent}
           </>
         )}
 
