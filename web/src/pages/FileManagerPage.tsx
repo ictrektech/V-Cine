@@ -24,10 +24,10 @@ import {
   Globe,
   RefreshCw,
   History,
-  PanelLeftClose,
   PanelLeftOpen,
   ShieldAlert,
   ScanLine,
+  ArrowUpLeft,
   Library as LibraryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -590,6 +590,27 @@ export default function FileManagerPage() {
     setSubFolders([])
   }, [])
 
+  const handleGoUpFolder = useCallback(() => {
+    const normalized = currentFolderPath.replace(/\\/g, '/').replace(/\/+$/, '')
+    const schemeIdx = normalized.indexOf('://')
+    if (schemeIdx >= 0) {
+      const afterScheme = normalized.slice(schemeIdx + 3)
+      const lastSlash = afterScheme.lastIndexOf('/')
+      if (lastSlash <= 0) {
+        handleClearFolder()
+        return
+      }
+      handleSelectFolder(normalized.slice(0, schemeIdx + 3 + lastSlash))
+      return
+    }
+    const lastSlash = normalized.lastIndexOf('/')
+    if (lastSlash <= 0) {
+      handleClearFolder()
+      return
+    }
+    handleSelectFolder(normalized.slice(0, lastSlash))
+  }, [currentFolderPath, handleClearFolder, handleSelectFolder])
+
   // ==================== 文件夹右键操作 ====================
 
   const handleCreateFolder = useCallback((parentPath: string) => {
@@ -863,94 +884,105 @@ export default function FileManagerPage() {
           />
         </FileToolbar>
 
-        {/* 面包屑导航 */}
-        {currentFolderPath && (
-          <div className="flex items-center gap-2">
-            <Breadcrumb
-              folderPath={currentFolderPath}
-              onNavigate={handleSelectFolder}
-              onGoHome={handleClearFolder}
-            />
-          </div>
-        )}
-
-        {/* 左侧文件夹树 + 中间文件列表 + 右侧AI助手面板 */}
-        <div className="flex gap-4">
-          {/* 左侧文件夹树面板 — 使用 CSS 过渡动画而非条件渲染 */}
+        {/* 面包屑 + 左侧文件夹树 + 文件列表，整体一个框 */}
+        <div className="flex gap-4 items-start">
           <div
-            className={clsx(
-              'flex-shrink-0 hidden lg:block overflow-hidden transition-all duration-300 ease-out',
-              showFolderPanel ? 'w-64 opacity-100' : 'w-0 opacity-0'
-            )}
-            style={{
-              height: showFolderPanel ? 'calc(100vh - 280px)' : 0,
-              maxHeight: showFolderPanel ? 'calc(100vh - 280px)' : 0,
-            }}
+            className="glass-panel rounded-xl overflow-hidden border flex-1 min-w-0"
+            style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}
           >
-            <div className="w-64 h-full">
-              <FolderTree
-                tree={folderTree}
-                loading={folderTreeLoading}
-                selectedPath={currentFolderPath}
-                onSelectFolder={handleSelectFolder}
-                onClearFolder={handleClearFolder}
-                onCreateFolder={handleCreateFolder}
-                onRenameFolder={handleRenameFolder}
-                onDeleteFolder={handleDeleteFolder}
-                onRefreshFolder={fetchFolderTree}
-                onCopyPath={handleCopyPath}
-              />
-            </div>
-          </div>
+            {currentFolderPath && (
+              <div className="flex items-center gap-2 px-3 py-2 border-b overflow-x-auto" style={{ borderColor: 'var(--border-default)' }}>
+                <Breadcrumb
+                  folderPath={currentFolderPath}
+                  onNavigate={handleSelectFolder}
+                  onGoHome={handleClearFolder}
+                />
+              </div>
+            )}
 
-          {/* 右侧文件列表 */}
-          <div className="flex-1 min-w-0 space-y-4">
-            {/* 文件夹面板切换按钮 */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowFolderPanel(!showFolderPanel)}
-                className="btn-ghost hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
-                title={showFolderPanel ? '收起文件夹面板' : '展开文件夹面板'}
+            <div className="flex min-h-0" style={{ height: 'calc(100vh - 320px)', maxHeight: 'calc(100vh - 320px)' }}>
+              {/* 左侧文件夹树面板 */}
+              <div
+                className={clsx(
+                  'flex-shrink-0 hidden lg:block overflow-hidden transition-all duration-300 ease-out',
+                  showFolderPanel ? 'w-52 xl:w-60 border-r opacity-100' : 'w-0 opacity-0'
+                )}
               >
-                {showFolderPanel ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
-                {showFolderPanel ? '收起导航' : '展开导航'}
-              </button>
-              {currentFolderPath && (
-                <span className="text-xs px-2 py-1 rounded-md bg-neon-blue/10 text-neon">
-                  当前目录: {currentFolderPath.replace(/\\/g, '/').split('/').pop()}
-                </span>
-              )}
-            </div>
+                <div className="w-52 xl:w-60 h-full">
+                  <FolderTree
+                    tree={folderTree}
+                    loading={folderTreeLoading}
+                    selectedPath={currentFolderPath}
+                    onSelectFolder={handleSelectFolder}
+                    onClearFolder={handleClearFolder}
+                    onCreateFolder={handleCreateFolder}
+                    onRenameFolder={handleRenameFolder}
+                    onDeleteFolder={handleDeleteFolder}
+                    onRefreshFolder={fetchFolderTree}
+                    onCopyPath={handleCopyPath}
+                    onCollapse={() => setShowFolderPanel(false)}
+                  />
+                </div>
+              </div>
 
-            <FileListView
-              files={files}
-              loading={loading}
-              viewMode={viewMode}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-              onViewDetail={(media) => { setDetailMedia(media); setActiveDialog('detail') }}
-              onEdit={(media) => { setEditMedia(media); setActiveDialog('edit') }}
-              onScrape={handleScrapeFile}
-              onDelete={handleDeleteFile}
-              page={page}
-              totalPages={totalPages}
-              total={total}
-              pageSize={pageSize}
-              pageSizeOptions={pageSizeOptions}
-              onPageChange={setPage}
-              onPageSizeChange={handlePageSizeChange}
-              subFolders={subFolders}
-              currentFolderPath={currentFolderPath}
-              onNavigateFolder={handleSelectFolder}
-              onPlayFile={handlePlayFile}
-              onCopyFilePath={handleCopyPath}
-              onCreateSubFolder={handleCreateFolder}
-              onRenameSubFolder={handleRenameFolder}
-              onDeleteSubFolder={handleDeleteFolder}
-              onRefreshSubFolder={fetchFolderTree}
-              onCopyFolderPath={handleCopyPath}
-            />
+              {/* 右侧文件列表 */}
+              <div className="flex-1 min-w-0 flex flex-col">
+                {(showFolderPanel ? !!currentFolderPath : true) && (
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: 'var(--border-default)' }}>
+                    {!showFolderPanel && (
+                      <button
+                        onClick={() => setShowFolderPanel(true)}
+                        className="btn-ghost hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
+                        title="展开文件夹面板"
+                      >
+                        <PanelLeftOpen size={14} /> 展开导航
+                      </button>
+                    )}
+                    {currentFolderPath && (
+                      <button
+                        onClick={handleGoUpFolder}
+                        className="btn-ghost hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
+                        title="返回上一级"
+                      >
+                        <ArrowUpLeft size={14} /> 上一级
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3">
+                  <FileListView
+                    files={files}
+                    loading={loading}
+                    viewMode={viewMode}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onToggleSelectAll={toggleSelectAll}
+                    onViewDetail={(media) => { setDetailMedia(media); setActiveDialog('detail') }}
+                    onEdit={(media) => { setEditMedia(media); setActiveDialog('edit') }}
+                    onScrape={handleScrapeFile}
+                    onDelete={handleDeleteFile}
+                    page={page}
+                    totalPages={totalPages}
+                    total={total}
+                    pageSize={pageSize}
+                    pageSizeOptions={pageSizeOptions}
+                    onPageChange={setPage}
+                    onPageSizeChange={handlePageSizeChange}
+                    subFolders={subFolders}
+                    currentFolderPath={currentFolderPath}
+                    onNavigateFolder={handleSelectFolder}
+                    onPlayFile={handlePlayFile}
+                    onCopyFilePath={handleCopyPath}
+                    onCreateSubFolder={handleCreateFolder}
+                    onRenameSubFolder={handleRenameFolder}
+                    onDeleteSubFolder={handleDeleteFolder}
+                    onRefreshSubFolder={fetchFolderTree}
+                    onCopyFolderPath={handleCopyPath}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* 右侧 AI 助手面板 — 使用 CSS 过渡动画 */}
