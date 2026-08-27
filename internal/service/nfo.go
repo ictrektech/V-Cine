@@ -27,16 +27,16 @@ func NewNFOService(logger *zap.SugaredLogger) *NFOService {
 	return &NFOService{logger: logger}
 }
 
-// SetVFSManager 注入 VFS 管理器（V2.1，用于 webdav:// NFO 支持）
+// SetVFSManager 注入 VFS 管理器（用于远程 NFO 支持）
 func (s *NFOService) SetVFSManager(vfsMgr *VFSManager) {
 	s.vfsMgr = vfsMgr
 }
 
 // ==================== VFS 辅助方法 ====================
 
-// readFile 读取文件（支持 webdav://）
+// readFile 读取文件（支持远程路径）
 func (s *NFOService) readFile(p string) ([]byte, error) {
-	if s.vfsMgr != nil && IsWebDAVPath(p) {
+	if s.vfsMgr != nil && IsRemotePath(p) {
 		f, err := s.vfsMgr.Open(p)
 		if err != nil {
 			return nil, err
@@ -47,17 +47,17 @@ func (s *NFOService) readFile(p string) ([]byte, error) {
 	return os.ReadFile(p)
 }
 
-// statPath 获取文件信息（支持 webdav://）
+// statPath 获取文件信息（支持远程路径）
 func (s *NFOService) statPath(p string) (os.FileInfo, error) {
-	if s.vfsMgr != nil && IsWebDAVPath(p) {
+	if s.vfsMgr != nil && IsRemotePath(p) {
 		return s.vfsMgr.Stat(p)
 	}
 	return os.Stat(p)
 }
 
-// readDir 读取目录（支持 webdav://）
+// readDir 读取目录（支持远程路径）
 func (s *NFOService) readDir(p string) ([]os.DirEntry, error) {
-	if s.vfsMgr != nil && IsWebDAVPath(p) {
+	if s.vfsMgr != nil && IsRemotePath(p) {
 		entries, err := s.vfsMgr.ReadDir(p)
 		if err != nil {
 			return nil, err
@@ -69,20 +69,19 @@ func (s *NFOService) readDir(p string) ([]os.DirEntry, error) {
 	return os.ReadDir(p)
 }
 
-// joinPath 路径拼接（webdav:// 用正斜杠）
+// joinPath 路径拼接（远程路径用正斜杠）
 func (s *NFOService) joinPath(base, name string) string {
-	if IsWebDAVPath(base) {
-		base = strings.TrimRight(base, "/")
-		return base + "/" + strings.TrimLeft(name, "/")
+	if IsRemotePath(base) {
+		return joinRemotePath(base, name)
 	}
 	return filepath.Join(base, name)
 }
 
-// dirOf 提取目录（webdav:// 用正斜杠规则）
+// dirOf 提取目录（远程路径用正斜杠规则）
 func (s *NFOService) dirOf(p string) string {
-	if IsWebDAVPath(p) {
+	if IsRemotePath(p) {
 		i := strings.LastIndex(p, "/")
-		if i <= len("webdav:/") {
+		if i <= strings.Index(p, "://")+3 {
 			return p
 		}
 		return p[:i]

@@ -215,9 +215,10 @@ func (m *VFSManager) ResolvePath(path string) (VFS, string) {
 	return m.defaultFS, path
 }
 
-// IsWebDAVPath 判断路径是否为 WebDAV 路径
-func IsWebDAVPath(path string) bool {
-	return strings.HasPrefix(path, WebDAVScheme)
+// joinRemotePath 拼接远程存储路径（webdav:// / alist:// / s3://），保留 scheme:// 前缀。
+func joinRemotePath(base, name string) string {
+	base = trimRemoteRoot(base)
+	return base + "/" + strings.TrimLeft(name, "/")
 }
 
 // Open 通过路径前缀自动路由到对应 VFS 打开文件

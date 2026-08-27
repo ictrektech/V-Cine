@@ -219,8 +219,8 @@ func probeAudioTracks(media *model.Media, ffprobePath string, logger *zap.Sugare
 	if media == nil || media.StreamURL != "" {
 		return nil
 	}
-	// WebDAV / 远程路径不做探测（ffprobe 读远程开销过大）
-	if IsWebDAVPath(media.FilePath) {
+	// 远程路径不做探测（ffprobe 读远程开销过大）
+	if IsRemotePath(media.FilePath) {
 		return nil
 	}
 	if _, err := os.Stat(media.FilePath); err != nil {

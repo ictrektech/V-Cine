@@ -869,8 +869,8 @@ func (s *AdultScraperService) ApplyToMedia(media *model.Media, meta *AdultMetada
 	}
 
 	// ==================== P1：剧照 / 演员头像下载 ====================
-	// 仅在本地文件系统时生效（webdav:// 不支持写入）
-	if media.FilePath != "" && !IsWebDAVPath(media.FilePath) {
+	// 仅在本地文件系统时生效（远程路径不支持写入）
+	if media.FilePath != "" && !IsRemotePath(media.FilePath) {
 		s.DownloadExtraFanart(media, meta)
 		s.DownloadActorPhotos(media, meta)
 	}
@@ -922,7 +922,7 @@ func (s *AdultScraperService) ApplyToMedia(media *model.Media, meta *AdultMetada
 
 	// ==================== P2：封面自动裁剪成竖版 poster（Emby 媒体墙更美观）====================
 	if s.cfg.AdultScraper.EnablePosterCrop && media.PosterPath != "" &&
-		media.FilePath != "" && !IsWebDAVPath(media.FilePath) {
+		media.FilePath != "" && !IsRemotePath(media.FilePath) {
 		if posterPath, err := s.GeneratePosterForMedia(media.FilePath, media.PosterPath); err != nil {
 			s.logger.Debugf("封面裁剪失败（不影响主流程）: %v", err)
 		} else if posterPath != "" {
@@ -931,8 +931,8 @@ func (s *AdultScraperService) ApplyToMedia(media *model.Media, meta *AdultMetada
 	}
 
 	// ==================== NFO 自动生成（让 Emby/Jellyfin/Infuse 能识别番号元数据）====================
-	// 只在本地文件系统生成（webdav:// 不支持写入）
-	if s.nfoService != nil && media.FilePath != "" && !IsWebDAVPath(media.FilePath) {
+	// 只在本地文件系统生成（远程路径不支持写入）
+	if s.nfoService != nil && media.FilePath != "" && !IsRemotePath(media.FilePath) {
 		if nfoPath, err := s.nfoService.WriteAdultNFO(media.FilePath, media, meta); err != nil {
 			s.logger.Debugf("NFO 生成失败（不影响主流程）: %v", err)
 		} else {

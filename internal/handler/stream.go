@@ -46,11 +46,11 @@ func (h *StreamHandler) Direct(c *gin.Context) {
 	c.Header("Accept-Ranges", "bytes")
 	c.Header("Cache-Control", "public, max-age=86400")
 
-	// WebDAV 远程文件：使用 VFS 打开，并借助 http.ServeContent 提供 Range 支持
-	if service.IsWebDAVPath(filePath) {
+	// 远程文件：使用 VFS 打开，并借助 http.ServeContent 提供 Range 支持
+	if service.IsRemotePath(filePath) {
 		vfsFile, err := h.streamService.OpenMediaFile(filePath)
 		if err != nil {
-			h.logger.Warnf("WebDAV 打开文件失败: %s, 错误: %v", filePath, err)
+			h.logger.Warnf("远程打开文件失败: %s, 错误: %v", filePath, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "打开远程文件失败: " + err.Error()})
 			return
 		}
@@ -234,8 +234,8 @@ func (h *StreamHandler) Poster(c *gin.Context) {
 		return
 	}
 
-	// V2.1: WebDAV 海报 —— 通过 VFS 读取并流式输出
-	if service.IsWebDAVPath(posterPath) {
+	// 远程海报 —— 通过 VFS 读取并流式输出
+	if service.IsRemotePath(posterPath) {
 		vfsFile, openErr := h.streamService.OpenMediaFile(posterPath)
 		if openErr != nil {
 			c.Header("Content-Type", "image/svg+xml")

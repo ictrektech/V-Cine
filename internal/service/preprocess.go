@@ -188,18 +188,18 @@ func (s *PreprocessService) SubmitMedia(mediaID string, priority int, force bool
 			media.VideoCodec, media.AudioCodec)
 	}
 
-	// V2.1: WebDAV 路径 → HTTP URL（FFmpeg 会直接流式读取，不需要全文件下载）
+	// 远程路径 → HTTP URL（FFmpeg 会直接流式读取，不需要全文件下载）
 	inputPath := media.FilePath
-	if IsWebDAVPath(inputPath) {
+	if IsRemotePath(inputPath) {
 		// 通过 VFS 检查文件存在性
 		if s.vfsMgr != nil {
 			if _, err := s.vfsMgr.Stat(inputPath); err != nil {
-				return nil, fmt.Errorf("WebDAV 媒体文件不可访问: %s, %w", inputPath, err)
+				return nil, fmt.Errorf("远程媒体文件不可访问: %s, %w", inputPath, err)
 			}
 		}
 		// 翻译为 HTTP URL（ffmpeg 直读）
 		inputPath = ResolveRemoteFFmpegURL(s.cfg, inputPath)
-		s.logger.Infof("WebDAV 预处理输入: %s", SprintSafeFFmpegURL(inputPath))
+		s.logger.Infof("远程预处理输入: %s", SprintSafeFFmpegURL(inputPath))
 	} else {
 		// 本地文件存在性检查
 		if _, err := os.Stat(media.FilePath); os.IsNotExist(err) {

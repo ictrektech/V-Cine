@@ -829,7 +829,7 @@ func (s *MetadataService) writeNFOAfterScrape(mediaID, status string) {
 		s.logger.Debugf("媒体元数据不足，跳过 NFO 生成: %s", media.Title)
 		return
 	}
-	if media.FilePath == "" || IsWebDAVPath(media.FilePath) {
+	if media.FilePath == "" || IsRemotePath(media.FilePath) {
 		s.logger.Debugf("媒体路径不支持写入 NFO，跳过: %s", media.FilePath)
 		return
 	}

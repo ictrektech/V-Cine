@@ -39,8 +39,8 @@ func (s *AdultScraperService) CheckBrowserMediaStatus(path string) (*AdultBrowse
 	if path == "" {
 		return nil, fmt.Errorf("路径为空")
 	}
-	if IsWebDAVPath(path) {
-		return nil, fmt.Errorf("浏览器状态检查暂不支持 webdav:// 路径")
+	if IsRemotePath(path) {
+		return nil, fmt.Errorf("浏览器状态检查暂不支持远程路径")
 	}
 
 	status := &AdultBrowserMediaStatus{Path: path}
@@ -95,8 +95,8 @@ func (s *AdultScraperService) ImportBrowserMetadataToPath(videoPath string, meta
 	if videoPath == "" {
 		return nil, fmt.Errorf("视频路径为空")
 	}
-	if IsWebDAVPath(videoPath) {
-		return nil, fmt.Errorf("浏览器导入暂不支持 webdav:// 路径")
+	if IsRemotePath(videoPath) {
+		return nil, fmt.Errorf("浏览器导入暂不支持远程路径")
 	}
 	info, err := os.Stat(videoPath)
 	if err != nil {
