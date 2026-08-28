@@ -142,8 +142,11 @@ COPY --from=backend /app/nowen-video /usr/local/bin/nowen-video
 COPY --from=frontend /app/web/dist /app/web/dist
 COPY scripts/adult-scraper /app/scripts/adult-scraper
 
-RUN mkdir -p /data /cache /media \
-    && chown -R nowen:nowen /data /cache /media /app/scripts
+# /app/config -> /data/config：让 AI 等运行时可写配置落在持久化 /data 卷上，
+# 避免 mkdir /app/config 权限不足导致保存失败（放在 apt 等重层之后，不影响它们的缓存）
+RUN mkdir -p /data /cache /media /data/config \
+    && ln -sfn /data/config /app/config \
+    && chown -R nowen:nowen /data /cache /media /data/config /app/scripts
 
 ENV NOWEN_APP_PORT=8080
 ENV NOWEN_APP_DATA_DIR=/data
@@ -181,6 +184,7 @@ if [ "$PUID" != "$(id -u nowen)" ] || [ "$PGID" != "$(id -g nowen)" ]; then\n\
     useradd -o -u "$PUID" -g "$PGID" -M -s /bin/bash nowen 2>/dev/null || true\n\
   fi\n\
 fi\n\
+mkdir -p /data/config\n\
 chown -R nowen:nowen /data /cache 2>/dev/null || true\n\
 chown nowen:nowen /media 2>/dev/null || true\n\
 chown -R nowen:nowen /app/scripts 2>/dev/null || true\n\
