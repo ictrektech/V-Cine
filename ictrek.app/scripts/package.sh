@@ -3,6 +3,9 @@ set -euo pipefail
 
 APP_NAME="nowen-video"
 IMAGE_REPO="swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video"
+SPREADSHEET_TOKEN="${FEISHU_SPREADSHEET_TOKEN:-Htotsn3oahO1zxt73YMcaB1zn8e}"
+FEISHU_CONFIG_FILE="${FEISHU_CONFIG_FILE:-${HOME}/.feishu.components.json}"
+FEISHU_FALLBACK_CONFIG_FILE="${FEISHU_FALLBACK_CONFIG_FILE:-${HOME}/.feishu.json}"
 # PostgreSQL 由 VOS 共享 pgv 服务（com.ictrek.pgv）提供，nowen 不再自带 postgres
 # 容器或镜像：NOWEN_DATABASE_HOST 默认指向 pgv 在 vos_default 网络的别名。
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,19 +17,167 @@ VERSION_FILE="${ROOT_DIR}/VERSION"
 APP_VERSION="${PACKAGE_VERSION:-$(tr -d '[:space:]' < "${VERSION_FILE}")}"
 
 [[ "${APP_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "invalid version: ${APP_VERSION}" >&2; exit 1; }
+command -v curl >/dev/null || { echo "missing curl" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "missing python3" >&2; exit 1; }
 command -v tar >/dev/null || { echo "missing tar" >&2; exit 1; }
+
+log() { echo "[package] $*"; }
+die() { echo "[package][ERROR] $*" >&2; exit 1; }
+
+read_feishu_field() {
+  local config_file="$1" field="$2"
+  python3 - "$config_file" "$field" <<'PY'
+import json, sys
+path, field = sys.argv[1], sys.argv[2]
+with open(path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+value = data.get(field, "")
+print(value if isinstance(value, str) else str(value))
+PY
+}
+
+get_feishu_token() {
+  local app_id="$1" app_secret="$2" response
+  response="$(curl --fail -sS -X POST \
+    'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal' \
+    -H 'Content-Type: application/json' \
+    -d "{\"app_id\":\"${app_id}\",\"app_secret\":\"${app_secret}\"}")"
+  python3 - "$response" <<'PY'
+import json, sys
+data = json.loads(sys.argv[1])
+if data.get("code") != 0:
+    raise SystemExit(f"get_feishu_token failed: {data}")
+print(data["tenant_access_token"])
+PY
+}
+
+feishu_get() {
+  local url="$1" token="$2"
+  curl --fail -sS "$url" -H "Authorization: Bearer ${token}"
+}
+
+get_sheet_id_by_title() {
+  local token="$1" title="$2" response
+  response="$(feishu_get \
+    "https://open.feishu.cn/open-apis/sheets/v3/spreadsheets/${SPREADSHEET_TOKEN}/sheets/query" \
+    "$token")"
+  python3 - "$title" "$response" <<'PY'
+import json, sys
+title, response = sys.argv[1], sys.argv[2]
+data = json.loads(response)
+if data.get("code") != 0:
+    raise SystemExit(f"query sheets failed: {data}")
+for sheet in data.get("data", {}).get("sheets", []):
+    if sheet.get("title") == title:
+        print(sheet["sheet_id"])
+        raise SystemExit(0)
+raise SystemExit(f"sheet title not found: {title}")
+PY
+}
+
+get_range_values() {
+  local token="$1" range="$2"
+  feishu_get \
+    "https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/${SPREADSHEET_TOKEN}/values/${range}" \
+    "$token"
+}
+
+find_component_column() {
+  local token="$1" sheet_id="$2" response
+  response="$(get_range_values "$token" "${sheet_id}!A1:ZZ1")"
+  python3 - "$response" <<'PY'
+import json, sys
+data = json.loads(sys.argv[1])
+if data.get("code") != 0:
+    raise SystemExit(f"read header failed: {data}")
+rows = data.get("data", {}).get("valueRange", {}).get("values", [])
+row = rows[0] if rows else []
+
+def text(value):
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        return str(value.get("text") or value.get("link") or "").strip()
+    if isinstance(value, list):
+        return "".join(text(item) for item in value).strip()
+    return str(value).strip()
+
+def column_name(number):
+    result = ""
+    while number:
+        number, remainder = divmod(number - 1, 26)
+        result = chr(ord("A") + remainder) + result
+    return result
+
+for index, value in enumerate(row, start=1):
+    if text(value) == "nowen-video":
+        print(column_name(index))
+        raise SystemExit(0)
+raise SystemExit("component column not found: nowen-video")
+PY
+}
+
+find_latest_tag() {
+  local token="$1" sheet_id="$2" column="$3" response
+  response="$(get_range_values "$token" "${sheet_id}!${column}4:${column}2000")"
+  python3 - "$response" <<'PY'
+import json, sys
+data = json.loads(sys.argv[1])
+if data.get("code") != 0:
+    raise SystemExit(f"read version column failed: {data}")
+for row in data.get("data", {}).get("valueRange", {}).get("values", []):
+    if row and row[0] is not None and str(row[0]).strip():
+        print(str(row[0]).strip())
+        raise SystemExit(0)
+raise SystemExit("latest nowen-video tag not found")
+PY
+}
+
+load_feishu_auth() {
+  local config_file tried=""
+  for config_file in "$FEISHU_CONFIG_FILE" "$FEISHU_FALLBACK_CONFIG_FILE"; do
+    [[ -n "$config_file" && "$tried" != *"|$config_file|"* ]] || continue
+    tried="${tried}|${config_file}|"
+    [[ -r "$config_file" ]] || continue
+    FEISHU_APP_ID="$(read_feishu_field "$config_file" feishu_app_id)"
+    FEISHU_APP_SECRET="$(read_feishu_field "$config_file" feishu_app_secret)"
+    if [[ -n "$FEISHU_APP_ID" && -n "$FEISHU_APP_SECRET" ]]; then
+      FEISHU_TOKEN="$(get_feishu_token "$FEISHU_APP_ID" "$FEISHU_APP_SECRET")"
+      log "read image versions from Feishu with ${config_file}"
+      return 0
+    fi
+  done
+  die "failed to read Feishu credentials"
+}
+
+latest_image_for_sheet() {
+  local sheet_title="$1" expected_prefix="$2" sheet_id column tag
+  sheet_id="$(get_sheet_id_by_title "$FEISHU_TOKEN" "$sheet_title")"
+  column="$(find_component_column "$FEISHU_TOKEN" "$sheet_id")"
+  tag="$(find_latest_tag "$FEISHU_TOKEN" "$sheet_id" "$column")"
+  [[ "$tag" == "${expected_prefix}"* ]] || \
+    die "unexpected nowen-video tag in ${sheet_title}: ${tag} (expected prefix ${expected_prefix})"
+  log "${sheet_title}: ${IMAGE_REPO}:${tag}" >&2
+  printf '%s:%s\n' "$IMAGE_REPO" "$tag"
+}
+
+load_feishu_auth
+NOWEN_VIDEO_AMD_IMAGE="$(latest_image_for_sheet AMD_with_cuda amd_)"
+NOWEN_VIDEO_ARM_IMAGE="$(latest_image_for_sheet ARM_without_cuda arm_)"
+NOWEN_VIDEO_L4T_IMAGE="$(latest_image_for_sheet l4t l4t_)"
 
 rm -rf "${STAGE_DIR}" "${PACKAGE_ROOT}"
 mkdir -p "${STAGE_DIR}" "${PACKAGE_ROOT}"
 trap 'rm -rf "${STAGE_DIR}" "${PACKAGE_ROOT}"' EXIT
 
-# Per-profile image refs are pinned to the VOS app version. The matching
-# images must be built/pushed by build_image.sh before release.
+# Per-profile image refs come from the latest nowen-video entries in Feishu.
+# build_image.sh pushes each image before recording its tag in the sheet.
 cat > "${STAGE_DIR}/.env" <<EOF
-NOWEN_VIDEO_AMD_IMAGE=${IMAGE_REPO}:amd_${APP_VERSION}
-NOWEN_VIDEO_ARM_IMAGE=${IMAGE_REPO}:arm_${APP_VERSION}
-NOWEN_VIDEO_L4T_IMAGE=${IMAGE_REPO}:l4t_${APP_VERSION}
+NOWEN_VIDEO_AMD_IMAGE=${NOWEN_VIDEO_AMD_IMAGE}
+NOWEN_VIDEO_ARM_IMAGE=${NOWEN_VIDEO_ARM_IMAGE}
+NOWEN_VIDEO_L4T_IMAGE=${NOWEN_VIDEO_L4T_IMAGE}
 EOF
 
 python3 - "${SRC_DIR}" "${STAGE_DIR}" "${APP_VERSION}" <<'PY'
@@ -46,13 +197,15 @@ if (src / "icon.png").exists():
     (dst / "icon.png").write_bytes((src / "icon.png").read_bytes())
 PY
 
-python3 - "${STAGE_DIR}" "${APP_VERSION}" "${IMAGE_REPO}" <<'PY'
+python3 - "${STAGE_DIR}" "${APP_VERSION}" \
+  "${NOWEN_VIDEO_AMD_IMAGE}" "${NOWEN_VIDEO_ARM_IMAGE}" "${NOWEN_VIDEO_L4T_IMAGE}" <<'PY'
 import re
 import sys
 from pathlib import Path
 import yaml
 
-stage, version, repo = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+stage, version = Path(sys.argv[1]), sys.argv[2]
+expected_images = sys.argv[3:6]
 for name in ("manifest.yml", "configs.yml", "routers.yml", "traefik.yml", "docker-compose.yml"):
     yaml.safe_load((stage / name).read_text())
 text_parts = [(stage / ".env").read_text()]
@@ -63,9 +216,8 @@ compose = (stage / "docker-compose.yml").read_text()
 assert "${NOWEN_VIDEO_AMD_IMAGE}" not in compose, "unrendered amd image variable"
 assert "${NOWEN_VIDEO_ARM_IMAGE}" not in compose, "unrendered arm image variable"
 assert "${NOWEN_VIDEO_L4T_IMAGE}" not in compose, "unrendered l4t image variable"
-assert f"{repo}:amd_{version}" in compose, "missing amd image tag"
-assert f"{repo}:arm_{version}" in compose, "missing arm image tag"
-assert f"{repo}:l4t_{version}" in compose, "missing l4t image tag"
+for image in expected_images:
+    assert image in compose, f"missing Feishu image: {image}"
 assert "runtime: nvidia" in compose, "missing nvidia runtime for l4t"
 assert "privileged: true" in compose, "missing privileged for l4t"
 assert "NOWEN_APP_WEB_BASE_PATH" in compose, "missing VOS web base path env"

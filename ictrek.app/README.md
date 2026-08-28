@@ -11,13 +11,12 @@ VOS OIDC 登录会以已验签的 VOS `sub` 绑定 Nowen 账号；同名的既�
 - 通用平台用 `docker/Dockerfile`（AMD64 / 通用 ARM64）；
 - Jetson / L4T 用 `docker/Dockerfile.l4t`（arm64 + nvmpi）。
 
-版本 pin 到 profile tag，并写入飞书当记录。
-`package.sh` **不读飞书**——tag 直接从 `ictrek.app/VERSION` 派生；飞书仅作团队可见的发布记录。
+镜像构建完成后写入飞书发布表。`package.sh` 从飞书 `nowen-video` 列读取各 profile 的最新镜像 tag；目标 sheet 缺少记录或 tag 前缀与架构不符时直接停止打包。
 
 ```text
-swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:amd_${VERSION}
-swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:arm_${VERSION}
-swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:l4t_${VERSION}
+amd  -> AMD_with_cuda   -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:amd_*
+arm  -> ARM_without_cuda -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:arm_*
+l4t  -> l4t             -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:l4t_*
 ```
 
 **一次性 / 基镜像版本变动时**：把基镜像（`oven/bun:1-alpine` / `golang:1.25-alpine` / `nvidia/cuda:12.8.1-runtime-ubuntu22.04` / `ubuntu:22.04`）同步到 SWR。华为 SWR 不接受 OCI 多架构索引，所以**按架构各跑一次**，产出 `<base>-amd64` / `<base>-arm64` 分架构 tag（基镜像不进飞书）：
@@ -47,7 +46,7 @@ ssh <jetson>'cd nowen-video && git pull && ./build_image.sh --profile l4t'     #
 ```
 
 `build_image.sh` 的 `VERSION` 默认取 `ictrek.app/VERSION`（`--version` 覆盖）；`--profile default|l4t` 选择构建变体（默认 `default` 即 `docker/Dockerfile` + arch tag，`l4t` 即 `docker/Dockerfile.l4t` + `l4t_${VERSION}`）；`--no-push` / `--no-feishu` 用于调试。
-镜像 tag 必须与 `VERSION` 一致，且**必须先于 tag 推送构建完成**（`package.sh` 只校验字符串、不校验 SWR 上是否存在）。SWR 镜像从 0.1.2 起接入；更早的 0.1.1 历史包仍指向 Docker Hub。
+镜像必须先于发布 tag 完成构建、推送并登记飞书；打包时从飞书读取各架构最新 tag。SWR 镜像从 0.1.2 起接入；更早的 0.1.1 历史包仍指向 Docker Hub。
 
 ## 打包
 
