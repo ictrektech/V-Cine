@@ -101,7 +101,7 @@ type Services struct {
 }
 
 func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap.SugaredLogger) *Services {
-	transcoder := NewTranscodeService(repos.Transcode, cfg, logger)
+	transcoder := NewTranscodeService(repos.Transcode, repos.Media, cfg, logger)
 	transcoder.SetSettingRepo(repos.SystemSetting)
 	scanner := NewScannerService(repos.Media, repos.Series, cfg, logger)
 	metadata := NewMetadataService(repos.Media, repos.Series, repos.Person, repos.MediaPerson, cfg, logger)

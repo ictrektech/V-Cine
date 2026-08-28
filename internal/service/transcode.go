@@ -60,6 +60,7 @@ type QualityConfig struct {
 // TranscodeService 转码服务
 type TranscodeService struct {
 	repo        *repository.TranscodeRepo
+	mediaRepo   *repository.MediaRepo
 	cfg         *config.Config
 	logger      *zap.SugaredLogger
 	settingRepo *repository.SystemSettingRepo // 系统设置（enable_gpu_transcode）
@@ -155,13 +156,14 @@ func (j *TranscodeJob) getTranscodedPosition() float64 {
 	return float64(j.transcodedPos.Load()) / 100
 }
 
-func NewTranscodeService(repo *repository.TranscodeRepo, cfg *config.Config, logger *zap.SugaredLogger) *TranscodeService {
+func NewTranscodeService(repo *repository.TranscodeRepo, mediaRepo *repository.MediaRepo, cfg *config.Config, logger *zap.SugaredLogger) *TranscodeService {
 	ts := &TranscodeService{
-		repo:    repo,
-		cfg:     cfg,
-		logger:  logger,
-		jobs:    make(chan *TranscodeJob, 100),
-		running: make(map[string]*TranscodeJob),
+		repo:      repo,
+		mediaRepo: mediaRepo,
+		cfg:       cfg,
+		logger:    logger,
+		jobs:      make(chan *TranscodeJob, 100),
+		running:   make(map[string]*TranscodeJob),
 	}
 
 	// 检测硬件加速能力（只检测一次，缓存结果）
@@ -1127,6 +1129,69 @@ func (s *TranscodeService) CleanMediaCache(mediaID string) error {
 	return nil
 }
 
+// CleanupOrphanTranscodeCaches 清理 cache/transcode 下已无对应媒体记录的孤儿目录。
+// 只删媒体已不存在的目录；媒体还在库里的缓存即使很旧也保留，避免误删可复用产物。
+// 跳过仍有 running/pending 转码任务的目录，避免删除正在写入的产物。
+func (s *TranscodeService) CleanupOrphanTranscodeCaches() error {
+	root := filepath.Join(s.cfg.Cache.CacheDir, "transcode")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	var dirs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, e.Name())
+		}
+	}
+	if len(dirs) == 0 {
+		return nil
+	}
+
+	medias, err := s.mediaRepo.FindByIDs(dirs)
+	if err != nil {
+		return err
+	}
+	existing := make(map[string]struct{}, len(medias))
+	for i := range medias {
+		existing[medias[i].ID] = struct{}{}
+	}
+
+	active := make(map[string]struct{})
+	s.mu.RLock()
+	for _, job := range s.running {
+		if job != nil && job.Task != nil {
+			active[job.Task.MediaID] = struct{}{}
+		}
+	}
+	s.mu.RUnlock()
+
+	var cleaned int
+	for _, dir := range dirs {
+		if _, ok := existing[dir]; ok {
+			continue
+		}
+		if _, ok := active[dir]; ok {
+			continue
+		}
+		path := filepath.Join(root, dir)
+		if err := os.RemoveAll(path); err != nil {
+			s.logger.Warnf("清理孤儿转码目录失败 %s: %v", path, err)
+			continue
+		}
+		cleaned++
+	}
+	if cleaned > 0 {
+		s.logger.Infof("已清理 %d 个孤儿转码目录", cleaned)
+		s.InvalidateCacheDiskUsage()
+	}
+	return nil
+}
+
 // RetryTask 重试失败/取消的转码任务
 //
 // 实现：直接调用 startTranscodeInternal（已有 mediaID+quality 去重逻辑），
@@ -1272,67 +1337,4 @@ func (s *TranscodeService) BatchSubmitByMediaIDs(
 		}
 	}
 	return submitted, skipped, tasks, errs
-}
-
-// CleanupStaleCache 清理过期的转码缓存（供 Scheduler cleanup 任务调用）
-//
-// 清理规则：
-//   - done 且 updated_at < now - doneRetainDays 天 → 删除目录 + DB 记录
-//   - failed/cancelled 且 updated_at < now - failedRetainDays 天 → 删除目录 + DB 记录
-//   - 正在运行（running/pending）的任务不会被触碰
-//
-// 返回：(清理的目录数, 清理的 DB 记录数, 错误)
-func (s *TranscodeService) CleanupStaleCache(doneRetainDays, failedRetainDays int) (int, int, error) {
-	if doneRetainDays <= 0 {
-		doneRetainDays = 30
-	}
-	if failedRetainDays <= 0 {
-		failedRetainDays = 7
-	}
-
-	now := time.Now()
-	dirsCleaned := 0
-	recordsCleaned := 0
-
-	// 清理 done 状态
-	doneStale, err := s.repo.ListStaleDone(now.AddDate(0, 0, -doneRetainDays))
-	if err != nil {
-		return 0, 0, fmt.Errorf("查询过期完成任务失败: %w", err)
-	}
-	for _, t := range doneStale {
-		// 安全检查：如果任务还在 running map 里（理论上不该，但兜底），跳过
-		s.mu.RLock()
-		_, stillRunning := s.running[t.ID]
-		s.mu.RUnlock()
-		if stillRunning {
-			continue
-		}
-		dir := s.GetOutputDir(t.MediaID, t.Quality)
-		if err := os.RemoveAll(dir); err == nil {
-			dirsCleaned++
-		} else {
-			s.logger.Warnf("清理目录失败 %s: %v", dir, err)
-		}
-		if err := s.repo.DeleteByID(t.ID); err == nil {
-			recordsCleaned++
-		}
-	}
-
-	// 清理 failed/cancelled 状态
-	failedStale, err := s.repo.ListStaleFailed(now.AddDate(0, 0, -failedRetainDays))
-	if err != nil {
-		return dirsCleaned, recordsCleaned, fmt.Errorf("查询过期失败任务失败: %w", err)
-	}
-	for _, t := range failedStale {
-		dir := s.GetOutputDir(t.MediaID, t.Quality)
-		if err := os.RemoveAll(dir); err == nil {
-			dirsCleaned++
-		}
-		if err := s.repo.DeleteByID(t.ID); err == nil {
-			recordsCleaned++
-		}
-	}
-
-	s.logger.Infof("缓存清理完成: 删除 %d 个目录, %d 条 DB 记录", dirsCleaned, recordsCleaned)
-	return dirsCleaned, recordsCleaned, nil
 }

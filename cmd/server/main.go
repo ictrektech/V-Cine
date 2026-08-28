@@ -165,6 +165,16 @@ func main() {
 		}
 	}()
 
+	// 转码孤儿缓存清理：只删已无媒体记录的目录，每天执行
+	go func() {
+		for {
+			if err := services.Transcode.CleanupOrphanTranscodeCaches(); err != nil {
+				sugar.Warnf("转码孤儿缓存清理失败: %v", err)
+			}
+			time.Sleep(24 * time.Hour)
+		}
+	}()
+
 	// 记录服务启动事件
 	go func() {
 		_ = repos.SystemLog.Create(&model.SystemLog{

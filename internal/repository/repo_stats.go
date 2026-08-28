@@ -45,20 +45,6 @@ func (r *TranscodeRepo) ListRunning() ([]model.TranscodeTask, error) {
 	return tasks, err
 }
 
-// ListStaleDone 查询 done 状态且 updated_at 早于 before 的任务（用于缓存清理）
-func (r *TranscodeRepo) ListStaleDone(before time.Time) ([]model.TranscodeTask, error) {
-	var tasks []model.TranscodeTask
-	err := r.db.Where("status = ? AND updated_at < ?", "done", before).Find(&tasks).Error
-	return tasks, err
-}
-
-// ListStaleFailed 查询 failed/cancelled 状态且 updated_at 早于 before 的任务
-func (r *TranscodeRepo) ListStaleFailed(before time.Time) ([]model.TranscodeTask, error) {
-	var tasks []model.TranscodeTask
-	err := r.db.Where("status IN ? AND updated_at < ?", []string{"failed", "cancelled"}, before).Find(&tasks).Error
-	return tasks, err
-}
-
 // DeleteByID 根据 ID 删除任务记录
 func (r *TranscodeRepo) DeleteByID(id string) error {
 	return r.db.Delete(&model.TranscodeTask{}, "id = ?", id).Error
