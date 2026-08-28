@@ -3,3 +3,11 @@ repos:
     rev: v0.5.1
     hooks:
       - id: go-fmt      # 运行 gofmt 并自动修复
+  - repo: local
+    hooks:
+      - id: bun-lockfile
+        name: bun lockfile is up-to-date
+        entry: bash -c 'cd web && bun install --frozen-lockfile'
+        language: system
+        files: ^web/(package.json|bun\.lock)$
+        pass_filenames: false
