@@ -134,10 +134,10 @@ RUN ldconfig \
 # =============================================
 # 阶段4a: 下载 FFmpeg 源码（独立轻量阶段；l4t-base/编译依赖变化时不会重新 git clone）
 # =============================================
-FROM alpine:3.20 AS ffmpeg-source
+FROM golang:1.25-alpine AS ffmpeg-source
 ARG FFMPEG_VERSION=7.1
 WORKDIR /src
-# 只做下载，不参与编译；用轻量镜像隔离，FFmpeg 版本不变时该层可稳定命中缓存
+# 只做下载，不参与编译；用已有基础镜像隔离，FFmpeg 版本不变时该层可稳定命中缓存
 RUN apk add --no-cache git ca-certificates \
     && git clone --depth 1 -b "release/${FFMPEG_VERSION}" \
         https://gitee.com/mirrors/ffmpeg.git /src/ffmpeg \
