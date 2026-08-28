@@ -49,7 +49,8 @@ func (s *RemoteStorageService) Initialize() error {
 
 	// ---- Alist ----
 	if s.config.Storage.Alist.Enabled {
-		if err := s.initAlistLocked(); err != nil {
+		// 启动时不测试连接，避免慢/不可达阻塞启动
+		if err := s.initAlistLocked(false); err != nil {
 			s.logger.Warnf("Alist 初始化失败: %v", err)
 		}
 	} else {
@@ -58,7 +59,8 @@ func (s *RemoteStorageService) Initialize() error {
 
 	// ---- S3 ----
 	if s.config.Storage.S3.Enabled {
-		if err := s.initS3Locked(); err != nil {
+		// 启动时不测试连接，避免慢/不可达阻塞启动
+		if err := s.initS3Locked(false); err != nil {
 			s.logger.Warnf("S3 初始化失败: %v", err)
 		}
 	} else {
@@ -68,8 +70,8 @@ func (s *RemoteStorageService) Initialize() error {
 	return nil
 }
 
-// initAlistLocked 必须持有 s.mu
-func (s *RemoteStorageService) initAlistLocked() error {
+// initAlistLocked 必须持有 s.mu。testConn 为 true 时（配置保存）同步验证连接。
+func (s *RemoteStorageService) initAlistLocked(testConn bool) error {
 	cfg := s.config.Storage.Alist
 	if cfg.ServerURL == "" {
 		return fmt.Errorf("Alist 服务器地址不能为空")
@@ -83,9 +85,10 @@ func (s *RemoteStorageService) initAlistLocked() error {
 	blockSize := int64(cfg.ReadBlockSizeMB) * 1024 * 1024
 	fs.SetBlockCacheConfig(blockSize, cfg.ReadBlockCount)
 
-	// 连接测试：列根目录
-	if _, err := fs.ReadDir("/"); err != nil {
-		return fmt.Errorf("Alist 连接测试失败: %w", err)
+	if testConn {
+		if _, err := fs.ReadDir("/"); err != nil {
+			return fmt.Errorf("Alist 连接测试失败: %w", err)
+		}
 	}
 
 	s.alistFS = fs
@@ -94,8 +97,8 @@ func (s *RemoteStorageService) initAlistLocked() error {
 	return nil
 }
 
-// initS3Locked 必须持有 s.mu
-func (s *RemoteStorageService) initS3Locked() error {
+// initS3Locked 必须持有 s.mu。testConn 为 true 时（配置保存）同步验证连接。
+func (s *RemoteStorageService) initS3Locked(testConn bool) error {
 	cfg := s.config.Storage.S3
 	if cfg.Endpoint == "" {
 		return fmt.Errorf("S3 Endpoint 不能为空")
@@ -116,9 +119,10 @@ func (s *RemoteStorageService) initS3Locked() error {
 	blockSize := int64(cfg.ReadBlockSizeMB) * 1024 * 1024
 	fs.SetBlockCacheConfig(blockSize, cfg.ReadBlockCount)
 
-	// 连接测试：列根目录（前缀为 basePath）
-	if _, err := fs.ReadDir("/"); err != nil {
-		return fmt.Errorf("S3 连接测试失败: %w", err)
+	if testConn {
+		if _, err := fs.ReadDir("/"); err != nil {
+			return fmt.Errorf("S3 连接测试失败: %w", err)
+		}
 	}
 
 	s.s3FS = fs
@@ -169,7 +173,8 @@ func (s *RemoteStorageService) UpdateAlistConfig(cfg config.AlistConfig) error {
 	s.alistFS = nil
 	s.vfsMgr.SetGlobalAlistFS(nil)
 	if cfg.Enabled {
-		return s.initAlistLocked()
+		// 保存配置时同步验证连接
+		return s.initAlistLocked(true)
 	}
 	return nil
 }
@@ -183,7 +188,8 @@ func (s *RemoteStorageService) UpdateS3Config(cfg config.S3Config) error {
 	s.s3FS = nil
 	s.vfsMgr.SetGlobalS3FS(nil)
 	if cfg.Enabled {
-		return s.initS3Locked()
+		// 保存配置时同步验证连接
+		return s.initS3Locked(true)
 	}
 	return nil
 }
@@ -191,24 +197,42 @@ func (s *RemoteStorageService) UpdateS3Config(cfg config.S3Config) error {
 // GetStatus 获取 Alist + S3 状态
 func (s *RemoteStorageService) GetStatus() map[string]interface{} {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	alistCfg := s.config.Storage.Alist
 	s3Cfg := s.config.Storage.S3
+	alistFS := s.alistFS
+	s3FS := s.s3FS
+	s.mu.RUnlock()
 
 	alistStatus := map[string]interface{}{
 		"enabled":    alistCfg.Enabled,
 		"server_url": alistCfg.ServerURL,
 		"base_path":  alistCfg.BasePath,
-		"connected":  s.alistFS != nil,
+		"connected":  alistFS != nil,
 	}
+	if alistFS != nil {
+		if _, err := alistFS.ReadDir("/"); err == nil {
+			alistStatus["connected"] = true
+		} else {
+			alistStatus["connected"] = false
+			alistStatus["error"] = err.Error()
+		}
+	}
+
 	s3Status := map[string]interface{}{
 		"enabled":    s3Cfg.Enabled,
 		"endpoint":   s3Cfg.Endpoint,
 		"bucket":     s3Cfg.Bucket,
 		"region":     s3Cfg.Region,
 		"path_style": s3Cfg.PathStyle,
-		"connected":  s.s3FS != nil,
+		"connected":  s3FS != nil,
+	}
+	if s3FS != nil {
+		if _, err := s3FS.ReadDir("/"); err == nil {
+			s3Status["connected"] = true
+		} else {
+			s3Status["connected"] = false
+			s3Status["error"] = err.Error()
+		}
 	}
 	return map[string]interface{}{
 		"alist": alistStatus,

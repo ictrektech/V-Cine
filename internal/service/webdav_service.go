@@ -36,11 +36,13 @@ func NewWebDAVService(cfg *config.Config, logger *zap.SugaredLogger, vfsMgr *VFS
 func (s *WebDAVService) Initialize() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.initializeLocked()
+	// 启动时不测试连接，避免慢/不可达阻塞启动
+	return s.initializeLocked(false)
 }
 
-// initializeLocked 执行初始化，调用方必须已持有 s.mu
-func (s *WebDAVService) initializeLocked() error {
+// initializeLocked 执行初始化，调用方必须已持有 s.mu。
+// testConn 为 true 时（配置保存）会同步验证连接，给管理端即时错误反馈。
+func (s *WebDAVService) initializeLocked(testConn bool) error {
 	webdavCfg := s.config.Storage.WebDAV
 
 	// 检查是否启用 WebDAV
@@ -72,18 +74,19 @@ func (s *WebDAVService) initializeLocked() error {
 	blockSize := int64(webdavCfg.ReadBlockSizeMB) * 1024 * 1024
 	webdavFS.SetBlockCacheConfig(blockSize, webdavCfg.ReadBlockCount)
 
+	// 配置保存时同步验证连接，给管理端即时错误反馈
+	if testConn {
+		s.logger.Infof("正在测试 WebDAV 连接: %s", webdavCfg.ServerURL)
+		if err := s.testConnection(webdavFS); err != nil {
+			return fmt.Errorf("WebDAV 连接测试失败: %w", err)
+		}
+	}
+
 	// 缓存客户端
 	s.clients[s.getConfigHash(webdavCfg)] = webdavFS
 
 	// 注入到 VFSManager 作为全局 WebDAV FS（webdav:// 路径会自动路由到它）
 	s.vfsMgr.SetGlobalWebDAVFS(webdavFS)
-
-	// 测试连接
-	s.logger.Infof("正在测试 WebDAV 连接: %s", webdavCfg.ServerURL)
-	if err := s.testConnection(webdavFS); err != nil {
-		s.logger.Warnf("WebDAV 连接测试失败: %v", err)
-		return fmt.Errorf("WebDAV 连接测试失败: %w", err)
-	}
 
 	s.logger.Infof("WebDAV 服务初始化成功（TTL=%dh, Cache=%v）: %s",
 		webdavCfg.CacheTTLHours, webdavCfg.EnableCache, webdavCfg.ServerURL)
@@ -196,9 +199,9 @@ func (s *WebDAVService) UpdateConfig(newCfg config.WebDAVConfig) error {
 	// 清除旧的客户端缓存
 	s.clients = make(map[string]*WebDAVFS)
 
-	// 重新初始化（调用方已持有 s.mu）
+	// 重新初始化（调用方已持有 s.mu），保存配置时同步验证连接
 	if newCfg.Enabled {
-		return s.initializeLocked()
+		return s.initializeLocked(true)
 	}
 
 	s.logger.Info("WebDAV 配置已更新")
