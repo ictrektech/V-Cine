@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =============================================
 # nowen-video 生产镜像（Jetson Orin / L4T · arm64 · 多阶段精简版）
 # 基座：ubuntu:22.04 + NVIDIA L4T apt 包（r36.4），不再使用 9.8GB 的 l4t-jetpack
@@ -56,7 +57,8 @@ ENV TZ=Asia/Shanghai
 
 # 先装 ca-certificates（默认 http 源），再切镜像源，最后加 NVIDIA 源。
 # 不能一开始就切到阿里云 https：此时还没有 ca-certificates，https 证书校验会失败。
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         gnupg \
         wget \
@@ -74,7 +76,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update
 
 # Ubuntu 侧运行依赖（ffmpeg/nvmpi 运行时需要）
-RUN apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get install -y --no-install-recommends \
         libdrm2 \
         libxcb1 \
         libxau6 \
@@ -105,7 +108,6 @@ RUN apt-get install -y --no-install-recommends \
         libx11-6 \
         libxext6 \
         libxrender1 \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # NVIDIA L4T runtime 包：直接解包，避免 docker build 内没有
@@ -130,12 +132,26 @@ RUN ldconfig \
        echo "/usr/lib/aarch64-linux-gnu/nvidia" > /etc/ld.so.conf.d/nvidia-tegra.conf
 
 # =============================================
+# 阶段4a: 下载 FFmpeg 源码（独立轻量阶段；l4t-base/编译依赖变化时不会重新 git clone）
+# =============================================
+FROM alpine:3.20 AS ffmpeg-source
+ARG FFMPEG_VERSION=7.1
+WORKDIR /src
+# 只做下载，不参与编译；用轻量镜像隔离，FFmpeg 版本不变时该层可稳定命中缓存
+RUN apk add --no-cache git ca-certificates \
+    && git clone --depth 1 -b "release/${FFMPEG_VERSION}" \
+        https://gitee.com/mirrors/ffmpeg.git /src/ffmpeg \
+    || git clone --depth 1 -b "release/${FFMPEG_VERSION}" \
+        https://github.com/FFmpeg/FFmpeg.git /src/ffmpeg
+
+# =============================================
 # 阶段4: 构建带 NVMPI 的 FFmpeg（stubs 构建，基于迷你 L4T 基础镜像）
 # =============================================
 FROM l4t-base AS ffmpeg
 
 # 只安装编译依赖，最终镜像不会带这些包
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         cmake \
         git \
@@ -158,20 +174,21 @@ RUN apt-get update \
     && rm -rf /tmp/l4t-debs /var/lib/apt/lists/*
 
 # 编译 jetson-ffmpeg（WITH_STUBS=ON：无需把 NVIDIA tegra 库打进构建阶段）
-RUN git clone --depth 1 https://github.com/Keylost/jetson-ffmpeg.git /tmp/jetson-ffmpeg \
+# 固定上游 commit，保证缓存命中和重跑时拿到同一份源码
+ARG JETSON_FFMPEG_COMMIT=64df5aa2eead76bfc749359481585dea1c582237
+RUN git init -q /tmp/jetson-ffmpeg \
+    && git -C /tmp/jetson-ffmpeg remote add origin https://github.com/Keylost/jetson-ffmpeg.git \
+    && git -C /tmp/jetson-ffmpeg fetch --depth 1 origin "${JETSON_FFMPEG_COMMIT}" \
+    && git -C /tmp/jetson-ffmpeg checkout -q FETCH_HEAD \
     && cmake -S /tmp/jetson-ffmpeg -B /tmp/jetson-ffmpeg/build -DWITH_STUBS=ON \
     && cmake --build /tmp/jetson-ffmpeg/build -j6 \
     && cmake --install /tmp/jetson-ffmpeg/build \
     && ldconfig
 
-# 编译 patched FFmpeg（优先 gitee 镜像，失败回退 GitHub）
-# FFMPEG_VERSION 只影响这里，放在依赖安装和 jetson-ffmpeg 编译之后
-ARG FFMPEG_VERSION=7.1
-RUN git clone --depth 1 -b "release/${FFMPEG_VERSION}" \
-        https://gitee.com/mirrors/ffmpeg.git /tmp/ffmpeg \
-    || git clone --depth 1 -b "release/${FFMPEG_VERSION}" \
-        https://github.com/FFmpeg/FFmpeg.git /tmp/ffmpeg \
-    && cd /tmp/jetson-ffmpeg \
+# 编译 patched FFmpeg（源码来自 ffmpeg-source 阶段，不再在编译阶段重新下载）
+# FFMPEG_VERSION 只影响 ffmpeg-source 阶段；这里编译层只依赖源码 COPY 层
+COPY --from=ffmpeg-source /src/ffmpeg /tmp/ffmpeg
+RUN cd /tmp/jetson-ffmpeg \
     && ./ffpatch.sh /tmp/ffmpeg \
     && cd /tmp/ffmpeg \
     && export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig \
@@ -207,7 +224,8 @@ ENV NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
 ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/lib/aarch64-linux-gnu/tegra
 
 # 运行依赖（不含编译工具链）
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         wget \

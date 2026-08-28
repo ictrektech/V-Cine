@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =============================================
 # nowen-video 生产镜像（amd64 · NVIDIA NVENC）
 # 基座：ubuntu:22.04（不内置 CUDA；运行时由 NVIDIA Container Toolkit 注入驱动库）
@@ -45,8 +46,6 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 # =============================================
 FROM ubuntu:22.04
 ARG UBUNTU_MIRROR=https://mirrors.aliyun.com/ubuntu
-ARG JELLYFIN_REPO=https://mirror.nju.edu.cn/jellyfin/ubuntu
-ARG JELLYFIN_KEY_URL=https://repo.jellyfin.org/jellyfin_team.gpg.key
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
@@ -56,7 +55,8 @@ ENV NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
 # ---- 国内 Ubuntu 镜像加速（默认阿里云；--build-arg UBUNTU_MIRROR= 可关闭）----
 # 同时兼容 /etc/apt/sources.list 与 Deb822 的 ubuntu.sources
 # 先装 ca-certificates，否则切到 HTTPS 镜像后 apt 会因无证书校验失败
-RUN set -eux; \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends ca-certificates; \
     if [ -n "${UBUNTU_MIRROR}" ]; then \
@@ -70,8 +70,9 @@ RUN set -eux; \
     fi; \
     rm -rf /var/lib/apt/lists/*
 
-# ---- 系统依赖 + Jellyfin 镜像仓库 + jellyfin-ffmpeg7 + Python 刮削 + 硬件加速驱动 ----
-RUN set -eux; \
+# ---- 系统依赖（稳定层，不常变；与 jellyfin-ffmpeg 分开，避免互相使缓存失效）----
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -87,11 +88,34 @@ RUN set -eux; \
         python3-requests \
         python3-bs4 \
         python3-lxml \
-        intel-media-va-driver \
         mesa-va-drivers \
         vainfo \
         libva2 \
         libva-drm2; \
+    rm -rf /var/lib/apt/lists/*; \
+    # 兼容部分脚本仍调用 su-exec 的历史路径 \
+    if [ ! -e /usr/local/bin/su-exec ] && command -v gosu >/dev/null 2>&1; then \
+        ln -sf "$(command -v gosu)" /usr/local/bin/su-exec; \
+    fi
+
+# ---- Intel VA-API 驱动（仅 amd64；arm64 源无此包，避免破坏 amd64 QSV/VAAPI）----
+# ARG 放在本 RUN 前，避免 TARGETARCH 进入上面“系统依赖”层的缓存作用域
+ARG TARGETARCH
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    set -eux; \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        apt-get update; \
+        apt-get install -y --no-install-recommends intel-media-va-driver; \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# ---- Jellyfin 仓库 + jellyfin-ffmpeg7（独立层：系统依赖变化不影响它）----
+# ARG 放在本 RUN 前，避免 JELLYFIN_* 变化使前面的 apt 层缓存失效
+ARG JELLYFIN_REPO=https://mirror.nju.edu.cn/jellyfin/ubuntu
+ARG JELLYFIN_KEY_URL=https://repo.jellyfin.org/jellyfin_team.gpg.key
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    set -eux; \
+    apt-get update; \
     mkdir -p /etc/apt/keyrings; \
     curl -fsSL "${JELLYFIN_KEY_URL}" | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg; \
     chmod 644 /etc/apt/keyrings/jellyfin.gpg; \
@@ -108,11 +132,7 @@ RUN set -eux; \
     if ! ffmpeg -hide_banner -encoders | grep -q "h264_nvenc"; then \
         echo "ERROR: jellyfin-ffmpeg missing h264_nvenc" >&2; exit 1; \
     fi; \
-    rm -rf /var/lib/apt/lists/*; \
-    # 兼容部分脚本仍调用 su-exec 的历史路径 \
-    if [ ! -e /usr/local/bin/su-exec ] && command -v gosu >/dev/null 2>&1; then \
-        ln -sf "$(command -v gosu)" /usr/local/bin/su-exec; \
-    fi
+    rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r nowen && useradd -r -g nowen -s /bin/bash -m nowen
 
