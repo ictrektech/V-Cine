@@ -102,9 +102,9 @@ func (s *AdultScraperService) SetPersonRepos(personRepo *repository.PersonRepo, 
 	s.mediaPersonRepo = mediaPersonRepo
 }
 
-// IsEnabled 检查服务是否可用
+// IsEnabled 检查服务是否可用（受全局 NSFW 开关约束）
 func (s *AdultScraperService) IsEnabled() bool {
-	return s.cfg.AdultScraper.Enabled
+	return s.cfg.NSFW.Enabled && s.cfg.AdultScraper.Enabled
 }
 
 // ==================== 番号识别 ====================

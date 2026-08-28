@@ -146,8 +146,8 @@ func (s *FileManagerService) SetCacheCleaner(cleaner *MediaCacheCleaner) {
 // ==================== 文件列表与查询 ====================
 
 // ListFiles 获取影视文件列表（支持多条件筛选）
-func (s *FileManagerService) ListFiles(page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool) ([]model.Media, int64, error) {
-	return s.mediaRepo.ListFilesAdvanced(page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly)
+func (s *FileManagerService) ListFiles(page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool, excludeAdult bool) ([]model.Media, int64, error) {
+	return s.mediaRepo.ListFilesAdvanced(page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly, excludeAdult)
 }
 
 // FolderNode 文件夹树节点
@@ -301,9 +301,9 @@ func (s *FileManagerService) GetFolderTree(libraryID string) ([]*FolderNode, err
 }
 
 // ListFilesByFolder 按文件夹路径查询文件
-func (s *FileManagerService) ListFilesByFolder(folderPath string, page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool) ([]model.Media, int64, []string, error) {
+func (s *FileManagerService) ListFilesByFolder(folderPath string, page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool, excludeAdult bool) ([]model.Media, int64, []string, error) {
 	// 获取文件列表
-	files, total, err := s.mediaRepo.ListByFolderPath(folderPath, page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly)
+	files, total, err := s.mediaRepo.ListByFolderPath(folderPath, page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly, excludeAdult)
 	if err != nil {
 		return nil, 0, nil, err
 	}

@@ -648,6 +648,12 @@ type STRMConfig struct {
 	DomainReferers map[string]string `mapstructure:"domain_referers"`
 }
 
+// NSFWConfig 全局 NSFW/成人内容开关（默认关闭，只能通过配置文件开启）
+type NSFWConfig struct {
+	// 是否启用 NSFW/成人内容相关能力
+	Enabled bool `mapstructure:"enabled"`
+}
+
 // Config 应用主配置（聚合所有子模块）
 type Config struct {
 	mu sync.RWMutex `mapstructure:"-"`
@@ -665,6 +671,7 @@ type Config struct {
 	Storage       StorageConfig       `mapstructure:"storage"`
 	Emby          EmbyConfig          `mapstructure:"emby"`
 	AdultScraper  AdultScraperConfig  `mapstructure:"adult_scraper"`
+	NSFW          NSFWConfig          `mapstructure:"nsfw"`
 	STRM          STRMConfig          `mapstructure:"strm"`
 
 	// ==================== 兼容性字段（向后兼容旧的扁平配置） ====================
@@ -1009,6 +1016,7 @@ func setDefaults() {
 	viper.SetDefault("strm.remote_probe_timeout", 8)
 
 	// ---- 番号刮削 ----
+	viper.SetDefault("nsfw.enabled", false)
 	viper.SetDefault("adult_scraper.enabled", false)
 	viper.SetDefault("adult_scraper.enable_javbus", true)
 	viper.SetDefault("adult_scraper.javbus_url", "")

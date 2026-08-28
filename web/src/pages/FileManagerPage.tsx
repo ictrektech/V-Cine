@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
 import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/videoAnalysis'
-import { aiApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
+import { aiApi, adultScraperApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { extractErrMsg } from '@/utils/error'
 import { withBasePath } from '@/lib/basePath'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
@@ -83,10 +83,16 @@ export default function FileManagerPage() {
   const [files, setFiles] = useState<Media[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<FileManagerStats | null>(null)
   const [libraries, setLibraries] = useState<Library[]>([])
+  const [nsfwEnabled, setNsfwEnabled] = useState<boolean | null>(null)
+  useEffect(() => {
+    adultScraperApi.getConfig()
+      .then(res => setNsfwEnabled(res.data.data.nsfw_enabled !== false))
+      .catch(() => setNsfwEnabled(false))
+  }, [])
 
   // 筛选
   const [keyword, setKeyword] = useState('')
@@ -568,7 +574,10 @@ export default function FileManagerPage() {
   const selectedAllRemote = selectedIds.size > 0 && Array.from(selectedIds).every(id => remoteFlags[id] !== false)
 
   // 每页数量可选项
-  const pageSizeOptions = [20, 50, 100, 200]
+  const pageSizeOptions = [10, 20, 50, 100, 200]
+  const visibleLibraries = nsfwEnabled === false
+    ? libraries.filter(l => !l.allow_adult_content)
+    : libraries
 
   // 切换每页数量时重置到第一页
   const handlePageSizeChange = useCallback((size: number) => {
@@ -784,24 +793,26 @@ export default function FileManagerPage() {
           <ScanLine size={16} />
           视频分析
         </button>
-        <button
-          onClick={() => handleTabChange('adult')}
-          className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-            activeTab === 'adult'
-              ? 'bg-neon-blue/10 text-neon shadow-sm'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
-          )}
-        >
-          <ShieldAlert size={16} />
-          成人刮削
-        </button>
+        {nsfwEnabled === true && (
+          <button
+            onClick={() => handleTabChange('adult')}
+            className={clsx(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+              activeTab === 'adult'
+                ? 'bg-neon-blue/10 text-neon shadow-sm'
+                : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
+            )}
+          >
+            <ShieldAlert size={16} />
+            成人刮削
+          </button>
+        )}
       </div>
 
       {/* ==================== 媒体库管理 Tab ==================== */}
       {activeTab === 'library' && (
         <LibraryManager
-          libraries={libraries}
+          libraries={visibleLibraries}
           setLibraries={setLibraries}
           scanning={scanning}
           setScanning={setScanning}
@@ -829,7 +840,7 @@ export default function FileManagerPage() {
       )}
 
       {/* ==================== 成人刮削 Tab ==================== */}
-      {activeTab === 'adult' && (
+      {activeTab === 'adult' && nsfwEnabled === true && (
         <div className="space-y-5">
           {/* 番号刮削配置（数据源、API Key、映射表、架构可视化）*/}
           <AdultScraperSection />
@@ -859,7 +870,7 @@ export default function FileManagerPage() {
           onSortByChange={setSortBy}
           sortOrder={sortOrder}
           onToggleSortOrder={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-          libraries={libraries}
+          libraries={visibleLibraries}
           onImport={() => setActiveDialog('import')}
           onScanDir={() => setActiveDialog('scanDir')}
           viewMode={viewMode}
@@ -1002,7 +1013,7 @@ export default function FileManagerPage() {
 
       {activeDialog === 'import' && (
         <ImportFileModal
-          libraries={libraries}
+          libraries={visibleLibraries}
           onClose={() => setActiveDialog('none')}
           onSuccess={refreshData}
         />
@@ -1010,7 +1021,7 @@ export default function FileManagerPage() {
 
       {activeDialog === 'scanDir' && (
         <ScanDirectoryModal
-          libraries={libraries}
+          libraries={visibleLibraries}
           onClose={() => setActiveDialog('none')}
           onSuccess={refreshData}
         />
