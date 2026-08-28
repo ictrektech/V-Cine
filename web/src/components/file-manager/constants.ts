@@ -5,7 +5,7 @@ export const REMOTE_ANALYSIS_DISABLED_TIP = '远程挂载视频暂不支持结�
 
 // 数据源选项
 export const SOURCE_OPTIONS = [
-  { value: '', label: '自动 (TMDb)' },
+  { value: 'auto', label: '自动 (TMDb)' },
   { value: 'tmdb', label: 'TMDb' },
   { value: 'bangumi', label: 'Bangumi' },
   { value: 'ai', label: 'AI增强' },

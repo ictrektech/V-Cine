@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import clsx from 'clsx'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 
 interface PaginationProps {
   /** 当前页码（从1开始） */
@@ -36,7 +37,7 @@ export default function Pagination({
   showJumper = true,
   maxButtons = 7,
 }: PaginationProps) {
-  if (totalPages <= 1) return null
+  if (totalPages <= 0) return null
 
   // 计算要显示的页码列表
   const getPageNumbers = (): (number | 'ellipsis')[] => {
@@ -109,20 +110,16 @@ export default function Pagination({
       {pageSizeOptions && pageSizeOptions.length > 0 && onPageSizeChange && (
         <div className="mr-2 flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
           <span>每页</span>
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="h-8 rounded-lg border px-2 text-sm outline-none transition-all focus:border-[var(--border-hover)] cursor-pointer"
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            {pageSizeOptions.map(size => (
-              <option key={size} value={size}>{size}</option>
-            ))}
-          </select>
+          <Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(Number(v))}>
+            <SelectTrigger className="h-8 w-[72px] rounded-lg px-2 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {pageSizeOptions.map(size => (
+                <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <span>条</span>
         </div>
       )}

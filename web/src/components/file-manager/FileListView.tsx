@@ -305,18 +305,18 @@ export default function FileListView({
           <table className="w-full min-w-[960px] text-sm whitespace-nowrap">
             <TableHeader>
               <TableRow className="border-b" style={{ borderColor: 'var(--border-default)' }}>
-                <TableHead className="sticky left-0 z-20 w-10 px-2.5 py-2 text-left" style={{ background: 'var(--bg-surface)' }}>
+                <TableHead className="sticky left-0 top-0 z-30 w-10 px-2.5 py-2 text-left" style={{ background: 'var(--bg-surface)' }}>
                   <button onClick={onToggleSelectAll}>
                     {selectedIds.size === files.length ? <CheckSquare size={16} className="text-neon" /> : <Square size={16} className="text-surface-500" />}
                   </button>
                 </TableHead>
-                <TableHead className="sticky left-10 z-20 px-2.5 py-2 text-left" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>标题</TableHead>
-                <TableHead className="hidden px-2.5 py-2 text-left md:table-cell" style={{ color: 'var(--text-secondary)' }}>类型</TableHead>
-                <TableHead className="hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)' }}>年份</TableHead>
-                <TableHead className="hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)' }}>评分</TableHead>
-                <TableHead className="hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)' }}>大小</TableHead>
-                <TableHead className="hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)' }}>状态</TableHead>
-                <TableHead className="px-2.5 py-2 text-right" style={{ color: 'var(--text-secondary)' }}>操作</TableHead>
+                <TableHead className="sticky left-10 top-0 z-30 px-2.5 py-2 text-left" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>标题</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left md:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>类型</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>年份</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>评分</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>大小</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>状态</TableHead>
+                <TableHead className="sticky top-0 z-20 px-2.5 py-2 text-right" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

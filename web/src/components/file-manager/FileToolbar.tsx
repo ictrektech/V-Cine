@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { SORT_OPTIONS, SOURCE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from './constants'
 import {
   Sparkles,
@@ -186,10 +187,16 @@ export default function FileToolbar({
 
           <Separator orientation="vertical" className="h-6" />
 
-          <select value={scrapeSource} onChange={e => onScrapeSourceChange(e.target.value)}
-            className="input-glass h-9 px-3 text-sm rounded-lg">
-            {SOURCE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
+          <Select value={scrapeSource} onValueChange={onScrapeSourceChange}>
+            <SelectTrigger className="h-9 w-auto rounded-lg px-3 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SOURCE_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <Button
             variant="ghost"

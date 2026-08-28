@@ -148,7 +148,7 @@ export default function FileManagerPage() {
   const [detailMedia, setDetailMedia] = useState<Media | null>(null)
 
   // 刮削源
-  const [scrapeSource, setScrapeSource] = useState('')
+  const [scrapeSource, setScrapeSource] = useState('auto')
   const [videoAnalysisEnabled, setVideoAnalysisEnabled] = useState(true)
   const [videoAnalysisDisabledReason, setVideoAnalysisDisabledReason] = useState('')
   const [videoAnalysisDescribeEnabled, setVideoAnalysisDescribeEnabled] = useState(false)
@@ -360,7 +360,7 @@ export default function FileManagerPage() {
 
   const handleScrapeFile = async (id: string) => {
     try {
-      await fileManagerApi.scrapeFile(id, scrapeSource || undefined)
+      await fileManagerApi.scrapeFile(id, scrapeSource === 'auto' ? undefined : scrapeSource)
       toast.success('刮削已启动')
       // 乐观预热海报版本（刮削完成 WS 到达时也会再刷一次）
     } catch (err: any) {
@@ -371,7 +371,7 @@ export default function FileManagerPage() {
   const handleBatchScrape = async () => {
     if (selectedIds.size === 0) return
     try {
-      const res = await fileManagerApi.batchScrapeFiles(Array.from(selectedIds), scrapeSource || undefined)
+      const res = await fileManagerApi.batchScrapeFiles(Array.from(selectedIds), scrapeSource === 'auto' ? undefined : scrapeSource)
       toast.success(`已启动 ${res.data.started} 个刮削任务`)
     } catch { toast.error('批量刮削失败') }
   }
@@ -896,7 +896,7 @@ export default function FileManagerPage() {
         </FileToolbar>
 
         {/* 面包屑 + 左侧文件夹树 + 文件列表，整体一个框 */}
-        <div className="flex gap-4 items-start">
+        <div className="flex items-start">
           <div
             className="glass-panel rounded-xl overflow-hidden border flex-1 min-w-0"
             style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}
@@ -911,7 +911,7 @@ export default function FileManagerPage() {
               </div>
             )}
 
-            <div className="flex min-h-0" style={{ height: 'calc(100vh - 320px)', maxHeight: 'calc(100vh - 320px)' }}>
+            <div className="flex">
               {/* 左侧文件夹树面板 */}
               <div
                 className={clsx(
@@ -961,7 +961,7 @@ export default function FileManagerPage() {
                   </div>
                 )}
 
-                <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3">
+                <div className="flex-1 min-w-0 px-2 pb-2 pt-0 sm:px-3 sm:pb-3">
                   <FileListView
                     files={files}
                     loading={loading}
