@@ -2,13 +2,12 @@ configs:
   - name: NOWEN_WORKSPACE_PATH
     type: path
     title:
-      zh-CN: Nowen Video 存储根目录
-      en: Nowen Video Storage Root
+      zh-CN: Nowen 数据目录
+      en: Nowen Workspace
     description:
-      zh-CN: Nowen Video 的统一存储根目录；可使用默认宿主机路径，也可选择 VOS 公共目录。data、cache 和 media 子目录由应用模板自动管理。
-      en: Unified storage root for Nowen Video. Use the default host path or select a VOS public directory; the app template manages the data, cache, and media subdirectories.
-    default: /data/vos_workspace/nowen_video
-    hints: [com.ictrek.media.storage]
+      zh-CN: 保存缓存和 VOS 托管媒体目录的宿主机根目录（数据库为 VOS 共享 PGV，不落本目录）。
+      en: Host root for the cache and VOS-managed media directory (DB is the shared PGV, not stored here).
+    default: /data/vos_workspace/nowen
 
   # NOWEN_APP_WEB_BASE_PATH 不暴露为 VOS 可配置项：VOS 下挂载前缀由
   # traefik.yml / manifest.yml / routers.yml 三重锁死为 /app/com.ictrek.nowen-video，
