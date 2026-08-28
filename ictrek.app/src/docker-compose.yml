@@ -46,9 +46,14 @@ services:
     ports:
       - "${NOWEN_PORT:-38085}:8080"
     volumes:
-      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/data:/data
-      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/cache:/cache
-      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/media:/media
+      # 私有数据统一放到平台注入的 VOS_APP_STORAGE_PATH（应用私有目录），
+      # 不要再让用户把 workspace 指向公共目录，避免 .jwt_secret 等暴露。
+      - ${VOS_APP_STORAGE_PATH}/data:/data
+      - ${VOS_APP_STORAGE_PATH}/cache:/cache
+      - ${VOS_APP_STORAGE_PATH}/media:/media
+      # 数据访问控制：平台把授权目录以相同层级 bind mount 到 exposed 下，
+      # 应用通过 /exposed 消费；父挂载 rslave,ro 防止应用写视图结构。
+      - ${VOS_APP_EXPOSED_PATH:-/nonexistent}:/exposed:rslave,ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health > /dev/null 2>&1 || exit 1"]
       interval: 30s

@@ -1,13 +1,9 @@
 configs:
-  - name: NOWEN_WORKSPACE_PATH
-    type: path
-    title:
-      zh-CN: Nowen 数据目录
-      en: Nowen Workspace
-    description:
-      zh-CN: 保存缓存和 VOS 托管媒体目录的宿主机根目录（数据库为 VOS 共享 PGV，不落本目录）。
-      en: Host root for the cache and VOS-managed media directory (DB is the shared PGV, not stored here).
-    default: /data/vos_workspace/nowen
+  # Nowen 的私有数据目录统一使用平台注入的 VOS_APP_STORAGE_PATH：
+  #   - data/cache/media 均落在 ${VOS_APP_STORAGE_PATH} 下（应用私有目录）
+  #   - 不再提供 NOWEN_WORKSPACE_PATH 配置，避免被指向公共目录导致
+  #     .jwt_secret / 缓存等私有数据暴露在公共共享里
+  # 公共媒体目录由用户在 compose/授权里单独挂载，不作为 workspace 根目录。
 
   # NOWEN_APP_WEB_BASE_PATH 不暴露为 VOS 可配置项：VOS 下挂载前缀由
   # traefik.yml / manifest.yml / routers.yml 三重锁死为 /app/com.ictrek.nowen-video，
