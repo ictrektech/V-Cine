@@ -20,7 +20,7 @@ func TestVideoAnalysisGetSettings(t *testing.T) {
 		Enabled:          true,
 		SceneBaseURL:     "http://scene:8910",
 		StructureBaseURL: "http://structure:8911",
-		AssetDir:         "/data/nowen-video-structure",
+		AssetDir:         "/cache/structure",
 		DescribeEnabled:  true,
 		MaxConcurrent:    99, // 不可编辑字段不应出现在 settings 响应中
 	}}
@@ -42,7 +42,7 @@ func TestVideoAnalysisGetSettings(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	if !resp.Data.Enabled || resp.Data.SceneBaseURL != "http://scene:8910" || resp.Data.StructureBaseURL != "http://structure:8911" || resp.Data.AssetDir != "/data/nowen-video-structure" || !resp.Data.DescribeEnabled {
+	if !resp.Data.Enabled || resp.Data.SceneBaseURL != "http://scene:8910" || resp.Data.StructureBaseURL != "http://structure:8911" || resp.Data.AssetDir != "/cache/structure" || !resp.Data.DescribeEnabled {
 		t.Fatalf("unexpected settings view: %+v", resp.Data)
 	}
 }
@@ -75,7 +75,7 @@ func TestVideoAnalysisUpdateSettingsRejectsInvalidPathMapping(t *testing.T) {
 		Enabled:          false,
 		SceneBaseURL:     "http://scene:8910",
 		StructureBaseURL: "http://structure:8911",
-		AssetDir:         "/data/nowen-video-structure",
+		AssetDir:         "/cache/structure",
 		PathMappings:     []config.VideoAnalysisPathMapping{{Source: "", Target: ""}},
 	}}
 	h := NewVideoAnalysisHandler(nil, nil, cfg)
@@ -83,7 +83,7 @@ func TestVideoAnalysisUpdateSettingsRejectsInvalidPathMapping(t *testing.T) {
 	r := gin.New()
 	r.PUT("/settings", h.UpdateSettings)
 
-	body := `{"enabled":true,"scene_base_url":"http://scene:8910","structure_base_url":"http://structure:8911","asset_dir":"/data/nowen-video-structure"}`
+	body := `{"enabled":true,"scene_base_url":"http://scene:8910","structure_base_url":"http://structure:8911","asset_dir":"/cache/structure"}`
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodPut, "/settings", bytes.NewBufferString(body)))
 

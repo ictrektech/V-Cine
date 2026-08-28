@@ -791,7 +791,12 @@ func Load() (*Config, error) {
 	// 外部客户端/路径映射器时执行，使功能关闭时不会阻断现有服务启动。
 	cfg.VideoAnalysis.SceneBaseURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.SceneBaseURL), "/")
 	cfg.VideoAnalysis.StructureBaseURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.StructureBaseURL), "/")
-	cfg.VideoAnalysis.AssetDir = filepath.Clean(strings.TrimSpace(cfg.VideoAnalysis.AssetDir))
+	// 结构化产物默认跟随 cache 目录，便于 Docker 挂载与全局统一管理
+	assetDir := strings.TrimSpace(cfg.VideoAnalysis.AssetDir)
+	if assetDir == "" {
+		assetDir = filepath.Join(cfg.Cache.CacheDir, "structure")
+	}
+	cfg.VideoAnalysis.AssetDir = filepath.Clean(assetDir)
 	if cfg.VideoAnalysis.MaxConcurrent <= 0 {
 		cfg.VideoAnalysis.MaxConcurrent = 2
 	}
@@ -880,7 +885,7 @@ func setDefaults() {
 	viper.SetDefault("video_analysis.scene_base_url", "http://localhost:8910")
 	viper.SetDefault("video_analysis.structure_base_url", "http://localhost:8911")
 	viper.SetDefault("video_analysis.path_mappings", []VideoAnalysisPathMapping{})
-	viper.SetDefault("video_analysis.asset_dir", "/data/nowen-video-structure")
+	viper.SetDefault("video_analysis.asset_dir", "")
 	viper.SetDefault("video_analysis.max_concurrent", 2)
 	viper.SetDefault("video_analysis.poll_interval_seconds", 2)
 	viper.SetDefault("video_analysis.job_timeout_minutes", 120)
