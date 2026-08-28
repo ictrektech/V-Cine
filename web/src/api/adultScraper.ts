@@ -23,6 +23,7 @@ export interface SupportedFormat {
 /** 番号刮削配置 */
 export interface AdultScraperConfig {
   enabled: boolean
+  nsfw_enabled?: boolean
   sources: AdultScraperSource[]
   min_request_interval: number
   max_request_interval: number

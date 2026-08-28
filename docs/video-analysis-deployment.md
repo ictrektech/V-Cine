@@ -17,14 +17,14 @@ video_analysis:
   enabled: true
   scene_base_url: "http://localhost:8910"
   structure_base_url: "http://localhost:8911"
-  asset_dir: "/data/nowen-video-structure"   # Nowen 自己的结构化产物数据目录
+  # asset_dir: ""   # 默认 <cache_dir>/structure，一般无需配置
   max_concurrent: 2
   poll_interval_seconds: 2
   job_timeout_minutes: 120
   describe_enabled: false  # 场景描述功能，默认关闭
 ```
 
-**`asset_dir`（结构化产物数据目录）**：结构服务把产物暂存在 staging，Nowen 轮询到 succeeded 后把 `result.staging_dir` 整个 `mv` 到 `asset_dir/<hash>/`（搬走即归 Nowen 持久持有）。`asset_dir` 默认 `/data/nowen-video-structure`，部署时按需指定。
+**`asset_dir`（结构化产物数据目录）**：结构服务把产物暂存在 staging，Nowen 轮询到 succeeded 后把 `result.staging_dir` 整个 `mv`（跨文件系统时自动 fallback 为 copy）到 `asset_dir/<hash>/`（搬走即归 Nowen 持久持有）。`asset_dir` 默认跟随 `cache_dir`，即 `<cache_dir>/structure`，一般无需显式配置。
 
 ### 2. 路径映射
 
@@ -47,7 +47,7 @@ video_analysis:
 
 ### 3. staging 临时卷与 asset_dir 数据目录
 
-结构服务采用无状态化契约：产物暂存于 **staging 目录**（`<staging_base>/<job_id>/`），Nowen 轮询到 succeeded 后把 `result.staging_dir` 整个 `mv` 到 **自己的 `asset_dir`**。因此两个卷都需要可写，且**必须在同一文件系统**（`os.Rename` 跨卷会 `EXDEV`）：
+结构服务采用无状态化契约：产物暂存于 **staging 目录**（`<staging_base>/<job_id>/`），Nowen 轮询到 succeeded 后把 `result.staging_dir` 搬动到 **自己的 `asset_dir`**。`asset_dir` 默认跟随 `cache_dir`，即 `<cache_dir>/structure`，一般无需单独配置。
 
 ```yaml
 # docker-compose.yml 示例
@@ -56,10 +56,10 @@ services:
     volumes:
       # 原生视频只读（Nowen 读取并传给结构化）
       - /media:/media:ro
-      # staging 临时卷（可写子挂载覆盖父 ro；rename 需写父目录）
+      # staging 临时卷（可写；结构服务写入，Nowen 搬走）
       - video-structure-cache:/data/video-structure-cache:rw
-      # asset_dir（Nowen 持久持有，与 staging 同文件系统）
-      - nowen-video-structure:/data/nowen-video-structure:rw
+      # cache 目录（asset_dir 默认落在 <cache_dir>/structure）
+      - cache:/cache
 
   video-structure:
     volumes:
@@ -67,15 +67,13 @@ services:
 
 volumes:
   video-structure-cache:
-  nowen-video-structure:
 ```
 
 **重要：**
-- staging 是**临时**目录：Nowen `mv` 搬走后即归 Nowen 所有，未搬走的由结构服务 TTL（默认 6h）清理
-- `staging`（`video-structure-cache`）与 `asset_dir`（`nowen-video-structure`）**必须同一文件系统**，`os.Rename` 才原子
-- Docker 中子路径 `rw` 挂载会覆盖父路径 `ro`：`/data:/data:ro` 保留（媒体只读），staging/asset 子路径可写
+- staging 是**临时**目录：Nowen 搬走后即归 Nowen 所有，未搬走的由结构服务 TTL（默认 6h）清理
+- `asset_dir` 默认 `<cache_dir>/structure`，已在 cache 卷内，无需单独挂载
+- staging 与 asset_dir 跨文件系统时，Nowen 会自动 fallback 为 copy+delete（`EXDEV`）
 - 路径映射中的 `target` 必须与 Structure 服务看到的视频路径一致
-- `asset_dir` 是 Nowen 在容器内 `config.yaml` 里配置的路径
 
 ### 4. 配置验证
 
@@ -105,7 +103,7 @@ services:
       - ./config:/app/config
       - /media:/media:ro
       - video-structure-cache:/data/video-structure-cache:rw   # staging 可写
-      - nowen-video-structure:/data/nowen-video-structure:rw         # asset_dir
+      - cache:/cache                                            # asset_dir 默认落在 /cache/structure
     environment:
       - VIDEO_ANALYSIS_ENABLED=true
       - VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
@@ -128,7 +126,7 @@ services:
 
 volumes:
   video-structure-cache:
-  nowen-video-structure:
+  cache:
 ```
 
 对应的 Nowen 配置：
@@ -141,7 +139,6 @@ video_analysis:
   path_mappings:
     - source: "/media"
       target: "/photos"
-  asset_dir: "/data/nowen-video-structure"
   max_concurrent: 2
 ```
 

@@ -36,6 +36,15 @@ func IsRemotePath(path string) bool {
 	return false
 }
 
+// trimRemoteRoot 保留远程 scheme 前缀，只裁剪路径部分的尾部斜杠。
+// 例如 "webdav://" 应保留为 "webdav://"，而不是被 TrimRight 削成 "webdav:/"。
+func trimRemoteRoot(root string) string {
+	if i := strings.Index(root, "://"); i >= 0 {
+		return root[:i+3] + strings.TrimRight(root[i+3:], "/")
+	}
+	return strings.TrimRight(root, "/")
+}
+
 // ==================== VFS 虚拟文件系统接口 ====================
 // 抽象文件系统访问，为未来支持 WebDAV / 网盘 / SMB 等远程存储预留扩展接口
 
@@ -55,6 +64,7 @@ type VFS interface {
 	// Stat 获取文件信息
 	Stat(path string) (fs.FileInfo, error)
 	// Walk 递归遍历目录
+	// 约定：远程实现（webdav/alist/s3）回调里的 path 包含 root 前缀，由 VFSManager 负责去掉并拼回完整带前缀路径。
 	Walk(root string, fn filepath.WalkFunc) error
 	// Type 返回文件系统类型标识
 	Type() string
@@ -205,9 +215,10 @@ func (m *VFSManager) ResolvePath(path string) (VFS, string) {
 	return m.defaultFS, path
 }
 
-// IsWebDAVPath 判断路径是否为 WebDAV 路径
-func IsWebDAVPath(path string) bool {
-	return strings.HasPrefix(path, WebDAVScheme)
+// joinRemotePath 拼接远程存储路径（webdav:// / alist:// / s3://），保留 scheme:// 前缀。
+func joinRemotePath(base, name string) string {
+	base = trimRemoteRoot(base)
+	return base + "/" + strings.TrimLeft(name, "/")
 }
 
 // Open 通过路径前缀自动路由到对应 VFS 打开文件
@@ -232,14 +243,21 @@ func (m *VFSManager) ReadDir(path string) ([]fs.DirEntry, error) {
 func (m *VFSManager) Walk(root string, fn filepath.WalkFunc) error {
 	vfs, realRoot := m.ResolvePath(root)
 
-	// 对于远程路径：VFS Walk 返回的是相对路径，需要拼接回完整的前缀形式
+	// 对于远程路径：VFS Walk 回调里的 path 已包含 realRoot，需要去掉后再拼回带前缀的完整路径
 	switch vfs.Type() {
 	case "webdav", "alist", "s3":
-		base := strings.TrimSuffix(root, "/")
+		base := trimRemoteRoot(root)
 		return vfs.Walk(realRoot, func(p string, info os.FileInfo, err error) error {
-			fullPath := base + "/" + strings.TrimLeft(p, "/")
-			if p == "" || p == "." {
-				fullPath = base
+			rel := strings.TrimPrefix(p, realRoot)
+			rel = strings.TrimLeft(rel, "/")
+			fullPath := base
+			if rel != "" {
+				// base 形如 "webdav://" 时直接拼接，避免出现 "webdav:///path"
+				if strings.HasSuffix(base, "://") {
+					fullPath = base + rel
+				} else {
+					fullPath = base + "/" + rel
+				}
 			}
 			return fn(fullPath, info, err)
 		})

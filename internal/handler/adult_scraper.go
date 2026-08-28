@@ -110,6 +110,7 @@ func (h *AdultScraperHandler) GetConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": gin.H{
 			"enabled":              cfg.Enabled,
+			"nsfw_enabled":         h.cfg.NSFW.Enabled,
 			"sources":              sources,
 			"min_request_interval": cfg.MinRequestInterval,
 			"max_request_interval": cfg.MaxRequestInterval,

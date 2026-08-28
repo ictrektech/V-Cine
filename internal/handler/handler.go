@@ -118,7 +118,7 @@ func NewHandlers(services *service.Services, repos *repository.Repositories, cfg
 			logger:      logger,
 		},
 		ScrapeManager:  &ScrapeManagerHandler{scrapeService: services.ScrapeManager, logger: logger},
-		FileManager:    &FileManagerHandler{fileService: services.FileManager, logger: logger},
+		FileManager:    &FileManagerHandler{fileService: services.FileManager, cfg: cfg, logger: logger},
 		AIAssistant:    &AIAssistantHandler{assistantService: services.AIAssistant, logger: logger},
 		Notification:   &NotificationHandler{notifyService: services.Notification, logger: logger},
 		SubtitleSearch: &SubtitleSearchHandler{subtitleSearch: services.SubtitleSearch, streamService: services.Stream, logger: logger},

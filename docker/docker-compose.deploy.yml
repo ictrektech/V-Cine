@@ -64,9 +64,8 @@ services:
       # 绿联 NAS 示例：
       # - /volume1/Media:/media
       # ---- 视频分析（可选）----
-      # staging 临时卷（可写子挂载覆盖父 ro）+ asset_dir（与 staging 同文件系统）
+      # staging 临时卷（可写；asset_dir 默认落在 <cache_dir>/structure，无需单独挂载）
       # - video-structure-cache:/data/video-structure-cache:rw
-      # - nowen-video-structure:/data/nowen-video-structure:rw
     # 硬件加速设备（按 SoC 开启对应的）
     devices:
       # 通用 DRM 节点（Mali / 瑞芯微 / Amlogic / Intel 都会暴露这个）
@@ -101,7 +100,7 @@ services:
       # - NOWEN_VIDEO_ANALYSIS_ENABLED=true
       # - NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
       # - NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://video-structure:8911
-      # - NOWEN_VIDEO_ANALYSIS_ASSET_DIR=/data/nowen-video-structure
+      # asset_dir 默认跟随 NOWEN_CACHE_CACHE_DIR 下的 structure，无需单独设置
       # ---- 番号刮削（默认关闭）----
       # 改为 true 后 Go 后端会自动拉起 /app/scripts/adult-scraper/app.py 子进程
       # 依赖已全部预装（python3 + flask + bs4 + lxml + requests），开箱即用

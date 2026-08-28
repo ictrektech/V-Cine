@@ -166,8 +166,8 @@ func (r *SceneRepo) CountByTaskID(taskID string) (int64, error) {
 
 // SceneDescriptionUpdate 描述更新参数
 type SceneDescriptionUpdate struct {
-	SceneIndex          int
-	Description         string
+	SceneIndex           int
+	Description          string
 	DescriptionEmbedding *pgvector.Vector
 }
 

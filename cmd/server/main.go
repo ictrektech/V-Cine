@@ -165,6 +165,16 @@ func main() {
 		}
 	}()
 
+	// 转码孤儿缓存清理：只删已无媒体记录的目录，每天执行
+	go func() {
+		for {
+			if err := services.Transcode.CleanupOrphanTranscodeCaches(); err != nil {
+				sugar.Warnf("转码孤儿缓存清理失败: %v", err)
+			}
+			time.Sleep(24 * time.Hour)
+		}
+	}()
+
 	// 记录服务启动事件
 	go func() {
 		_ = repos.SystemLog.Create(&model.SystemLog{
@@ -614,6 +624,7 @@ func main() {
 		admin.GET("/storage/webdav/status", handlers.Storage.GetWebDAVStatus)
 		admin.POST("/storage/webdav/libraries/register", handlers.Storage.RegisterWebDAVLibrary)
 		admin.GET("/storage/status", handlers.Storage.GetStorageStatus)
+		admin.GET("/storage/browse", handlers.Storage.BrowseRemoteDir)
 
 		// ==================== V2.3: Alist 聚合网盘管理 ====================
 		admin.GET("/storage/alist", handlers.Storage.GetAlistConfig)

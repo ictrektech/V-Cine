@@ -3,11 +3,13 @@ package repository
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/nowen-video/nowen-video/internal/model"
 	"gorm.io/gorm"
 
-	"github.com/nowen-video/nowen-video/internal/testutil")
+	"github.com/nowen-video/nowen-video/internal/testutil"
+)
 
 func setupVideoAnalysisRepo(t *testing.T) *VideoAnalysisTaskRepo {
 	t.Helper()
@@ -129,6 +131,81 @@ func TestVideoAnalysisRepoDeleteByID(t *testing.T) {
 
 	if err := repo.DeleteByID("missing-id"); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("delete missing = %v, want ErrRecordNotFound", err)
+	}
+}
+
+func TestVideoAnalysisRepoListVideoHashes(t *testing.T) {
+	repo := setupVideoAnalysisRepo(t)
+
+	tasks := []*model.VideoAnalysisTask{
+		newVideoAnalysisTask("media-1", model.VideoAnalysisStatusSucceeded),
+		newVideoAnalysisTask("media-2", model.VideoAnalysisStatusSucceeded),
+		newVideoAnalysisTask("media-3", model.VideoAnalysisStatusFailed),
+		newVideoAnalysisTask("media-4", model.VideoAnalysisStatusSucceeded),
+	}
+	tasks[0].VideoHash = "hash-1"
+	tasks[1].VideoHash = "hash-1"
+	tasks[2].VideoHash = "hash-2"
+	// tasks[3].VideoHash 保持为空，不应出现在结果中
+	for _, task := range tasks {
+		if err := repo.CreateIfNoActive(task); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	hashes, err := repo.ListVideoHashes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hashes) != 2 {
+		t.Fatalf("hashes = %v, want [hash-1 hash-2]", hashes)
+	}
+	set := make(map[string]bool, len(hashes))
+	for _, h := range hashes {
+		set[h] = true
+	}
+	if !set["hash-1"] || !set["hash-2"] {
+		t.Fatalf("hashes = %v, want hash-1 and hash-2", hashes)
+	}
+}
+
+func TestVideoAnalysisRepoCleanupOldTasksKeepsPerMedia(t *testing.T) {
+	repo := setupVideoAnalysisRepo(t)
+	base := time.Now()
+
+	// media-1 6 条成功任务，media-2 2 条失败任务
+	for i := 0; i < 6; i++ {
+		task := newVideoAnalysisTask("media-1", model.VideoAnalysisStatusSucceeded)
+		task.CreatedAt = base.Add(time.Duration(i) * time.Minute)
+		if err := repo.CreateIfNoActive(task); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 2; i++ {
+		task := newVideoAnalysisTask("media-2", model.VideoAnalysisStatusFailed)
+		task.CreatedAt = base.Add(time.Duration(i) * time.Minute)
+		if err := repo.CreateIfNoActive(task); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	deleted, err := repo.CleanupOldTasks(5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted = %d, want 1", deleted)
+	}
+
+	var media1Count, media2Count int64
+	if err := repo.db.Model(&model.VideoAnalysisTask{}).Where("media_id = ?", "media-1").Count(&media1Count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.db.Model(&model.VideoAnalysisTask{}).Where("media_id = ?", "media-2").Count(&media2Count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if media1Count != 5 || media2Count != 2 {
+		t.Fatalf("media counts = m1:%d m2:%d, want m1:5 m2:2", media1Count, media2Count)
 	}
 }
 

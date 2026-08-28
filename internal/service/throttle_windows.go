@@ -13,12 +13,12 @@ import (
 // FFmpeg 这类多线程编码进程用它最稳妥。
 
 var (
-	modNtdll                = syscall.NewLazyDLL("ntdll.dll")
-	procNtSuspendProcess    = modNtdll.NewProc("NtSuspendProcess")
-	procNtResumeProcess     = modNtdll.NewProc("NtResumeProcess")
-	modKernel32             = syscall.NewLazyDLL("kernel32.dll")
-	procOpenProcess         = modKernel32.NewProc("OpenProcess")
-	procCloseHandle         = modKernel32.NewProc("CloseHandle")
+	modNtdll             = syscall.NewLazyDLL("ntdll.dll")
+	procNtSuspendProcess = modNtdll.NewProc("NtSuspendProcess")
+	procNtResumeProcess  = modNtdll.NewProc("NtResumeProcess")
+	modKernel32          = syscall.NewLazyDLL("kernel32.dll")
+	procOpenProcess      = modKernel32.NewProc("OpenProcess")
+	procCloseHandle      = modKernel32.NewProc("CloseHandle")
 )
 
 const (

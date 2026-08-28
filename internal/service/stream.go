@@ -23,24 +23,24 @@ import (
 // MediaPlayInfo 媒体播放信息（前端根据此信息决定播放模式）
 type MediaPlayInfo struct {
 	MediaID             string  `json:"media_id"`
-	DirectPlayURL       string  `json:"direct_play_url"`       // 直接播放地址（如果支持）
-	HlsURL              string  `json:"hls_url"`               // HLS转码播放地址
-	HlsResolution       string  `json:"hls_resolution"`        // HLS 转码输出分辨率（如 1080p）
+	DirectPlayURL       string  `json:"direct_play_url"`        // 直接播放地址（如果支持）
+	HlsURL              string  `json:"hls_url"`                // HLS转码播放地址
+	HlsResolution       string  `json:"hls_resolution"`         // HLS 转码输出分辨率（如 1080p）
 	AutoTranscodeOnPlay bool    `json:"auto_transcode_on_play"` // 系统设置：播放时是否自动触发转码
-	CanDirectPlay       bool    `json:"can_direct_play"`       // 浏览器是否可直接播放
-	FileExt          string  `json:"file_ext"`           // 文件扩展名
-	VideoCodec       string  `json:"video_codec"`        // 视频编码
-	AudioCodec       string  `json:"audio_codec"`        // 音频编码
-	Duration         float64 `json:"duration"`           // 时长（秒）
-	IsSTRM           bool    `json:"is_strm"`            // 是否为 STRM 远程流
-	IsPreprocessed   bool    `json:"is_preprocessed"`    // 是否已预处理
-	PreprocessedURL  string  `json:"preprocessed_url"`   // 预处理后的 HLS 地址
-	PreprocessStatus string  `json:"preprocess_status"`  // 预处理状态: none / pending / running / completed
-	ThumbnailURL     string  `json:"thumbnail_url"`      // 预处理封面缩略图
-	SpriteURL        string  `json:"sprite_url"`         // 进度条雪碧图地址（预处理完成后可用）
-	SpriteVTTURL     string  `json:"sprite_vtt_url"`     // 进度条雪碧图 WebVTT 索引地址
-	CanRemux         bool    `json:"can_remux"`          // 是否支持 remux（MKV等容器内编码兼容但容器不兼容）
-	RemuxURL         string  `json:"remux_url"`          // Remux 播放地址（零转码，仅转封装）
+	CanDirectPlay       bool    `json:"can_direct_play"`        // 浏览器是否可直接播放
+	FileExt             string  `json:"file_ext"`               // 文件扩展名
+	VideoCodec          string  `json:"video_codec"`            // 视频编码
+	AudioCodec          string  `json:"audio_codec"`            // 音频编码
+	Duration            float64 `json:"duration"`               // 时长（秒）
+	IsSTRM              bool    `json:"is_strm"`                // 是否为 STRM 远程流
+	IsPreprocessed      bool    `json:"is_preprocessed"`        // 是否已预处理
+	PreprocessedURL     string  `json:"preprocessed_url"`       // 预处理后的 HLS 地址
+	PreprocessStatus    string  `json:"preprocess_status"`      // 预处理状态: none / pending / running / completed
+	ThumbnailURL        string  `json:"thumbnail_url"`          // 预处理封面缩略图
+	SpriteURL           string  `json:"sprite_url"`             // 进度条雪碧图地址（预处理完成后可用）
+	SpriteVTTURL        string  `json:"sprite_vtt_url"`         // 进度条雪碧图 WebVTT 索引地址
+	CanRemux            bool    `json:"can_remux"`              // 是否支持 remux（MKV等容器内编码兼容但容器不兼容）
+	RemuxURL            string  `json:"remux_url"`              // Remux 播放地址（零转码，仅转封装）
 }
 
 // 浏览器可直接播放的文件格式
@@ -125,18 +125,18 @@ func (s *StreamService) SetSettingRepo(repo *repository.SystemSettingRepo) {
 	s.settingRepo = repo
 }
 
-// statMediaFile 返回文件判断：同时支持本地路径和 webdav:// 路径
+// statMediaFile 返回文件判断：同时支持本地路径和远程路径
 func (s *StreamService) statMediaFile(p string) (os.FileInfo, error) {
-	if s.vfsMgr != nil && IsWebDAVPath(p) {
+	if s.vfsMgr != nil && IsRemotePath(p) {
 		return s.vfsMgr.Stat(p)
 	}
 	return os.Stat(p)
 }
 
-// OpenMediaFile 打开媒体文件（支持 WebDAV 与本地路径）
-// V2.1: 供 handler 层在 webdav:// 路径下通过 VFS 流式服务文件
+// OpenMediaFile 打开媒体文件（支持远程路径与本地路径）
+// 供 handler 层在远程路径下通过 VFS 流式服务文件
 func (s *StreamService) OpenMediaFile(p string) (VFSFile, error) {
-	if s.vfsMgr != nil && IsWebDAVPath(p) {
+	if s.vfsMgr != nil && IsRemotePath(p) {
 		return s.vfsMgr.Open(p)
 	}
 	f, err := os.Open(p)
@@ -146,7 +146,7 @@ func (s *StreamService) OpenMediaFile(p string) (VFSFile, error) {
 	return &localFile{File: f}, nil
 }
 
-// openMediaFile 打开媒体文件（支持 WebDAV）
+// openMediaFile 打开媒体文件（支持远程路径）
 func (s *StreamService) openMediaFile(p string) (VFSFile, error) {
 	return s.OpenMediaFile(p)
 }
@@ -404,20 +404,19 @@ func (s *StreamService) GetDirectStreamInfo(mediaID string) (string, string, err
 	return media.FilePath, contentType, nil
 }
 
-// vfsJoinPath 路径拼接：对 webdav:// 使用正斜杠（避免 Windows 下 filepath.Join 破坏前缀）
+// vfsJoinPath 路径拼接：对远程路径使用正斜杠（避免 Windows 下 filepath.Join 破坏前缀）
 func vfsJoinPath(base, name string) string {
-	if IsWebDAVPath(base) {
-		base = strings.TrimRight(base, "/")
-		return base + "/" + strings.TrimLeft(name, "/")
+	if IsRemotePath(base) {
+		return joinRemotePath(base, name)
 	}
 	return filepath.Join(base, name)
 }
 
-// vfsDir 目录提取：对 webdav:// 使用正斜杠规则
+// vfsDir 目录提取：对远程路径使用正斜杠规则
 func vfsDir(p string) string {
-	if IsWebDAVPath(p) {
+	if IsRemotePath(p) {
 		i := strings.LastIndex(p, "/")
-		if i <= len("webdav:/") { // 保护 webdav:// 前缀
+		if i <= strings.Index(p, "://")+3 { // 保护 scheme:// 前缀
 			return p
 		}
 		return p[:i]

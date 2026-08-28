@@ -438,9 +438,9 @@ func (s *ScannerService) SetVFSManager(vfsMgr *VFSManager) {
 }
 
 // walkLibraryPath 根据媒体库路径前缀自动选择 VFS 遍历
-// 返回的 path 是完整路径（LocalFS 返回原生路径；WebDAVFS 返回 webdav:// 前缀路径）
+// 返回的 path 是完整路径（LocalFS 返回原生路径；远程 VFS 返回带 scheme 前缀路径）
 func (s *ScannerService) walkLibraryPath(root string, fn filepath.WalkFunc) error {
-	if s.vfsMgr != nil && IsWebDAVPath(root) {
+	if s.vfsMgr != nil && IsRemotePath(root) {
 		return s.vfsMgr.Walk(root, fn)
 	}
 	return filepath.Walk(root, fn)
@@ -448,7 +448,7 @@ func (s *ScannerService) walkLibraryPath(root string, fn filepath.WalkFunc) erro
 
 // statLibraryPath 根据路径前缀选择合适的 Stat 实现
 func (s *ScannerService) statLibraryPath(p string) (os.FileInfo, error) {
-	if s.vfsMgr != nil && IsWebDAVPath(p) {
+	if s.vfsMgr != nil && IsRemotePath(p) {
 		return s.vfsMgr.Stat(p)
 	}
 	return os.Stat(p)
@@ -456,7 +456,7 @@ func (s *ScannerService) statLibraryPath(p string) (os.FileInfo, error) {
 
 // readDirLibraryPath 根据路径前缀选择合适的 ReadDir 实现
 func (s *ScannerService) readDirLibraryPath(p string) ([]os.DirEntry, error) {
-	if s.vfsMgr != nil && IsWebDAVPath(p) {
+	if s.vfsMgr != nil && IsRemotePath(p) {
 		entries, err := s.vfsMgr.ReadDir(p)
 		if err != nil {
 			return nil, err
@@ -469,11 +469,11 @@ func (s *ScannerService) readDirLibraryPath(p string) ([]os.DirEntry, error) {
 	return os.ReadDir(p)
 }
 
-// vfsJoin 拼接路径：对 webdav:// 前缀的路径使用正斜杠，避免 filepath.Join 在 Windows 下把前缀破坏为 webdav:\
+// vfsJoin 拼接路径：对远程存储前缀（webdav:// / alist:// / s3://）使用正斜杠，
+// 避免 filepath.Join 把前缀破坏为 webdav:/ 或 alist:/
 func vfsJoin(base, name string) string {
-	if IsWebDAVPath(base) {
-		base = strings.TrimRight(base, "/")
-		return base + "/" + strings.TrimLeft(name, "/")
+	if IsRemotePath(base) {
+		return joinRemotePath(base, name)
 	}
 	return filepath.Join(base, name)
 }
@@ -1115,7 +1115,7 @@ func (s *ScannerService) findOrganizedHardlinkRecord(library *model.Library, sou
 		return nil, false
 	}
 	outputDir := strings.TrimSpace(library.OrganizeOutputDir)
-	if outputDir == "" || IsWebDAVPath(sourcePath) || IsWebDAVPath(outputDir) {
+	if outputDir == "" || IsRemotePath(sourcePath) || IsRemotePath(outputDir) {
 		return nil, false
 	}
 	cleanSource := filepath.Clean(sourcePath)
@@ -2933,12 +2933,17 @@ func (s *ScannerService) probeMediaInfo(media *model.Media) {
 		return
 	}
 
+	// 远程路径：转换为 FFmpeg 可读取的 HTTP URL，避免直接用 webdav:// / alist:// / s3://
+	inputPath := media.FilePath
+	if IsRemotePath(inputPath) {
+		inputPath = ResolveRemoteFFmpegURL(s.cfg, inputPath)
+	}
 	cmd := exec.Command(s.cfg.App.FFprobePath,
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
 		"-show_streams",
-		media.FilePath,
+		inputPath,
 	)
 
 	output, err := cmd.Output()

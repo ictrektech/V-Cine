@@ -23,7 +23,14 @@ import {
   Info,
 } from 'lucide-react'
 import FileBrowser from './FileBrowser'
+import { type StorageType, storageTypeFromPath, joinRemotePath, pathPlaceholder } from '@/lib/storageSchemes'
 
+const STORAGE_TYPE_LABELS: Record<StorageType, string> = {
+  local: '本地路径',
+  webdav: 'WebDAV',
+  alist: 'Alist',
+  s3: 'S3',
+}
 
 // 内容类型配置
 const LIBRARY_TYPES = [
@@ -168,6 +175,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
   const [error, setError] = useState('')
   const [browsingIndex, setBrowsingIndex] = useState<number | null>(null)
   const [metadataSourceTooltip, setMetadataSourceTooltip] = useState(DEFAULT_METADATA_SOURCE_TOOLTIP)
+  const [nsfwEnabled, setNsfwEnabled] = useState(true)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
 
@@ -211,6 +219,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
 
       const tmdb = tmdbResult.status === 'fulfilled' ? tmdbResult.value.data.data : null
       const adult = adultResult.status === 'fulfilled' ? adultResult.value.data.data : null
+      setNsfwEnabled(adult?.nsfw_enabled !== false)
       const adultSourceLines = adult?.enabled
         ? [...(adult.sources || [])]
             .filter((source) => source.enabled && source.url)
@@ -293,6 +302,9 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
   }
 
   if (!open || !library) return null
+
+  const browsingStorageType = browsingIndex !== null ? storageTypeFromPath(paths[browsingIndex] || '') : 'local'
+  const mainStorageType = storageTypeFromPath(paths[0] || '')
 
   const selectedLangLabel =
     METADATA_LANG_OPTIONS.find((l) => l.value === advanced.metadata_lang)?.label || advanced.metadata_lang
@@ -435,12 +447,20 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
             {/* ===== 媒体文件夹 ===== */}
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <label
-                  className="text-sm font-semibold"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  媒体文件夹
-                </label>
+                <div className="flex items-center gap-2">
+                  <label
+                    className="text-sm font-semibold"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    媒体文件夹
+                  </label>
+                  <span
+                    className="rounded-md px-2 py-0.5 text-xs font-medium"
+                    style={{ background: 'var(--nav-hover-bg)', color: 'var(--neon-blue)' }}
+                  >
+                    {STORAGE_TYPE_LABELS[mainStorageType]}
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setPaths((prev) => [...prev, ''])}
@@ -469,7 +489,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
                         border: '1.5px dashed var(--border-hover)',
                         color: 'var(--text-tertiary)',
                       }}
-                      title="浏览服务器目录"
+                      title={storageTypeFromPath(p) === 'local' ? '浏览服务器目录' : '浏览远程目录'}
                     >
                       <FolderPlus size={18} />
                     </button>
@@ -482,7 +502,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
                         setError('')
                       }}
                       className="input flex-1"
-                      placeholder={idx === 0 ? '主路径，如: /media/movies 或 D:\\Videos' : '额外路径'}
+                      placeholder={pathPlaceholder(storageTypeFromPath(p), idx)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                     />
                     {paths.length > 1 && (
@@ -643,31 +663,33 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
                   <div style={{ borderTop: '1px solid var(--border-default)' }} />
 
                   {/* ———— 4. 允许成人内容 ———— */}
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          媒体元数据允许成人内容
-                        </h4>
-                        <button
-                          type="button"
-                          title={metadataSourceTooltip}
-                          aria-label="查看元数据来源链接"
-                          className="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-[var(--nav-hover-bg)]"
-                          style={{ color: 'var(--text-tertiary)' }}
-                        >
-                          <Info size={13} />
-                        </button>
+                  {nsfwEnabled && (
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            媒体元数据允许成人内容
+                          </h4>
+                          <button
+                            type="button"
+                            title={metadataSourceTooltip}
+                            aria-label="查看元数据来源链接"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-[var(--nav-hover-bg)]"
+                            style={{ color: 'var(--text-tertiary)' }}
+                          >
+                            <Info size={13} />
+                          </button>
+                        </div>
+                        <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                          从第三方公开数据库搜索、下载元数据时，允许成人内容。悬停信息图标可查看当前使用的元数据链接。
+                        </p>
                       </div>
-                      <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                        从第三方公开数据库搜索、下载元数据时，允许成人内容。悬停信息图标可查看当前使用的元数据链接。
-                      </p>
+                      <ToggleSwitch
+                        checked={advanced.allow_adult_content}
+                        onChange={(v) => updateAdvanced('allow_adult_content', v)}
+                      />
                     </div>
-                    <ToggleSwitch
-                      checked={advanced.allow_adult_content}
-                      onChange={(v) => updateAdvanced('allow_adult_content', v)}
-                    />
-                  </div>
+                  )}
 
                   <div style={{ borderTop: '1px solid var(--border-default)' }} />
 
@@ -950,17 +972,19 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
         </div>
       </div>
 
-      {/* 服务端文件浏览器 */}
+      {/* 文件浏览器（本地 / 远程目录） */}
       <FileBrowser
         open={browsingIndex !== null}
         onClose={() => setBrowsingIndex(null)}
+        storageType={browsingStorageType}
         onSelect={(selectedPath) => {
           if (browsingIndex !== null) {
-            setPaths((prev) => prev.map((x, i) => (i === browsingIndex ? selectedPath : x)))
+            const mergedPath = joinRemotePath(browsingStorageType, selectedPath)
+            setPaths((prev) => prev.map((x, i) => (i === browsingIndex ? mergedPath : x)))
             setError('')
           }
         }}
-        initialPath={(browsingIndex !== null ? paths[browsingIndex] : '') || '/'}
+        initialPath={browsingStorageType === 'local' ? (browsingIndex !== null ? paths[browsingIndex] : '') || '/' : '/'}
       />
     </div>
   )

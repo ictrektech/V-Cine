@@ -28,8 +28,8 @@ func (s *AdultScraperService) DownloadExtraFanart(media *model.Media, meta *Adul
 	if !s.cfg.AdultScraper.DownloadExtraFanart || len(meta.ExtraFanart) == 0 {
 		return nil
 	}
-	if media.FilePath == "" || IsWebDAVPath(media.FilePath) {
-		// WebDAV 路径不支持本地写入
+	if media.FilePath == "" || IsRemotePath(media.FilePath) {
+		// 远程路径不支持本地写入
 		return nil
 	}
 
@@ -98,7 +98,7 @@ func (s *AdultScraperService) DownloadActorPhotos(media *model.Media, meta *Adul
 	if !s.cfg.AdultScraper.DownloadActorPhoto || len(meta.ActorPhotos) == 0 {
 		return 0
 	}
-	if media.FilePath == "" || IsWebDAVPath(media.FilePath) {
+	if media.FilePath == "" || IsRemotePath(media.FilePath) {
 		return 0
 	}
 

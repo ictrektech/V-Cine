@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"fmt"
+	"io/fs"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -56,7 +59,7 @@ func (h *StorageHandler) GetWebDAVConfig(c *gin.Context) {
 // UpdateWebDAVConfigRequest 更新 WebDAV 配置请求
 type UpdateWebDAVConfigRequest struct {
 	Enabled       bool   `json:"enabled"`
-	ServerURL     string `json:"server_url" binding:"required_if=Enabled true"`
+	ServerURL     string `json:"server_url"`
 	Username      string `json:"username"`
 	Password      string `json:"password"`
 	BasePath      string `json:"base_path"`
@@ -144,11 +147,16 @@ func (h *StorageHandler) TestWebDAVConnection(c *gin.Context) {
 		return
 	}
 
+	password := req.Password
+	if password == "" && req.Username == h.cfg.Storage.WebDAV.Username && req.ServerURL == h.cfg.Storage.WebDAV.ServerURL {
+		password = h.cfg.Storage.WebDAV.Password
+	}
+
 	testCfg := config.WebDAVConfig{
 		Enabled:   true,
 		ServerURL: req.ServerURL,
 		Username:  req.Username,
-		Password:  req.Password,
+		Password:  password,
 		BasePath:  req.BasePath,
 		Timeout:   30,
 	}
@@ -210,6 +218,79 @@ func (h *StorageHandler) GetStorageStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": response})
+}
+
+// BrowseRemoteDir 浏览远程存储目录（webdav / alist / s3）
+func (h *StorageHandler) BrowseRemoteDir(c *gin.Context) {
+	storageType := c.Query("type")
+	dir := c.DefaultQuery("path", "/")
+	if dir == "" {
+		dir = "/"
+	}
+
+	var entries []fs.DirEntry
+	var err error
+	var vfs service.VFS
+	switch storageType {
+	case "webdav":
+		vfs, err = h.webdavService.GetWebDAVFS()
+	case "alist", "s3":
+		if h.remoteStorageService == nil {
+			err = fmt.Errorf("远程存储服务未初始化")
+			break
+		}
+		vfs = h.remoteStorageService.GetAlistFS()
+		if storageType == "s3" {
+			vfs = h.remoteStorageService.GetS3FS()
+		}
+		if vfs == nil {
+			err = fmt.Errorf("%s 存储未启用或未初始化", storageType)
+		}
+	default:
+		err = fmt.Errorf("不支持的存储类型")
+	}
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "浏览远程目录失败: " + err.Error()})
+		return
+	}
+
+	entries, err = vfs.ReadDir(dir)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "浏览远程目录失败: " + err.Error()})
+		return
+	}
+
+	type RemoteFsEntry struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+	items := make([]RemoteFsEntry, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		items = append(items, RemoteFsEntry{
+			Name: name,
+			Path: path.Join(dir, name),
+		})
+	}
+
+	parent := path.Dir(dir)
+	if parent == "." || parent == dir {
+		parent = ""
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"current": dir,
+			"parent":  parent,
+			"items":   items,
+		},
+	})
 }
 
 // maskPassword 密码掩码处理

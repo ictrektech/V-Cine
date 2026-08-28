@@ -168,4 +168,3 @@ func (c *EmbeddingClient) IsAvailable() bool {
 }
 
 // detectMimeType 根据文件扩展名推断 MIME 类型
-

@@ -9,7 +9,6 @@
 # 阶段1: 构建前端（锁定在构建机本地架构，避免 QEMU 跑 npm 极慢）
 # =============================================
 FROM --platform=$BUILDPLATFORM oven/bun:1-alpine AS frontend
-ARG NOWEN_VERSION=0.1.0
 ARG NPM_MIRROR=https://registry.npmmirror.com
 ENV BUN_CONFIG_REGISTRY=${NPM_MIRROR}
 ENV NPM_CONFIG_REGISTRY=${NPM_MIRROR}
@@ -17,6 +16,9 @@ WORKDIR /app/web
 COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY web/ .
+
+# NOWEN_VERSION 只用于 VITE_APP_VERSION；放在 install 和 COPY 之后，避免版本变更使依赖/源码层缓存失效
+ARG NOWEN_VERSION=0.1.0
 ENV VITE_APP_VERSION=${NOWEN_VERSION}
 RUN bun run build
 
@@ -24,15 +26,17 @@ RUN bun run build
 # 阶段2: 构建后端（在构建机本地架构运行 Go 工具链，交叉编译到目标架构）
 # =============================================
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS backend
-ARG TARGETOS
-ARG TARGETARCH
-ARG NOWEN_VERSION=0.1.0
 WORKDIR /app
 ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/dist ./web/dist
+
+# ARG 移到 go build 前：避免 TARGETOS/TARGETARCH/NOWEN_VERSION 使 go mod download 缓存失效
+ARG TARGETOS
+ARG TARGETARCH
+ARG NOWEN_VERSION=0.1.0
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${NOWEN_VERSION}" -o nowen-video ./cmd/server
 
@@ -40,7 +44,6 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 # 阶段3: 运行镜像（Ubuntu + Jellyfin FFmpeg；NVIDIA 驱动库由容器运行时注入）
 # =============================================
 FROM ubuntu:22.04
-ARG NOWEN_VERSION=0.1.0
 ARG UBUNTU_MIRROR=https://mirrors.aliyun.com/ubuntu
 ARG JELLYFIN_REPO=https://mirror.nju.edu.cn/jellyfin/ubuntu
 ARG JELLYFIN_KEY_URL=https://repo.jellyfin.org/jellyfin_team.gpg.key
@@ -127,6 +130,8 @@ ENV NOWEN_APP_DATA_DIR=/data
 ENV NOWEN_APP_WEB_DIR=/app/web/dist
 ENV NOWEN_CACHE_CACHE_DIR=/cache
 ENV NOWEN_LOGGING_LEVEL=info
+# 版本号只在这里被使用；声明放在依赖安装之后，避免版本变更导致 apt 层缓存失效
+ARG NOWEN_VERSION=0.1.0
 ENV NOWEN_VERSION=${NOWEN_VERSION}
 ENV NOWEN_ADULT_SCRAPER_ENABLED=false
 ENV NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON=true

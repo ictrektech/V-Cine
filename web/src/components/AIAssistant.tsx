@@ -561,7 +561,7 @@ export function AIAssistantPanel({ isOpen, children }: { isOpen: boolean; childr
     <div
       className={clsx(
         'flex-shrink-0 overflow-hidden transition-all duration-300 ease-out',
-        isOpen ? 'w-[380px] opacity-100' : 'w-0 opacity-0'
+        isOpen ? 'ml-4 w-[380px] opacity-100' : 'w-0 opacity-0'
       )}
       style={{ maxHeight: isOpen ? 'calc(100vh - 280px)' : 0 }}
     >

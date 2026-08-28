@@ -648,6 +648,12 @@ type STRMConfig struct {
 	DomainReferers map[string]string `mapstructure:"domain_referers"`
 }
 
+// NSFWConfig 全局 NSFW/成人内容开关（默认关闭，只能通过配置文件开启）
+type NSFWConfig struct {
+	// 是否启用 NSFW/成人内容相关能力
+	Enabled bool `mapstructure:"enabled"`
+}
+
 // Config 应用主配置（聚合所有子模块）
 type Config struct {
 	mu sync.RWMutex `mapstructure:"-"`
@@ -665,6 +671,7 @@ type Config struct {
 	Storage       StorageConfig       `mapstructure:"storage"`
 	Emby          EmbyConfig          `mapstructure:"emby"`
 	AdultScraper  AdultScraperConfig  `mapstructure:"adult_scraper"`
+	NSFW          NSFWConfig          `mapstructure:"nsfw"`
 	STRM          STRMConfig          `mapstructure:"strm"`
 
 	// ==================== 兼容性字段（向后兼容旧的扁平配置） ====================
@@ -687,6 +694,14 @@ type Config struct {
 }
 
 // ==================== 加载逻辑 ====================
+
+// decryptSecretValue 解密带 ENC: 前缀的敏感字段，兼容老明文和双重加密残留。
+func decryptSecretValue(s string) string {
+	if dec, err := secretcrypto.Decrypt(s); err == nil {
+		return dec
+	}
+	return s
+}
 
 // Load 加载配置，支持以下方式（优先级从低到高）：
 //  1. 内置默认值
@@ -744,16 +759,28 @@ func Load() (*Config, error) {
 	//    顶层 api_key 已移除，此处只解密 Providers 列表中的 key
 	for i, p := range cfg.AI.Providers {
 		if p.APIKey != "" {
-			for strings.HasPrefix(p.APIKey, "ENC:") {
-				if dec, err := secretcrypto.Decrypt(p.APIKey); err == nil {
-					p.APIKey = dec
-				} else {
-					break
-				}
-			}
-			cfg.AI.Providers[i].APIKey = p.APIKey
+			cfg.AI.Providers[i].APIKey = decryptSecretValue(p.APIKey)
 		}
 	}
+	cfg.AI.WhisperAPIKey = decryptSecretValue(cfg.AI.WhisperAPIKey)
+
+	// 8.1 解密存储后端敏感字段（WebDAV / Alist / S3）
+	cfg.Storage.WebDAV.Password = decryptSecretValue(cfg.Storage.WebDAV.Password)
+	cfg.Storage.Alist.Password = decryptSecretValue(cfg.Storage.Alist.Password)
+	cfg.Storage.Alist.Token = decryptSecretValue(cfg.Storage.Alist.Token)
+	cfg.Storage.S3.SecretKey = decryptSecretValue(cfg.Storage.S3.SecretKey)
+
+	// 8.2 解密 Adult Scraper 敏感字段（Cookie / 翻译密钥 / Python 服务密钥）
+	cfg.AdultScraper.CookieJavBus = decryptSecretValue(cfg.AdultScraper.CookieJavBus)
+	cfg.AdultScraper.CookieJavDB = decryptSecretValue(cfg.AdultScraper.CookieJavDB)
+	cfg.AdultScraper.CookieFreejavbt = decryptSecretValue(cfg.AdultScraper.CookieFreejavbt)
+	cfg.AdultScraper.CookieJav321 = decryptSecretValue(cfg.AdultScraper.CookieJav321)
+	cfg.AdultScraper.CookieFanza = decryptSecretValue(cfg.AdultScraper.CookieFanza)
+	cfg.AdultScraper.CookieMGStage = decryptSecretValue(cfg.AdultScraper.CookieMGStage)
+	cfg.AdultScraper.CookieFC2Hub = decryptSecretValue(cfg.AdultScraper.CookieFC2Hub)
+	cfg.AdultScraper.TranslateAPIKey = decryptSecretValue(cfg.AdultScraper.TranslateAPIKey)
+	cfg.AdultScraper.TranslateAPISecret = decryptSecretValue(cfg.AdultScraper.TranslateAPISecret)
+	cfg.AdultScraper.PythonServiceAPIKey = decryptSecretValue(cfg.AdultScraper.PythonServiceAPIKey)
 
 	// 9. AI 用量预算默认值兜底
 	if cfg.AI.WarningThresholdPct <= 0 || cfg.AI.WarningThresholdPct > 100 {
@@ -764,7 +791,12 @@ func Load() (*Config, error) {
 	// 外部客户端/路径映射器时执行，使功能关闭时不会阻断现有服务启动。
 	cfg.VideoAnalysis.SceneBaseURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.SceneBaseURL), "/")
 	cfg.VideoAnalysis.StructureBaseURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.StructureBaseURL), "/")
-	cfg.VideoAnalysis.AssetDir = filepath.Clean(strings.TrimSpace(cfg.VideoAnalysis.AssetDir))
+	// 结构化产物默认跟随 cache 目录，便于 Docker 挂载与全局统一管理
+	assetDir := strings.TrimSpace(cfg.VideoAnalysis.AssetDir)
+	if assetDir == "" {
+		assetDir = filepath.Join(cfg.Cache.CacheDir, "structure")
+	}
+	cfg.VideoAnalysis.AssetDir = filepath.Clean(assetDir)
 	if cfg.VideoAnalysis.MaxConcurrent <= 0 {
 		cfg.VideoAnalysis.MaxConcurrent = 2
 	}
@@ -853,7 +885,7 @@ func setDefaults() {
 	viper.SetDefault("video_analysis.scene_base_url", "http://localhost:8910")
 	viper.SetDefault("video_analysis.structure_base_url", "http://localhost:8911")
 	viper.SetDefault("video_analysis.path_mappings", []VideoAnalysisPathMapping{})
-	viper.SetDefault("video_analysis.asset_dir", "/data/nowen-video-structure")
+	viper.SetDefault("video_analysis.asset_dir", "")
 	viper.SetDefault("video_analysis.max_concurrent", 2)
 	viper.SetDefault("video_analysis.poll_interval_seconds", 2)
 	viper.SetDefault("video_analysis.job_timeout_minutes", 120)
@@ -989,6 +1021,7 @@ func setDefaults() {
 	viper.SetDefault("strm.remote_probe_timeout", 8)
 
 	// ---- 番号刮削 ----
+	viper.SetDefault("nsfw.enabled", false)
 	viper.SetDefault("adult_scraper.enabled", false)
 	viper.SetDefault("adult_scraper.enable_javbus", true)
 	viper.SetDefault("adult_scraper.javbus_url", "")
@@ -1442,7 +1475,7 @@ func (c *Config) SaveAIConfig() error {
 			for i, p := range ac.Providers {
 				if p.APIKey != "" && !strings.HasPrefix(p.APIKey, "ENC:") {
 					if enc, err := secretcrypto.Encrypt(p.APIKey); err == nil {
-						p.APIKey = "ENC:" + enc
+						p.APIKey = enc
 					}
 				}
 				encProviders[i] = p

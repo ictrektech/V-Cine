@@ -409,10 +409,10 @@ func (h *AIHandler) ListProviders(c *gin.Context) {
 // AddProvider 添加供应商
 func (h *AIHandler) AddProvider(c *gin.Context) {
 	var req struct {
-		ID      string              `json:"id"`
-		Name    string              `json:"name" binding:"required"`
-		APIBase string              `json:"api_base"`
-		APIKey  string              `json:"api_key"`
+		ID      string                `json:"id"`
+		Name    string                `json:"name" binding:"required"`
+		APIBase string                `json:"api_base"`
+		APIKey  string                `json:"api_key"`
 		Models  []config.AIModelEntry `json:"models"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {

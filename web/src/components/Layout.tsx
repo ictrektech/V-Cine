@@ -1,8 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
-import { AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar'
-import PageTransition from './PageTransition'
 import { Menu } from 'lucide-react'
 
 // 滚动位置保存 key 前缀
@@ -102,11 +100,7 @@ export default function Layout() {
               ? 'w-full'
               : 'mx-auto max-w-7xl'
           }`}>
-            <AnimatePresence mode="wait">
-              <PageTransition key={location.pathname}>
-                <Outlet />
-              </PageTransition>
-            </AnimatePresence>
+            <Outlet />
           </div>
         </main>
       </div>

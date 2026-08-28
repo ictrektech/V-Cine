@@ -202,12 +202,12 @@ func (t *VideoAnalysisTask) CanRunStage(stage string) (bool, string) {
 // Scene 视频场景结构化分析结果，包含图片 embedding 和描述 embedding
 // 用于后续的向量检索（以图搜图 / 自然语言搜索）
 type Scene struct {
-	ID                  string           `json:"id" gorm:"primaryKey;type:text"`
-	VideoAnalysisTaskID string           `json:"video_analysis_task_id" gorm:"index;type:text;not null"`
-	SceneIndex          int              `json:"scene_index" gorm:"not null"`
-	StartTime           float64          `json:"start_time"`
-	EndTime             float64          `json:"end_time"`
-	ImagePath           string           `json:"image_path" gorm:"type:text"`
+	ID                  string  `json:"id" gorm:"primaryKey;type:text"`
+	VideoAnalysisTaskID string  `json:"video_analysis_task_id" gorm:"index;type:text;not null"`
+	SceneIndex          int     `json:"scene_index" gorm:"not null"`
+	StartTime           float64 `json:"start_time"`
+	EndTime             float64 `json:"end_time"`
+	ImagePath           string  `json:"image_path" gorm:"type:text"`
 	// Embedding 场景图片的 CLIP 视觉 embedding（ViT-B-16-SigLIP2, 768 维）
 	Embedding *pgvector.Vector `json:"embedding" gorm:"type:vector(768)"`
 	// Description 场景描述文本（由 VL 模型生成）

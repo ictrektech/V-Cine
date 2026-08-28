@@ -146,8 +146,8 @@ func (s *FileManagerService) SetCacheCleaner(cleaner *MediaCacheCleaner) {
 // ==================== 文件列表与查询 ====================
 
 // ListFiles 获取影视文件列表（支持多条件筛选）
-func (s *FileManagerService) ListFiles(page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool) ([]model.Media, int64, error) {
-	return s.mediaRepo.ListFilesAdvanced(page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly)
+func (s *FileManagerService) ListFiles(page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool, excludeAdult bool) ([]model.Media, int64, error) {
+	return s.mediaRepo.ListFilesAdvanced(page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly, excludeAdult)
 }
 
 // FolderNode 文件夹树节点
@@ -156,6 +156,47 @@ type FolderNode struct {
 	Path      string        `json:"path"`       // 完整路径
 	Children  []*FolderNode `json:"children"`   // 子文件夹
 	FileCount int           `json:"file_count"` // 直接子文件数量
+}
+
+// remotePathParts 解析远程路径（webdav:// / alist:// / s3://）为 scheme + 路径段。
+func remotePathParts(p string) (scheme string, parts []string, ok bool) {
+	for _, s := range RemoteSchemes {
+		if strings.HasPrefix(p, s) {
+			rest := strings.Trim(strings.TrimPrefix(p, s), "/")
+			if rest == "" {
+				return s, nil, true
+			}
+			return s, strings.Split(rest, "/"), true
+		}
+	}
+	return "", nil, false
+}
+
+// remoteDirName 返回远程目录的显示名（最后一段；scheme 根目录返回 scheme 本身）。
+func remoteDirName(dir string) string {
+	scheme, parts, ok := remotePathParts(dir)
+	if !ok {
+		return filepath.Base(dir)
+	}
+	if len(parts) == 0 {
+		return scheme
+	}
+	return parts[len(parts)-1]
+}
+
+// remoteDirParent 返回远程目录的父目录；scheme 根目录返回空，顶级子目录返回 scheme。
+func remoteDirParent(dir string) string {
+	scheme, parts, ok := remotePathParts(dir)
+	if !ok {
+		return filepath.Dir(dir)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	if len(parts) == 1 {
+		return scheme
+	}
+	return scheme + strings.Join(parts[:len(parts)-1], "/")
 }
 
 // GetFolderTree 获取文件夹树形结构
@@ -172,6 +213,26 @@ func (s *FileManagerService) GetFolderTree(libraryID string) ([]*FolderNode, err
 	for _, p := range paths {
 		// 标准化路径分隔符
 		normalized := strings.ReplaceAll(p, "\\", "/")
+
+		// 远程路径：保留 scheme 前缀，避免 filepath 把 webdav:// 压成 webdav:/
+		if scheme, parts, ok := remotePathParts(normalized); ok {
+			// 只要有远程媒体文件，scheme 根目录就作为树节点展示
+			dirSet[scheme] = true
+			if len(parts) <= 1 {
+				// 文件直接位于远程根目录
+				dirFileCount[scheme]++
+				continue
+			}
+			dir := scheme + strings.Join(parts[:len(parts)-1], "/")
+			dirFileCount[dir]++
+			// 记录目录及其所有祖先目录
+			for i := 1; i < len(parts); i++ {
+				ancestor := scheme + strings.Join(parts[:i], "/")
+				dirSet[ancestor] = true
+			}
+			continue
+		}
+
 		dir := filepath.Dir(normalized)
 		dir = strings.ReplaceAll(dir, "\\", "/")
 		dirFileCount[dir]++
@@ -207,7 +268,7 @@ func (s *FileManagerService) GetFolderTree(libraryID string) ([]*FolderNode, err
 	}
 
 	for _, dir := range allDirs {
-		name := filepath.Base(dir)
+		name := remoteDirName(dir)
 		name = strings.ReplaceAll(name, "\\", "/")
 		if name == "." || name == "" {
 			continue
@@ -222,7 +283,7 @@ func (s *FileManagerService) GetFolderTree(libraryID string) ([]*FolderNode, err
 		root[dir] = node
 
 		// 查找父目录
-		parentDir := filepath.Dir(dir)
+		parentDir := remoteDirParent(dir)
 		parentDir = strings.ReplaceAll(parentDir, "\\", "/")
 		if parentNode, ok := root[parentDir]; ok {
 			parentNode.Children = append(parentNode.Children, node)
@@ -240,9 +301,9 @@ func (s *FileManagerService) GetFolderTree(libraryID string) ([]*FolderNode, err
 }
 
 // ListFilesByFolder 按文件夹路径查询文件
-func (s *FileManagerService) ListFilesByFolder(folderPath string, page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool) ([]model.Media, int64, []string, error) {
+func (s *FileManagerService) ListFilesByFolder(folderPath string, page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool, excludeAdult bool) ([]model.Media, int64, []string, error) {
 	// 获取文件列表
-	files, total, err := s.mediaRepo.ListByFolderPath(folderPath, page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly)
+	files, total, err := s.mediaRepo.ListByFolderPath(folderPath, page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly, excludeAdult)
 	if err != nil {
 		return nil, 0, nil, err
 	}

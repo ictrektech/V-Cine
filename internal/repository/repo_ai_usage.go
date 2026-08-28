@@ -42,7 +42,7 @@ func (r *AIUsageRepo) AggregateByDay(from, to time.Time, provider string) ([]AIU
 	var buckets []AIUsageBucket
 	bucketExpr := dateFormatExpr("%Y-%m-%d", "created_at")
 	q := r.db.Model(&model.AIUsageRecord{}).
-		Select(bucketExpr + ` AS bucket,
+		Select(bucketExpr+` AS bucket,
 			COUNT(*) AS calls,
 			COALESCE(SUM(prompt_tokens),0) AS prompt_tokens,
 			COALESCE(SUM(completion_tokens),0) AS completion_tokens,
@@ -65,7 +65,7 @@ func (r *AIUsageRepo) AggregateByMonth(from, to time.Time, provider string) ([]A
 	var buckets []AIUsageBucket
 	bucketExpr := dateFormatExpr("%Y-%m", "created_at")
 	q := r.db.Model(&model.AIUsageRecord{}).
-		Select(bucketExpr + ` AS bucket,
+		Select(bucketExpr+` AS bucket,
 			COUNT(*) AS calls,
 			COALESCE(SUM(prompt_tokens),0) AS prompt_tokens,
 			COALESCE(SUM(completion_tokens),0) AS completion_tokens,

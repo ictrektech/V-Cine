@@ -5,17 +5,21 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
-  Loader2,
   FolderTree as FolderTreeIcon,
   Home,
   Pencil,
   Trash2,
   RefreshCw,
   Copy,
+  PanelLeftClose,
 } from 'lucide-react'
 import clsx from 'clsx'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface FolderTreeProps {
   tree: FolderNode[]
@@ -28,6 +32,7 @@ interface FolderTreeProps {
   onDeleteFolder?: (folderPath: string) => void
   onRefreshFolder?: () => void
   onCopyPath?: (path: string) => void
+  onCollapse?: () => void
 }
 
 // 单个树节点
@@ -91,19 +96,26 @@ function TreeNode({
         onClick={handleSelect}
         onContextMenu={handleContextMenu}
         className={clsx(
-          'flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-all group',
+          'relative flex h-7 items-center gap-1.5 rounded-md px-2 text-sm cursor-pointer transition-colors group',
           isSelected
-            ? 'bg-neon-blue/10 text-neon'
-            : 'hover:bg-white/[0.04] text-surface-300 hover:text-surface-100'
+            ? 'bg-accent text-accent-foreground'
+            : 'text-surface-300 hover:bg-accent hover:text-accent-foreground'
         )}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        style={{ paddingLeft: `${depth * 12 + 6}px` }}
         title={node.path}
       >
+        {/* 选中态左侧竖条 */}
+        {isSelected && (
+          <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-neon" />
+        )}
+
         {/* 展开/收起箭头 */}
         {hasChildren ? (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 flex-shrink-0 rounded"
             onClick={handleToggle}
-            className="flex-shrink-0 p-0.5 rounded hover:bg-white/10 transition-transform"
           >
             <ChevronRight
               size={14}
@@ -112,9 +124,9 @@ function TreeNode({
                 expanded && 'rotate-90'
               )}
             />
-          </button>
+          </Button>
         ) : (
-          <span className="w-[18px] flex-shrink-0" />
+          <span className="w-5 flex-shrink-0" />
         )}
 
         {/* 文件夹图标 */}
@@ -129,12 +141,12 @@ function TreeNode({
 
         {/* 文件数量 */}
         {node.file_count > 0 && (
-          <span className={clsx(
-            'flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full',
-            isSelected ? 'bg-neon-blue/20 text-neon' : 'bg-surface-700/50 text-surface-400'
-          )}>
+          <Badge
+            variant="outline"
+            className={clsx('flex-shrink-0 px-1.5 py-0.5 text-[10px] font-normal', isSelected && 'bg-background/50')}
+          >
             {node.file_count}
-          </span>
+          </Badge>
         )}
       </div>
 
@@ -169,6 +181,7 @@ export default function FolderTree({
   onDeleteFolder,
   onRefreshFolder,
   onCopyPath,
+  onCollapse,
 }: FolderTreeProps) {
   // 右键菜单状态
   const [contextMenu, setContextMenu] = useState<{
@@ -228,46 +241,61 @@ export default function FolderTree({
     ]
   }, [contextMenu.node, onCreateFolder, onRenameFolder, onDeleteFolder, onRefreshFolder, onCopyPath])
 
-  // 滚动容器引用，用于自动滚动到选中节点
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-
   return (
-    <div className="glass-panel rounded-xl flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* 标题栏 */}
       <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor: 'var(--border-default)' }}>
         <FolderTreeIcon size={16} className="text-neon flex-shrink-0" />
         <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>文件夹导航</span>
+        {onRefreshFolder && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto h-7 w-7 text-surface-400 hover:text-neon"
+            onClick={onRefreshFolder}
+            title="刷新文件夹树"
+            aria-label="刷新文件夹树"
+          >
+            <RefreshCw size={14} />
+          </Button>
+        )}
+        {onCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-surface-400 hover:text-neon"
+            onClick={onCollapse}
+            title="收起文件夹面板"
+            aria-label="收起文件夹面板"
+          >
+            <PanelLeftClose size={14} />
+          </Button>
+        )}
       </div>
 
       {/* 全部文件按钮 */}
       <div className="flex-shrink-0 px-2 pt-2">
-        <button
+        <Button
+          variant={!selectedPath ? 'secondary' : 'ghost'}
+          size="sm"
+          className={clsx('w-full justify-start gap-2 px-2', !selectedPath ? 'text-neon' : 'text-surface-300 hover:text-surface-100')}
           onClick={onClearFolder}
-          className={clsx(
-            'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm transition-all',
-            !selectedPath
-              ? 'bg-neon-blue/10 text-neon'
-              : 'hover:bg-white/[0.04] text-surface-300 hover:text-surface-100'
-          )}
         >
           <Home size={16} />
           <span>全部文件</span>
-        </button>
+        </Button>
       </div>
 
       {/* 树形列表 - 可滚动区域 */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-2 py-1 min-h-0"
-        style={{
-          scrollBehavior: 'smooth',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255,255,255,0.15) transparent',
-        }}
-      >
+      <ScrollArea className="flex-1 min-h-0 px-2 py-1">
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 size={20} className="animate-spin text-surface-400" />
+          <div className="space-y-1 px-1 py-2">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+                <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                <Skeleton className="h-3 flex-1 rounded" />
+              </div>
+            ))}
           </div>
         ) : tree.length === 0 ? (
           <div className="text-center py-8">
@@ -286,7 +314,7 @@ export default function FolderTree({
             />
           ))
         )}
-      </div>
+      </ScrollArea>
 
       {/* 右键菜单 */}
       <ContextMenu

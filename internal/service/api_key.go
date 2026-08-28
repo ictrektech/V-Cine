@@ -29,7 +29,7 @@ type ApiKeyView struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
 	KeyPrefix  string     `json:"key_prefix"`
-	Key        string     `json:"key"`          // 解密后的完整 key
+	Key        string     `json:"key"` // 解密后的完整 key
 	LastUsedAt *time.Time `json:"last_used_at"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 	IsRevoked  bool       `json:"is_revoked"`

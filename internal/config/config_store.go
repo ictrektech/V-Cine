@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
 	"github.com/mitchellh/mapstructure"
+	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
 	"gopkg.in/yaml.v3"
 )
 
@@ -146,7 +146,7 @@ func encryptAtPath(root interface{}, path []string) {
 		}
 		// 加密
 		if enc, err := secretcrypto.Encrypt(str); err == nil {
-			m[key] = "ENC:" + enc
+			m[key] = enc
 		}
 		// 加密失败保留原值
 		return

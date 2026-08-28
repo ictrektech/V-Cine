@@ -11,7 +11,8 @@ import (
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"go.uber.org/zap"
 
-	"github.com/nowen-video/nowen-video/internal/testutil")
+	"github.com/nowen-video/nowen-video/internal/testutil"
+)
 
 func setupFileWatcherVideoAnalysisTest(t *testing.T) (*FileWatcherService, *repository.Repositories, *model.Library, string) {
 	t.Helper()

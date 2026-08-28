@@ -26,7 +26,7 @@ video_analysis:
   path_mappings:
     - source: /media
       target: /photos
-  asset_dir: /data/nowen-video-structure
+  asset_dir: /custom/structure
   max_concurrent: 0
   poll_interval_seconds: 0
   job_timeout_minutes: 0
@@ -53,11 +53,46 @@ video_analysis:
 	if len(cfg.VideoAnalysis.PathMappings) != 1 || cfg.VideoAnalysis.PathMappings[0].Source != "/media" || cfg.VideoAnalysis.PathMappings[0].Target != "/photos" {
 		t.Fatalf("unexpected path mappings: %+v", cfg.VideoAnalysis.PathMappings)
 	}
-	if cfg.VideoAnalysis.AssetDir != "/data/nowen-video-structure" {
+	if cfg.VideoAnalysis.AssetDir != "/custom/structure" {
 		t.Fatalf("unexpected asset_dir: %+v", cfg.VideoAnalysis.AssetDir)
 	}
 	if cfg.VideoAnalysis.MaxConcurrent != 2 || cfg.VideoAnalysis.PollIntervalSeconds != 2 || cfg.VideoAnalysis.JobTimeoutMinutes != 120 {
 		t.Fatalf("defaults not applied: %+v", cfg.VideoAnalysis)
+	}
+}
+
+func TestDefaultAssetDirFollowsCacheDir(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	tempDir := t.TempDir()
+	configBody := `
+app:
+  data_dir: ./app-data
+cache:
+  cache_dir: ./cache
+video_analysis:
+  enabled: false
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "config.yaml"), []byte(configBody), 0600); err != nil {
+		t.Fatal(err)
+	}
+	oldWorkingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWorkingDir) })
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join("cache", "structure")
+	if cfg.VideoAnalysis.AssetDir != want {
+		t.Fatalf("asset_dir = %q, want %q", cfg.VideoAnalysis.AssetDir, want)
 	}
 }
 
@@ -77,7 +112,7 @@ func TestUpdateVideoAnalysisConfigPersists(t *testing.T) {
 		v.Enabled = true
 		v.SceneBaseURL = "http://scene:8910"
 		v.StructureBaseURL = "http://structure:8911"
-		v.AssetDir = "/data/nowen-video-structure"
+		v.AssetDir = "/custom/structure"
 		v.DescribeEnabled = true
 	}); err != nil {
 		t.Fatal(err)

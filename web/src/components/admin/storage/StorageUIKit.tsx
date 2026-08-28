@@ -8,6 +8,7 @@
 // ============================================================
 import { ReactNode, CSSProperties } from 'react'
 import clsx from 'clsx'
+import { Switch } from '@/components/ui/switch'
 import { CheckCircle2, XCircle, Loader2, Wifi, WifiOff } from 'lucide-react'
 
 // ---------------- 状态徽章 ----------------
@@ -62,60 +63,6 @@ export function StatusBadge({ state, label, size = 'md' }: StatusBadgeProps) {
       {p.icon}
       <span>{label || p.defaultLabel}</span>
     </span>
-  )
-}
-
-// ---------------- 通用开关 ----------------
-
-interface ToggleProps {
-  checked: boolean
-  onChange: (next: boolean) => void
-  disabled?: boolean
-  accent?: 'neon' | 'purple' | 'amber'
-}
-
-/**
- * 统一的 toggle switch（主题感知）
- * - 结构与全局 ToggleButton 一致（inline-flex + translateX，无边框，thumb 不会溢出轨道）
- * - 未开启态用深灰背景，和页面底色有强烈对比
- * - 开启态填充 accent 色 + glow
- */
-export function Toggle({ checked, onChange, disabled, accent = 'neon' }: ToggleProps) {
-  const accentBg: Record<string, string> = {
-    neon: 'var(--neon-blue)',
-    purple: 'hsl(var(--accent))',
-    amber: '#F59E0B',
-  }
-  const accentShadow: Record<string, string> = {
-    neon: 'var(--neon-glow-shadow-md)',
-    purple: '0 0 12px hsl(var(--accent) / 0.3)',
-    amber: '0 0 12px rgba(245,158,11,0.45)',
-  }
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={clsx(
-        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-300 focus:outline-none',
-        'focus-visible:ring-2 focus-visible:ring-primary-400/50 focus-visible:ring-offset-2',
-        disabled && 'opacity-40 cursor-not-allowed'
-      )}
-      style={{
-        background: checked ? accentBg[accent] : 'var(--storage-toggle-off-bg, rgba(0,0,0,0.18))',
-        boxShadow: checked ? accentShadow[accent] : 'none',
-      }}
-    >
-      <span
-        className="pointer-events-none inline-block h-5 w-5 rounded-full shadow-lg transition-transform duration-300"
-        style={{
-          transform: checked ? 'translateX(20px) translateY(2px)' : 'translateX(2px) translateY(2px)',
-          background: checked ? '#ffffff' : 'var(--text-muted)',
-        }}
-      />
-    </button>
   )
 }
 
@@ -613,7 +560,6 @@ interface EnableRowProps {
   description?: string
   checked: boolean
   onChange: (v: boolean) => void
-  accent?: 'neon' | 'purple' | 'amber'
   iconColorClass?: string
 }
 
@@ -624,7 +570,6 @@ export function EnableRow({
   description,
   checked,
   onChange,
-  accent = 'neon',
   iconColorClass,
 }: EnableRowProps) {
   return (
@@ -651,7 +596,7 @@ export function EnableRow({
           )}
         </div>
       </div>
-      <Toggle checked={checked} onChange={onChange} accent={accent} />
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   )
 }

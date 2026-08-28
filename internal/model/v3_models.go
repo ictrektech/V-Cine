@@ -74,16 +74,16 @@ type AIAnalysisTask struct {
 
 // ApiKey 用户 API Key（用于程序化访问，绕过 session token）
 type ApiKey struct {
-	ID             string     `json:"id" gorm:"primaryKey;type:text"`
-	UserID         string     `json:"user_id" gorm:"index;type:text;not null"`
-	Name           string     `json:"name" gorm:"type:text;not null"`           // 用户备注名
-	KeyPrefix      string     `json:"key_prefix" gorm:"type:text;not null"`      // "nk_xxxx" 前 11 位
-	KeySHA256      []byte     `json:"-" gorm:"type:bytea;uniqueIndex;not null"` // SHA-256(full_key)，O(1) 认证
-	KeyEncrypted   string     `json:"-" gorm:"type:text;not null"`               // AES-GCM(full_key)，解密展示
-	LastUsedAt     *time.Time `json:"last_used_at"`
-	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
-	IsRevoked      bool       `json:"is_revoked" gorm:"default:false"`
-	CreatedAt      time.Time  `json:"created_at"`
+	ID           string     `json:"id" gorm:"primaryKey;type:text"`
+	UserID       string     `json:"user_id" gorm:"index;type:text;not null"`
+	Name         string     `json:"name" gorm:"type:text;not null"`           // 用户备注名
+	KeyPrefix    string     `json:"key_prefix" gorm:"type:text;not null"`     // "nk_xxxx" 前 11 位
+	KeySHA256    []byte     `json:"-" gorm:"type:bytea;uniqueIndex;not null"` // SHA-256(full_key)，O(1) 认证
+	KeyEncrypted string     `json:"-" gorm:"type:text;not null"`              // AES-GCM(full_key)，解密展示
+	LastUsedAt   *time.Time `json:"last_used_at"`
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+	IsRevoked    bool       `json:"is_revoked" gorm:"default:false"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 func (ak *ApiKey) BeforeCreate(tx *gorm.DB) error {

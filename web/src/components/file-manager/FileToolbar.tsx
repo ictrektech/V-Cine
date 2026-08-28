@@ -7,11 +7,17 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowUpDown,
+  CheckSquare,
+  X,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { withBasePath } from '@/lib/basePath'
 import { Input } from '@/components/ui/input'
-import { SORT_OPTIONS, SOURCE_OPTIONS } from './constants'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { SORT_OPTIONS, SOURCE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from './constants'
 import {
   Sparkles,
   Wand2,
@@ -51,6 +57,7 @@ interface FileToolbarProps {
   onBatchAnalyze: () => void
   videoAnalysisEnabled?: boolean
   videoAnalysisDisabledReason?: string
+  selectedAllRemote?: boolean
   onBatchRename: () => void
   onBatchDelete: () => void
   onClearSelection: () => void
@@ -71,10 +78,18 @@ export default function FileToolbar({
   viewMode, onViewModeChange,
   selectedCount,
   scrapeSource, onScrapeSourceChange,
-  onBatchScrape, onBatchAnalyze, videoAnalysisEnabled = true, videoAnalysisDisabledReason,
+  onBatchScrape, onBatchAnalyze, videoAnalysisEnabled = true, videoAnalysisDisabledReason, selectedAllRemote = false,
   onBatchRename, onBatchDelete, onClearSelection,
   children,
 }: FileToolbarProps) {
+  const analysisDisabled = !videoAnalysisEnabled || selectedAllRemote
+  let analysisTitle: string | undefined
+  if (!videoAnalysisEnabled) {
+    analysisTitle = videoAnalysisDisabledReason || '视频分析服务未启用'
+  } else if (selectedAllRemote) {
+    analysisTitle = REMOTE_ANALYSIS_DISABLED_TIP
+  }
+
   return (
     <div className="glass-panel rounded-xl p-4 space-y-3">
       {/* 第一行：搜索和操作按钮 */}
@@ -165,43 +180,81 @@ export default function FileToolbar({
 
       {/* 批量操作栏 */}
       {selectedCount > 0 && (
-        <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'var(--border-default)' }}>
-          <span className="text-sm text-neon font-medium">已选 {selectedCount} 项</span>
-          <div className="h-4 w-px bg-surface-700" />
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border p-3" style={{ borderColor: 'var(--border-strong)', background: 'var(--bg-surface)' }}>
+          <Badge variant="outline" className="gap-1.5 rounded-full border-transparent bg-neon-blue/10 px-3 py-1 text-sm font-medium text-neon">
+            <CheckSquare size={14} /> 已选 {selectedCount} 项
+          </Badge>
 
-          <select value={scrapeSource} onChange={e => onScrapeSourceChange(e.target.value)}
-            className="input-glass px-2 py-1 text-xs rounded">
-            {SOURCE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-          <button onClick={onBatchScrape} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-blue-400 hover:bg-blue-400/10">
-            <Sparkles size={14} /> 批量刮削
-          </button>
-          <button
-            onClick={onBatchAnalyze}
-            disabled={!videoAnalysisEnabled}
-            title={!videoAnalysisEnabled ? (videoAnalysisDisabledReason || '视频分析服务未启用') : undefined}
-            className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-cyan-400 hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          <Separator orientation="vertical" className="h-6" />
+
+          <Select value={scrapeSource} onValueChange={onScrapeSourceChange}>
+            <SelectTrigger className="h-9 w-auto rounded-lg px-3 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SOURCE_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:text-blue-200"
+            onClick={onBatchScrape}
           >
-            <ScanSearch size={14} /> 分析视频
-          </button>
+            <Sparkles size={14} /> 批量刮削
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-cyan-400/10 text-cyan-300 hover:bg-cyan-400/20 hover:text-cyan-200"
+            onClick={onBatchAnalyze}
+            disabled={analysisDisabled}
+            title={analysisTitle}
+          >
+            <ScanSearch size={14} /> 视频结构化分析
+          </Button>
           {!videoAnalysisEnabled && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              className="px-2.5 text-xs text-amber-300 hover:bg-amber-400/10 hover:text-amber-200"
               onClick={() => { window.location.href = withBasePath('/admin') }}
-              className="rounded px-2 py-1 text-[11px] text-amber-300 transition-colors hover:bg-amber-400/10"
               title={videoAnalysisDisabledReason || '前往视频分析相关配置'}
             >
               前往配置
-            </button>
+            </Button>
           )}
-          <button onClick={onBatchRename} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-purple-400 hover:bg-purple-400/10">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-purple-400/10 text-purple-300 hover:bg-purple-400/20 hover:text-purple-200"
+            onClick={onBatchRename}
+          >
             <Wand2 size={14} /> 批量重命名
-          </button>
-          <button onClick={onBatchDelete} className="btn-ghost flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-red-400 hover:bg-red-400/10">
+          </Button>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200"
+            onClick={onBatchDelete}
+          >
             <Trash2 size={14} /> 批量删除
-          </button>
-          <button onClick={onClearSelection} className="btn-ghost px-2.5 py-1.5 rounded text-xs">
-            取消选择
-          </button>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto text-surface-400 hover:text-surface-200"
+            onClick={onClearSelection}
+          >
+            <X size={14} /> 取消选择
+          </Button>
         </div>
       )}
     </div>

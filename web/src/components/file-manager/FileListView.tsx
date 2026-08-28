@@ -24,6 +24,9 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { formatFileSize } from './constants'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { streamApi } from '@/api/stream'
 import Pagination from '@/components/Pagination'
 import ContextMenu from './ContextMenu'
@@ -79,6 +82,12 @@ export default function FileListView({
 
   const closeCtxMenu = useCallback(() => {
     setCtxMenu(prev => ({ ...prev, visible: false }))
+  }, [])
+
+  // 表格横向滚动时显示标题列分隔线
+  const [tableScrolled, setTableScrolled] = useState(false)
+  const handleTableScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setTableScrolled(e.currentTarget.scrollLeft > 0)
   }, [])
 
   const handleFileContextMenu = useCallback((e: React.MouseEvent, file: Media) => {
@@ -204,7 +213,7 @@ export default function FileListView({
 
   if (files.length === 0 && !hasSubFolders) {
     return (
-      <div className="glass-panel rounded-xl p-12 text-center">
+      <div className="p-12 text-center">
         <FolderOpen size={48} className="mx-auto mb-4 text-surface-500" />
         <p className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>暂无影视文件</p>
         <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>点击"导入文件"或"扫描目录"开始添加</p>
@@ -223,30 +232,32 @@ export default function FileListView({
   // 渲染刮削状态徽章（三态：已刮削 / 部分 / 失败 / 未刮削）
   const renderScrapeBadge = (file: Media, size: 'sm' | 'md' = 'md') => {
     const st = file.scrape_status
-    const cls = size === 'sm' ? 'text-[10px] px-1.5 py-0.5 rounded' : 'inline-flex items-center gap-1 text-xs'
+    const cls = size === 'sm'
+      ? 'text-[10px] px-1.5 py-0.5 rounded border-transparent text-white'
+      : 'gap-1 text-xs border-transparent'
     if (st === 'partial') {
-      return size === 'sm'
-        ? <span className={clsx(cls, 'bg-orange-500/80 text-white')}>部分刮削</span>
-        : <span className={clsx(cls, 'text-orange-400')}><AlertCircle size={12} /> 部分刮削</span>
+      return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-orange-500/80' : 'bg-orange-500/10 text-orange-400')}>
+        {size === 'sm' ? '部分刮削' : <><AlertCircle size={12} /> 部分刮削</>}
+      </Badge>
     }
     if (st === 'failed') {
-      return size === 'sm'
-        ? <span className={clsx(cls, 'bg-red-500/80 text-white')}>刮削失败</span>
-        : <span className={clsx(cls, 'text-red-400')}><AlertCircle size={12} /> 刮削失败</span>
+      return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-red-500/80' : 'bg-red-500/10 text-red-400')}>
+        {size === 'sm' ? '刮削失败' : <><AlertCircle size={12} /> 刮削失败</>}
+      </Badge>
     }
     if (st === 'manual') {
-      return size === 'sm'
-        ? <span className={clsx(cls, 'bg-blue-500/80 text-white')}>手动锁定</span>
-        : <span className={clsx(cls, 'text-blue-400')}><Check size={12} /> 手动锁定</span>
+      return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-blue-500/80' : 'bg-blue-500/10 text-blue-400')}>
+        {size === 'sm' ? '手动锁定' : <><Check size={12} /> 手动锁定</>}
+      </Badge>
     }
     if (isScraped(file)) {
-      return size === 'sm'
-        ? <span className={clsx(cls, 'bg-green-500/80 text-white')}>已刮削</span>
-        : <span className={clsx(cls, 'text-green-400')}><Check size={12} /> 已刮削</span>
+      return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-green-500/80' : 'bg-green-500/10 text-green-400')}>
+        {size === 'sm' ? '已刮削' : <><Check size={12} /> 已刮削</>}
+      </Badge>
     }
-    return size === 'sm'
-      ? <span className={clsx(cls, 'bg-amber-500/80 text-white')}>未刮削</span>
-      : <span className={clsx(cls, 'text-amber-400')}><AlertCircle size={12} /> 未刮削</span>
+    return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-amber-500/80' : 'bg-amber-500/10 text-amber-400')}>
+      {size === 'sm' ? '未刮削' : <><AlertCircle size={12} /> 未刮削</>}
+    </Badge>
   }
 
   // 子文件夹卡片区域
@@ -284,129 +295,130 @@ export default function FileListView({
 
       {files.length === 0 ? (
         /* 当前文件夹下无直接文件（但有子文件夹） */
-        <div className="glass-panel rounded-xl p-8 text-center">
+        <div className="p-8 text-center">
           <FolderOpen size={36} className="mx-auto mb-3 text-surface-500" />
           <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>当前文件夹下无直接文件，请浏览子文件夹</p>
         </div>
       ) : viewMode === 'table' ? (
         /* 表格视图 */
-        <div className="glass-panel rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b" style={{ borderColor: 'var(--border-default)' }}>
-                  <th className="px-3 py-3 text-left w-10">
-                    <button onClick={onToggleSelectAll}>
-                      {selectedIds.size === files.length ? <CheckSquare size={16} className="text-neon" /> : <Square size={16} className="text-surface-500" />}
+        <div className="overflow-x-auto" onScroll={handleTableScroll}>
+          <table className="w-full min-w-[960px] text-sm whitespace-nowrap">
+            <TableHeader>
+              <TableRow className="border-b" style={{ borderColor: 'var(--border-default)' }}>
+                <TableHead className="sticky left-0 top-0 z-30 w-10 px-2.5 py-2 text-left" style={{ background: 'var(--bg-surface)' }}>
+                  <button onClick={onToggleSelectAll}>
+                    {selectedIds.size === files.length ? <CheckSquare size={16} className="text-neon" /> : <Square size={16} className="text-surface-500" />}
+                  </button>
+                </TableHead>
+                <TableHead className="sticky left-10 top-0 z-30 px-2.5 py-2 text-left" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>标题</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left md:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>类型</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>年份</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>评分</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>大小</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>状态</TableHead>
+                <TableHead className="sticky top-0 z-20 px-2.5 py-2 text-right" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {files.map(file => (
+                <TableRow
+                  key={file.id}
+                  className="border-b hover:bg-white/[0.02]"
+                  style={{ borderColor: 'var(--border-default)' }}
+                  onContextMenu={(e) => handleFileContextMenu(e, file)}
+                >
+                  <TableCell className="sticky left-0 z-10 px-2.5 py-2" style={{ background: 'var(--bg-surface)' }}>
+                    <button onClick={() => onToggleSelect(file.id)}>
+                      {selectedIds.has(file.id) ? <CheckSquare size={16} className="text-neon" /> : <Square size={16} className="text-surface-500" />}
                     </button>
-                  </th>
-                  <th className="px-3 py-3 text-left" style={{ color: 'var(--text-secondary)' }}>标题</th>
-                  <th className="px-3 py-3 text-left hidden md:table-cell" style={{ color: 'var(--text-secondary)' }}>类型</th>
-                  <th className="px-3 py-3 text-left hidden lg:table-cell" style={{ color: 'var(--text-secondary)' }}>年份</th>
-                  <th className="px-3 py-3 text-left hidden lg:table-cell" style={{ color: 'var(--text-secondary)' }}>评分</th>
-                  <th className="px-3 py-3 text-left hidden xl:table-cell" style={{ color: 'var(--text-secondary)' }}>大小</th>
-                  <th className="px-3 py-3 text-left hidden xl:table-cell" style={{ color: 'var(--text-secondary)' }}>状态</th>
-                  <th className="px-3 py-3 text-right" style={{ color: 'var(--text-secondary)' }}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {files.map(file => (
-                  <tr key={file.id} className="border-b transition-colors hover:bg-white/[0.02]" style={{ borderColor: 'var(--border-default)' }}
-                    onContextMenu={(e) => handleFileContextMenu(e, file)}
-                  >
-                    <td className="px-3 py-3">
-                      <button onClick={() => onToggleSelect(file.id)}>
-                        {selectedIds.has(file.id) ? <CheckSquare size={16} className="text-neon" /> : <Square size={16} className="text-surface-500" />}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={streamApi.getPosterUrl(file.id)}
-                          alt=""
-                          className="w-8 h-12 rounded object-cover flex-shrink-0"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
-                        />
-                        <div className="w-8 h-12 rounded bg-surface-800 items-center justify-center flex-shrink-0 hidden">
-                          <FileVideo size={16} className="text-surface-500" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                              {file.title}
+                  </TableCell>
+                  <TableCell className="sticky left-10 z-10 max-w-[280px] px-2.5 py-2" style={{ background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={streamApi.getPosterUrl(file.id)}
+                        alt=""
+                        className="w-8 h-12 rounded object-cover flex-shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
+                      />
+                      <div className="w-8 h-12 rounded bg-surface-800 items-center justify-center flex-shrink-0 hidden">
+                        <FileVideo size={16} className="text-surface-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate" style={{ color: 'var(--text-primary)' }} title={file.title}>
+                            {file.title}
+                          </span>
+                          {file.media_type === 'episode' && file.episode_num > 0 && (
+                            <span className="shrink-0 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-neon-blue/10 text-neon-blue">
+                              {file.season_num > 0 ? `S${String(file.season_num).padStart(2, '0')}E${String(file.episode_num).padStart(2, '0')}` : `EP${String(file.episode_num).padStart(2, '0')}`}
                             </span>
-                            {file.media_type === 'episode' && file.episode_num > 0 && (
-                              <span className="shrink-0 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-neon-blue/10 text-neon-blue">
-                                {file.season_num > 0 ? `S${String(file.season_num).padStart(2, '0')}E${String(file.episode_num).padStart(2, '0')}` : `EP${String(file.episode_num).padStart(2, '0')}`}
-                              </span>
-                            )}
-                          </div>
-                          {file.media_type === 'episode' && file.episode_title ? (
-                            <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>{file.episode_title}</div>
-                          ) : file.orig_title && file.orig_title !== file.title ? (
-                            <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{file.orig_title}</div>
-                          ) : null}
-                          <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                            {file.file_path.split(/[\\/]/).pop()}
-                          </div>
+                          )}
+                        </div>
+                        {file.media_type === 'episode' && file.episode_title ? (
+                          <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>{file.episode_title}</div>
+                        ) : file.orig_title && file.orig_title !== file.title ? (
+                          <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{file.orig_title}</div>
+                        ) : null}
+                        <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                          {file.file_path.split(/[\\/]/).pop()}
                         </div>
                       </div>
-                    </td>
-                    <td className="px-3 py-3 hidden md:table-cell">
-                      <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs',
-                        file.media_type === 'movie' ? 'bg-purple-500/10 text-purple-400' : 'bg-green-500/10 text-green-400'
-                      )}>
-                        {file.media_type === 'movie' ? <Film size={12} /> : <Tv size={12} />}
-                        {file.media_type === 'movie' ? '电影' : '剧集'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 hidden lg:table-cell" style={{ color: 'var(--text-secondary)' }}>
-                      {file.year || '-'}
-                    </td>
-                    <td className="px-3 py-3 hidden lg:table-cell">
-                      {file.rating > 0 ? (
-                        <span className="text-amber-400">★ {file.rating.toFixed(1)}</span>
-                      ) : (
-                        <span style={{ color: 'var(--text-tertiary)' }}>-</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 hidden xl:table-cell" style={{ color: 'var(--text-secondary)' }}>
-                      {file.file_size > 0 ? formatFileSize(file.file_size) : '-'}
-                    </td>
-                    <td className="px-3 py-3 hidden xl:table-cell">
-                      {renderScrapeBadge(file, 'md')}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => onViewDetail(file)}
-                          className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-blue-400" title="查看详情">
-                          <Eye size={14} />
-                        </button>
-                        <button onClick={() => onEdit(file)}
-                          className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-amber-400" title="编辑">
-                          <Edit3 size={14} />
-                        </button>
-                        <button onClick={() => onScrape(file.id)}
-                          className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-purple-400" title="刮削">
-                          <Sparkles size={14} />
-                        </button>
-                        <button onClick={() => onDelete(file.id)}
-                          className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-red-400" title="删除">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden px-2.5 py-2 md:table-cell">
+                    <Badge variant="outline" className={clsx('gap-1 rounded-full border-transparent text-xs',
+                      file.media_type === 'movie' ? 'bg-purple-500/10 text-purple-400' : 'bg-green-500/10 text-green-400'
+                    )}>
+                      {file.media_type === 'movie' ? <Film size={12} /> : <Tv size={12} />}
+                      {file.media_type === 'movie' ? '电影' : '剧集'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="hidden px-2.5 py-2 lg:table-cell" style={{ color: 'var(--text-secondary)' }}>
+                    {file.year || '-'}
+                  </TableCell>
+                  <TableCell className="hidden px-2.5 py-2 lg:table-cell">
+                    {file.rating > 0 ? (
+                      <span className="text-amber-400">★ {file.rating.toFixed(1)}</span>
+                    ) : (
+                      <span style={{ color: 'var(--text-tertiary)' }}>-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden px-2.5 py-2 xl:table-cell" style={{ color: 'var(--text-secondary)' }}>
+                    {file.file_size > 0 ? formatFileSize(file.file_size) : '-'}
+                  </TableCell>
+                  <TableCell className="hidden px-2.5 py-2 xl:table-cell">
+                    {renderScrapeBadge(file, 'md')}
+                  </TableCell>
+                  <TableCell className="px-2.5 py-2 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => onViewDetail(file)}
+                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-blue-400" title="查看详情">
+                        <Eye size={14} />
+                      </button>
+                      <button onClick={() => onEdit(file)}
+                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-amber-400" title="编辑">
+                        <Edit3 size={14} />
+                      </button>
+                      <button onClick={() => onScrape(file.id)}
+                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-purple-400" title="刮削">
+                        <Sparkles size={14} />
+                      </button>
+                      <button onClick={() => onDelete(file.id)}
+                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-red-400" title="删除">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </table>
         </div>
       ) : (
         /* 网格视图 */
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {files.map(file => (
-            <div key={file.id} className="glass-panel rounded-xl overflow-hidden group relative cursor-pointer"
+            <Card key={file.id} className="group relative cursor-pointer overflow-hidden"
               onClick={() => onViewDetail(file)}
               onContextMenu={(e) => handleFileContextMenu(e, file)}
             >
@@ -443,7 +455,7 @@ export default function FileListView({
                 </div>
               </div>
               {/* 信息 */}
-              <div className="p-2.5">
+              <CardContent className="p-2.5">
                 <div className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                   {file.title}
                   {file.media_type === 'episode' && file.episode_num > 0 && (
@@ -462,8 +474,8 @@ export default function FileListView({
                     {file.media_type === 'movie' ? '电影' : '剧集'}
                   </span>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

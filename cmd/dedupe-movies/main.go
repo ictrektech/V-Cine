@@ -27,13 +27,13 @@ import (
 	"sort"
 	"strings"
 
-
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/nowen-video/nowen-video/internal/config"
 
-	"github.com/nowen-video/nowen-video/internal/model")
+	"github.com/nowen-video/nowen-video/internal/model"
+)
 
 var resolutionPriority = map[string]int{
 	"4K": 5, "2K": 4, "1080p": 3, "720p": 2, "480p": 1,

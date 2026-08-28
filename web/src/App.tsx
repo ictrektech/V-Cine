@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/auth'
 import { ToastProvider } from '@/components/Toast'
 import { DialogProvider } from '@/components/Dialog'
@@ -12,68 +13,36 @@ import ForceChangePasswordPage from '@/pages/ForceChangePasswordPage'
 import { DesktopEventBinder, DesktopServerPicker, UpdateBanner } from '@/desktop'
 import { authApi } from '@/api/auth'
 import { acquireVOSAccessToken } from '@/utils/vos-oidc'
+import HomePage from '@/pages/HomePage'
+import LibraryPage from '@/pages/LibraryPage'
+import MediaDetailPage from '@/pages/MediaDetailPage'
+import PlayerPage from '@/pages/PlayerPage'
+import SearchPage from '@/pages/SearchPage'
+import FavoritesPage from '@/pages/FavoritesPage'
+import HistoryPage from '@/pages/HistoryPage'
+import PlaylistsPage from '@/pages/PlaylistsPage'
+import AdminPage from '@/pages/AdminPage'
+import SeriesDetailPage from '@/pages/SeriesDetailPage'
+import ProfilePage from '@/pages/ProfilePage'
+import StatsPage from '@/pages/StatsPage'
+import FileManagerPage from '@/pages/FileManagerPage'
+import PulsePage from '@/pages/PulsePage'
+import PreprocessPage from '@/pages/PreprocessPage'
+import SubtitlePreprocessPage from '@/pages/SubtitlePreprocessPage'
+import PreprocessLayout from '@/pages/PreprocessLayout'
+import BrowsePage from '@/pages/BrowsePage'
+import PersonDetailPage from '@/pages/PersonDetailPage'
+import CollectionsPage from '@/pages/CollectionsPage'
+import CollectionDetailPage from '@/pages/CollectionDetailPage'
 
-// 懒加载页面组件 — 按需加载，减少首屏 JS 体积
-const HomePage = lazy(() => import('@/pages/HomePage'))
-const LibraryPage = lazy(() => import('@/pages/LibraryPage'))
-const MediaDetailPage = lazy(() => import('@/pages/MediaDetailPage'))
-const PlayerPage = lazy(() => import('@/pages/PlayerPage'))
-const SearchPage = lazy(() => import('@/pages/SearchPage'))
-const FavoritesPage = lazy(() => import('@/pages/FavoritesPage'))
-const HistoryPage = lazy(() => import('@/pages/HistoryPage'))
-const PlaylistsPage = lazy(() => import('@/pages/PlaylistsPage'))
-const AdminPage = lazy(() => import('@/pages/AdminPage'))
-const SeriesDetailPage = lazy(() => import('@/pages/SeriesDetailPage'))
-const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
-const StatsPage = lazy(() => import('@/pages/StatsPage'))
-const FileManagerPage = lazy(() => import('@/pages/FileManagerPage'))
-const PulsePage = lazy(() => import('@/pages/PulsePage'))
-const PreprocessPage = lazy(() => import('@/pages/PreprocessPage'))
-const SubtitlePreprocessPage = lazy(() => import('@/pages/SubtitlePreprocessPage'))
-const PreprocessLayout = lazy(() => import('@/pages/PreprocessLayout'))
-const BrowsePage = lazy(() => import('@/pages/BrowsePage'))
-const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'))
-const CollectionsPage = lazy(() => import('@/pages/CollectionsPage'))
-const CollectionDetailPage = lazy(() => import('@/pages/CollectionDetailPage'))
-
-// 页面加载中的占位组件 — 品牌化霓虹脉冲环
-function PageLoader() {
-  return (
-    <div className="flex items-center justify-center min-h-[60vh] animate-fade-in">
-      <div className="flex flex-col items-center gap-4">
-        {/* 双层霓虹旋转环 */}
-        <div className="relative h-12 w-12">
-          <div
-            className="absolute inset-0 rounded-full animate-glow-pulse"
-            style={{ border: '2px solid var(--neon-blue-20)' }}
-          />
-          <div
-            className="absolute inset-0 rounded-full animate-spin"
-            style={{
-              border: '2px solid transparent',
-              borderTopColor: 'var(--neon-blue)',
-              borderRightColor: 'var(--border-strong)',
-            }}
-          />
-          <div
-            className="absolute inset-2 rounded-full"
-            style={{
-              border: '1.5px solid transparent',
-              borderBottomColor: 'var(--neon-purple)',
-              animation: 'spin 1.5s linear infinite reverse',
-            }}
-          />
-        </div>
-        <span
-          className="text-sm font-medium animate-neon-breathe"
-          style={{ color: 'var(--text-tertiary)' }}
-        >
-          加载中...
-        </span>
-      </div>
-    </div>
-  )
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+    },
+  },
+})
 
 // 需要登录的路由守卫
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -103,6 +72,7 @@ export default function App() {
   const isVOSFrame = typeof window !== 'undefined' && window.parent !== window
   const [vosLoginError, setVOSLoginError] = useState(false)
   const [vosLoginAttempt, setVOSLoginAttempt] = useState(0)
+
   useEffect(() => {
     if (isAuthenticated || !isVOSFrame) return
     setVOSLoginError(false)
@@ -127,8 +97,9 @@ export default function App() {
     )
   }
   return (
-    <ToastProvider>
-      <DialogProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <DialogProvider>
       <Toaster position="top-right" />
       <BrowserRouter basename={getBasePath() || '/'}>
         {/* 桌面端：首次启动"服务器地址"引导（仅在默认端口探活失败时出现） */}
@@ -141,8 +112,7 @@ export default function App() {
         <div className="nv-app-shell">
           <TitleBar />
           <div className="nv-app-body">
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
+            <Routes>
             {/* 公开路由 */}
             <Route path="/login" element={<LoginPage />} />
             {/* 强制改密页面（需要登录但绕过强制改密拦截） */}
@@ -196,12 +166,12 @@ export default function App() {
 
             {/* 未匹配路由 */}
             <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
+            </Routes>
           </div>
         </div>
       </BrowserRouter>
-      </DialogProvider>
-    </ToastProvider>
+        </DialogProvider>
+      </ToastProvider>
+    </QueryClientProvider>
   )
 }

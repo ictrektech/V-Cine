@@ -11,12 +11,12 @@ import {
   RefreshCw,
   Link2,
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import {
   SectionShell,
   FieldGroup,
   Field,
   Input,
-  Toggle,
   ActionBar,
   ActionButton,
   Toast,
@@ -82,6 +82,8 @@ export function AlistSection() {
   const [showToken, setShowToken] = useState(false)
   const [pwdDirty, setPwdDirty] = useState(false)
   const [tokenDirty, setTokenDirty] = useState(false)
+  const [hasPwd, setHasPwd] = useState(false)
+  const [hasToken, setHasToken] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -90,7 +92,10 @@ export function AlistSection() {
         storageApi.getAlistConfig(),
         storageApi.getStorageStatus(),
       ])
-      setConfig({ ...DEFAULT_ALIST, ...cfgRes.data.data })
+      const data = cfgRes.data.data
+      setHasPwd(!!data.password)
+      setHasToken(!!data.token)
+      setConfig({ ...DEFAULT_ALIST, ...data, password: '', token: '' })
       setStatus(statusRes.data.data.alist || null)
     } catch (e) {
       console.error('加载 Alist 配置失败', e)
@@ -135,7 +140,12 @@ export function AlistSection() {
       })
       setToast({ ok: true, msg: 'Alist 连接测试成功' })
     } catch (e: any) {
-      setToast({ ok: false, msg: e.response?.data?.error || '连接测试失败' })
+      const raw = e.response?.data?.error || '连接测试失败'
+      const missingCreds = !hasToken && !hasPwd && !config.token.trim() && (!config.username.trim() || !config.password.trim())
+      const msg = missingCreds
+        ? '连接失败：未填写 Token 或完整的账号密码，请确认 Alist 服务是否需要认证'
+        : raw
+      setToast({ ok: false, msg })
     } finally {
       setTesting(false)
     }
@@ -177,7 +187,6 @@ export function AlistSection() {
         description="启用后可将 Alist 挂载的网盘作为媒体库数据源"
         checked={config.enabled}
         onChange={(v) => setConfig({ ...config, enabled: v })}
-        accent="purple"
         iconColorClass="text-purple-600 dark:text-purple-300"
       />
 
@@ -238,7 +247,7 @@ export function AlistSection() {
                 setPwdDirty(true)
               }}
               disabled={!config.enabled}
-              placeholder={pwdDirty ? '' : '留空保持原密码'}
+              placeholder={pwdDirty ? '' : (hasPwd ? '已设置密码，留空保持不变' : '未设置密码')}
               autoComplete="current-password"
               suffix={<EyeToggle visible={showPwd} onToggle={() => setShowPwd((v) => !v)} />}
             />
@@ -252,7 +261,7 @@ export function AlistSection() {
                 setTokenDirty(true)
               }}
               disabled={!config.enabled}
-              placeholder={tokenDirty ? '' : '留空保持原 Token'}
+              placeholder={tokenDirty ? '' : (hasToken ? '已设置 Token，留空保持不变' : '未设置 Token')}
               className="font-mono"
               suffix={<EyeToggle visible={showToken} onToggle={() => setShowToken((v) => !v)} />}
             />
@@ -265,11 +274,10 @@ export function AlistSection() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="启用元数据缓存">
             <div className="flex items-center h-9">
-              <Toggle
+              <Switch
                 checked={config.enable_cache}
-                onChange={(v) => setConfig({ ...config, enable_cache: v })}
+                onCheckedChange={(v) => setConfig({ ...config, enable_cache: v })}
                 disabled={!config.enabled}
-                accent="purple"
               />
             </div>
           </Field>
@@ -303,6 +311,13 @@ export function AlistSection() {
         </div>
       </FieldGroup>
 
+        </>
+      ) : (
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          启用 Alist 存储后，将在这里显示连接与鉴权配置。
+        </p>
+      )}
+
       {toast && <Toast ok={toast.ok} msg={toast.msg} onDismiss={() => setToast(null)} />}
 
       <ActionBar
@@ -335,12 +350,6 @@ export function AlistSection() {
           </ActionButton>
         }
       />
-        </>
-      ) : (
-        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          启用 Alist 存储后，将在这里显示连接与鉴权配置。
-        </p>
-      )}
     </SectionShell>
   )
 }
@@ -356,6 +365,7 @@ export function S3Section() {
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null)
   const [showSecret, setShowSecret] = useState(false)
   const [secretDirty, setSecretDirty] = useState(false)
+  const [hasSecret, setHasSecret] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -364,7 +374,9 @@ export function S3Section() {
         storageApi.getS3Config(),
         storageApi.getStorageStatus(),
       ])
-      setConfig({ ...DEFAULT_S3, ...cfgRes.data.data })
+      const data = cfgRes.data.data
+      setHasSecret(!!data.secret_key)
+      setConfig({ ...DEFAULT_S3, ...data, secret_key: '' })
       setStatus(statusRes.data.data.s3 || null)
     } catch (e) {
       console.error('加载 S3 配置失败', e)
@@ -409,7 +421,12 @@ export function S3Section() {
       })
       setToast({ ok: true, msg: 'S3 连接测试成功' })
     } catch (e: any) {
-      setToast({ ok: false, msg: e.response?.data?.error || '连接测试失败' })
+      const raw = e.response?.data?.error || '连接测试失败'
+      const missingCreds = !config.access_key.trim() || (!hasSecret && !config.secret_key.trim())
+      const msg = missingCreds
+        ? '连接失败：未填写 Access Key / Secret Key，请确认对象存储认证信息'
+        : raw
+      setToast({ ok: false, msg })
     } finally {
       setTesting(false)
     }
@@ -451,7 +468,6 @@ export function S3Section() {
         description="启用后可将对象存储桶作为媒体库数据源"
         checked={config.enabled}
         onChange={(v) => setConfig({ ...config, enabled: v })}
-        accent="amber"
         iconColorClass="text-amber-600 dark:text-amber-300"
       />
 
@@ -503,11 +519,10 @@ export function S3Section() {
           </Field>
           <Field label="Path-Style 寻址">
             <div className="flex items-center h-9 gap-2">
-              <Toggle
+              <Switch
                 checked={config.path_style}
-                onChange={(v) => setConfig({ ...config, path_style: v })}
+                onCheckedChange={(v) => setConfig({ ...config, path_style: v })}
                 disabled={!config.enabled}
-                accent="amber"
               />
               <span className="text-xs inline-flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
                 <Server size={12} /> MinIO 等自建必选
@@ -539,7 +554,7 @@ export function S3Section() {
                 setSecretDirty(true)
               }}
               disabled={!config.enabled}
-              placeholder={secretDirty ? '' : '留空保持原 Secret'}
+              placeholder={secretDirty ? '' : (hasSecret ? '已设置 Secret，留空保持不变' : '未设置 Secret')}
               className="font-mono"
               autoComplete="off"
               suffix={<EyeToggle visible={showSecret} onToggle={() => setShowSecret((v) => !v)} />}
@@ -558,11 +573,10 @@ export function S3Section() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="启用元数据缓存">
             <div className="flex items-center h-9">
-              <Toggle
+              <Switch
                 checked={config.enable_cache}
-                onChange={(v) => setConfig({ ...config, enable_cache: v })}
+                onCheckedChange={(v) => setConfig({ ...config, enable_cache: v })}
                 disabled={!config.enabled}
-                accent="amber"
               />
             </div>
           </Field>
@@ -596,6 +610,13 @@ export function S3Section() {
         </div>
       </FieldGroup>
 
+        </>
+      ) : (
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          启用 S3 存储后，将在这里显示连接与鉴权配置。
+        </p>
+      )}
+
       {toast && <Toast ok={toast.ok} msg={toast.msg} onDismiss={() => setToast(null)} />}
 
       <ActionBar
@@ -628,12 +649,6 @@ export function S3Section() {
           </ActionButton>
         }
       />
-        </>
-      ) : (
-        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          启用 S3 存储后，将在这里显示连接与鉴权配置。
-        </p>
-      )}
     </SectionShell>
   )
 }

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/service"
 	"go.uber.org/zap"
 )
@@ -12,6 +13,7 @@ import (
 // FileManagerHandler 影视文件管理 API 处理器
 type FileManagerHandler struct {
 	fileService *service.FileManagerService
+	cfg         *config.Config
 	logger      *zap.SugaredLogger
 }
 
@@ -41,7 +43,7 @@ func (h *FileManagerHandler) ListFiles(c *gin.Context) {
 		scrapedOnly = &b
 	}
 
-	files, total, err := h.fileService.ListFiles(page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly)
+	files, total, err := h.fileService.ListFiles(page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly, !h.cfg.NSFW.Enabled)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件列表失败"})
 		return
@@ -108,7 +110,7 @@ func (h *FileManagerHandler) ListFilesByFolder(c *gin.Context) {
 		scrapedOnly = &b
 	}
 
-	files, total, subFolders, err := h.fileService.ListFilesByFolder(folderPath, page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly)
+	files, total, subFolders, err := h.fileService.ListFilesByFolder(folderPath, page, size, libraryID, mediaType, keyword, sortBy, sortOrder, scrapedOnly, !h.cfg.NSFW.Enabled)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件列表失败"})
 		return

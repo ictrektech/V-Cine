@@ -433,11 +433,14 @@ func (r *MediaRepo) CountNonEpisode(libraryID string) (int64, error) {
 
 // ==================== MediaRepo 扩展方法（文件管理） ====================
 
-func (r *MediaRepo) ListFilesAdvanced(page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool) ([]model.Media, int64, error) {
+func (r *MediaRepo) ListFilesAdvanced(page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool, excludeAdult bool) ([]model.Media, int64, error) {
 	var media []model.Media
 	var total int64
 
 	query := r.db.Model(&model.Media{})
+	if excludeAdult {
+		query = query.Where("library_id NOT IN (?)", r.db.Model(&model.Library{}).Select("id").Where("allow_adult_content = ?", true))
+	}
 
 	if libraryID != "" {
 		query = query.Where("library_id = ?", libraryID)
@@ -673,11 +676,14 @@ func (r *MediaRepo) GetAllFilePaths(libraryID string) ([]string, error) {
 }
 
 // ListByFolderPath 按文件夹路径查询文件（精确匹配目录，不递归子目录）
-func (r *MediaRepo) ListByFolderPath(folderPath string, page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool) ([]model.Media, int64, error) {
+func (r *MediaRepo) ListByFolderPath(folderPath string, page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool, excludeAdult bool) ([]model.Media, int64, error) {
 	var media []model.Media
 	var total int64
 
 	query := r.db.Model(&model.Media{})
+	if excludeAdult {
+		query = query.Where("library_id NOT IN (?)", r.db.Model(&model.Library{}).Select("id").Where("allow_adult_content = ?", true))
+	}
 
 	// 使用 LIKE 匹配指定目录下的直接子文件（不含子目录中的文件）
 	// folderPath 末尾需要加分隔符

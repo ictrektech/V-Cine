@@ -165,7 +165,11 @@ func Decrypt(s string) (string, error) {
 		// 兼容老明文：不报错
 		return s, nil
 	}
-	body := strings.TrimPrefix(s, EncPrefix)
+	// 兼容历史遗留的重复 ENC: 前缀（如 ENC:ENC:...）
+	body := s
+	for strings.HasPrefix(body, EncPrefix) {
+		body = strings.TrimPrefix(body, EncPrefix)
+	}
 	raw, err := base64.StdEncoding.DecodeString(body)
 	if err != nil {
 		return "", fmt.Errorf("密文 base64 解码失败: %w", err)

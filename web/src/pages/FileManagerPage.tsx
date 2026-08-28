@@ -3,9 +3,10 @@ import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
 import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/videoAnalysis'
-import { aiApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
+import { aiApi, adultScraperApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { extractErrMsg } from '@/utils/error'
 import { withBasePath } from '@/lib/basePath'
+import { storageTypeFromPath } from '@/lib/storageSchemes'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
@@ -23,10 +24,10 @@ import {
   Globe,
   RefreshCw,
   History,
-  PanelLeftClose,
   PanelLeftOpen,
   ShieldAlert,
   ScanLine,
+  ArrowUpLeft,
   Library as LibraryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -82,10 +83,16 @@ export default function FileManagerPage() {
   const [files, setFiles] = useState<Media[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<FileManagerStats | null>(null)
   const [libraries, setLibraries] = useState<Library[]>([])
+  const [nsfwEnabled, setNsfwEnabled] = useState<boolean | null>(null)
+  useEffect(() => {
+    adultScraperApi.getConfig()
+      .then(res => setNsfwEnabled(res.data.data.nsfw_enabled !== false))
+      .catch(() => setNsfwEnabled(false))
+  }, [])
 
   // 筛选
   const [keyword, setKeyword] = useState('')
@@ -98,6 +105,22 @@ export default function FileManagerPage() {
 
   // 选择
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // 已见文件的远程标记（跨页保留，用于批量分析按钮禁用判断）
+  const [remoteFlags, setRemoteFlags] = useState<Record<string, boolean>>({})
+  useEffect(() => {
+    setRemoteFlags(prev => {
+      const next = { ...prev }
+      let changed = false
+      for (const f of files) {
+        const remote = storageTypeFromPath(f.file_path || '') !== 'local'
+        if (next[f.id] !== remote) {
+          next[f.id] = remote
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [files])
 
   // 视图模式
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
@@ -125,7 +148,7 @@ export default function FileManagerPage() {
   const [detailMedia, setDetailMedia] = useState<Media | null>(null)
 
   // 刮削源
-  const [scrapeSource, setScrapeSource] = useState('')
+  const [scrapeSource, setScrapeSource] = useState('auto')
   const [videoAnalysisEnabled, setVideoAnalysisEnabled] = useState(true)
   const [videoAnalysisDisabledReason, setVideoAnalysisDisabledReason] = useState('')
   const [videoAnalysisDescribeEnabled, setVideoAnalysisDescribeEnabled] = useState(false)
@@ -337,7 +360,7 @@ export default function FileManagerPage() {
 
   const handleScrapeFile = async (id: string) => {
     try {
-      await fileManagerApi.scrapeFile(id, scrapeSource || undefined)
+      await fileManagerApi.scrapeFile(id, scrapeSource === 'auto' ? undefined : scrapeSource)
       toast.success('刮削已启动')
       // 乐观预热海报版本（刮削完成 WS 到达时也会再刷一次）
     } catch (err: any) {
@@ -348,7 +371,7 @@ export default function FileManagerPage() {
   const handleBatchScrape = async () => {
     if (selectedIds.size === 0) return
     try {
-      const res = await fileManagerApi.batchScrapeFiles(Array.from(selectedIds), scrapeSource || undefined)
+      const res = await fileManagerApi.batchScrapeFiles(Array.from(selectedIds), scrapeSource === 'auto' ? undefined : scrapeSource)
       toast.success(`已启动 ${res.data.started} 个刮削任务`)
     } catch { toast.error('批量刮削失败') }
   }
@@ -548,8 +571,13 @@ export default function FileManagerPage() {
 
   const totalPages = Math.ceil(total / pageSize)
 
+  const selectedAllRemote = selectedIds.size > 0 && Array.from(selectedIds).every(id => remoteFlags[id] !== false)
+
   // 每页数量可选项
-  const pageSizeOptions = [20, 50, 100, 200]
+  const pageSizeOptions = [10, 20, 50, 100, 200]
+  const visibleLibraries = nsfwEnabled === false
+    ? libraries.filter(l => !l.allow_adult_content)
+    : libraries
 
   // 切换每页数量时重置到第一页
   const handlePageSizeChange = useCallback((size: number) => {
@@ -570,6 +598,27 @@ export default function FileManagerPage() {
     setSelectedIds(new Set())
     setSubFolders([])
   }, [])
+
+  const handleGoUpFolder = useCallback(() => {
+    const normalized = currentFolderPath.replace(/\\/g, '/').replace(/\/+$/, '')
+    const schemeIdx = normalized.indexOf('://')
+    if (schemeIdx >= 0) {
+      const afterScheme = normalized.slice(schemeIdx + 3)
+      const lastSlash = afterScheme.lastIndexOf('/')
+      if (lastSlash <= 0) {
+        handleClearFolder()
+        return
+      }
+      handleSelectFolder(normalized.slice(0, schemeIdx + 3 + lastSlash))
+      return
+    }
+    const lastSlash = normalized.lastIndexOf('/')
+    if (lastSlash <= 0) {
+      handleClearFolder()
+      return
+    }
+    handleSelectFolder(normalized.slice(0, lastSlash))
+  }, [currentFolderPath, handleClearFolder, handleSelectFolder])
 
   // ==================== 文件夹右键操作 ====================
 
@@ -744,24 +793,26 @@ export default function FileManagerPage() {
           <ScanLine size={16} />
           视频分析
         </button>
-        <button
-          onClick={() => handleTabChange('adult')}
-          className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-            activeTab === 'adult'
-              ? 'bg-neon-blue/10 text-neon shadow-sm'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
-          )}
-        >
-          <ShieldAlert size={16} />
-          成人刮削
-        </button>
+        {nsfwEnabled === true && (
+          <button
+            onClick={() => handleTabChange('adult')}
+            className={clsx(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+              activeTab === 'adult'
+                ? 'bg-neon-blue/10 text-neon shadow-sm'
+                : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
+            )}
+          >
+            <ShieldAlert size={16} />
+            成人刮削
+          </button>
+        )}
       </div>
 
       {/* ==================== 媒体库管理 Tab ==================== */}
       {activeTab === 'library' && (
         <LibraryManager
-          libraries={libraries}
+          libraries={visibleLibraries}
           setLibraries={setLibraries}
           scanning={scanning}
           setScanning={setScanning}
@@ -789,7 +840,7 @@ export default function FileManagerPage() {
       )}
 
       {/* ==================== 成人刮削 Tab ==================== */}
-      {activeTab === 'adult' && (
+      {activeTab === 'adult' && nsfwEnabled === true && (
         <div className="space-y-5">
           {/* 番号刮削配置（数据源、API Key、映射表、架构可视化）*/}
           <AdultScraperSection />
@@ -819,7 +870,7 @@ export default function FileManagerPage() {
           onSortByChange={setSortBy}
           sortOrder={sortOrder}
           onToggleSortOrder={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-          libraries={libraries}
+          libraries={visibleLibraries}
           onImport={() => setActiveDialog('import')}
           onScanDir={() => setActiveDialog('scanDir')}
           viewMode={viewMode}
@@ -831,6 +882,7 @@ export default function FileManagerPage() {
           onBatchAnalyze={handleBatchAnalyze}
           videoAnalysisEnabled={videoAnalysisEnabled}
           videoAnalysisDisabledReason={videoAnalysisDisabledReason}
+          selectedAllRemote={selectedAllRemote}
           onBatchRename={() => setActiveDialog('rename')}
           onBatchDelete={handleBatchDelete}
           onClearSelection={() => setSelectedIds(new Set())}
@@ -843,94 +895,105 @@ export default function FileManagerPage() {
           />
         </FileToolbar>
 
-        {/* 面包屑导航 */}
-        {currentFolderPath && (
-          <div className="flex items-center gap-2">
-            <Breadcrumb
-              folderPath={currentFolderPath}
-              onNavigate={handleSelectFolder}
-              onGoHome={handleClearFolder}
-            />
-          </div>
-        )}
-
-        {/* 左侧文件夹树 + 中间文件列表 + 右侧AI助手面板 */}
-        <div className="flex gap-4">
-          {/* 左侧文件夹树面板 — 使用 CSS 过渡动画而非条件渲染 */}
+        {/* 面包屑 + 左侧文件夹树 + 文件列表，整体一个框 */}
+        <div className="flex items-start">
           <div
-            className={clsx(
-              'flex-shrink-0 hidden lg:block overflow-hidden transition-all duration-300 ease-out',
-              showFolderPanel ? 'w-64 opacity-100' : 'w-0 opacity-0'
-            )}
-            style={{
-              height: showFolderPanel ? 'calc(100vh - 280px)' : 0,
-              maxHeight: showFolderPanel ? 'calc(100vh - 280px)' : 0,
-            }}
+            className="glass-panel rounded-xl overflow-hidden border flex-1 min-w-0"
+            style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}
           >
-            <div className="w-64 h-full">
-              <FolderTree
-                tree={folderTree}
-                loading={folderTreeLoading}
-                selectedPath={currentFolderPath}
-                onSelectFolder={handleSelectFolder}
-                onClearFolder={handleClearFolder}
-                onCreateFolder={handleCreateFolder}
-                onRenameFolder={handleRenameFolder}
-                onDeleteFolder={handleDeleteFolder}
-                onRefreshFolder={fetchFolderTree}
-                onCopyPath={handleCopyPath}
-              />
-            </div>
-          </div>
+            {currentFolderPath && (
+              <div className="flex items-center gap-2 px-3 py-2 border-b overflow-x-auto" style={{ borderColor: 'var(--border-default)' }}>
+                <Breadcrumb
+                  folderPath={currentFolderPath}
+                  onNavigate={handleSelectFolder}
+                  onGoHome={handleClearFolder}
+                />
+              </div>
+            )}
 
-          {/* 右侧文件列表 */}
-          <div className="flex-1 min-w-0 space-y-4">
-            {/* 文件夹面板切换按钮 */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowFolderPanel(!showFolderPanel)}
-                className="btn-ghost hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
-                title={showFolderPanel ? '收起文件夹面板' : '展开文件夹面板'}
+            <div className="flex">
+              {/* 左侧文件夹树面板 */}
+              <div
+                className={clsx(
+                  'flex-shrink-0 hidden lg:block overflow-hidden transition-all duration-300 ease-out',
+                  showFolderPanel ? 'w-52 xl:w-60 border-r opacity-100' : 'w-0 opacity-0'
+                )}
               >
-                {showFolderPanel ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
-                {showFolderPanel ? '收起导航' : '展开导航'}
-              </button>
-              {currentFolderPath && (
-                <span className="text-xs px-2 py-1 rounded-md bg-neon-blue/10 text-neon">
-                  当前目录: {currentFolderPath.replace(/\\/g, '/').split('/').pop()}
-                </span>
-              )}
-            </div>
+                <div className="w-52 xl:w-60 h-full">
+                  <FolderTree
+                    tree={folderTree}
+                    loading={folderTreeLoading}
+                    selectedPath={currentFolderPath}
+                    onSelectFolder={handleSelectFolder}
+                    onClearFolder={handleClearFolder}
+                    onCreateFolder={handleCreateFolder}
+                    onRenameFolder={handleRenameFolder}
+                    onDeleteFolder={handleDeleteFolder}
+                    onRefreshFolder={fetchFolderTree}
+                    onCopyPath={handleCopyPath}
+                    onCollapse={() => setShowFolderPanel(false)}
+                  />
+                </div>
+              </div>
 
-            <FileListView
-              files={files}
-              loading={loading}
-              viewMode={viewMode}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-              onViewDetail={(media) => { setDetailMedia(media); setActiveDialog('detail') }}
-              onEdit={(media) => { setEditMedia(media); setActiveDialog('edit') }}
-              onScrape={handleScrapeFile}
-              onDelete={handleDeleteFile}
-              page={page}
-              totalPages={totalPages}
-              total={total}
-              pageSize={pageSize}
-              pageSizeOptions={pageSizeOptions}
-              onPageChange={setPage}
-              onPageSizeChange={handlePageSizeChange}
-              subFolders={subFolders}
-              currentFolderPath={currentFolderPath}
-              onNavigateFolder={handleSelectFolder}
-              onPlayFile={handlePlayFile}
-              onCopyFilePath={handleCopyPath}
-              onCreateSubFolder={handleCreateFolder}
-              onRenameSubFolder={handleRenameFolder}
-              onDeleteSubFolder={handleDeleteFolder}
-              onRefreshSubFolder={fetchFolderTree}
-              onCopyFolderPath={handleCopyPath}
-            />
+              {/* 右侧文件列表 */}
+              <div className="flex-1 min-w-0 flex flex-col">
+                {(showFolderPanel ? !!currentFolderPath : true) && (
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: 'var(--border-default)' }}>
+                    {!showFolderPanel && (
+                      <button
+                        onClick={() => setShowFolderPanel(true)}
+                        className="btn-ghost hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
+                        title="展开文件夹面板"
+                      >
+                        <PanelLeftOpen size={14} /> 展开导航
+                      </button>
+                    )}
+                    {currentFolderPath && (
+                      <button
+                        onClick={handleGoUpFolder}
+                        className="btn-ghost hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
+                        title="返回上一级"
+                      >
+                        <ArrowUpLeft size={14} /> 上一级
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0 px-2 pb-2 pt-0 sm:px-3 sm:pb-3">
+                  <FileListView
+                    files={files}
+                    loading={loading}
+                    viewMode={viewMode}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onToggleSelectAll={toggleSelectAll}
+                    onViewDetail={(media) => { setDetailMedia(media); setActiveDialog('detail') }}
+                    onEdit={(media) => { setEditMedia(media); setActiveDialog('edit') }}
+                    onScrape={handleScrapeFile}
+                    onDelete={handleDeleteFile}
+                    page={page}
+                    totalPages={totalPages}
+                    total={total}
+                    pageSize={pageSize}
+                    pageSizeOptions={pageSizeOptions}
+                    onPageChange={setPage}
+                    onPageSizeChange={handlePageSizeChange}
+                    subFolders={subFolders}
+                    currentFolderPath={currentFolderPath}
+                    onNavigateFolder={handleSelectFolder}
+                    onPlayFile={handlePlayFile}
+                    onCopyFilePath={handleCopyPath}
+                    onCreateSubFolder={handleCreateFolder}
+                    onRenameSubFolder={handleRenameFolder}
+                    onDeleteSubFolder={handleDeleteFolder}
+                    onRefreshSubFolder={fetchFolderTree}
+                    onCopyFolderPath={handleCopyPath}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* 右侧 AI 助手面板 — 使用 CSS 过渡动画 */}
@@ -950,7 +1013,7 @@ export default function FileManagerPage() {
 
       {activeDialog === 'import' && (
         <ImportFileModal
-          libraries={libraries}
+          libraries={visibleLibraries}
           onClose={() => setActiveDialog('none')}
           onSuccess={refreshData}
         />
@@ -958,7 +1021,7 @@ export default function FileManagerPage() {
 
       {activeDialog === 'scanDir' && (
         <ScanDirectoryModal
-          libraries={libraries}
+          libraries={visibleLibraries}
           onClose={() => setActiveDialog('none')}
           onSuccess={refreshData}
         />

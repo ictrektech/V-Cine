@@ -262,7 +262,13 @@ func (s *LibraryService) Scan(id string) error {
 			return
 		}
 		totalEntries := 0
+		hasRemotePath := false
 		for _, p := range allPaths {
+			// webdav:// / alist:// / s3:// 远程路径由 scanner 通过 VFS 校验，不走本地 os.Stat
+			if IsRemotePath(p) {
+				hasRemotePath = true
+				continue
+			}
 			info, err := os.Stat(p)
 			if err != nil {
 				s.logger.Errorf("媒体库路径不可访问: %s (媒体库: %s) err=%v", p, lib.Name, err)
@@ -275,7 +281,7 @@ func (s *LibraryService) Scan(id string) error {
 			entries, _ := os.ReadDir(p)
 			totalEntries += len(entries)
 		}
-		if totalEntries == 0 {
+		if totalEntries == 0 && !hasRemotePath {
 			s.logger.Warnf("媒体库所有路径均为空 (媒体库: %s)", lib.Name)
 		}
 
@@ -535,6 +541,13 @@ func (s *LibraryService) Delete(id string) error {
 	// 清理磁盘上的刮削缓存（海报/背景、缩略图、转码、预处理）
 	s.cleanScrapedCacheFiles(mediaIDs, seriesIDs, libName)
 
+	// 视频分析任务随媒体级联删除后，回收 cache/structure 下的孤儿产物
+	if s.videoAnalysis != nil {
+		if err := s.videoAnalysis.CleanOrphanStructure(); err != nil {
+			s.logger.Warnf("删除媒体库 %s 后清理视频分析 structure 孤儿失败: %v", libName, err)
+		}
+	}
+
 	s.logger.Infof("媒体库 %s 已删除（关联数据及刮削缓存已清理）", libName)
 
 	// 广播媒体库删除事件，通知前端刷新
@@ -752,6 +765,10 @@ func (s *LibraryService) Reindex(id string) error {
 
 		// 异步检查路径（网络驱动器可能较慢，不阻塞 HTTP 响应）
 		for _, p := range lib.AllPaths() {
+			// webdav:// / alist:// / s3:// 远程路径由 scanner 通过 VFS 校验，不走本地 os.Stat
+			if IsRemotePath(p) {
+				continue
+			}
 			info, err := os.Stat(p)
 			if err != nil {
 				s.logger.Errorf("媒体库路径不可访问: %s (媒体库: %s) err=%v", p, lib.Name, err)

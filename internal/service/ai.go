@@ -580,7 +580,7 @@ func (s *AIService) desensitizeImage(dataURL string) string {
 		Rule string `json:"rule"`
 	}
 	type respBody struct {
-		ImageBase64 string        `json:"image_base64"`
+		ImageBase64 string         `json:"image_base64"`
 		Replaced    []replacedItem `json:"replaced"`
 	}
 	body, _ := json.Marshal(reqBody{ImageBase64: dataURL})
@@ -729,10 +729,10 @@ func (s *AIService) TestDesensitize() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"success":   true,
+		"success":    true,
 		"latency_ms": latency,
-		"rules":     len(result.Replaced),
-		"result":    result.Text,
+		"rules":      len(result.Replaced),
+		"result":     result.Text,
 	}
 }
 
@@ -962,14 +962,14 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"enable_smart_search":     cfg.EnableSmartSearch,
 		"enable_recommend_reason": cfg.EnableRecommendReason,
 		"enable_metadata_enhance": cfg.EnableMetadataEnhance,
-		"describe_enabled":          s.appCfg.GetVideoAnalysisConfig().DescribeEnabled,
+		"describe_enabled":        s.appCfg.GetVideoAnalysisConfig().DescribeEnabled,
 		"scene_describe_ai": map[string]interface{}{
 			"provider_id": cfg.SceneDescribeAI.ProviderID,
 			"model":       cfg.SceneDescribeAI.Model,
 		},
-		"cache_ttl_hours":         cfg.CacheTTLHours,
-		"max_concurrent":          cfg.MaxConcurrent,
-		"request_interval_ms":     cfg.RequestIntervalMs,
+		"cache_ttl_hours":     cfg.CacheTTLHours,
+		"max_concurrent":      cfg.MaxConcurrent,
+		"request_interval_ms": cfg.RequestIntervalMs,
 		"desensitize": map[string]interface{}{
 			"enabled":       cfg.Desensitize.Enabled,
 			"base_url":      cfg.Desensitize.BaseURL,

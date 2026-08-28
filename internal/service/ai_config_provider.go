@@ -31,8 +31,8 @@ import (
 //	provider.SetActive("deepseek", "deepseek-chat")
 type AIConfigProvider struct {
 	mu  sync.RWMutex
-	cfg  config.AIConfig
-	app  *config.Config
+	cfg config.AIConfig
+	app *config.Config
 }
 
 // NewAIConfigProvider 创建 AI 配置访问入口。
