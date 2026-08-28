@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -90,6 +91,8 @@ type VideoAnalysisService struct {
 	structureBaseURL string
 
 	mu sync.RWMutex
+	// cleanupMu 串行化 structure 目录清理与 claim 搬移，避免清理误删新 claim 的目录。
+	cleanupMu sync.Mutex
 
 	wsHub        *WSHub
 	logger       *zap.SugaredLogger
@@ -580,16 +583,23 @@ func (s *VideoAnalysisService) DetailedStatistics() (*VideoAnalysisDetailedStats
 	return stats, nil
 }
 
-// CleanupOldTasks 清理旧的已完成/失败任务
+// CleanupOldTasks 清理旧的终态任务并回收 structure 孤儿目录（best-effort）
 func (s *VideoAnalysisService) CleanupOldTasks(keepRecent int) (int64, error) {
 	if !s.IsAvailable() {
 		return 0, errors.New("video analysis service is not configured")
 	}
-	return s.tasks.CleanupOldTasks(keepRecent)
+	deleted, err := s.tasks.CleanupOldTasks(keepRecent)
+	if err != nil {
+		return 0, err
+	}
+	if err := s.CleanOrphanStructure(); err != nil && s.logger != nil {
+		s.logger.Warnw("清理任务后回收 structure 孤儿失败", "error", err)
+	}
+	return deleted, nil
 }
 
 // DeleteTask 删除任务记录。运行中的任务不可删除。
-// 仅删除 Nowen 本地编排记录；外部 Scene/Structure 缓存与九宫格文件不清理。
+// 删除本地 Scene 记录与任务，并回收不再被引用的 structure 目录。
 func (s *VideoAnalysisService) DeleteTask(taskID string) error {
 	if !s.IsAvailable() {
 		return errors.New("video analysis service is not configured")
@@ -610,6 +620,10 @@ func (s *VideoAnalysisService) DeleteTask(taskID string) error {
 	}
 	if err := s.tasks.DeleteByID(taskID); err != nil {
 		return err
+	}
+	// 删除任务后回收 structure 孤儿目录（best-effort，复用全局清理逻辑）
+	if err := s.CleanOrphanStructure(); err != nil && s.logger != nil {
+		s.logger.Warnw("删除任务后清理 structure 孤儿失败", "task_id", taskID, "error", err)
 	}
 	if s.wsHub != nil {
 		s.wsHub.BroadcastEvent(videoAnalysisTaskUpdateEvent, map[string]any{
@@ -1162,6 +1176,15 @@ func (s *VideoAnalysisService) claimStagingForTask(task *model.VideoAnalysisTask
 		// 无 staging 产物（如 frame_grid=false 或旧结果），无需搬移。
 		return nil
 	}
+	// 串行化 claim 与 CleanOrphanStructure，避免清理读到旧 hash 快照后误删刚搬移的目录。
+	s.cleanupMu.Lock()
+	defer s.cleanupMu.Unlock()
+
+	// 先把 video_hash 落库再搬移。
+	task.VideoHash = strings.TrimSpace(result.VideoHash)
+	if err := s.persist(task); err != nil {
+		return fmt.Errorf("persist task before claim: %w", err)
+	}
 	if _, err := claimStagingDir(result.StagingDir, s.assetDir, result.VideoHash); err != nil {
 		if s.logger != nil {
 			s.logger.Warnw("Video analysis claim staging failed",
@@ -1182,6 +1205,54 @@ func (s *VideoAnalysisService) claimStagingForTask(task *model.VideoAnalysisTask
 			"video_hash", result.VideoHash,
 			"asset_dir", s.assetDir,
 		)
+	}
+	return nil
+}
+
+// CleanOrphanStructure 清理 asset_dir 下未被任何视频分析任务引用的孤儿目录。
+func (s *VideoAnalysisService) CleanOrphanStructure() error {
+	s.cleanupMu.Lock()
+	defer s.cleanupMu.Unlock()
+
+	assetDir := filepath.Clean(strings.TrimSpace(s.assetDir))
+	if assetDir == "." || assetDir == ".." || assetDir == "/" {
+		return fmt.Errorf("invalid asset dir for orphan cleanup: %q", s.assetDir)
+	}
+	hashes, err := s.tasks.ListVideoHashes()
+	if err != nil {
+		return err
+	}
+	valid := make(map[string]struct{}, len(hashes))
+	for _, h := range hashes {
+		h = strings.TrimSpace(h)
+		if h != "" {
+			valid[h] = struct{}{}
+		}
+	}
+
+	entries, err := os.ReadDir(assetDir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		hash := entry.Name()
+		if _, ok := valid[hash]; ok {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(assetDir, hash)); err != nil {
+			if s.logger != nil {
+				s.logger.Warnw("Video analysis orphan structure remove failed",
+					"hash", hash, "error", err)
+			}
+			continue
+		}
 	}
 	return nil
 }

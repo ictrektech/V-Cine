@@ -541,6 +541,13 @@ func (s *LibraryService) Delete(id string) error {
 	// 清理磁盘上的刮削缓存（海报/背景、缩略图、转码、预处理）
 	s.cleanScrapedCacheFiles(mediaIDs, seriesIDs, libName)
 
+	// 视频分析任务随媒体级联删除后，回收 cache/structure 下的孤儿产物
+	if s.videoAnalysis != nil {
+		if err := s.videoAnalysis.CleanOrphanStructure(); err != nil {
+			s.logger.Warnf("删除媒体库 %s 后清理视频分析 structure 孤儿失败: %v", libName, err)
+		}
+	}
+
 	s.logger.Infof("媒体库 %s 已删除（关联数据及刮削缓存已清理）", libName)
 
 	// 广播媒体库删除事件，通知前端刷新

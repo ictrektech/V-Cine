@@ -322,17 +322,15 @@ func (h *VideoAnalysisHandler) Cleanup(c *gin.Context) {
 	var request struct {
 		KeepRecent int `json:"keep_recent"`
 	}
-	if err := c.ShouldBindJSON(&request); err != nil {
-		request.KeepRecent = 100
-	}
-	if request.KeepRecent < 10 {
-		request.KeepRecent = 10
+	if err := c.ShouldBindJSON(&request); err != nil || request.KeepRecent < 1 {
+		request.KeepRecent = 5
 	}
 	deletedCount, err := h.service.CleanupOldTasks(request.KeepRecent)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "清理任务失败"})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"deleted_count": deletedCount}})
 }
 

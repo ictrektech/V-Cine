@@ -166,6 +166,16 @@ func (r *VideoAnalysisTaskRepo) CountByStatus() (map[string]int64, error) {
 	return counts, nil
 }
 
+// ListVideoHashes 返回所有任务中已使用过的 video_hash（用于识别 structure 孤儿目录）。
+func (r *VideoAnalysisTaskRepo) ListVideoHashes() ([]string, error) {
+	var hashes []string
+	err := r.db.Model(&model.VideoAnalysisTask{}).
+		Where("video_hash <> ''").
+		Distinct().
+		Pluck("video_hash", &hashes).Error
+	return hashes, err
+}
+
 // DeleteByID 删除指定任务。运行中的任务不可删除，避免与 worker 抢状态。
 func (r *VideoAnalysisTaskRepo) DeleteByID(id string) error {
 	if id == "" {
@@ -210,37 +220,35 @@ func (r *VideoAnalysisTaskRepo) AvgElapsedByStatus(status string) (float64, erro
 	return avg, nil
 }
 
-// CleanupOldTasks 清理旧的已完成/失败任务，保留最近 N 条记录
+// CleanupOldTasks 清理旧的终态任务，按每个 media 分别保留最近 N 条记录。
 func (r *VideoAnalysisTaskRepo) CleanupOldTasks(keepRecent int) (int64, error) {
-	if keepRecent < 0 {
-		keepRecent = 100
+	terminalStatuses := []string{
+		model.VideoAnalysisStatusSucceeded,
+		model.VideoAnalysisStatusPartial,
+		model.VideoAnalysisStatusFailed,
+		model.VideoAnalysisStatusSkipped,
 	}
 
-	// 找到需要保留的任务 ID
-	var keepIDs []string
-	err := r.db.Model(&model.VideoAnalysisTask{}).
-		Where("status IN ?", []string{model.VideoAnalysisStatusSucceeded, model.VideoAnalysisStatusPartial, model.VideoAnalysisStatusFailed, model.VideoAnalysisStatusSkipped}).
-		Order("created_at DESC").
-		Limit(keepRecent).
-		Pluck("id", &keepIDs).Error
-	if err != nil {
-		return 0, err
+	// 用 ROW_NUMBER 在 DB 侧按 media 分组保留最近 keepRecent 条，
+	// 避免把全部终态任务 id 载入 Go 内存。
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(terminalStatuses)), ",")
+	args := make([]interface{}, 0, len(terminalStatuses)*2+1)
+	for _, s := range terminalStatuses {
+		args = append(args, s)
 	}
-
-	// 先删除对应场景记录
-	if err := r.db.Where("video_analysis_task_id NOT IN ? AND video_analysis_task_id IN (SELECT id FROM video_analysis_tasks WHERE status IN ?)",
-		keepIDs,
-		[]string{model.VideoAnalysisStatusSucceeded, model.VideoAnalysisStatusPartial, model.VideoAnalysisStatusFailed, model.VideoAnalysisStatusSkipped},
-	).Delete(&model.Scene{}).Error; err != nil {
-		return 0, err
+	for _, s := range terminalStatuses {
+		args = append(args, s)
 	}
+	args = append(args, keepRecent)
 
-	// 删除不在保留列表中的已完成任务
-	result := r.db.Where("status IN ? AND id NOT IN ?",
-		[]string{model.VideoAnalysisStatusSucceeded, model.VideoAnalysisStatusPartial, model.VideoAnalysisStatusFailed, model.VideoAnalysisStatusSkipped},
-		keepIDs,
-	).Delete(&model.VideoAnalysisTask{})
-
+	sql := "DELETE FROM video_analysis_tasks WHERE status IN (" + placeholders + ")" +
+		" AND id NOT IN (" +
+		" SELECT id FROM (" +
+		"  SELECT id, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY created_at DESC, id DESC) AS rn" +
+		"  FROM video_analysis_tasks WHERE status IN (" + placeholders + ")" +
+		" ) ranked WHERE rn <= ?" +
+		" )"
+	result := r.db.Exec(sql, args...)
 	return result.RowsAffected, result.Error
 }
 
