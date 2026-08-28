@@ -46,9 +46,9 @@ services:
     ports:
       - "${NOWEN_PORT:-38085}:8080"
     volumes:
-      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/data:/data
-      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/cache:/cache
-      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen}/media:/media
+      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen_video}/data:/data
+      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen_video}/cache:/cache
+      - ${NOWEN_WORKSPACE_PATH:-/data/vos_workspace/nowen_video}/media:/media
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health > /dev/null 2>&1 || exit 1"]
       interval: 30s

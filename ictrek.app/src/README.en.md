@@ -10,21 +10,21 @@ During installation, choose the profile matching your VOS host: `AMD64`, generic
 Nowen Video -> Home Media
 ```
 
-## Data Directory
+## Storage Directory
 
-The default host persistence root is:
+Choose one unified storage root during installation. The default is:
 
 ```text
-/data/vos_workspace/nowen
+/data/vos_workspace/nowen_video
 ```
 
-Layout:
+You can also select a VOS public directory. The app template automatically uses these subdirectories under the selected root, so they do not need separate configuration:
 
 ```text
-/data/vos_workspace/nowen/
+/data/vos_workspace/nowen_video/
 ├── data/   # SQLite database, config, and login keys
 ├── cache/  # transcoding cache
-└── media/  # optional VOS-managed media directory; /media inside the container
+└── media/  # media directory; /media inside the container
 ```
 
 The first user registered on first launch becomes the administrator. The library can point at the in-container `/media` directory, or at a supported remote storage configured inside the app.

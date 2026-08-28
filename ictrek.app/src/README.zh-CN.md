@@ -10,21 +10,21 @@ Nowen Video 是用于整理和播放家庭影音库的自托管媒体服务。
 Nowen Video -> 家庭影音
 ```
 
-## 数据目录
+## 存储目录
 
-默认宿主机持久化根目录为：
+安装时只需选择一个统一存储根目录。默认值为：
 
 ```text
-/data/vos_workspace/nowen
+/data/vos_workspace/nowen_video
 ```
 
-目录布局如下：
+也可以在 VOS 中选择公共目录。应用模板会在所选根目录下自动使用以下子目录，无需分别配置：
 
 ```text
-/data/vos_workspace/nowen/
+/data/vos_workspace/nowen_video/
 ├── data/   # 配置和登录密钥（数据库为 VOS 共享 PGV，不落本目录）
 ├── cache/  # 转码缓存
-└── media/  # 可由 VOS 托管的媒体目录，容器内为 /media
+└── media/  # 媒体目录，容器内为 /media
 ```
 
 首次进入应用后注册的第一个用户会成为管理员。媒体库可选择容器内 `/media`，或在应用中配置已支持的远程存储。
