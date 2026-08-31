@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -35,11 +36,7 @@ type WebDAVFS struct {
 	logger   *zap.SugaredLogger
 
 	// 元数据缓存
-	cacheEnabled bool
-	cacheTTL     time.Duration
-	cacheMu      sync.RWMutex
-	statCache    map[string]*cacheEntry // path -> fs.FileInfo
-	dirCache     map[string]*cacheEntry // path -> []fs.DirEntry
+	cache *metadataCache
 
 	// V2.1: ReadAt 块缓存配置（0 表示禁用）
 	blockSize  int64
@@ -96,10 +93,11 @@ func (f *webdavFile) Read(p []byte) (int, error) {
 // V2.1: 如果启用了块缓存（blockCache != nil），优先走缓存路径；否则退到直连 Range。
 // 大块并发读取（如 HLS 分片、播放器 seek）由 HTTP/1.1 Keep-Alive 或 HTTP/2 多路复用支撑。
 func (f *webdavFile) ReadAt(p []byte, off int64) (int, error) {
-	if f.blockCache != nil {
-		return f.readAtCached(p, off)
+	fileSize := int64(-1)
+	if f.stat != nil {
+		fileSize = f.stat.Size()
 	}
-	return f.readAtDirect(p, off)
+	return readAtCached(f.blockCache, fileSize, f.readAtDirect, p, off)
 }
 
 // readAtDirect 直连 HTTP Range 的 ReadAt。供缓存层与禁用缓存时调用。
@@ -185,13 +183,10 @@ func NewWebDAVFSWithOptions(
 	}
 
 	return &WebDAVFS{
-		client:       client,
-		basePath:     strings.Trim(basePath, "/"),
-		logger:       logger,
-		cacheEnabled: cacheEnabled,
-		cacheTTL:     ttl,
-		statCache:    make(map[string]*cacheEntry),
-		dirCache:     make(map[string]*cacheEntry),
+		client:   client,
+		basePath: strings.Trim(basePath, "/"),
+		logger:   logger,
+		cache:    newMetadataCache(cacheEnabled, ttl),
 		// V2.1: 默认启用块缓存（可通过 SetBlockCacheConfig 调整）
 		blockSize:  defaultWebDAVBlockSize,
 		blockCount: defaultWebDAVBlockCount,
@@ -218,58 +213,9 @@ func (wfs *WebDAVFS) buildPath(p string) string {
 
 // ==================== 缓存辅助 ====================
 
-func (wfs *WebDAVFS) cacheGetStat(key string) (fs.FileInfo, bool) {
-	if !wfs.cacheEnabled {
-		return nil, false
-	}
-	wfs.cacheMu.RLock()
-	defer wfs.cacheMu.RUnlock()
-	if entry, ok := wfs.statCache[key]; ok && time.Now().Before(entry.expiresAt) {
-		if info, ok := entry.data.(fs.FileInfo); ok {
-			return info, true
-		}
-	}
-	return nil, false
-}
-
-func (wfs *WebDAVFS) cacheSetStat(key string, info fs.FileInfo) {
-	if !wfs.cacheEnabled {
-		return
-	}
-	wfs.cacheMu.Lock()
-	defer wfs.cacheMu.Unlock()
-	wfs.statCache[key] = &cacheEntry{data: info, expiresAt: time.Now().Add(wfs.cacheTTL)}
-}
-
-func (wfs *WebDAVFS) cacheGetDir(key string) ([]fs.DirEntry, bool) {
-	if !wfs.cacheEnabled {
-		return nil, false
-	}
-	wfs.cacheMu.RLock()
-	defer wfs.cacheMu.RUnlock()
-	if entry, ok := wfs.dirCache[key]; ok && time.Now().Before(entry.expiresAt) {
-		if entries, ok := entry.data.([]fs.DirEntry); ok {
-			return entries, true
-		}
-	}
-	return nil, false
-}
-
-func (wfs *WebDAVFS) cacheSetDir(key string, entries []fs.DirEntry) {
-	if !wfs.cacheEnabled {
-		return
-	}
-	wfs.cacheMu.Lock()
-	defer wfs.cacheMu.Unlock()
-	wfs.dirCache[key] = &cacheEntry{data: entries, expiresAt: time.Now().Add(wfs.cacheTTL)}
-}
-
 // InvalidateCache 清除所有缓存
 func (wfs *WebDAVFS) InvalidateCache() {
-	wfs.cacheMu.Lock()
-	defer wfs.cacheMu.Unlock()
-	wfs.statCache = make(map[string]*cacheEntry)
-	wfs.dirCache = make(map[string]*cacheEntry)
+	wfs.cache.clear()
 }
 
 // ==================== VFS 接口实现 ====================
@@ -301,7 +247,7 @@ func (wfs *WebDAVFS) ReadDir(p string) ([]fs.DirEntry, error) {
 	fullPath := wfs.buildPath(p)
 
 	// 查缓存
-	if entries, ok := wfs.cacheGetDir(fullPath); ok {
+	if entries, ok := wfs.cache.getDir(fullPath); ok {
 		return entries, nil
 	}
 
@@ -315,8 +261,32 @@ func (wfs *WebDAVFS) ReadDir(p string) ([]fs.DirEntry, error) {
 		entries[i] = &webdavDirEntry{file: file}
 	}
 
-	wfs.cacheSetDir(fullPath, entries)
+	wfs.cache.setDir(fullPath, entries)
 	return entries, nil
+}
+
+// Probe 绕过本地缓存做一次真实网络探测，用于状态检查。
+func (wfs *WebDAVFS) Probe() error {
+	_, err := wfs.client.ReadDir(wfs.buildPath("/"))
+	return err
+}
+
+// ProbeContext 支持上下文取消的连通性探测。
+// gowebdav 的 ReadDir 不接收 context，这里通过 goroutine 实现有界等待；
+// 底层请求仍受 http.Client 超时约束，不会无限期悬挂。
+func (wfs *WebDAVFS) ProbeContext(ctx context.Context) error {
+	done := make(chan error, 1)
+	go func() {
+		_, err := wfs.client.ReadDir(wfs.buildPath("/"))
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Stat 获取 WebDAV 文件信息
@@ -324,7 +294,7 @@ func (wfs *WebDAVFS) Stat(p string) (fs.FileInfo, error) {
 	fullPath := wfs.buildPath(p)
 
 	// 查缓存
-	if info, ok := wfs.cacheGetStat(fullPath); ok {
+	if info, ok := wfs.cache.getStat(fullPath); ok {
 		return info, nil
 	}
 
@@ -333,49 +303,13 @@ func (wfs *WebDAVFS) Stat(p string) (fs.FileInfo, error) {
 		return nil, fmt.Errorf("WebDAV Stat 失败 %s: %w", fullPath, err)
 	}
 
-	wfs.cacheSetStat(fullPath, stat)
+	wfs.cache.setStat(fullPath, stat)
 	return stat, nil
 }
 
 // Walk 递归遍历 WebDAV 目录
 func (wfs *WebDAVFS) Walk(root string, fn filepath.WalkFunc) error {
-	return wfs.walkRecursive(root, fn)
-}
-
-// walkRecursive 递归遍历实现
-// 注意：回调 fn 拿到的 path 是相对 root 的逻辑路径（以 / 开头，不含 basePath / webdav:// 前缀）
-func (wfs *WebDAVFS) walkRecursive(relPath string, fn filepath.WalkFunc) error {
-	stat, err := wfs.Stat(relPath)
-	if err != nil {
-		return fn(relPath, nil, err)
-	}
-
-	err = fn(relPath, stat, nil)
-	if err != nil {
-		if err == filepath.SkipDir {
-			return nil
-		}
-		return err
-	}
-
-	if stat.IsDir() {
-		entries, err := wfs.ReadDir(relPath)
-		if err != nil {
-			return fn(relPath, stat, err)
-		}
-
-		for _, entry := range entries {
-			childRel := path.Join(relPath, entry.Name())
-			if !strings.HasPrefix(childRel, "/") {
-				childRel = "/" + childRel
-			}
-			if walkErr := wfs.walkRecursive(childRel, fn); walkErr != nil && walkErr != filepath.SkipDir {
-				return walkErr
-			}
-		}
-	}
-
-	return nil
+	return walkRemote(wfs, root, fn)
 }
 
 // Type 返回文件系统类型标识

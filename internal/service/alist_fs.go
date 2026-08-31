@@ -80,12 +80,7 @@ type AlistFS struct {
 	tokenFrom string // "config" | "login"
 
 	// 元数据缓存
-	cacheEnabled bool
-	cacheTTL     time.Duration
-	cacheMu      sync.RWMutex
-	statCache    map[string]*cacheEntry // path -> fs.FileInfo
-	dirCache     map[string]*cacheEntry // path -> []fs.DirEntry
-	urlCache     map[string]*cacheEntry // path -> string (raw_url)
+	cache *metadataCache
 
 	// ReadAt 块缓存
 	blockSize  int64
@@ -113,13 +108,9 @@ func NewAlistFS(serverURL, username, password, token, basePath string,
 		httpClient: &http.Client{
 			Timeout: time.Duration(timeoutSec) * time.Second,
 		},
-		cacheEnabled: cacheEnabled,
-		cacheTTL:     ttl,
-		statCache:    make(map[string]*cacheEntry),
-		dirCache:     make(map[string]*cacheEntry),
-		urlCache:     make(map[string]*cacheEntry),
-		blockSize:    defaultWebDAVBlockSize,
-		blockCount:   defaultWebDAVBlockCount,
+		cache:      newMetadataCache(cacheEnabled, ttl),
+		blockSize:  defaultWebDAVBlockSize,
+		blockCount: defaultWebDAVBlockCount,
 	}
 	if token != "" {
 		f.token = token
@@ -330,58 +321,63 @@ func (a *AlistFS) ReadDir(p string) ([]fs.DirEntry, error) {
 	p = normalizeAlistPath(p)
 
 	// 缓存命中？
-	if a.cacheEnabled {
-		a.cacheMu.RLock()
-		if e, ok := a.dirCache[p]; ok && time.Now().Before(e.expiresAt) {
-			if entries, ok := e.data.([]fs.DirEntry); ok {
-				a.cacheMu.RUnlock()
-				return entries, nil
-			}
-		}
-		a.cacheMu.RUnlock()
+	if entries, ok := a.cache.getDir(p); ok {
+		return entries, nil
 	}
 
+	content, err := a.fetchDir(p, 0, false)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := make([]fs.DirEntry, 0, len(content))
+	for _, f := range content {
+		entries = append(entries, &alistDirEntry{info: f})
+	}
+
+	a.cache.setDir(p, entries)
+	return entries, nil
+}
+
+// fetchDir 调用 Alist /api/fs/list，不读写本地缓存。
+func (a *AlistFS) fetchDir(p string, perPage int, refresh bool) ([]alistFileInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), a.httpClient.Timeout)
 	defer cancel()
+	return a.fetchDirContext(ctx, p, perPage, refresh)
+}
 
+func (a *AlistFS) fetchDirContext(ctx context.Context, p string, perPage int, refresh bool) ([]alistFileInfo, error) {
 	body := map[string]interface{}{
 		"path":     a.buildFullPath(p),
 		"password": "",
 		"page":     1,
-		"per_page": 0, // 0 = 不分页
-		"refresh":  false,
+		"per_page": perPage,
+		"refresh":  refresh,
 	}
 	var ld alistListData
 	if err := a.callAPI(ctx, "/api/fs/list", body, &ld, true); err != nil {
 		return nil, err
 	}
+	return ld.Content, nil
+}
 
-	entries := make([]fs.DirEntry, 0, len(ld.Content))
-	for _, f := range ld.Content {
-		entries = append(entries, &alistDirEntry{info: f})
-	}
+// Probe 绕过本地缓存做一次真实网络探测，用于状态检查。
+func (a *AlistFS) Probe() error {
+	return a.ProbeContext(context.Background())
+}
 
-	if a.cacheEnabled {
-		a.cacheMu.Lock()
-		a.dirCache[p] = &cacheEntry{data: entries, expiresAt: time.Now().Add(a.cacheTTL)}
-		a.cacheMu.Unlock()
-	}
-	return entries, nil
+// ProbeContext 支持上下文取消的连通性探测。
+func (a *AlistFS) ProbeContext(ctx context.Context) error {
+	_, err := a.fetchDirContext(ctx, "/", 1, true)
+	return err
 }
 
 // Stat 获取文件信息
 func (a *AlistFS) Stat(p string) (fs.FileInfo, error) {
 	p = normalizeAlistPath(p)
 
-	if a.cacheEnabled {
-		a.cacheMu.RLock()
-		if e, ok := a.statCache[p]; ok && time.Now().Before(e.expiresAt) {
-			if info, ok := e.data.(os.FileInfo); ok {
-				a.cacheMu.RUnlock()
-				return info, nil
-			}
-		}
-		a.cacheMu.RUnlock()
+	if info, ok := a.cache.getStat(p); ok {
+		return info, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), a.httpClient.Timeout)
@@ -397,13 +393,9 @@ func (a *AlistFS) Stat(p string) (fs.FileInfo, error) {
 	}
 	info := newAlistFileInfo(af)
 
-	if a.cacheEnabled {
-		a.cacheMu.Lock()
-		a.statCache[p] = &cacheEntry{data: info, expiresAt: time.Now().Add(a.cacheTTL)}
-		if af.RawURL != "" {
-			a.urlCache[p] = &cacheEntry{data: af.RawURL, expiresAt: time.Now().Add(a.urlCacheTTL())}
-		}
-		a.cacheMu.Unlock()
+	a.cache.setStat(p, info)
+	if af.RawURL != "" {
+		a.cache.setString(p, af.RawURL, a.urlCacheTTL())
 	}
 	return info, nil
 }
@@ -412,15 +404,8 @@ func (a *AlistFS) Stat(p string) (fs.FileInfo, error) {
 func (a *AlistFS) getRawURL(p string) (string, error) {
 	p = normalizeAlistPath(p)
 
-	if a.cacheEnabled {
-		a.cacheMu.RLock()
-		if e, ok := a.urlCache[p]; ok && time.Now().Before(e.expiresAt) {
-			if s, ok := e.data.(string); ok {
-				a.cacheMu.RUnlock()
-				return s, nil
-			}
-		}
-		a.cacheMu.RUnlock()
+	if s, ok := a.cache.getString(p); ok {
+		return s, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), a.httpClient.Timeout)
@@ -438,20 +423,16 @@ func (a *AlistFS) getRawURL(p string) (string, error) {
 		return "", fmt.Errorf("Alist 未返回直链 (path=%s)", p)
 	}
 
-	if a.cacheEnabled {
-		a.cacheMu.Lock()
-		a.urlCache[p] = &cacheEntry{data: af.RawURL, expiresAt: time.Now().Add(a.urlCacheTTL())}
-		a.cacheMu.Unlock()
-	}
+	a.cache.setString(p, af.RawURL, a.urlCacheTTL())
 	return af.RawURL, nil
 }
 
 // urlCacheTTL 直链缓存 TTL（限最长 30 分钟，避免过期签名）
 func (a *AlistFS) urlCacheTTL() time.Duration {
-	if a.cacheTTL > 30*time.Minute {
+	if a.cache.ttl > 30*time.Minute {
 		return 30 * time.Minute
 	}
-	return a.cacheTTL
+	return a.cache.ttl
 }
 
 // Open 打开文件（返回支持 ReadAt 的 VFSFile）
@@ -475,38 +456,7 @@ func (a *AlistFS) Open(p string) (VFSFile, error) {
 
 // Walk 递归遍历
 func (a *AlistFS) Walk(root string, fn filepath.WalkFunc) error {
-	root = normalizeAlistPath(root)
-	return a.walkInternal(root, fn)
-}
-
-func (a *AlistFS) walkInternal(p string, fn filepath.WalkFunc) error {
-	info, err := a.Stat(p)
-	if err != nil {
-		return fn(p, nil, err)
-	}
-	if err := fn(p, info, nil); err != nil {
-		if err == filepath.SkipDir {
-			return nil
-		}
-		return err
-	}
-	if !info.IsDir() {
-		return nil
-	}
-	entries, err := a.ReadDir(p)
-	if err != nil {
-		return fn(p, info, err)
-	}
-	for _, e := range entries {
-		child := strings.TrimRight(p, "/") + "/" + e.Name()
-		if err := a.walkInternal(child, fn); err != nil {
-			if err == filepath.SkipDir {
-				continue
-			}
-			return err
-		}
-	}
-	return nil
+	return walkRemote(a, root, fn)
 }
 
 // GetHTTPURL 返回可供 FFmpeg 等外部工具使用的 HTTP 直链（V2.3）
@@ -551,16 +501,11 @@ func (f *alistFile) Read(p []byte) (int, error) {
 
 // ReadAt 随机读取（优先走缓存）
 func (f *alistFile) ReadAt(p []byte, off int64) (int, error) {
-	if len(p) == 0 {
-		return 0, nil
+	fileSize := int64(-1)
+	if f.stat != nil {
+		fileSize = f.stat.Size()
 	}
-	if off < 0 {
-		return 0, fmt.Errorf("ReadAt: negative offset")
-	}
-	if f.blockCache != nil {
-		return f.readAtCachedAlist(p, off)
-	}
-	return f.readAtDirect(p, off)
+	return readAtCached(f.blockCache, fileSize, f.readAtDirect, p, off)
 }
 
 // readAtDirect 直连 Range 请求
@@ -623,96 +568,11 @@ func (f *alistFile) openRangeReader(off, length int64) (io.ReadCloser, error) {
 		resp.Body.Close()
 		// 403 可能是签名过期 → 清缓存并重试一次
 		if resp.StatusCode == 403 {
-			f.fs.cacheMu.Lock()
-			delete(f.fs.urlCache, f.remotePath)
-			f.fs.cacheMu.Unlock()
+			f.fs.cache.deleteString(f.remotePath)
 		}
 		return nil, fmt.Errorf("直链请求状态码 %d", resp.StatusCode)
 	}
 	return resp.Body, nil
-}
-
-// readAtCachedAlist 带块缓存的 ReadAt
-//
-// 逻辑与 webdavFile.readAtCached 相同，但底层下载器复用 openRangeReader
-func (f *alistFile) readAtCachedAlist(p []byte, off int64) (int, error) {
-	cache := f.blockCache
-	fileSize := int64(-1)
-	if f.stat != nil {
-		fileSize = f.stat.Size()
-	}
-	blockSize := cache.blockSize
-	total := 0
-	cur := off
-	end := off + int64(len(p))
-
-	for cur < end {
-		blockOff := (cur / blockSize) * blockSize
-
-		block, err := f.ensureBlock(cache, blockOff, fileSize)
-		if err != nil {
-			if total > 0 {
-				if err == io.EOF {
-					return total, io.EOF
-				}
-				return total, err
-			}
-			return 0, err
-		}
-		inBlock := cur - block.offset
-		if inBlock >= int64(len(block.data)) {
-			if total > 0 {
-				return total, io.EOF
-			}
-			return 0, io.EOF
-		}
-		n := copy(p[total:], block.data[inBlock:])
-		total += n
-		cur += int64(n)
-		if int64(len(block.data)) < blockSize && cur >= block.offset+int64(len(block.data)) {
-			if total < len(p) {
-				return total, io.EOF
-			}
-		}
-		if n == 0 {
-			break
-		}
-	}
-	if total < len(p) {
-		return total, io.EOF
-	}
-	return total, nil
-}
-
-func (f *alistFile) ensureBlock(cache *webdavBlockCache, blockOff, fileSize int64) (*webdavCacheBlock, error) {
-	if b, ok := cache.get(blockOff); ok {
-		return b, nil
-	}
-	if wait := cache.acquireFetch(blockOff); wait != nil {
-		<-wait
-		if b, ok := cache.get(blockOff); ok {
-			return b, nil
-		}
-	}
-	defer cache.releaseFetch(blockOff)
-
-	readLen := cache.blockSize
-	if fileSize >= 0 {
-		if blockOff >= fileSize {
-			return nil, io.EOF
-		}
-		if blockOff+readLen > fileSize {
-			readLen = fileSize - blockOff
-		}
-	}
-	data := make([]byte, readLen)
-	n, err := f.readAtDirect(data, blockOff)
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
-	block := &webdavCacheBlock{offset: blockOff, data: data[:n]}
-	cache.put(block)
-	return block, nil
 }
 
 // Close 关闭文件

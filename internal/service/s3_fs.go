@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -80,11 +81,7 @@ type S3FS struct {
 	logger     *zap.SugaredLogger
 
 	// 元数据缓存
-	cacheEnabled bool
-	cacheTTL     time.Duration
-	cacheMu      sync.RWMutex
-	statCache    map[string]*cacheEntry
-	dirCache     map[string]*cacheEntry
+	cache *metadataCache
 
 	// ReadAt 块缓存
 	blockSize  int64
@@ -122,11 +119,7 @@ func NewS3FS(endpoint, region, accessKey, secretKey, bucket, basePath string,
 		httpClient: &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 		logger:     logger,
 
-		cacheEnabled: cacheEnabled,
-		cacheTTL:     ttl,
-		statCache:    make(map[string]*cacheEntry),
-		dirCache:     make(map[string]*cacheEntry),
-
+		cache:      newMetadataCache(cacheEnabled, ttl),
 		blockSize:  defaultWebDAVBlockSize,
 		blockCount: defaultWebDAVBlockCount,
 	}
@@ -330,7 +323,12 @@ func awsURIEncode(s string, encodeSlash bool) string {
 
 // do 执行带签名的 HTTP 请求
 func (s *S3FS) do(method string, u *url.URL, rangeHeader string) (*http.Response, error) {
-	req, err := http.NewRequest(method, u.String(), nil)
+	return s.doContext(context.Background(), method, u, rangeHeader)
+}
+
+// doContext 执行带签名的 HTTP 请求，支持上下文取消。
+func (s *S3FS) doContext(ctx context.Context, method string, u *url.URL, rangeHeader string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -352,15 +350,8 @@ func (s *S3FS) do(method string, u *url.URL, rangeHeader string) (*http.Response
 func (s *S3FS) Stat(p string) (fs.FileInfo, error) {
 	cp := normalizeAlistPath(p)
 
-	if s.cacheEnabled {
-		s.cacheMu.RLock()
-		if e, ok := s.statCache[cp]; ok && time.Now().Before(e.expiresAt) {
-			if info, ok := e.data.(os.FileInfo); ok {
-				s.cacheMu.RUnlock()
-				return info, nil
-			}
-		}
-		s.cacheMu.RUnlock()
+	if info, ok := s.cache.getStat(cp); ok {
+		return info, nil
 	}
 
 	key := s.keyForPath(cp)
@@ -391,11 +382,7 @@ func (s *S3FS) Stat(p string) (fs.FileInfo, error) {
 			isDir:   false,
 			modTime: modTime,
 		}
-		if s.cacheEnabled {
-			s.cacheMu.Lock()
-			s.statCache[cp] = &cacheEntry{data: os.FileInfo(info), expiresAt: time.Now().Add(s.cacheTTL)}
-			s.cacheMu.Unlock()
-		}
+		s.cache.setStat(cp, info)
 		return info, nil
 	}
 
@@ -408,11 +395,7 @@ func (s *S3FS) Stat(p string) (fs.FileInfo, error) {
 		}
 		if result.KeyCount > 0 || len(result.CommonPrefixes) > 0 {
 			info := &alistFileInfoImpl{name: path.Base(cp), isDir: true, modTime: time.Now()}
-			if s.cacheEnabled {
-				s.cacheMu.Lock()
-				s.statCache[cp] = &cacheEntry{data: os.FileInfo(info), expiresAt: time.Now().Add(s.cacheTTL)}
-				s.cacheMu.Unlock()
-			}
+			s.cache.setStat(cp, info)
 			return info, nil
 		}
 		return nil, os.ErrNotExist
@@ -425,15 +408,8 @@ func (s *S3FS) Stat(p string) (fs.FileInfo, error) {
 func (s *S3FS) ReadDir(p string) ([]fs.DirEntry, error) {
 	cp := normalizeAlistPath(p)
 
-	if s.cacheEnabled {
-		s.cacheMu.RLock()
-		if e, ok := s.dirCache[cp]; ok && time.Now().Before(e.expiresAt) {
-			if entries, ok := e.data.([]fs.DirEntry); ok {
-				s.cacheMu.RUnlock()
-				return entries, nil
-			}
-		}
-		s.cacheMu.RUnlock()
+	if entries, ok := s.cache.getDir(cp); ok {
+		return entries, nil
 	}
 
 	prefix := s.prefixForDir(cp)
@@ -486,16 +462,28 @@ func (s *S3FS) ReadDir(p string) ([]fs.DirEntry, error) {
 		token = result.NextToken
 	}
 
-	if s.cacheEnabled {
-		s.cacheMu.Lock()
-		s.dirCache[cp] = &cacheEntry{data: entries, expiresAt: time.Now().Add(s.cacheTTL)}
-		s.cacheMu.Unlock()
-	}
+	s.cache.setDir(cp, entries)
 	return entries, nil
+}
+
+// Probe 绕过本地缓存做一次真实网络探测，用于状态检查。
+func (s *S3FS) Probe() error {
+	return s.ProbeContext(context.Background())
+}
+
+// ProbeContext 支持上下文取消的连通性探测。
+func (s *S3FS) ProbeContext(ctx context.Context) error {
+	// 只列 1 条即可确认 Endpoint / Bucket / 凭证是否仍然可用
+	_, err := s.listObjectsContext(ctx, s.prefixForDir("/"), "/", "", 1)
+	return err
 }
 
 // listObjects 调用 ListObjectsV2
 func (s *S3FS) listObjects(prefix, delimiter, continuationToken string, maxKeys int) (*s3ListBucketResult, error) {
+	return s.listObjectsContext(context.Background(), prefix, delimiter, continuationToken, maxKeys)
+}
+
+func (s *S3FS) listObjectsContext(ctx context.Context, prefix, delimiter, continuationToken string, maxKeys int) (*s3ListBucketResult, error) {
 	query := url.Values{}
 	query.Set("list-type", "2")
 	if prefix != "" {
@@ -515,7 +503,7 @@ func (s *S3FS) listObjects(prefix, delimiter, continuationToken string, maxKeys 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := s.do(http.MethodGet, u, "")
+	resp, err := s.doContext(ctx, http.MethodGet, u, "")
 	if err != nil {
 		return nil, fmt.Errorf("S3 ListObjectsV2 失败: %w", err)
 	}
@@ -552,38 +540,7 @@ func (s *S3FS) Open(p string) (VFSFile, error) {
 
 // Walk 递归遍历
 func (s *S3FS) Walk(root string, fn filepath.WalkFunc) error {
-	root = normalizeAlistPath(root)
-	return s.walkInternal(root, fn)
-}
-
-func (s *S3FS) walkInternal(p string, fn filepath.WalkFunc) error {
-	info, err := s.Stat(p)
-	if err != nil {
-		return fn(p, nil, err)
-	}
-	if err := fn(p, info, nil); err != nil {
-		if err == filepath.SkipDir {
-			return nil
-		}
-		return err
-	}
-	if !info.IsDir() {
-		return nil
-	}
-	entries, err := s.ReadDir(p)
-	if err != nil {
-		return fn(p, info, err)
-	}
-	for _, e := range entries {
-		child := strings.TrimRight(p, "/") + "/" + e.Name()
-		if err := s.walkInternal(child, fn); err != nil {
-			if err == filepath.SkipDir {
-				continue
-			}
-			return err
-		}
-	}
-	return nil
+	return walkRemote(s, root, fn)
 }
 
 // GetHTTPURL 返回预签名 URL（V2.3，供 FFmpeg 使用）
@@ -684,16 +641,11 @@ func (f *s3File) Read(p []byte) (int, error) {
 }
 
 func (f *s3File) ReadAt(p []byte, off int64) (int, error) {
-	if len(p) == 0 {
-		return 0, nil
+	fileSize := int64(-1)
+	if f.stat != nil {
+		fileSize = f.stat.Size()
 	}
-	if off < 0 {
-		return 0, fmt.Errorf("ReadAt: negative offset")
-	}
-	if f.blockCache != nil {
-		return f.readAtCachedS3(p, off)
-	}
-	return f.readAtDirect(p, off)
+	return readAtCached(f.blockCache, fileSize, f.readAtDirect, p, off)
 }
 
 func (f *s3File) readAtDirect(p []byte, off int64) (int, error) {
@@ -754,87 +706,6 @@ func (f *s3File) openRangeReader(off, length int64) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("S3 GET 状态码 %d: %s", resp.StatusCode, bytes.TrimSpace(body))
 	}
 	return resp.Body, nil
-}
-
-// readAtCachedS3 带块缓存的 ReadAt（与 alist 版逻辑相同）
-func (f *s3File) readAtCachedS3(p []byte, off int64) (int, error) {
-	cache := f.blockCache
-	fileSize := int64(-1)
-	if f.stat != nil {
-		fileSize = f.stat.Size()
-	}
-	blockSize := cache.blockSize
-	total := 0
-	cur := off
-	end := off + int64(len(p))
-
-	for cur < end {
-		blockOff := (cur / blockSize) * blockSize
-
-		block, err := f.ensureBlock(cache, blockOff, fileSize)
-		if err != nil {
-			if total > 0 {
-				if err == io.EOF {
-					return total, io.EOF
-				}
-				return total, err
-			}
-			return 0, err
-		}
-		inBlock := cur - block.offset
-		if inBlock >= int64(len(block.data)) {
-			if total > 0 {
-				return total, io.EOF
-			}
-			return 0, io.EOF
-		}
-		n := copy(p[total:], block.data[inBlock:])
-		total += n
-		cur += int64(n)
-		if int64(len(block.data)) < blockSize && cur >= block.offset+int64(len(block.data)) {
-			if total < len(p) {
-				return total, io.EOF
-			}
-		}
-		if n == 0 {
-			break
-		}
-	}
-	if total < len(p) {
-		return total, io.EOF
-	}
-	return total, nil
-}
-
-func (f *s3File) ensureBlock(cache *webdavBlockCache, blockOff, fileSize int64) (*webdavCacheBlock, error) {
-	if b, ok := cache.get(blockOff); ok {
-		return b, nil
-	}
-	if wait := cache.acquireFetch(blockOff); wait != nil {
-		<-wait
-		if b, ok := cache.get(blockOff); ok {
-			return b, nil
-		}
-	}
-	defer cache.releaseFetch(blockOff)
-
-	readLen := cache.blockSize
-	if fileSize >= 0 {
-		if blockOff >= fileSize {
-			return nil, io.EOF
-		}
-		if blockOff+readLen > fileSize {
-			readLen = fileSize - blockOff
-		}
-	}
-	data := make([]byte, readLen)
-	n, err := f.readAtDirect(data, blockOff)
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
-	block := &webdavCacheBlock{offset: blockOff, data: data[:n]}
-	cache.put(block)
-	return block, nil
 }
 
 func (f *s3File) Close() error {
