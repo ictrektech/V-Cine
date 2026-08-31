@@ -20,6 +20,13 @@ type StreamHandler struct {
 	logger           *zap.SugaredLogger
 }
 
+// AnalysisSource 内部视频分析媒体源。
+// 与 Direct 行为一致（本地/VFS + Range），但不要求用户认证（由 /internal 路由的
+// AnalysisSourceToken 中间件保护），供 detect/structure 服务按 mediaId 拉流。
+func (h *StreamHandler) AnalysisSource(c *gin.Context) {
+	h.Direct(c)
+}
+
 // Direct 直接提供原始文件流（支持Range请求，用于MP4等浏览器兼容格式）
 // 对于 STRM 远程流，通过后端代理转发
 // 对于 WebDAV 路径（webdav://），通过 VFS 打开并使用 http.ServeContent（支持 Range）

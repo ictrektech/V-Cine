@@ -232,16 +232,18 @@ type videoAnalysisSettingsView struct {
 	Enabled          bool   `json:"enabled"`
 	SceneBaseURL     string `json:"scene_base_url"`
 	StructureBaseURL string `json:"structure_base_url"`
+	MediaBaseURL     string `json:"media_base_url"`
 	AssetDir         string `json:"asset_dir"`
 	DescribeEnabled  bool   `json:"describe_enabled"`
 }
 
 // updateVideoAnalysisSettingsRequest 是前端可更新的视频分析配置子集。
-// asset_dir 属于数据目录，只读展示，不通过该接口修改。
+// asset_dir 属于数据目录，只读展示，不通过该接口修改；source_token 仅通过配置文件设置。
 type updateVideoAnalysisSettingsRequest struct {
 	Enabled          bool   `json:"enabled"`
 	SceneBaseURL     string `json:"scene_base_url"`
 	StructureBaseURL string `json:"structure_base_url"`
+	MediaBaseURL     string `json:"media_base_url"`
 	DescribeEnabled  bool   `json:"describe_enabled"`
 }
 
@@ -252,6 +254,7 @@ func (h *VideoAnalysisHandler) GetSettings(c *gin.Context) {
 		Enabled:          cfg.Enabled,
 		SceneBaseURL:     cfg.SceneBaseURL,
 		StructureBaseURL: cfg.StructureBaseURL,
+		MediaBaseURL:     cfg.MediaBaseURL,
 		AssetDir:         cfg.AssetDir,
 		DescribeEnabled:  cfg.DescribeEnabled,
 	}})
@@ -272,6 +275,7 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 	updated.Enabled = req.Enabled
 	updated.SceneBaseURL = strings.TrimSpace(req.SceneBaseURL)
 	updated.StructureBaseURL = strings.TrimSpace(req.StructureBaseURL)
+	updated.MediaBaseURL = strings.TrimSpace(req.MediaBaseURL)
 	updated.DescribeEnabled = req.DescribeEnabled
 
 	if updated.Enabled {
@@ -279,12 +283,12 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "启用视频分析需要填写 Scene 与 Structure 服务地址"})
 			return
 		}
-		if updated.AssetDir == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "启用视频分析需要配置产物目录 asset_dir"})
+		if updated.MediaBaseURL == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "启用视频分析需要填写 media_base_url（detect/structure 访问 nowen-video 的媒体源地址）"})
 			return
 		}
-		if _, err := service.NewVideoPathMapper(updated.PathMappings); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if updated.AssetDir == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "启用视频分析需要配置产物目录 asset_dir"})
 			return
 		}
 	}

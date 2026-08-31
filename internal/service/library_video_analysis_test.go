@@ -26,11 +26,9 @@ func setupLibraryVideoAnalysisTest(t *testing.T) (*LibraryService, *repository.R
 
 	libSvc := NewLibraryService(repos.Library, repos.Media, repos.Series, repos.Favorite, repos.WatchHistory, repos.MediaPerson, repos.ScanClassification, &config.Config{}, nil, nil, logger)
 	vaClient := &fakeVideoAnalysisClient{}
-	mapper, err := NewVideoPathMapper([]config.VideoAnalysisPathMapping{{Source: dir, Target: "/photos"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	vaSvc := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, vaClient, mapper, nil, nil, filepath.Join(dir, "cache"), false, nil, logger, 0, 0, nil)
+	vaCfg := &config.Config{}
+	vaCfg.VideoAnalysis.MediaBaseURL = "http://nowen-video:8080"
+	vaSvc := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, vaClient, nil, nil, filepath.Join(dir, "cache"), false, nil, logger, 0, 0, vaCfg)
 	vaWorker := NewVideoAnalysisWorker(vaSvc, repos.VideoAnalysis, logger, 1)
 	libSvc.videoAnalysis = vaSvc
 	libSvc.videoAnalysisWorker = vaWorker

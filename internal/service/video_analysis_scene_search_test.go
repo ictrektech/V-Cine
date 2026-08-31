@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/testutil"
@@ -66,15 +65,11 @@ func setupSceneSearchService(t *testing.T, embServer *httptest.Server) (*VideoAn
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	mapper, err := NewVideoPathMapper([]config.VideoAnalysisPathMapping{{Source: dir, Target: "/photos"}})
-	if err != nil {
-		t.Fatal(err)
-	}
 	embClient, err := NewEmbeddingClient(embServer.URL, "vit-b-16-siglip2__webli")
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeVideoAnalysisClient{}, mapper, repos.Scene, embClient, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, nil)
+	svc := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeVideoAnalysisClient{}, repos.Scene, embClient, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, nil)
 	return svc, repos.VideoAnalysis, media.ID
 }
 

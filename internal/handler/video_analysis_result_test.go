@@ -32,15 +32,11 @@ func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repo
 		t.Fatal(err)
 	}
 	assetDir := filepath.Join(dir, "asset")
-	mapper, err := service.NewVideoPathMapper([]config.VideoAnalysisPathMapping{{Source: dir, Target: "/photos"}})
-	if err != nil {
-		t.Fatal(err)
-	}
 	media := &model.Media{LibraryID: "library-1", Title: "Movie", FilePath: videoPath, FileSize: 5}
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, nil, nil, assetDir, false, nil, nil, time.Millisecond, time.Second, nil)
+	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, nil, nil, assetDir, false, nil, nil, time.Millisecond, time.Second, nil)
 	return NewVideoAnalysisHandler(vaService, nil, &config.Config{}), repos.VideoAnalysis, media.ID, assetDir
 }
 

@@ -67,15 +67,11 @@ func setupSceneSearchHandler(t *testing.T) (*VideoAnalysisHandler, *repository.V
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	mapper, err := service.NewVideoPathMapper([]config.VideoAnalysisPathMapping{{Source: dir, Target: "/photos"}})
-	if err != nil {
-		t.Fatal(err)
-	}
 	embClient, err := service.NewEmbeddingClient(newHandlerFakeEmbeddingServer(t).URL, "vit-b-16-siglip2__webli")
 	if err != nil {
 		t.Fatal(err)
 	}
-	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, mapper, repos.Scene, embClient, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, nil)
+	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, repos.Scene, embClient, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, nil)
 	return NewVideoAnalysisHandler(vaService, nil, &config.Config{}), repos.VideoAnalysis, repos.Scene, media.ID
 }
 

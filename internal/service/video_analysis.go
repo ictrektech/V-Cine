@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,7 +82,6 @@ type VideoAnalysisService struct {
 	tasks            *repository.VideoAnalysisTaskRepo
 	media            *repository.MediaRepo
 	client           videoAnalysisExternalClient
-	pathMapper       *VideoPathMapper
 	sceneRepo        *repository.SceneRepo
 	embeddingClient  *EmbeddingClient
 	assetDir         string
@@ -107,7 +107,6 @@ func NewVideoAnalysisService(
 	tasks *repository.VideoAnalysisTaskRepo,
 	media *repository.MediaRepo,
 	client videoAnalysisExternalClient,
-	pathMapper *VideoPathMapper,
 	sceneRepo *repository.SceneRepo,
 	embeddingClient *EmbeddingClient,
 	assetDir string,
@@ -124,7 +123,7 @@ func NewVideoAnalysisService(
 		jobTimeout = 2 * time.Hour
 	}
 	s := &VideoAnalysisService{
-		tasks: tasks, media: media, client: client, pathMapper: pathMapper, sceneRepo: sceneRepo, embeddingClient: embeddingClient,
+		tasks: tasks, media: media, client: client, sceneRepo: sceneRepo, embeddingClient: embeddingClient,
 		assetDir:        strings.TrimSpace(assetDir),
 		describeEnabled: describeEnabled, wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
 		appCfg: appCfg,
@@ -166,8 +165,25 @@ func (s *VideoAnalysisService) SetBaseURLs(sceneBaseURL, structureBaseURL string
 	return nil
 }
 
+// buildAnalysisSourceURL 生成 detect/structure 可访问的内部媒体源 URL。
+// 地址基于配置的 media_base_url，按 mediaId 寻址，不依赖宿主文件路径。
+func (s *VideoAnalysisService) buildAnalysisSourceURL(mediaID string) string {
+	if s.appCfg == nil {
+		return ""
+	}
+	base := strings.TrimRight(strings.TrimSpace(s.appCfg.VideoAnalysis.MediaBaseURL), "/")
+	if base == "" {
+		return ""
+	}
+	u := base + "/internal/video-analysis/source/" + url.PathEscape(mediaID)
+	if token := strings.TrimSpace(s.appCfg.VideoAnalysis.SourceToken); token != "" {
+		u += "?token=" + url.QueryEscape(token)
+	}
+	return u
+}
+
 func (s *VideoAnalysisService) IsAvailable() bool {
-	return s != nil && s.client != nil && s.tasks != nil && s.media != nil && s.pathMapper != nil
+	return s != nil && s.client != nil && s.tasks != nil && s.media != nil
 }
 
 // VideoAnalysisConfig 视频分析服务配置（供前端读取）
@@ -332,9 +348,11 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 	if IsRemotePath(media.FilePath) {
 		return nil, errors.New("remote media is not supported by video analysis")
 	}
-	mappedPath, err := s.pathMapper.Map(media.FilePath)
-	if err != nil {
-		return nil, err
+	// URL 媒体源寻址：detect/structure 通过内部 HTTP 接口按 mediaId 拉流，
+	// 不依赖宿主文件路径，也不依赖两侧共享文件系统。
+	mappedPath := s.buildAnalysisSourceURL(mediaID)
+	if mappedPath == "" {
+		return nil, errors.New("video analysis media_base_url is not configured")
 	}
 	fileInfo, err := os.Stat(media.FilePath)
 	if err != nil {

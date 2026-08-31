@@ -137,23 +137,18 @@ type CacheConfig struct {
 	CleanupIntervalMin int `mapstructure:"cleanup_interval_min"`
 }
 
-// VideoAnalysisPathMapping 将 Nowen 可见的视频路径映射为分析服务可见路径。
-type VideoAnalysisPathMapping struct {
-	Source string `mapstructure:"source" yaml:"source" json:"source"`
-	Target string `mapstructure:"target" yaml:"target" json:"target"`
-}
-
 // VideoAnalysisConfig 场景检测和视频结构化服务配置。
 type VideoAnalysisConfig struct {
-	Enabled             bool                       `mapstructure:"enabled" yaml:"enabled" json:"enabled"`
-	SceneBaseURL        string                     `mapstructure:"scene_base_url" yaml:"scene_base_url" json:"scene_base_url"`
-	StructureBaseURL    string                     `mapstructure:"structure_base_url" yaml:"structure_base_url" json:"structure_base_url"`
-	PathMappings        []VideoAnalysisPathMapping `mapstructure:"path_mappings" yaml:"path_mappings" json:"path_mappings"`
-	AssetDir            string                     `mapstructure:"asset_dir" yaml:"asset_dir" json:"asset_dir"`
-	MaxConcurrent       int                        `mapstructure:"max_concurrent" yaml:"max_concurrent" json:"max_concurrent"`
-	PollIntervalSeconds int                        `mapstructure:"poll_interval_seconds" yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
-	JobTimeoutMinutes   int                        `mapstructure:"job_timeout_minutes" yaml:"job_timeout_minutes" json:"job_timeout_minutes"`
-	DescribeEnabled     bool                       `mapstructure:"describe_enabled" yaml:"describe_enabled" json:"describe_enabled"`
+	Enabled             bool   `mapstructure:"enabled" yaml:"enabled" json:"enabled"`
+	SceneBaseURL        string `mapstructure:"scene_base_url" yaml:"scene_base_url" json:"scene_base_url"`
+	StructureBaseURL    string `mapstructure:"structure_base_url" yaml:"structure_base_url" json:"structure_base_url"`
+	MediaBaseURL        string `mapstructure:"media_base_url" yaml:"media_base_url" json:"media_base_url"`
+	SourceToken         string `mapstructure:"source_token" yaml:"source_token" json:"source_token"`
+	AssetDir            string `mapstructure:"asset_dir" yaml:"asset_dir" json:"asset_dir"`
+	MaxConcurrent       int    `mapstructure:"max_concurrent" yaml:"max_concurrent" json:"max_concurrent"`
+	PollIntervalSeconds int    `mapstructure:"poll_interval_seconds" yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
+	JobTimeoutMinutes   int    `mapstructure:"job_timeout_minutes" yaml:"job_timeout_minutes" json:"job_timeout_minutes"`
+	DescribeEnabled     bool   `mapstructure:"describe_enabled" yaml:"describe_enabled" json:"describe_enabled"`
 }
 
 // ==================== 主配置结构体 ====================
@@ -884,7 +879,8 @@ func setDefaults() {
 	viper.SetDefault("video_analysis.enabled", false)
 	viper.SetDefault("video_analysis.scene_base_url", "http://localhost:8910")
 	viper.SetDefault("video_analysis.structure_base_url", "http://localhost:8911")
-	viper.SetDefault("video_analysis.path_mappings", []VideoAnalysisPathMapping{})
+	viper.SetDefault("video_analysis.media_base_url", "")
+	viper.SetDefault("video_analysis.source_token", "")
 	viper.SetDefault("video_analysis.asset_dir", "")
 	viper.SetDefault("video_analysis.max_concurrent", 2)
 	viper.SetDefault("video_analysis.poll_interval_seconds", 2)

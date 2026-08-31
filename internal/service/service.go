@@ -414,9 +414,8 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			cfg.VideoAnalysis.StructureBaseURL,
 			nil,
 		)
-		pathMapper, mappingErr := NewVideoPathMapper(cfg.VideoAnalysis.PathMappings)
-		if clientErr != nil || mappingErr != nil {
-			logger.Errorf("视频分析配置无效，功能未启动: client=%v mapping=%v", clientErr, mappingErr)
+		if clientErr != nil {
+			logger.Errorf("视频分析配置无效，功能未启动: client=%v", clientErr)
 		} else {
 			// 创建 embedding 客户端（可选，配置了 embedding_ai 才启用）
 			var embeddingClient *EmbeddingClient
@@ -431,7 +430,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 				}
 			}
 			svcs.VideoAnalysis = NewVideoAnalysisService(
-				repos.VideoAnalysis, repos.Media, analysisClient, pathMapper, repos.Scene, embeddingClient,
+				repos.VideoAnalysis, repos.Media, analysisClient, repos.Scene, embeddingClient,
 				cfg.VideoAnalysis.AssetDir,
 				cfg.VideoAnalysis.DescribeEnabled, wsHub, logger,
 				time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,

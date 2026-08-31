@@ -505,6 +505,14 @@ func main() {
 
 	}
 
+	// 内部媒体源：供 detect/structure 视频分析服务按 mediaId 拉流，不走用户 JWT。
+	// 令牌由 video_analysis.source_token 配置；为空时仅依赖内网隔离。
+	internal := r.Group("/internal")
+	internal.Use(middleware.AnalysisSourceToken(cfg.VideoAnalysis.SourceToken))
+	{
+		internal.GET("/video-analysis/source/:id", handlers.Stream.AnalysisSource)
+	}
+
 	// 豆瓣 Cookie 懒人版一键导入（公开路由，通过一次性 token 鉴权，专供 douban.com 页面 Bookmarklet 跨域调用）
 	// 自带跨域放行：仅放行 douban.com / www.douban.com / *.douban.com
 	r.OPTIONS("/api/admin/settings/douban/import", handler.DoubanImportCORS(), func(c *gin.Context) { c.Status(http.StatusNoContent) })

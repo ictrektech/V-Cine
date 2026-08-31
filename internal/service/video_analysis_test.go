@@ -85,11 +85,9 @@ func setupVideoAnalysisService(t *testing.T, client videoAnalysisExternalClient)
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	mapper, err := NewVideoPathMapper([]config.VideoAnalysisPathMapping{{Source: dir, Target: "/photos"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, client, mapper, nil, nil, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, nil)
+	cfg := &config.Config{}
+	cfg.VideoAnalysis.MediaBaseURL = "http://nowen-video:8080"
+	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, client, nil, nil, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, cfg)
 	return service, repos.VideoAnalysis, media.ID
 }
 
@@ -110,7 +108,7 @@ func TestVideoAnalysisServiceProcessesDetectAndStructure(t *testing.T) {
 	if stored.Status != model.VideoAnalysisStatusSucceeded || stored.VideoHash != "hash-1" || stored.ActiveKey != nil {
 		t.Fatalf("unexpected task: %+v", stored)
 	}
-	if len(client.structureSubmits) != 1 || client.structureSubmits[0].VideoPath != "/photos/movie.mp4" || client.structureSubmits[0].DetectJobID != "detect-1" {
+	if len(client.structureSubmits) != 1 || client.structureSubmits[0].VideoPath != "http://nowen-video:8080/internal/video-analysis/source/"+mediaID || client.structureSubmits[0].DetectJobID != "detect-1" {
 		t.Fatalf("structure submits: %+v", client.structureSubmits)
 	}
 }
@@ -515,4 +513,53 @@ func TestWorkflowGetWorkflow(t *testing.T) {
 		t.Fatalf("expected queued, got %s", wf.Status)
 	}
 	_ = tasks
+}
+
+func TestBuildAnalysisSourceURL(t *testing.T) {
+	svc := &VideoAnalysisService{appCfg: &config.Config{}}
+	svc.appCfg.VideoAnalysis.MediaBaseURL = "http://nowen-video:8080/"
+	svc.appCfg.VideoAnalysis.SourceToken = "secret"
+
+	got := svc.buildAnalysisSourceURL("media/1")
+	want := "http://nowen-video:8080/internal/video-analysis/source/media%2F1?token=secret"
+	if got != want {
+		t.Fatalf("buildAnalysisSourceURL() = %q, want %q", got, want)
+	}
+
+	svc.appCfg.VideoAnalysis.SourceToken = ""
+	got = svc.buildAnalysisSourceURL("abc")
+	want = "http://nowen-video:8080/internal/video-analysis/source/abc"
+	if got != want {
+		t.Fatalf("buildAnalysisSourceURL() without token = %q, want %q", got, want)
+	}
+}
+
+func TestVideoAnalysisServiceSubmitUsesURLAccessMode(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}); err != nil {
+		t.Fatal(err)
+	}
+	repos := repository.NewRepositories(db)
+	dir := t.TempDir()
+	videoPath := filepath.Join(dir, "movie.mp4")
+	if err := os.WriteFile(videoPath, []byte("video"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	media := &model.Media{LibraryID: "library-1", Title: "Movie", FilePath: videoPath, FileSize: 5}
+	if err := repos.Media.Create(media); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{}
+	cfg.VideoAnalysis.MediaBaseURL = "http://nowen-video:8080"
+	cfg.VideoAnalysis.SourceToken = "secret"
+	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeVideoAnalysisClient{}, nil, nil, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, cfg)
+
+	task, reused, err := service.SubmitMedia(media.ID, VideoAnalysisSubmitOptions{})
+	if err != nil || reused {
+		t.Fatalf("SubmitMedia reused=%v err=%v", reused, err)
+	}
+	want := "http://nowen-video:8080/internal/video-analysis/source/" + media.ID + "?token=secret"
+	if task.MappedVideoPath != want {
+		t.Fatalf("MappedVideoPath = %q, want %q", task.MappedVideoPath, want)
+	}
 }

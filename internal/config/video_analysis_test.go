@@ -23,9 +23,6 @@ video_analysis:
   enabled: true
   scene_base_url: "http://scene:8910/"
   structure_base_url: "http://structure:8911/"
-  path_mappings:
-    - source: /media
-      target: /photos
   asset_dir: /custom/structure
   max_concurrent: 0
   poll_interval_seconds: 0
@@ -49,9 +46,6 @@ video_analysis:
 	}
 	if !cfg.VideoAnalysis.Enabled || cfg.VideoAnalysis.SceneBaseURL != "http://scene:8910" || cfg.VideoAnalysis.StructureBaseURL != "http://structure:8911" {
 		t.Fatalf("unexpected video analysis config: %+v", cfg.VideoAnalysis)
-	}
-	if len(cfg.VideoAnalysis.PathMappings) != 1 || cfg.VideoAnalysis.PathMappings[0].Source != "/media" || cfg.VideoAnalysis.PathMappings[0].Target != "/photos" {
-		t.Fatalf("unexpected path mappings: %+v", cfg.VideoAnalysis.PathMappings)
 	}
 	if cfg.VideoAnalysis.AssetDir != "/custom/structure" {
 		t.Fatalf("unexpected asset_dir: %+v", cfg.VideoAnalysis.AssetDir)

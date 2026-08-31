@@ -314,3 +314,25 @@ func AdminOnly() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// AnalysisSourceToken 内部媒体源访问令牌校验中间件。
+// token 为空时跳过校验（仅依赖内网隔离）；非空时要求请求头 X-Analysis-Token
+// 或查询参数 token 与配置一致，避免分析拉流接口被公网/其他容器滥用。
+func AnalysisSourceToken(token string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if token == "" {
+			c.Next()
+			return
+		}
+		provided := c.GetHeader("X-Analysis-Token")
+		if provided == "" {
+			provided = c.Query("token")
+		}
+		if provided != token {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid analysis source token"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}

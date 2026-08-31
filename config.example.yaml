@@ -89,17 +89,16 @@ cache:
   cleanup_interval_min: 60
 
 # ==================== 视频分析（场景检测与结构化）====================
-# 默认关闭。Scene 和 Structure 必须能通过 target 路径读取与 Nowen source
-# 对应的同一视频。多条规则按最长 source 前缀匹配，无匹配时任务不会提交。
+# 默认关闭。Scene 和 Structure 通过 media_base_url 从 nowen-video 拉取媒体流，
+# 不再依赖宿主路径映射，也不需要两侧共享文件系统。
 video_analysis:
   enabled: false
   scene_base_url: http://localhost:8910
   structure_base_url: http://localhost:8911
-  # path_mappings 可选：不配置时按原路径透传（Nowen 与分析服务路径一致时无需配置）。
-  # 仅当两边看到的视频路径不同时才需要配置，例如 Nowen 看到 /media，分析服务看到 /photos。
-  # path_mappings:
-  #   - source: /media
-  #     target: /photos
+  # detect/structure 能访问到 nowen-video 的地址，例如 http://nowen-video:8080
+  media_base_url: ""
+  # 可选内部媒体源令牌；留空表示仅依赖内网隔离
+  source_token: ""
   # Nowen 自己的结构化产物数据目录（默认跟随 cache_dir/structure，一般无需配置）
   max_concurrent: 2
   poll_interval_seconds: 2
