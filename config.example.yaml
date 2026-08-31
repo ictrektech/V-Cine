@@ -99,6 +99,8 @@ video_analysis:
   media_base_url: ""
   # 可选内部媒体源令牌；留空表示仅依赖内网隔离
   source_token: ""
+  # 远程视频（webdav/alist/s3）结构化分析：默认关闭，开启后会消耗带宽且较慢
+  remote_video_enabled: false
   # Nowen 自己的结构化产物数据目录（默认跟随 cache_dir/structure，一般无需配置）
   max_concurrent: 2
   poll_interval_seconds: 2

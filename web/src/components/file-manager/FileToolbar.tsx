@@ -57,6 +57,7 @@ interface FileToolbarProps {
   onBatchAnalyze: () => void
   videoAnalysisEnabled?: boolean
   videoAnalysisDisabledReason?: string
+  remoteVideoEnabled?: boolean
   selectedAllRemote?: boolean
   onBatchRename: () => void
   onBatchDelete: () => void
@@ -78,16 +79,19 @@ export default function FileToolbar({
   viewMode, onViewModeChange,
   selectedCount,
   scrapeSource, onScrapeSourceChange,
-  onBatchScrape, onBatchAnalyze, videoAnalysisEnabled = true, videoAnalysisDisabledReason, selectedAllRemote = false,
+  onBatchScrape, onBatchAnalyze, videoAnalysisEnabled = true, videoAnalysisDisabledReason, remoteVideoEnabled = false, selectedAllRemote = false,
   onBatchRename, onBatchDelete, onClearSelection,
   children,
 }: FileToolbarProps) {
-  const analysisDisabled = !videoAnalysisEnabled || selectedAllRemote
+  const remoteDisabled = selectedAllRemote && !remoteVideoEnabled
+  const analysisDisabled = !videoAnalysisEnabled || remoteDisabled
   let analysisTitle: string | undefined
   if (!videoAnalysisEnabled) {
     analysisTitle = videoAnalysisDisabledReason || '视频分析服务未启用'
-  } else if (selectedAllRemote) {
+  } else if (remoteDisabled) {
     analysisTitle = REMOTE_ANALYSIS_DISABLED_TIP
+  } else if (selectedAllRemote) {
+    analysisTitle = '远程视频已开启，将通过 URL 拉流分析（速度较慢并消耗网络带宽）'
   }
 
   return (

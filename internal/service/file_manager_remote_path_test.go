@@ -72,13 +72,19 @@ func TestRemoteDirParent(t *testing.T) {
 
 type walkProbeVFS struct {
 	walkFn func(root string, fn filepath.WalkFunc) error
+	statFn func(path string) (fs.FileInfo, error)
 }
 
 func (v walkProbeVFS) Open(string) (VFSFile, error) { return nil, nil }
 func (v walkProbeVFS) ReadDir(string) ([]fs.DirEntry, error) {
 	return nil, nil
 }
-func (v walkProbeVFS) Stat(string) (fs.FileInfo, error) { return nil, nil }
+func (v walkProbeVFS) Stat(path string) (fs.FileInfo, error) {
+	if v.statFn != nil {
+		return v.statFn(path)
+	}
+	return nil, nil
+}
 func (v walkProbeVFS) Walk(root string, fn filepath.WalkFunc) error {
 	return v.walkFn(root, fn)
 }

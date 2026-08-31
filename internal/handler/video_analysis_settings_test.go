@@ -17,13 +17,14 @@ func TestVideoAnalysisGetSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	cfg := &config.Config{VideoAnalysis: config.VideoAnalysisConfig{
-		Enabled:          true,
-		SceneBaseURL:     "http://scene:8910",
-		StructureBaseURL: "http://structure:8911",
-		MediaBaseURL:     "http://nowen-video:8080",
-		AssetDir:         "/cache/structure",
-		DescribeEnabled:  true,
-		MaxConcurrent:    99, // 不可编辑字段不应出现在 settings 响应中
+		Enabled:            true,
+		SceneBaseURL:       "http://scene:8910",
+		StructureBaseURL:   "http://structure:8911",
+		MediaBaseURL:       "http://nowen-video:8080",
+		RemoteVideoEnabled: true,
+		AssetDir:           "/cache/structure",
+		DescribeEnabled:    true,
+		MaxConcurrent:      99, // 不可编辑字段不应出现在 settings 响应中
 	}}
 	h := NewVideoAnalysisHandler(nil, nil, cfg)
 
@@ -43,7 +44,7 @@ func TestVideoAnalysisGetSettings(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	if !resp.Data.Enabled || resp.Data.SceneBaseURL != "http://scene:8910" || resp.Data.StructureBaseURL != "http://structure:8911" || resp.Data.MediaBaseURL != "http://nowen-video:8080" || resp.Data.AssetDir != "/cache/structure" || !resp.Data.DescribeEnabled {
+	if !resp.Data.Enabled || resp.Data.SceneBaseURL != "http://scene:8910" || resp.Data.StructureBaseURL != "http://structure:8911" || resp.Data.MediaBaseURL != "http://nowen-video:8080" || !resp.Data.RemoteVideoEnabled || resp.Data.AssetDir != "/cache/structure" || !resp.Data.DescribeEnabled {
 		t.Fatalf("unexpected settings view: %+v", resp.Data)
 	}
 }
@@ -93,7 +94,7 @@ func TestVideoAnalysisUpdateSettingsPreservesAssetDir(t *testing.T) {
 	r := gin.New()
 	r.PUT("/settings", h.UpdateSettings)
 
-	body := `{"enabled":true,"scene_base_url":"http://scene:8910","structure_base_url":"http://structure:8911","media_base_url":"http://nowen-video:8080","asset_dir":"/data/should-be-ignored"}`
+	body := `{"enabled":true,"scene_base_url":"http://scene:8910","structure_base_url":"http://structure:8911","media_base_url":"http://nowen-video:8080","remote_video_enabled":true,"asset_dir":"/data/should-be-ignored"}`
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodPut, "/settings", bytes.NewBufferString(body)))
 
@@ -108,6 +109,9 @@ func TestVideoAnalysisUpdateSettingsPreservesAssetDir(t *testing.T) {
 	}
 	if cfg.VideoAnalysis.MediaBaseURL != "http://nowen-video:8080" {
 		t.Fatalf("media_base_url should be updated, got %q", cfg.VideoAnalysis.MediaBaseURL)
+	}
+	if !cfg.VideoAnalysis.RemoteVideoEnabled {
+		t.Fatal("remote_video_enabled should be updated")
 	}
 	if _, err := os.Stat(filepath.Join(tempDir, "config", "video_analysis.yaml")); err != nil {
 		t.Fatalf("expected shard config to be written: %v", err)

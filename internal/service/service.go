@@ -437,6 +437,8 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 				time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,
 				cfg,
 			)
+			// 注入 VFS：远程 webdav/alist/s3 媒体也能提交视频分析（URL 模式统一拉流）。
+			svcs.VideoAnalysis.SetVFSManager(vfsManager)
 			// 注入 describe_enabled 动态更新回调
 			aiService.SetDescribeEnabledCallback(svcs.VideoAnalysis.SetDescribeEnabled)
 

@@ -82,6 +82,7 @@ type VideoAnalysisService struct {
 	tasks            *repository.VideoAnalysisTaskRepo
 	media            *repository.MediaRepo
 	client           videoAnalysisExternalClient
+	vfsMgr           *VFSManager
 	sceneRepo        *repository.SceneRepo
 	embeddingClient  *EmbeddingClient
 	assetDir         string
@@ -143,6 +144,11 @@ func (s *VideoAnalysisService) SetDescribeEnabled(enabled bool) {
 	s.mu.Unlock()
 }
 
+// SetVFSManager 注入远程文件系统管理器（webdav/alist/s3），用于远程媒体提交分析。
+func (s *VideoAnalysisService) SetVFSManager(vfsMgr *VFSManager) {
+	s.vfsMgr = vfsMgr
+}
+
 // SetBaseURLs 热更新运行中的 Scene / Structure 服务地址，保存后立即生效。
 func (s *VideoAnalysisService) SetBaseURLs(sceneBaseURL, structureBaseURL string) error {
 	sceneBase, err := normalizeAnalysisBaseURL(sceneBaseURL)
@@ -188,15 +194,21 @@ func (s *VideoAnalysisService) IsAvailable() bool {
 
 // VideoAnalysisConfig 视频分析服务配置（供前端读取）
 type VideoAnalysisConfig struct {
-	DescribeEnabled bool `json:"describe_enabled"`
+	DescribeEnabled    bool `json:"describe_enabled"`
+	RemoteVideoEnabled bool `json:"remote_video_enabled"`
 }
 
 // GetConfig 返回视频分析服务配置
 func (s *VideoAnalysisService) GetConfig() VideoAnalysisConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	remoteEnabled := false
+	if s.appCfg != nil {
+		remoteEnabled = s.appCfg.VideoAnalysis.RemoteVideoEnabled
+	}
 	return VideoAnalysisConfig{
-		DescribeEnabled: s.describeEnabled,
+		DescribeEnabled:    s.describeEnabled,
+		RemoteVideoEnabled: remoteEnabled,
 	}
 }
 
@@ -345,16 +357,18 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 	if media.StreamURL != "" {
 		return nil, errors.New("remote STRM media is not supported by video analysis")
 	}
-	if IsRemotePath(media.FilePath) {
-		return nil, errors.New("remote media is not supported by video analysis")
-	}
 	// URL 媒体源寻址：detect/structure 通过内部 HTTP 接口按 mediaId 拉流，
 	// 不依赖宿主文件路径，也不依赖两侧共享文件系统。
 	mappedPath := s.buildAnalysisSourceURL(mediaID)
 	if mappedPath == "" {
 		return nil, errors.New("video analysis media_base_url is not configured")
 	}
-	fileInfo, err := os.Stat(media.FilePath)
+	// 远程视频结构化默认关闭：避免无感知消耗带宽/网络。
+	if IsRemotePath(media.FilePath) && (s.appCfg == nil || !s.appCfg.VideoAnalysis.RemoteVideoEnabled) {
+		return nil, errors.New("远程视频结构化未开启，已跳过；本地/内网视频可正常解析")
+	}
+	// 本地文件用 os.Stat；webdav/alist/s3 远程文件用 VFS.Stat（URL 模式已能统一拉流）。
+	fileInfo, err := s.statVideoPath(media.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("stat video file: %w", err)
 	}
@@ -463,6 +477,8 @@ func classifyVideoAnalysisSkip(err error) (kind, message string, ok bool) {
 	switch {
 	case strings.Contains(msg, "remote STRM media is not supported"):
 		return "unsupported_strm", "STRM/远程流媒体暂不支持视频分析", true
+	case strings.Contains(msg, "远程视频结构化未开启"):
+		return "remote_video_disabled", "远程目录未开启结构化解析，已跳过；本地/内网视频可正常解析", true
 	case strings.Contains(msg, "remote media is not supported"):
 		return "unsupported_remote", "远程视频暂不支持视频分析", true
 	case strings.Contains(msg, "stat video file"):
@@ -1129,7 +1145,7 @@ func (s *VideoAnalysisService) waitForJob(ctx context.Context, jobID string, get
 }
 
 func (s *VideoAnalysisService) verifyFileSnapshot(task *model.VideoAnalysisTask) error {
-	info, err := os.Stat(task.VideoPath)
+	info, err := s.statVideoPath(task.VideoPath)
 	if err != nil {
 		return fmt.Errorf("stat video file: %w", err)
 	}
@@ -1137,6 +1153,17 @@ func (s *VideoAnalysisService) verifyFileSnapshot(task *model.VideoAnalysisTask)
 		return errors.New("video file changed after the analysis task was created")
 	}
 	return nil
+}
+
+// statVideoPath 本地文件用 os.Stat；webdav/alist/s3 远程文件用 VFS.Stat。
+func (s *VideoAnalysisService) statVideoPath(path string) (os.FileInfo, error) {
+	if !IsRemotePath(path) {
+		return os.Stat(path)
+	}
+	if s.vfsMgr == nil {
+		return nil, errors.New("remote media is not supported: VFS manager is not configured")
+	}
+	return s.vfsMgr.Stat(path)
 }
 
 func (s *VideoAnalysisService) persist(task *model.VideoAnalysisTask) error {

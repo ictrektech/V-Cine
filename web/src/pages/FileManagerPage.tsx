@@ -152,6 +152,7 @@ export default function FileManagerPage() {
   const [videoAnalysisEnabled, setVideoAnalysisEnabled] = useState(true)
   const [videoAnalysisDisabledReason, setVideoAnalysisDisabledReason] = useState('')
   const [videoAnalysisDescribeEnabled, setVideoAnalysisDescribeEnabled] = useState(false)
+  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(false)
 
   // ==================== 数据加载 ====================
 
@@ -229,6 +230,7 @@ export default function FileManagerPage() {
       try {
         const configRes = await videoAnalysisApi.getConfig()
         setVideoAnalysisDescribeEnabled(configRes.data.data.describe_enabled)
+        setRemoteVideoEnabled(configRes.data.data.remote_video_enabled ?? false)
       } catch {
         try {
           const statusRes = await aiApi.getStatus()
@@ -378,14 +380,14 @@ export default function FileManagerPage() {
 
   const showVideoAnalysisBatchIssues = useCallback(async (title: string, issues: VideoAnalysisBatchIssue[], variant: 'warning' | 'error') => {
     if (issues.length === 0) return
-    const grouped = issues.reduce<Record<string, number>>((acc, issue) => {
-      const key = issue.kind || issue.message || 'unknown'
-      acc[key] = (acc[key] || 0) + 1
-      return acc
-    }, {})
+    const isRemoteDisabled = (issue: VideoAnalysisBatchIssue) => issue.kind === 'remote_video_disabled' || issue.message.includes('远程视频结构化未开启')
+    const remoteDisabledIssues = issues.filter(isRemoteDisabled)
+    const otherIssues = issues.filter((issue) => !isRemoteDisabled(issue))
+
     const kindLabel = (kind?: string) => {
       switch (kind) {
         case 'unsupported_strm': return 'STRM / 远程流媒体'
+        case 'remote_video_disabled': return '远程视频未开启'
         case 'unreadable_file': return '文件不可读'
         case 'path_mapping_failed': return '路径映射失败'
         case 'invalid_input': return '请求参数无效'
@@ -393,24 +395,58 @@ export default function FileManagerPage() {
         default: return '其他原因'
       }
     }
+    const remoteLink = (
+      <a
+        href={withBasePath('/admin?drawer=video-analysis')}
+        className="inline-flex rounded-lg px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-400/10"
+      >
+        前往开启远程视频结构化
+      </a>
+    )
+
+    if (remoteDisabledIssues.length > 0 && otherIssues.length === 0) {
+      const message: ReactNode = (
+        <div className="space-y-3 text-sm">
+          <p>本地/内网视频已开始分析。</p>
+          <p>远程视频已跳过，无需分析（远程目录未开启结构化解析）。</p>
+          {remoteLink}
+        </div>
+      )
+      await dialog.alert({ title: '已开始分析', message, variant: 'success' })
+      return
+    }
+
+    const grouped = otherIssues.reduce<Record<string, number>>((acc, issue) => {
+      const key = issue.kind || issue.message || 'unknown'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
     const summaryItems = Object.entries(grouped)
       .slice(0, 5)
       .map(([kind, count]) => <li key={kind}>{kindLabel(kind)}：{count} 个</li>)
-    const detailItems = issues.slice(0, 8).map((issue, index) => (
+    const detailItems = otherIssues.slice(0, 8).map((issue, index) => (
       <li key={`${issue.media_id || 'unknown'}-${index}`} className="break-all">
         <span className="font-medium">{issue.media_id || '未知媒体'}</span>
         <span className="text-surface-400"> · {issue.message}</span>
       </li>
     ))
-    let message: ReactNode = <div className="space-y-3 text-sm">
+    const message: ReactNode = <div className="space-y-3 text-sm">
       <div>
         <div className="font-medium mb-1">原因汇总</div>
-        <ul className="list-disc space-y-1 pl-5 text-surface-300">{summaryItems}</ul>
+        <ul className="list-disc space-y-1 pl-5 text-surface-300">
+          {summaryItems}
+          {remoteDisabledIssues.length > 0 && <li>{kindLabel('remote_video_disabled')}：{remoteDisabledIssues.length} 个</li>}
+        </ul>
       </div>
-      <div>
-        <div className="font-medium mb-1">示例明细{issues.length > 8 ? `（前 8 条，共 ${issues.length} 条）` : ''}</div>
-        <ul className="list-disc space-y-1 pl-5 text-surface-300">{detailItems}</ul>
-      </div>
+      {detailItems.length > 0 && (
+        <div>
+          <div className="font-medium mb-1">示例明细{otherIssues.length > 8 ? `（前 8 条，共 ${otherIssues.length} 条）` : ''}</div>
+          <ul className="list-disc space-y-1 pl-5 text-surface-300">{detailItems}</ul>
+        </div>
+      )}
+      {remoteDisabledIssues.length > 0 && (
+        <div>{remoteLink}</div>
+      )}
     </div>
     await dialog.alert({ title, message, variant })
   }, [dialog])
@@ -882,6 +918,7 @@ export default function FileManagerPage() {
           onBatchAnalyze={handleBatchAnalyze}
           videoAnalysisEnabled={videoAnalysisEnabled}
           videoAnalysisDisabledReason={videoAnalysisDisabledReason}
+          remoteVideoEnabled={remoteVideoEnabled}
           selectedAllRemote={selectedAllRemote}
           onBatchRename={() => setActiveDialog('rename')}
           onBatchDelete={handleBatchDelete}
@@ -1039,6 +1076,7 @@ export default function FileManagerPage() {
         <FileDetailModal
           media={detailMedia}
           videoAnalysisDescribeEnabled={videoAnalysisDescribeEnabled}
+          remoteVideoEnabled={remoteVideoEnabled}
           onClose={() => setActiveDialog('none')}
           onEdit={() => { setEditMedia(detailMedia); setActiveDialog('edit') }}
           onScrape={() => { handleScrapeFile(detailMedia.id); setActiveDialog('none') }}

@@ -307,6 +307,7 @@ export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps)
 interface FileDetailModalProps {
   media: Media
   videoAnalysisDescribeEnabled?: boolean
+  remoteVideoEnabled?: boolean
   onClose: () => void
   onEdit: () => void
   onScrape: () => void
@@ -315,7 +316,7 @@ interface FileDetailModalProps {
   onViewAnalysis: (task?: VideoAnalysisTask | null) => void
 }
 
-export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
+export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, remoteVideoEnabled = false, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
   const toast = useToast()
   const [analysisTask, setAnalysisTask] = useState<VideoAnalysisTask | null>(null)
   const [loadingAnalysis, setLoadingAnalysis] = useState(true)
@@ -366,12 +367,15 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
   }, [analysisTask])
 
   const isRemoteVideo = storageTypeFromPath(media.file_path || '') !== 'local'
-  const analysisDescribeDisabled = isRemoteVideo || !videoAnalysisDescribeEnabled
+  const remoteDisabled = isRemoteVideo && !remoteVideoEnabled
+  const analysisDescribeDisabled = remoteDisabled || !videoAnalysisDescribeEnabled
   let analysisDescribeTitle = ''
-  if (isRemoteVideo) {
+  if (remoteDisabled) {
     analysisDescribeTitle = REMOTE_ANALYSIS_DISABLED_TIP
   } else if (!videoAnalysisDescribeEnabled) {
     analysisDescribeTitle = '需要在「视频分析」设置中开启场景描述功能'
+  } else if (isRemoteVideo) {
+    analysisDescribeTitle = '远程视频将通过 URL 拉流分析，速度较慢并消耗网络带宽'
   }
 
   return (
@@ -458,9 +462,9 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
                 {(analysisMeta?.action === 'retry') && analysisTask && (
                   <button
                     onClick={() => onRetryAnalysis(analysisTask)}
-                    className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${isRemoteVideo ? 'opacity-50 cursor-not-allowed text-surface-400' : 'text-amber-300 hover:bg-amber-400/10'}`}
-                    disabled={isRemoteVideo}
-                    title={isRemoteVideo ? REMOTE_ANALYSIS_DISABLED_TIP : ''}
+                    className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${remoteDisabled ? 'opacity-50 cursor-not-allowed text-surface-400' : 'text-amber-300 hover:bg-amber-400/10'}`}
+                    disabled={remoteDisabled}
+                    title={remoteDisabled ? REMOTE_ANALYSIS_DISABLED_TIP : isRemoteVideo ? '远程视频将通过 URL 拉流分析，速度较慢并消耗网络带宽' : ''}
                   >
                     <ScanSearch size={14} /> 重新分析
                   </button>
@@ -469,9 +473,9 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, on
                   <>
                     <button
                       onClick={() => onAnalyze()}
-                      className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${isRemoteVideo ? 'opacity-50 cursor-not-allowed text-surface-400' : 'text-cyan-300 hover:bg-cyan-400/10'}`}
-                      disabled={isRemoteVideo}
-                      title={isRemoteVideo ? REMOTE_ANALYSIS_DISABLED_TIP : ''}
+                      className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${remoteDisabled ? 'opacity-50 cursor-not-allowed text-surface-400' : 'text-cyan-300 hover:bg-cyan-400/10'}`}
+                      disabled={remoteDisabled}
+                      title={remoteDisabled ? REMOTE_ANALYSIS_DISABLED_TIP : isRemoteVideo ? '远程视频将通过 URL 拉流分析，速度较慢并消耗网络带宽' : ''}
                     >
                       <ScanSearch size={14} /> 分析视频
                     </button>

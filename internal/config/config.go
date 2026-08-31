@@ -144,6 +144,7 @@ type VideoAnalysisConfig struct {
 	StructureBaseURL    string `mapstructure:"structure_base_url" yaml:"structure_base_url" json:"structure_base_url"`
 	MediaBaseURL        string `mapstructure:"media_base_url" yaml:"media_base_url" json:"media_base_url"`
 	SourceToken         string `mapstructure:"source_token" yaml:"source_token" json:"source_token"`
+	RemoteVideoEnabled  bool   `mapstructure:"remote_video_enabled" yaml:"remote_video_enabled" json:"remote_video_enabled"`
 	AssetDir            string `mapstructure:"asset_dir" yaml:"asset_dir" json:"asset_dir"`
 	MaxConcurrent       int    `mapstructure:"max_concurrent" yaml:"max_concurrent" json:"max_concurrent"`
 	PollIntervalSeconds int    `mapstructure:"poll_interval_seconds" yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
@@ -881,6 +882,7 @@ func setDefaults() {
 	viper.SetDefault("video_analysis.structure_base_url", "http://localhost:8911")
 	viper.SetDefault("video_analysis.media_base_url", "")
 	viper.SetDefault("video_analysis.source_token", "")
+	viper.SetDefault("video_analysis.remote_video_enabled", false)
 	viper.SetDefault("video_analysis.asset_dir", "")
 	viper.SetDefault("video_analysis.max_concurrent", 2)
 	viper.SetDefault("video_analysis.poll_interval_seconds", 2)

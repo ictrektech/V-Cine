@@ -194,6 +194,15 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                   <Input value={settings.structure_base_url} onChange={(e) => setSettings({ ...settings, structure_base_url: e.target.value })} placeholder="http://video-structure:8911" />
                 </div>
                 <div>
+                  <div className="mb-1 text-xs text-muted-foreground">媒体源地址（detect/structure 访问 nowen-video）</div>
+                  <Input value={settings.media_base_url} onChange={(e) => setSettings({ ...settings, media_base_url: e.target.value })} placeholder="http://nowen-video:8080" />
+                </div>
+                <label className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">远程视频结构化（webdav / alist / s3）</span>
+                  <Switch checked={settings.remote_video_enabled} onCheckedChange={(checked) => setSettings({ ...settings, remote_video_enabled: checked })} />
+                </label>
+                <p className="text-xs text-muted-foreground">默认关闭；开启后远程视频通过 URL 拉流分析，会消耗网络带宽。</p>
+                <div>
                   <div className="mb-1 text-xs text-muted-foreground">产物目录</div>
                   <Input value={settings.asset_dir} disabled />
                 </div>

@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
@@ -15,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/nowen-video/nowen-video/internal/testutil"
+	"go.uber.org/zap"
 )
 
 type fakeVideoAnalysisClient struct {
@@ -260,6 +263,7 @@ func TestVideoAnalysisBatchSubmitSkipsUnsupportedSTRM(t *testing.T) {
 func TestVideoAnalysisBatchSubmitSkipsUnsupportedRemote(t *testing.T) {
 	client := &fakeVideoAnalysisClient{}
 	service, _, mediaID := setupVideoAnalysisService(t, client)
+	service.appCfg.VideoAnalysis.RemoteVideoEnabled = true
 	if err := service.media.DB().Model(&model.Media{}).Where("id = ?", mediaID).Update("file_path", "webdav://example.com/media.mp4").Error; err != nil {
 		t.Fatal(err)
 	}
@@ -269,6 +273,22 @@ func TestVideoAnalysisBatchSubmitSkipsUnsupportedRemote(t *testing.T) {
 		t.Fatalf("result = %+v", result)
 	}
 	if result.SkippedErrors[0].Kind != "unsupported_remote" {
+		t.Fatalf("skip kind = %q", result.SkippedErrors[0].Kind)
+	}
+}
+
+func TestVideoAnalysisBatchSubmitSkipsRemoteWhenDisabled(t *testing.T) {
+	client := &fakeVideoAnalysisClient{}
+	service, _, mediaID := setupVideoAnalysisService(t, client)
+	if err := service.media.DB().Model(&model.Media{}).Where("id = ?", mediaID).Update("file_path", "webdav://example.com/media.mp4").Error; err != nil {
+		t.Fatal(err)
+	}
+
+	result := service.BatchSubmit([]string{mediaID}, VideoAnalysisSubmitOptions{Trigger: model.VideoAnalysisTriggerAuto})
+	if result.Created != 0 || result.Reused != 0 || result.Skipped != 1 || len(result.Errors) != 0 || len(result.SkippedErrors) != 1 {
+		t.Fatalf("result = %+v", result)
+	}
+	if result.SkippedErrors[0].Kind != "remote_video_disabled" {
 		t.Fatalf("skip kind = %q", result.SkippedErrors[0].Kind)
 	}
 }
@@ -535,31 +555,56 @@ func TestBuildAnalysisSourceURL(t *testing.T) {
 }
 
 func TestVideoAnalysisServiceSubmitUsesURLAccessMode(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name   string
+		remote bool
+	}{
+		{name: "local"},
+		{name: "remote", remote: true},
 	}
-	repos := repository.NewRepositories(db)
-	dir := t.TempDir()
-	videoPath := filepath.Join(dir, "movie.mp4")
-	if err := os.WriteFile(videoPath, []byte("video"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	media := &model.Media{LibraryID: "library-1", Title: "Movie", FilePath: videoPath, FileSize: 5}
-	if err := repos.Media.Create(media); err != nil {
-		t.Fatal(err)
-	}
-	cfg := &config.Config{}
-	cfg.VideoAnalysis.MediaBaseURL = "http://nowen-video:8080"
-	cfg.VideoAnalysis.SourceToken = "secret"
-	service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeVideoAnalysisClient{}, nil, nil, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, cfg)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := testutil.NewTestDB(t)
+			if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}); err != nil {
+				t.Fatal(err)
+			}
+			repos := repository.NewRepositories(db)
+			cfg := &config.Config{}
+			cfg.VideoAnalysis.MediaBaseURL = "http://nowen-video:8080"
+			cfg.VideoAnalysis.SourceToken = "secret"
 
-	task, reused, err := service.SubmitMedia(media.ID, VideoAnalysisSubmitOptions{})
-	if err != nil || reused {
-		t.Fatalf("SubmitMedia reused=%v err=%v", reused, err)
-	}
-	want := "http://nowen-video:8080/internal/video-analysis/source/" + media.ID + "?token=secret"
-	if task.MappedVideoPath != want {
-		t.Fatalf("MappedVideoPath = %q, want %q", task.MappedVideoPath, want)
+			var media *model.Media
+			if tt.remote {
+				cfg.VideoAnalysis.RemoteVideoEnabled = true
+				media = &model.Media{LibraryID: "library-1", Title: "Remote Movie", FilePath: "webdav://remote/movie.mp4", FileSize: 5}
+			} else {
+				dir := t.TempDir()
+				videoPath := filepath.Join(dir, "movie.mp4")
+				if err := os.WriteFile(videoPath, []byte("video"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				media = &model.Media{LibraryID: "library-1", Title: "Movie", FilePath: videoPath, FileSize: 5}
+			}
+			if err := repos.Media.Create(media); err != nil {
+				t.Fatal(err)
+			}
+			service := NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeVideoAnalysisClient{}, nil, nil, filepath.Join(t.TempDir(), "cache"), false, nil, nil, time.Millisecond, time.Second, cfg)
+			if tt.remote {
+				vfsMgr := NewVFSManager(zap.NewNop().Sugar())
+				vfsMgr.SetGlobalWebDAVFS(walkProbeVFS{statFn: func(string) (fs.FileInfo, error) {
+					return fstest.MapFS{"movie.mp4": &fstest.MapFile{Data: []byte("video"), ModTime: time.Unix(123, 0)}}.Stat("movie.mp4")
+				}})
+				service.SetVFSManager(vfsMgr)
+			}
+
+			task, reused, err := service.SubmitMedia(media.ID, VideoAnalysisSubmitOptions{})
+			if err != nil || reused {
+				t.Fatalf("SubmitMedia reused=%v err=%v", reused, err)
+			}
+			want := "http://nowen-video:8080/internal/video-analysis/source/" + media.ID + "?token=secret"
+			if task.MappedVideoPath != want {
+				t.Fatalf("MappedVideoPath = %q, want %q", task.MappedVideoPath, want)
+			}
+		})
 	}
 }

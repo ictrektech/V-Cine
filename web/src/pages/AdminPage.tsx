@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { adminApi, libraryApi } from '@/api'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useScanProgress } from '@/hooks/useScanProgress'
@@ -22,6 +23,7 @@ type DrawerId = (typeof DRAWER_IDS)[number]
 
 export default function AdminPage() {
   const { t } = useTranslation()
+  const [searchParams] = useSearchParams()
 
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null)
   const [libraries, setLibraries] = useState<Library[]>([])
@@ -37,6 +39,13 @@ export default function AdminPage() {
   const [doubanConfig, setDoubanConfig] = useState<DoubanConfigStatus | null>(null)
   // 当前打开的 Drawer（同一时刻最多一个）
   const [activeDrawer, setActiveDrawer] = useState<DrawerId | null>(null)
+
+  // 支持从文件管理页跳转直达视频分析设置
+  useEffect(() => {
+    if (searchParams.get('drawer') === 'video-analysis') {
+      setActiveDrawer('video-analysis')
+    }
+  }, [searchParams])
 
   // 扫描完成后刷新媒体库列表
   const refreshLibraries = useCallback(() => {

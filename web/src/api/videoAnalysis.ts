@@ -40,7 +40,7 @@ export const videoAnalysisApi = {
     api.get<{ data: VideoAnalysisDetailedStats }>('/admin/video-analysis/statistics/detailed'),
 
   getConfig: () =>
-    api.get<{ data: { describe_enabled: boolean } }>('/admin/video-analysis/config'),
+    api.get<{ data: { describe_enabled: boolean; remote_video_enabled: boolean } }>('/admin/video-analysis/config'),
 
   getHealth: () =>
     api.get<{ data: VideoAnalysisHealthInfo }>('/admin/video-analysis/health'),

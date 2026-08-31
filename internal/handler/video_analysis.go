@@ -229,34 +229,37 @@ func (h *VideoAnalysisHandler) GetHealth(c *gin.Context) {
 
 // videoAnalysisSettingsView 是前端读取的视频分析配置视图。
 type videoAnalysisSettingsView struct {
-	Enabled          bool   `json:"enabled"`
-	SceneBaseURL     string `json:"scene_base_url"`
-	StructureBaseURL string `json:"structure_base_url"`
-	MediaBaseURL     string `json:"media_base_url"`
-	AssetDir         string `json:"asset_dir"`
-	DescribeEnabled  bool   `json:"describe_enabled"`
+	Enabled            bool   `json:"enabled"`
+	SceneBaseURL       string `json:"scene_base_url"`
+	StructureBaseURL   string `json:"structure_base_url"`
+	MediaBaseURL       string `json:"media_base_url"`
+	RemoteVideoEnabled bool   `json:"remote_video_enabled"`
+	AssetDir           string `json:"asset_dir"`
+	DescribeEnabled    bool   `json:"describe_enabled"`
 }
 
 // updateVideoAnalysisSettingsRequest 是前端可更新的视频分析配置子集。
 // asset_dir 属于数据目录，只读展示，不通过该接口修改；source_token 仅通过配置文件设置。
 type updateVideoAnalysisSettingsRequest struct {
-	Enabled          bool   `json:"enabled"`
-	SceneBaseURL     string `json:"scene_base_url"`
-	StructureBaseURL string `json:"structure_base_url"`
-	MediaBaseURL     string `json:"media_base_url"`
-	DescribeEnabled  bool   `json:"describe_enabled"`
+	Enabled            bool   `json:"enabled"`
+	SceneBaseURL       string `json:"scene_base_url"`
+	StructureBaseURL   string `json:"structure_base_url"`
+	MediaBaseURL       string `json:"media_base_url"`
+	RemoteVideoEnabled bool   `json:"remote_video_enabled"`
+	DescribeEnabled    bool   `json:"describe_enabled"`
 }
 
 // GetSettings 返回视频分析可配置项（不要求服务可用，供设置页编辑）。
 func (h *VideoAnalysisHandler) GetSettings(c *gin.Context) {
 	cfg := h.cfg.GetVideoAnalysisConfig()
 	c.JSON(http.StatusOK, gin.H{"data": videoAnalysisSettingsView{
-		Enabled:          cfg.Enabled,
-		SceneBaseURL:     cfg.SceneBaseURL,
-		StructureBaseURL: cfg.StructureBaseURL,
-		MediaBaseURL:     cfg.MediaBaseURL,
-		AssetDir:         cfg.AssetDir,
-		DescribeEnabled:  cfg.DescribeEnabled,
+		Enabled:            cfg.Enabled,
+		SceneBaseURL:       cfg.SceneBaseURL,
+		StructureBaseURL:   cfg.StructureBaseURL,
+		MediaBaseURL:       cfg.MediaBaseURL,
+		RemoteVideoEnabled: cfg.RemoteVideoEnabled,
+		AssetDir:           cfg.AssetDir,
+		DescribeEnabled:    cfg.DescribeEnabled,
 	}})
 }
 
@@ -276,6 +279,7 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 	updated.SceneBaseURL = strings.TrimSpace(req.SceneBaseURL)
 	updated.StructureBaseURL = strings.TrimSpace(req.StructureBaseURL)
 	updated.MediaBaseURL = strings.TrimSpace(req.MediaBaseURL)
+	updated.RemoteVideoEnabled = req.RemoteVideoEnabled
 	updated.DescribeEnabled = req.DescribeEnabled
 
 	if updated.Enabled {
