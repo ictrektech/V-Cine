@@ -36,7 +36,7 @@ cd apps/nowen-video
 # ② 构建机上原生构建（基镜像从 SWR 拉，构建走 --pull=false），推 SWR + 写飞书
 #    default profile：飞书记录写入该架构的全部 sheet（与 motrix 同一套：
 #    amd → AMD_with_cuda、AMD_with_mxn100；
-#    arm → ARM_without_cuda、ARM_with_cuda、l4t、thor_spark），组件列头 nowen-video
+#    arm → ARM_without_cuda、ARM_with_cuda、thor_spark（l4t 只由 --profile l4t 写入，避免同名覆盖），组件列头 nowen-video
 ssh tc232  'cd nowen-video && git pull && ./build_image.sh'                    # AMD64: amd_${VERSION} + 推送 + 写飞书
 ssh tc192  'cd nowen-video && git pull && ./build_image.sh'                    # ARM64: arm_${VERSION} + 推送 + 写飞书
 ssh <jetson>'cd nowen-video && git pull && ./build_image.sh --profile l4t'     # Jetson/L4T: l4t_${VERSION} + 推送 + 只写 l4t sheet

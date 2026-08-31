@@ -26,7 +26,8 @@ FEISHU_SPREADSHEET_TOKEN="Htotsn3oahO1zxt73YMcaB1zn8e"
 FEISHU_CONFIG_FILE="${FEISHU_CONFIG_FILE:-${HOME}/.feishu.json}"
 # Feishu sheets that record the image tag for each arch (same sets as motrix).
 AMD_SHEETS=("AMD_with_cuda" "AMD_with_mxn100")
-ARM_SHEETS=("ARM_without_cuda" "ARM_with_cuda" "l4t" "thor_spark")
+# l4t sheet 只由 --profile l4t 写入（l4t_* tag）；默认 arm 构建写入会覆盖 Jetson 记录
+ARM_SHEETS=("ARM_without_cuda" "ARM_with_cuda")
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION_FILE="${ROOT_DIR}/ictrek.app/VERSION"
