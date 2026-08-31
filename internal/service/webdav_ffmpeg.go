@@ -104,6 +104,19 @@ func SprintSafeFFmpegURL(u string) string {
 	return parsed.String()
 }
 
+// safeFFmpegLogArgs 返回用于日志的 args，远程 URL 会脱敏（密码 / 签名）。
+func safeFFmpegLogArgs(args []string) []string {
+	safe := make([]string, len(args))
+	for i, arg := range args {
+		if strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
+			safe[i] = SprintSafeFFmpegURL(arg)
+		} else {
+			safe[i] = arg
+		}
+	}
+	return safe
+}
+
 // ==================== V2.3: 统一远程存储 FFmpeg URL 解析 ====================
 //
 // 支持的前缀：

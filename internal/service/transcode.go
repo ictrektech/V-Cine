@@ -276,6 +276,7 @@ func (s *TranscodeService) buildFFmpegArgs(media *model.Media, inputPath, output
 
 	return ffmpeg.BuildHLSArgs(ffmpeg.BuildOptions{
 		InputPath:             inputPath,
+		ExtraInput:            BuildFFmpegInputArgs(inputPath),
 		OutputDir:             outputDir,
 		HWAccel:               hwAccel,
 		InputCodec:            media.VideoCodec,
@@ -476,8 +477,10 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 		Message: fmt.Sprintf("开始转码: %s (%s)", job.Media.Title, job.Quality),
 	})
 
-	args := s.buildFFmpegArgs(job.Media, job.Media.FilePath, job.Task.OutputDir, job.Quality, job.startOffset)
-	s.logger.Debugf("FFmpeg命令: %s %s", s.cfg.App.FFmpegPath, strings.Join(args, " "))
+	// 远程路径先转成 FFmpeg 可读的 HTTP URL（webdav:// / alist:// / s3://）
+	inputURL := ResolveRemoteFFmpegURL(s.cfg, job.Media.FilePath)
+	args := s.buildFFmpegArgs(job.Media, inputURL, job.Task.OutputDir, job.Quality, job.startOffset)
+	s.logger.Debugf("FFmpeg命令: %s %s", s.cfg.App.FFmpegPath, strings.Join(safeFFmpegLogArgs(args), " "))
 
 	cmd := exec.Command(s.cfg.App.FFmpegPath, args...)
 	setLowPriority(cmd) // 极低资源模式：FFmpeg 以最低优先级运行
@@ -563,11 +566,12 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 			fallbackHwAccel := "none"
 			origHwAccel := s.hwAccel
 			s.hwAccel = fallbackHwAccel
-			fallbackArgs := s.buildFFmpegArgs(job.Media, job.Media.FilePath, job.Task.OutputDir, job.Quality, job.startOffset)
+			fallbackInputURL := ResolveRemoteFFmpegURL(s.cfg, job.Media.FilePath)
+			fallbackArgs := s.buildFFmpegArgs(job.Media, fallbackInputURL, job.Task.OutputDir, job.Quality, job.startOffset)
 			s.hwAccel = origHwAccel // 恢复原始设置，不影响后续任务
 
 			s.logger.Infof("回退到软件编码: %s (%s)", job.Media.Title, job.Quality)
-			s.logger.Debugf("回退FFmpeg命令: %s %s", s.cfg.App.FFmpegPath, strings.Join(fallbackArgs, " "))
+			s.logger.Debugf("回退FFmpeg命令: %s %s", s.cfg.App.FFmpegPath, strings.Join(safeFFmpegLogArgs(fallbackArgs), " "))
 
 			fallbackCmd := exec.Command(s.cfg.App.FFmpegPath, fallbackArgs...)
 			setLowPriority(fallbackCmd)

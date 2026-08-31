@@ -734,12 +734,18 @@ func (s *MediaService) probeTechSpecs(filePath string) *TechSpecs {
 		ffprobePath = s.cfg.App.FFprobePath
 	}
 
+	// 远程路径（webdav:// / alist:// / s3://）先转成 FFmpeg 可读的 HTTP URL
+	inputPath := filePath
+	if IsRemotePath(inputPath) {
+		inputPath = ResolveRemoteFFmpegURL(s.cfg, inputPath)
+	}
+
 	cmd := exec.Command(ffprobePath,
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
 		"-show_streams",
-		filePath,
+		inputPath,
 	)
 
 	output, err := cmd.Output()

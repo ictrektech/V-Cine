@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
@@ -97,6 +98,9 @@ type StreamService struct {
 	cfg         *config.Config
 	logger      *zap.SugaredLogger
 	vfsMgr      *VFSManager // V2.1: VFS 管理器，支持 webdav:// 路径
+
+	// remoteDirectPlayCache 缓存远程文件头嗅探结果，避免每次 GetMediaPlayInfo 都远程读文件头。
+	remoteDirectPlayCache sync.Map
 }
 
 func NewStreamService(
@@ -313,6 +317,12 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 
 	ext := strings.ToLower(filepath.Ext(media.FilePath))
 	canDirect := directPlayableExts[ext] && canMediaPlayDirectly(media)
+	// 远程文件扩展名可能与实际容器不一致（例如 .mp4 实际是 MPEG-TS），
+	// 直接按扩展名直放会导致浏览器 DEMUXER_ERROR_COULD_NOT_OPEN。
+	// 这里对远程直放候选做一次文件头嗅探，确认是浏览器可直放的容器。
+	if canDirect && IsRemotePath(media.FilePath) && !s.looksBrowserDirectPlayableRemote(media.FilePath) {
+		canDirect = false
+	}
 
 	info := &MediaPlayInfo{
 		MediaID:       mediaID,
@@ -372,6 +382,47 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 	}
 
 	return info, nil
+}
+
+// looksBrowserDirectPlayableRemote 通过读取远程文件头判断是否真的是浏览器可直放的容器。
+// 远程文件扩展名可能和实际容器不一致（例如 .mp4 实际是 MPEG-TS），
+// 直接按扩展名直放会导致浏览器 DEMUXER_ERROR_COULD_NOT_OPEN:
+// FFmpegDemuxer: open context failed。
+func (s *StreamService) looksBrowserDirectPlayableRemote(filePath string) bool {
+	if s.vfsMgr == nil || !IsRemotePath(filePath) {
+		return true
+	}
+	if v, ok := s.remoteDirectPlayCache.Load(filePath); ok {
+		return v.(bool)
+	}
+
+	f, err := s.OpenMediaFile(filePath)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	head := make([]byte, 16)
+	n, readErr := f.Read(head)
+	if readErr != nil && readErr != io.EOF {
+		return false
+	}
+	head = head[:n]
+
+	// MP4 / M4V / MOV：标准 MP4 以 box type "ftyp" 开头（offset 4）
+	playable := false
+	if len(head) >= 8 && string(head[4:8]) == "ftyp" {
+		playable = true
+	} else if len(head) >= 4 && head[0] == 0x1a && head[1] == 0x45 && head[2] == 0xdf && head[3] == 0xa3 {
+		// WebM：EBML 魔数
+		playable = true
+	}
+
+	// 只在成功读到文件头时缓存；网络错误不缓存，避免远端恢复后仍被判不可直放。
+	if readErr == nil || readErr == io.EOF {
+		s.remoteDirectPlayCache.Store(filePath, playable)
+	}
+	return playable
 }
 
 // GetDirectStreamInfo 获取直接播放的文件路径和MIME类型
@@ -1149,8 +1200,11 @@ func (s *StreamService) RemuxStream(mediaID string, w http.ResponseWriter, r *ht
 		return fmt.Errorf("STRM 远程流不支持 remux")
 	}
 
-	if _, err := os.Stat(media.FilePath); os.IsNotExist(err) {
-		return fmt.Errorf("文件不存在: %s", media.FilePath)
+	if _, err := s.statMediaFile(media.FilePath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("文件不存在: %s", media.FilePath)
+		}
+		return fmt.Errorf("媒体文件访问失败: %w", err)
 	}
 
 	// 使用请求的 context，客户端断开时自动终止 FFmpeg
@@ -1165,6 +1219,8 @@ func (s *StreamService) RemuxStream(mediaID string, w http.ResponseWriter, r *ht
 	// -movflags frag_mp4+empty_moov+default_base_moof: 生成 fragmented MP4，支持流式输出
 	// -f mp4: 输出 MP4 格式
 	// pipe:1: 输出到 stdout
+	// 远程路径（webdav:// / alist:// / s3://）先转成 FFmpeg 可读的 HTTP URL。
+	inputURL := ResolveRemoteFFmpegURL(s.cfg, media.FilePath)
 	args := []string{}
 
 	// 如果有 start 参数，利用 FFmpeg 的 -ss 实现快速跳转（必须放在 -i 前面以实现 input seeking）
@@ -1172,8 +1228,9 @@ func (s *StreamService) RemuxStream(mediaID string, w http.ResponseWriter, r *ht
 		args = append(args, "-ss", startTime)
 	}
 
+	args = append(args, BuildFFmpegInputArgs(inputURL)...)
 	args = append(args,
-		"-i", media.FilePath,
+		"-i", inputURL,
 		"-map", "0:v:0", // 仅映射第一个视频流
 		"-map", "0:a?", // 映射所有音频流（如无则跳过）
 		"-c:v", "copy", // 视频直接复制
@@ -1186,7 +1243,7 @@ func (s *StreamService) RemuxStream(mediaID string, w http.ResponseWriter, r *ht
 		"pipe:1",
 	)
 
-	s.logger.Debugf("Remux 命令: %s %s", s.cfg.App.FFmpegPath, strings.Join(args, " "))
+	s.logger.Debugf("Remux 命令: %s %s", s.cfg.App.FFmpegPath, strings.Join(safeFFmpegLogArgs(args), " "))
 
 	cmd := exec.CommandContext(ctx, s.cfg.App.FFmpegPath, args...)
 

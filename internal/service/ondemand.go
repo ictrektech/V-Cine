@@ -126,10 +126,15 @@ func (s *StreamService) ServeOnDemandSegment(mediaID, quality, segName string, w
 	//   -copyts      保留原始时间戳（避免多片拼接时出现时间戳跳变）
 	//   -avoid_negative_ts make_zero  防止负时间戳导致的切片异常
 	//   -reset_timestamps 1          每个输出重置 PTS（使 hls.js 认为是独立片段）
+	// 远程路径（webdav:// / alist:// / s3://）先转成 FFmpeg 可读的 HTTP URL。
+	inputURL := ResolveRemoteFFmpegURL(s.cfg, media.FilePath)
 	args := []string{
 		"-y",
 		"-ss", fmt.Sprintf("%.3f", startSec),
-		"-i", media.FilePath,
+	}
+	args = append(args, BuildFFmpegInputArgs(inputURL)...)
+	args = append(args,
+		"-i", inputURL,
 		"-t", strconv.Itoa(onDemandSegmentSeconds),
 		"-map", "0:v:0",
 		"-map", "0:a:0?",
@@ -150,7 +155,7 @@ func (s *StreamService) ServeOnDemandSegment(mediaID, quality, segName string, w
 		"-muxdelay", "0",
 		"-muxpreload", "0",
 		segPath,
-	}
+	)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
@@ -422,10 +427,15 @@ func (s *StreamService) ServeAudioSegment(mediaID string, trackIdx int, segName 
 
 	startSec := float64(segIndex) * float64(onDemandSegmentSeconds)
 	// 选第 trackIdx 条音频流并转码为 aac
+	// 远程路径（webdav:// / alist:// / s3://）先转成 FFmpeg 可读的 HTTP URL。
+	inputURL := ResolveRemoteFFmpegURL(s.cfg, media.FilePath)
 	args := []string{
 		"-y",
 		"-ss", fmt.Sprintf("%.3f", startSec),
-		"-i", media.FilePath,
+	}
+	args = append(args, BuildFFmpegInputArgs(inputURL)...)
+	args = append(args,
+		"-i", inputURL,
 		"-t", strconv.Itoa(onDemandSegmentSeconds),
 		"-map", fmt.Sprintf("0:a:%d", trackIdx),
 		"-vn",
@@ -434,7 +444,7 @@ func (s *StreamService) ServeAudioSegment(mediaID string, trackIdx int, segName 
 		"-ac", "2",
 		"-f", "adts", // 裸 AAC 容器，hls.js 对 .aac playlist 直接支持
 		segPath,
-	}
+	)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
