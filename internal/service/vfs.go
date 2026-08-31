@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -68,6 +70,19 @@ type VFS interface {
 	Walk(root string, fn filepath.WalkFunc) error
 	// Type 返回文件系统类型标识
 	Type() string
+}
+
+// Prober 远程存储连通性探测接口，支持上下文取消。
+type Prober interface {
+	ProbeContext(ctx context.Context) error
+}
+
+// probeVFS 对远程存储做一次有界连通性探测。
+// ProbeContext 实现应尽量将 ctx 透传到 HTTP 请求，超时后可取消底层调用。
+func probeVFS(p Prober, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return p.ProbeContext(ctx)
 }
 
 // ==================== 本地文件系统实现 ====================

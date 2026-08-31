@@ -1,6 +1,21 @@
 package service
 
-import "testing"
+import (
+	"context"
+	"testing"
+	"time"
+)
+
+type probeOnlyVFS struct{}
+
+func (probeOnlyVFS) Probe() error                           { return nil }
+func (probeOnlyVFS) ProbeContext(ctx context.Context) error { return nil }
+
+func TestProbeVFSSuccess(t *testing.T) {
+	if err := probeVFS(probeOnlyVFS{}, time.Second); err != nil {
+		t.Fatalf("probeVFS() unexpected error: %v", err)
+	}
+}
 
 func TestTrimRemoteRoot(t *testing.T) {
 	tests := []struct {

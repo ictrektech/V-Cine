@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
 	"go.uber.org/zap"
@@ -139,6 +140,7 @@ func (s *WebDAVService) TestConnection(cfg config.WebDAVConfig) error {
 	if cfg.ServerURL == "" {
 		return fmt.Errorf("WebDAV 服务器地址不能为空")
 	}
+	cfg.Timeout = storageTestTimeoutSec
 
 	// 创建临时客户端进行测试（测试时不启用缓存）
 	testClient := NewWebDAVFSWithOptions(
@@ -152,23 +154,18 @@ func (s *WebDAVService) TestConnection(cfg config.WebDAVConfig) error {
 		s.logger,
 	)
 
-	return s.testConnection(testClient)
+	if err := testClient.Probe(); err != nil {
+		return fmt.Errorf("无法访问 WebDAV 根目录: %w", err)
+	}
+	return nil
 }
 
 // testConnection 内部连接测试方法
+// 只做一次有界 ReadDir("/")，避免 Stat + ReadDir 两次请求拖慢“测试连接”。
 func (s *WebDAVService) testConnection(webdavFS *WebDAVFS) error {
-	// 尝试获取根目录信息
-	_, err := webdavFS.Stat("/")
-	if err != nil {
+	if err := probeVFS(webdavFS, time.Duration(storageTestTimeoutSec)*time.Second); err != nil {
 		return fmt.Errorf("无法访问 WebDAV 根目录: %w", err)
 	}
-
-	// 尝试列出根目录内容
-	_, err = webdavFS.ReadDir("/")
-	if err != nil {
-		return fmt.Errorf("无法列出 WebDAV 根目录内容: %w", err)
-	}
-
 	return nil
 }
 
@@ -222,12 +219,12 @@ func (s *WebDAVService) GetStatus() map[string]interface{} {
 		"client_count": len(s.clients),
 	}
 
-	// 如果启用，添加连接状态
+	// 如果启用，添加连接状态（有界探测，远端不可达时最多等 2s）
 	if webdavCfg.Enabled && len(s.clients) > 0 {
 		// 测试第一个客户端的状态
 		configHash := s.getConfigHash(webdavCfg)
 		if client, exists := s.clients[configHash]; exists {
-			if err := s.testConnection(client); err == nil {
+			if err := probeVFS(client, 2*time.Second); err == nil {
 				status["connected"] = true
 			} else {
 				status["connected"] = false

@@ -102,6 +102,15 @@ func (h *StorageHandler) UpdateAlistConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Alist 配置已更新"})
 }
 
+// GetAlistStatus 获取 Alist 单存储状态（独立探测，便于前端逐个更新可用数）
+func (h *StorageHandler) GetAlistStatus(c *gin.Context) {
+	if h.remoteStorageService == nil {
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": false, "connected": false}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": h.remoteStorageService.GetAlistStatus()})
+}
+
 // TestAlistRequest 测试 Alist 连接
 type TestAlistRequest struct {
 	ServerURL string `json:"server_url" binding:"required"`
@@ -227,6 +236,15 @@ func (h *StorageHandler) UpdateS3Config(c *gin.Context) {
 		h.logger.Errorf("S3 配置已更新但持久化失败: %v", err)
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "S3 配置已更新"})
+}
+
+// GetS3Status 获取 S3 单存储状态（独立探测，便于前端逐个更新可用数）
+func (h *StorageHandler) GetS3Status(c *gin.Context) {
+	if h.remoteStorageService == nil {
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": false, "connected": false}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": h.remoteStorageService.GetS3Status()})
 }
 
 // TestS3Request 测试 S3 连接

@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
 	"go.uber.org/zap"
@@ -18,6 +19,10 @@ import (
 //   RemoteStorageService.s3    -> s3://
 //
 // 所有实例通过 VFSManager.SetGlobalXxxFS 注入到全局 VFS 路由表。
+
+// storageTestTimeoutSec 是“测试连接”时使用的最大等待秒数。
+// 测试连接没必要等用户配置的 30s，统一封顶，让前端按钮尽快返回。
+const storageTestTimeoutSec = 8
 
 type RemoteStorageService struct {
 	config *config.Config
@@ -86,7 +91,7 @@ func (s *RemoteStorageService) initAlistLocked(testConn bool) error {
 	fs.SetBlockCacheConfig(blockSize, cfg.ReadBlockCount)
 
 	if testConn {
-		if _, err := fs.ReadDir("/"); err != nil {
+		if err := probeVFS(fs, time.Duration(storageTestTimeoutSec)*time.Second); err != nil {
 			return fmt.Errorf("Alist 连接测试失败: %w", err)
 		}
 	}
@@ -120,7 +125,7 @@ func (s *RemoteStorageService) initS3Locked(testConn bool) error {
 	fs.SetBlockCacheConfig(blockSize, cfg.ReadBlockCount)
 
 	if testConn {
-		if _, err := fs.ReadDir("/"); err != nil {
+		if err := probeVFS(fs, time.Duration(storageTestTimeoutSec)*time.Second); err != nil {
 			return fmt.Errorf("S3 连接测试失败: %w", err)
 		}
 	}
@@ -136,12 +141,13 @@ func (s *RemoteStorageService) TestAlist(cfg config.AlistConfig) error {
 	if cfg.ServerURL == "" {
 		return fmt.Errorf("Alist 服务器地址不能为空")
 	}
+	cfg.Timeout = storageTestTimeoutSec
 	fs := NewAlistFS(
 		cfg.ServerURL, cfg.Username, cfg.Password, cfg.Token,
 		cfg.BasePath, cfg.Timeout, 0, false, // 测试时不启用缓存
 		s.logger,
 	)
-	if _, err := fs.ReadDir("/"); err != nil {
+	if err := fs.Probe(); err != nil {
 		return fmt.Errorf("Alist 连接测试失败: %w", err)
 	}
 	return nil
@@ -152,13 +158,14 @@ func (s *RemoteStorageService) TestS3(cfg config.S3Config) error {
 	if cfg.Endpoint == "" {
 		return fmt.Errorf("S3 Endpoint 不能为空")
 	}
+	cfg.Timeout = storageTestTimeoutSec
 	fs := NewS3FS(
 		cfg.Endpoint, cfg.Region, cfg.AccessKey, cfg.SecretKey,
 		cfg.Bucket, cfg.BasePath, cfg.PathStyle,
 		cfg.Timeout, 0, false,
 		s.logger,
 	)
-	if _, err := fs.ReadDir("/"); err != nil {
+	if err := fs.Probe(); err != nil {
 		return fmt.Errorf("S3 连接测试失败: %w", err)
 	}
 	return nil
@@ -194,50 +201,55 @@ func (s *RemoteStorageService) UpdateS3Config(cfg config.S3Config) error {
 	return nil
 }
 
-// GetStatus 获取 Alist + S3 状态
-func (s *RemoteStorageService) GetStatus() map[string]interface{} {
+// applyStorageProbeStatus 对远程存储做有界探测并写入状态 map。
+func applyStorageProbeStatus(p Prober, status map[string]interface{}) {
+	// 有界探测：远端不可达时最多等 2s，避免状态接口长时间阻塞
+	if err := probeVFS(p, 2*time.Second); err == nil {
+		status["connected"] = true
+	} else {
+		status["connected"] = false
+		status["error"] = err.Error()
+	}
+}
+
+// GetAlistStatus 获取 Alist 单存储状态（独立探测，互不阻塞）。
+func (s *RemoteStorageService) GetAlistStatus() map[string]interface{} {
 	s.mu.RLock()
-	alistCfg := s.config.Storage.Alist
-	s3Cfg := s.config.Storage.S3
-	alistFS := s.alistFS
-	s3FS := s.s3FS
+	cfg := s.config.Storage.Alist
+	fs := s.alistFS
 	s.mu.RUnlock()
 
-	alistStatus := map[string]interface{}{
-		"enabled":    alistCfg.Enabled,
-		"server_url": alistCfg.ServerURL,
-		"base_path":  alistCfg.BasePath,
-		"connected":  alistFS != nil,
+	status := map[string]interface{}{
+		"enabled":    cfg.Enabled,
+		"server_url": cfg.ServerURL,
+		"base_path":  cfg.BasePath,
+		"connected":  false,
 	}
-	if alistFS != nil {
-		if _, err := alistFS.ReadDir("/"); err == nil {
-			alistStatus["connected"] = true
-		} else {
-			alistStatus["connected"] = false
-			alistStatus["error"] = err.Error()
-		}
+	if fs != nil {
+		applyStorageProbeStatus(fs, status)
 	}
+	return status
+}
 
-	s3Status := map[string]interface{}{
-		"enabled":    s3Cfg.Enabled,
-		"endpoint":   s3Cfg.Endpoint,
-		"bucket":     s3Cfg.Bucket,
-		"region":     s3Cfg.Region,
-		"path_style": s3Cfg.PathStyle,
-		"connected":  s3FS != nil,
+// GetS3Status 获取 S3 单存储状态（独立探测，互不阻塞）。
+func (s *RemoteStorageService) GetS3Status() map[string]interface{} {
+	s.mu.RLock()
+	cfg := s.config.Storage.S3
+	fs := s.s3FS
+	s.mu.RUnlock()
+
+	status := map[string]interface{}{
+		"enabled":    cfg.Enabled,
+		"endpoint":   cfg.Endpoint,
+		"bucket":     cfg.Bucket,
+		"region":     cfg.Region,
+		"path_style": cfg.PathStyle,
+		"connected":  false,
 	}
-	if s3FS != nil {
-		if _, err := s3FS.ReadDir("/"); err == nil {
-			s3Status["connected"] = true
-		} else {
-			s3Status["connected"] = false
-			s3Status["error"] = err.Error()
-		}
+	if fs != nil {
+		applyStorageProbeStatus(fs, status)
 	}
-	return map[string]interface{}{
-		"alist": alistStatus,
-		"s3":    s3Status,
-	}
+	return status
 }
 
 // GetAlistFS 获取已初始化的 AlistFS（可能为 nil）

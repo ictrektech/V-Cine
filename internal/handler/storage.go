@@ -197,29 +197,6 @@ func (h *StorageHandler) RegisterWebDAVLibrary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "媒体库已成功注册 WebDAV 存储"})
 }
 
-// GetStorageStatus 获取所有存储状态
-func (h *StorageHandler) GetStorageStatus(c *gin.Context) {
-	webdavStatus := h.webdavService.GetStatus()
-	var remoteStatus map[string]interface{}
-	if h.remoteStorageService != nil {
-		remoteStatus = h.remoteStorageService.GetStatus()
-	}
-
-	response := gin.H{
-		"webdav": webdavStatus,
-		"local": gin.H{
-			"enabled": true,
-			"type":    "local",
-		},
-	}
-	if remoteStatus != nil {
-		response["alist"] = remoteStatus["alist"]
-		response["s3"] = remoteStatus["s3"]
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": response})
-}
-
 // BrowseRemoteDir 浏览远程存储目录（webdav / alist / s3）
 func (h *StorageHandler) BrowseRemoteDir(c *gin.Context) {
 	storageType := c.Query("type")

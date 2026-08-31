@@ -623,18 +623,19 @@ func main() {
 		admin.POST("/storage/webdav/test", handlers.Storage.TestWebDAVConnection)
 		admin.GET("/storage/webdav/status", handlers.Storage.GetWebDAVStatus)
 		admin.POST("/storage/webdav/libraries/register", handlers.Storage.RegisterWebDAVLibrary)
-		admin.GET("/storage/status", handlers.Storage.GetStorageStatus)
 		admin.GET("/storage/browse", handlers.Storage.BrowseRemoteDir)
 
 		// ==================== V2.3: Alist 聚合网盘管理 ====================
 		admin.GET("/storage/alist", handlers.Storage.GetAlistConfig)
 		admin.PUT("/storage/alist", handlers.Storage.UpdateAlistConfig)
 		admin.POST("/storage/alist/test", handlers.Storage.TestAlistConnection)
+		admin.GET("/storage/alist/status", handlers.Storage.GetAlistStatus)
 
 		// ==================== V2.3: S3 兼容对象存储管理 ====================
 		admin.GET("/storage/s3", handlers.Storage.GetS3Config)
 		admin.PUT("/storage/s3", handlers.Storage.UpdateS3Config)
 		admin.POST("/storage/s3/test", handlers.Storage.TestS3Connection)
+		admin.GET("/storage/s3/status", handlers.Storage.GetS3Status)
 
 		// 一键清空数据（保留影视文件）
 		admin.POST("/system/clear-data", handlers.Admin.ClearAllData)
