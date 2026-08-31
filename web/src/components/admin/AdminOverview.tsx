@@ -15,11 +15,10 @@ import {
   ScanLine,
 } from 'lucide-react'
 import { aiApi } from '@/api/ai'
-import { storageApi } from '@/api/storage'
 import { videoAnalysisApi } from '@/api/videoAnalysis'
 import type { SystemInfo, SystemSettings, Library, User, TMDbConfigStatus, DoubanConfigStatus, AIStatus } from '@/types'
-import type { StorageStatus } from '@/api/storage'
 import type { VideoAnalysisHealthInfo } from '@/types/videoAnalysis'
+import { useStorageStatuses } from '@/hooks/useStorageStatuses'
 import { formatHwAccel } from '@/utils/format'
 
 // ==================== 概览（配置状态聚合 + 下一步引导）====================
@@ -86,13 +85,12 @@ function Card({ card, onClick }: { card: StatusCard; onClick: () => void }) {
 
 export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer }: Props) {
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
-  const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null)
   const [vaHealth, setVaHealth] = useState<VideoAnalysisHealthInfo | null>(null)
+  const { webdavStatus, alistStatus, s3Status } = useStorageStatuses()
 
-  // 自取 AI / 存储状态（只读，失败静默）
+  // 自取 AI / 视频分析状态（只读，失败静默；存储状态由 useStorageStatuses 统一轮询）
   useEffect(() => {
     aiApi.getStatus().then((res) => setAiStatus(res.data.data)).catch(() => {})
-    storageApi.getStorageStatus().then((res) => setStorageStatus(res.data.data)).catch(() => {})
     videoAnalysisApi.getHealth().then((res) => setVaHealth(res.data.data)).catch(() => setVaHealth(null))
   }, [])
 
@@ -112,11 +110,14 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
   const playbackValue = sysSettings.enable_gpu_transcode ? 'GPU·开' : 'GPU·关'
   const playbackState: ConfigState = 'configured'
 
-  // 存储：WebDAV / Alist / S3
-  const storageEnabled = [storageStatus?.webdav?.enabled, storageStatus?.alist?.enabled, storageStatus?.s3?.enabled]
-  const storageCount = storageEnabled.filter(Boolean).length
+  // 存储：WebDAV / Alist / S3，只统计 enabled 且 connected 的可用后端
+  const storageCount = [
+    webdavStatus?.enabled && webdavStatus?.connected,
+    alistStatus?.enabled && alistStatus?.connected,
+    s3Status?.enabled && s3Status?.connected,
+  ].filter(Boolean).length
   const storageState: ConfigState = storageCount > 0 ? 'configured' : 'unconfigured'
-  const storageValue = storageCount > 0 ? storageCount + ' 个已启用' : '本地存储'
+  const storageValue = storageCount > 0 ? storageCount + ' 个可用' : '本地存储'
 
   // 用户 / 日志：状态常显
   const userValue = users.length + ' 用户'

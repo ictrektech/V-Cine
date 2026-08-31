@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { adminApi, libraryApi } from '@/api'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useScanProgress } from '@/hooks/useScanProgress'
+import { StorageStatusesProvider } from '@/hooks/useStorageStatuses'
 import type { SystemInfo, Library, User, TMDbConfigStatus, DoubanConfigStatus, SystemSettings } from '@/types'
 import {
   Wifi,
@@ -47,38 +48,46 @@ export default function AdminPage() {
   const { scanProgress, scrapeProgress, transcodeProgress, scanPhase, realtimeMessages } = useScanProgress(on, off, refreshLibraries)
 
   // ==================== 加载数据 ====================
-  useEffect(() => {
-    const loadAll = async () => {
-      try {
-        const [sysRes, libRes, userRes, tmdbRes, doubanRes, settingsRes] = await Promise.all([
-          adminApi.systemInfo(),
-          libraryApi.list(),
-          adminApi.listUsers(),
-          adminApi.getTMDbConfig(),
-          adminApi.getDoubanConfig(),
-          adminApi.getSystemSettings(),
-        ])
-        setSystemInfo(sysRes.data.data)
-        setLibraries(libRes.data.data || [])
-        setUsers(userRes.data.data || [])
-        setTmdbConfig(tmdbRes.data.data)
-        setDoubanConfig(doubanRes.data.data)
-        if (settingsRes.data.data) setSysSettings(settingsRes.data.data)
-      } catch {
-        // 静默处理
-      }
+  const loadAll = useCallback(async () => {
+    try {
+      const [sysRes, libRes, userRes, tmdbRes, doubanRes, settingsRes] = await Promise.all([
+        adminApi.systemInfo(),
+        libraryApi.list(),
+        adminApi.listUsers(),
+        adminApi.getTMDbConfig(),
+        adminApi.getDoubanConfig(),
+        adminApi.getSystemSettings(),
+      ])
+      setSystemInfo(sysRes.data.data)
+      setLibraries(libRes.data.data || [])
+      setUsers(userRes.data.data || [])
+      setTmdbConfig(tmdbRes.data.data)
+      setDoubanConfig(doubanRes.data.data)
+      if (settingsRes.data.data) setSysSettings(settingsRes.data.data)
+    } catch {
+      // 静默处理
     }
-    loadAll()
   }, [])
+
+  useEffect(() => {
+    loadAll()
+  }, [loadAll])
 
   // 概览页状态卡分发：全部 → Drawer
   const openDrawer = (id: string) => {
     const matched = DRAWER_IDS.find((d) => d === id)
     if (matched) setActiveDrawer(matched)
   }
-  const closeDrawer = () => setActiveDrawer(null)
+  // 关闭 Drawer 后刷新概览数据：
+  // 很多设置项（AI/视频分析/存储等）保存后只更新了自身组件状态，
+  // 概览卡不会自动感知。这里统一在关闭时重新拉取，避免“保存后要手动刷新”。
+  const closeDrawer = () => {
+    setActiveDrawer(null)
+    loadAll()
+  }
 
   return (
+    <StorageStatusesProvider>
     <div className="space-y-0">
       {/* ==================== 顶部标题栏 ==================== */}
       <div className="mb-6">
@@ -155,5 +164,6 @@ export default function AdminPage() {
         realtimeMessages={realtimeMessages}
       />
     </div>
+    </StorageStatusesProvider>
   )
 }

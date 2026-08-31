@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { storageApi, libraryApi } from '@/api'
-import type { WebDAVConfig, WebDAVStatus, AlistStatus, S3Status } from '@/api/storage'
+import type { WebDAVConfig } from '@/api/storage'
+import { useStorageStatuses } from '@/hooks/useStorageStatuses'
 import type { Library } from '@/types'
 import {
   HardDrive,
@@ -62,7 +63,6 @@ function toState(enabled?: boolean, connected?: boolean): ProviderState {
 export default function StorageTab() {
   // WebDAV 本地 state
   const [config, setConfig] = useState<WebDAVConfig>(DEFAULT_CONFIG)
-  const [status, setStatus] = useState<WebDAVStatus | null>(null)
   const [libraries, setLibraries] = useState<Library[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -73,38 +73,36 @@ export default function StorageTab() {
   const [hasPassword, setHasPassword] = useState(false)
   const [registeringLib, setRegisteringLib] = useState<string | null>(null)
 
-  // Alist / S3 状态（仅用于概览卡，详细表单仍由各自 Section 自己拉取）
-  const [alistStatus, setAlistStatus] = useState<AlistStatus | null>(null)
-  const [s3Status, setS3Status] = useState<S3Status | null>(null)
-
   // 当前激活的 provider tab
   const [activeTab, setActiveTab] = useState<ProviderKey>('webdav')
+
+  // 统一的状态轮询：WebDAV / Alist / S3 状态由 hook 维护并每 30s 自动刷新
+  const { webdavStatus, alistStatus, s3Status } = useStorageStatuses()
+  const status = webdavStatus
 
   // 加载 WebDAV 配置 + 统一状态概览 + 媒体库
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [cfgRes, webdavStatusRes, libsRes, aggregateStatusRes] = await Promise.all([
-        storageApi.getWebDAVConfig(),
-        storageApi.getWebDAVStatus(),
-        libraryApi.list(),
-        storageApi.getStorageStatus().catch(() => null),
-      ])
+      // 配置是表单的关键数据，优先单独加载；状态/媒体库是辅助信息，
+      // 不能因为远程存储不可达（状态探测会卡住/超时）而挡住配置展示。
+      const cfgRes = await storageApi.getWebDAVConfig()
       const data = cfgRes.data.data
       setHasPassword(!!data.password)
       setConfig({ ...DEFAULT_CONFIG, ...data, password: '' })
-      setStatus(webdavStatusRes.data.data)
-      setLibraries(libsRes.data.data || [])
       setPasswordDirty(false)
-      if (aggregateStatusRes) {
-        setAlistStatus(aggregateStatusRes.data.data.alist || null)
-        setS3Status(aggregateStatusRes.data.data.s3 || null)
-      }
     } catch (e: any) {
       console.error('加载存储配置失败', e)
     } finally {
       setLoading(false)
     }
+
+    // 辅助信息后台加载：任一失败/超时都不影响表单
+    void libraryApi.list().then((res) => {
+      setLibraries(res.data.data || [])
+    }).catch(() => {
+      setLibraries([])
+    })
   }, [])
 
   useEffect(() => {

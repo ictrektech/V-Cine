@@ -1,5 +1,8 @@
 import api from './client'
 
+// 状态接口可能因远程存储不可达而长时间阻塞，统一用短超时避免拖垮页面
+const STATUS_TIMEOUT_MS = 8000
+
 // ==================== V2.1: WebDAV 存储管理 ====================
 
 export interface WebDAVConfig {
@@ -94,18 +97,6 @@ export interface TestS3Request {
   path_style?: boolean
 }
 
-// ==================== 聚合状态 ====================
-
-export interface StorageStatus {
-  webdav: WebDAVStatus
-  local: {
-    enabled: boolean
-    type: string
-  }
-  alist?: AlistStatus
-  s3?: S3Status
-}
-
 export interface TestWebDAVRequest {
   server_url: string
   username?: string
@@ -133,7 +124,7 @@ export const storageApi = {
   testWebDAVConnection: (data: TestWebDAVRequest) =>
     api.post<{ message: string }>('/admin/storage/webdav/test', data),
   getWebDAVStatus: () =>
-    api.get<{ data: WebDAVStatus }>('/admin/storage/webdav/status'),
+    api.get<{ data: WebDAVStatus }>('/admin/storage/webdav/status', { timeout: STATUS_TIMEOUT_MS }),
   registerWebDAVLibrary: (libraryId: string) =>
     api.post<{ message: string }>('/admin/storage/webdav/libraries/register', {
       library_id: libraryId,
@@ -153,6 +144,9 @@ export const storageApi = {
     api.put<{ message: string }>('/admin/storage/alist', data),
   testAlistConnection: (data: TestAlistRequest) =>
     api.post<{ message: string }>('/admin/storage/alist/test', data),
+  // 单存储状态：独立探测，便于前端逐个返回时增量更新
+  getAlistStatus: () =>
+    api.get<{ data: AlistStatus }>('/admin/storage/alist/status', { timeout: STATUS_TIMEOUT_MS }),
 
   // ---------- V2.3: S3 ----------
   getS3Config: () => api.get<{ data: S3Config }>('/admin/storage/s3'),
@@ -160,8 +154,7 @@ export const storageApi = {
     api.put<{ message: string }>('/admin/storage/s3', data),
   testS3Connection: (data: TestS3Request) =>
     api.post<{ message: string }>('/admin/storage/s3/test', data),
-
-  // ---------- 聚合状态 ----------
-  getStorageStatus: () =>
-    api.get<{ data: StorageStatus }>('/admin/storage/status'),
+  // 单存储状态：独立探测，便于前端逐个返回时增量更新
+  getS3Status: () =>
+    api.get<{ data: S3Status }>('/admin/storage/s3/status', { timeout: STATUS_TIMEOUT_MS }),
 }

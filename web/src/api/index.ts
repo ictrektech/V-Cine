@@ -58,4 +58,4 @@ export type { STRMGlobalConfig, MediaSTRMInfo, UpdateMediaSTRMPayload } from './
 
 // V2.1: WebDAV 存储管理
 export { storageApi } from './storage'
-export type { WebDAVConfig, WebDAVStatus, StorageStatus, TestWebDAVRequest } from './storage'
+export type { WebDAVConfig, WebDAVStatus, TestWebDAVRequest } from './storage'

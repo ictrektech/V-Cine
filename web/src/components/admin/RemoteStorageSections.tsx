@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { storageApi } from '@/api'
-import type { AlistConfig, AlistStatus, S3Config, S3Status } from '@/api/storage'
+import type { AlistConfig, S3Config } from '@/api/storage'
+import { useStorageStatuses } from '@/hooks/useStorageStatuses'
 import {
   Cloud,
   Loader2,
@@ -73,7 +74,6 @@ function toProviderState(status: { enabled?: boolean; connected?: boolean } | nu
 
 export function AlistSection() {
   const [config, setConfig] = useState<AlistConfig>(DEFAULT_ALIST)
-  const [status, setStatus] = useState<AlistStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -84,19 +84,18 @@ export function AlistSection() {
   const [tokenDirty, setTokenDirty] = useState(false)
   const [hasPwd, setHasPwd] = useState(false)
   const [hasToken, setHasToken] = useState(false)
+  const { alistStatus } = useStorageStatuses()
+  const status = alistStatus
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [cfgRes, statusRes] = await Promise.all([
-        storageApi.getAlistConfig(),
-        storageApi.getStorageStatus(),
-      ])
+      // 配置先加载：状态探测在远程存储不可达时可能长时间不返回，不能阻塞表单。
+      const cfgRes = await storageApi.getAlistConfig()
       const data = cfgRes.data.data
       setHasPwd(!!data.password)
       setHasToken(!!data.token)
       setConfig({ ...DEFAULT_ALIST, ...data, password: '', token: '' })
-      setStatus(statusRes.data.data.alist || null)
     } catch (e) {
       console.error('加载 Alist 配置失败', e)
     } finally {
@@ -358,7 +357,6 @@ export function AlistSection() {
 
 export function S3Section() {
   const [config, setConfig] = useState<S3Config>(DEFAULT_S3)
-  const [status, setStatus] = useState<S3Status | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -366,18 +364,17 @@ export function S3Section() {
   const [showSecret, setShowSecret] = useState(false)
   const [secretDirty, setSecretDirty] = useState(false)
   const [hasSecret, setHasSecret] = useState(false)
+  const { s3Status } = useStorageStatuses()
+  const status = s3Status
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [cfgRes, statusRes] = await Promise.all([
-        storageApi.getS3Config(),
-        storageApi.getStorageStatus(),
-      ])
+      // 配置先加载：状态探测在远程存储不可达时可能长时间不返回，不能阻塞表单。
+      const cfgRes = await storageApi.getS3Config()
       const data = cfgRes.data.data
       setHasSecret(!!data.secret_key)
       setConfig({ ...DEFAULT_S3, ...data, secret_key: '' })
-      setStatus(statusRes.data.data.s3 || null)
     } catch (e) {
       console.error('加载 S3 配置失败', e)
     } finally {
