@@ -105,6 +105,8 @@ if [[ ${#TARGET_SHEETS[@]} -eq 0 ]]; then
   fi
 fi
 for sheet in "${TARGET_SHEETS[@]}"; do
+  # profile 专用 sheet（如 l4t）不参与架构校验；其余 sheet 按构建机架构校验
+  [[ -n "$PROFILE_SHEET" && "$sheet" == "$PROFILE_SHEET" ]] && continue
   if [[ "$ARCH" == "amd" ]]; then
     contains "$sheet" "${AMD_SHEETS[@]}" || die "Sheet ${sheet} is not valid for amd"
   else
