@@ -43,9 +43,9 @@ services:
       - seccomp:unconfined
 
     # 容器内 nowen 监听 8080（Dockerfile NOWEN_APP_PORT=8080），
-    # 宿主侧暴露 38080；映射 38080:8080 对位。
+    # 宿主侧暴露端口由 NOWEN_PORT 控制（默认 38080）；dev 覆盖为 ${NOWEN_PORT}:38080。
     ports:
-      - "38080:8080"
+      - "${NOWEN_PORT:-38080}:8080"
 
     volumes:
       # 应用数据 / 转码缓存（对应 data_dir=./data、cache_dir=./cache，即 /app 下）
@@ -87,6 +87,9 @@ services:
       - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
       # 视频分析开关（config.yaml 已 enabled=true，可经 env 关）
       - NOWEN_VIDEO_ANALYSIS_ENABLED=${NOWEN_VIDEO_ANALYSIS_ENABLED:-true}
+      # 媒体源地址：scene/structure 跑在宿主侧，经 docker0 网关 + 宿主端口回源
+      # （端口与上方 ports 映射共用 NOWEN_PORT）；代码默认 http://nowen-video:8080 仅同网络容器可解析
+      - NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL=${NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL:-http://172.17.0.1:${NOWEN_PORT:-38080}}
       # JWT Secret 留空则自动生成并持久化到 /app/data/.jwt_secret（重启不失效）
       - NOWEN_SECRETS_JWT_SECRET=${NOWEN_SECRETS_JWT_SECRET:-}
 

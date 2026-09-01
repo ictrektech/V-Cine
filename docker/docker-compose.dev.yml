@@ -19,7 +19,8 @@ services:
     entrypoint: ["sh", "/app/scripts/dev-entrypoint.sh"]
     ports: !reset null
     ports:
-      - "38080:38080"
+      # 容器内 air 监听 38080（config/app.yaml）；宿主端口与 base 共用 NOWEN_PORT
+      - "${NOWEN_PORT:-38080}:38080"
     volumes:
       # 源码热更新（覆盖镜像里的二进制）
       - ..:/app

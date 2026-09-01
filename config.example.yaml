@@ -89,14 +89,15 @@ cache:
   cleanup_interval_min: 60
 
 # ==================== 视频分析（场景检测与结构化）====================
-# 默认关闭。Scene 和 Structure 通过 media_base_url 从 nowen-video 拉取媒体流，
+# 默认关闭。Scene 和 Structure 通过媒体源地址从 nowen-video 拉取媒体流，
 # 不再依赖宿主路径映射，也不需要两侧共享文件系统。
 video_analysis:
   enabled: false
   scene_base_url: http://localhost:8910
   structure_base_url: http://localhost:8911
-  # detect/structure 能访问到 nowen-video 的地址，例如 http://nowen-video:8080
-  media_base_url: ""
+  # detect/structure 回源拉流的媒体源地址不在配置文件中设置：
+  # 默认 http://nowen-video:8080（compose 网络别名，自托管同网络部署自动解析）；
+  # vos 部署由 compose 自动注入 NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL，异机/异网拓扑改该 env 后重启
   # 可选内部媒体源令牌；留空表示仅依赖内网隔离
   source_token: ""
   # 远程视频（webdav/alist/s3）结构化分析：默认关闭，开启后会消耗带宽且较慢

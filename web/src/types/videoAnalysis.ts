@@ -94,7 +94,6 @@ export interface VideoAnalysisSettings {
   enabled: boolean
   scene_base_url: string
   structure_base_url: string
-  media_base_url: string
   remote_video_enabled: boolean
   asset_dir: string
   describe_enabled: boolean

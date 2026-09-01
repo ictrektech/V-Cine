@@ -171,15 +171,18 @@ func (s *VideoAnalysisService) SetBaseURLs(sceneBaseURL, structureBaseURL string
 	return nil
 }
 
-// buildAnalysisSourceURL 生成 detect/structure 可访问的内部媒体源 URL。
-// 地址基于配置的 media_base_url，按 mediaId 寻址，不依赖宿主文件路径。
+// 默认媒体源地址：同一 compose 网络内的服务名（DNS 别名），
+// 容器 IP 变化不影响解析；异网/远程拓扑用环境变量 NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL 覆盖。
+const defaultAnalysisMediaBaseURL = "http://nowen-video:8080"
+
+// buildAnalysisSourceURL 生成 detect/structure 可访问的内部媒体源 URL（按 mediaId 寻址）。
 func (s *VideoAnalysisService) buildAnalysisSourceURL(mediaID string) string {
 	if s.appCfg == nil {
 		return ""
 	}
-	base := strings.TrimRight(strings.TrimSpace(s.appCfg.VideoAnalysis.MediaBaseURL), "/")
-	if base == "" {
-		return ""
+	base := defaultAnalysisMediaBaseURL
+	if b := strings.TrimRight(strings.TrimSpace(s.appCfg.VideoAnalysis.MediaBaseURL), "/"); b != "" {
+		base = b
 	}
 	u := base + "/internal/video-analysis/source/" + url.PathEscape(mediaID)
 	if token := strings.TrimSpace(s.appCfg.VideoAnalysis.SourceToken); token != "" {
@@ -360,9 +363,6 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 	// URL 媒体源寻址：detect/structure 通过内部 HTTP 接口按 mediaId 拉流，
 	// 不依赖宿主文件路径，也不依赖两侧共享文件系统。
 	mappedPath := s.buildAnalysisSourceURL(mediaID)
-	if mappedPath == "" {
-		return nil, errors.New("video analysis media_base_url is not configured")
-	}
 	// 远程视频结构化默认关闭：避免无感知消耗带宽/网络。
 	if IsRemotePath(media.FilePath) && (s.appCfg == nil || !s.appCfg.VideoAnalysis.RemoteVideoEnabled) {
 		return nil, errors.New("远程视频结构化未开启，已跳过；本地/内网视频可正常解析")

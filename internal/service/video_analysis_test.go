@@ -552,6 +552,13 @@ func TestBuildAnalysisSourceURL(t *testing.T) {
 	if got != want {
 		t.Fatalf("buildAnalysisSourceURL() without token = %q, want %q", got, want)
 	}
+	// 未配置 media_base_url → 默认 compose 服务名
+	svc.appCfg.VideoAnalysis.MediaBaseURL = ""
+	got = svc.buildAnalysisSourceURL("abc")
+	want = defaultAnalysisMediaBaseURL + "/internal/video-analysis/source/abc"
+	if got != want {
+		t.Fatalf("buildAnalysisSourceURL() with default base = %q, want %q", got, want)
+	}
 }
 
 func TestVideoAnalysisServiceSubmitUsesURLAccessMode(t *testing.T) {

@@ -232,7 +232,6 @@ type videoAnalysisSettingsView struct {
 	Enabled            bool   `json:"enabled"`
 	SceneBaseURL       string `json:"scene_base_url"`
 	StructureBaseURL   string `json:"structure_base_url"`
-	MediaBaseURL       string `json:"media_base_url"`
 	RemoteVideoEnabled bool   `json:"remote_video_enabled"`
 	AssetDir           string `json:"asset_dir"`
 	DescribeEnabled    bool   `json:"describe_enabled"`
@@ -240,11 +239,11 @@ type videoAnalysisSettingsView struct {
 
 // updateVideoAnalysisSettingsRequest 是前端可更新的视频分析配置子集。
 // asset_dir 属于数据目录，只读展示，不通过该接口修改；source_token 仅通过配置文件设置。
+// media_base_url 无需用户配置：默认使用 compose 服务名，特殊拓扑用环境变量覆盖。
 type updateVideoAnalysisSettingsRequest struct {
 	Enabled            bool   `json:"enabled"`
 	SceneBaseURL       string `json:"scene_base_url"`
 	StructureBaseURL   string `json:"structure_base_url"`
-	MediaBaseURL       string `json:"media_base_url"`
 	RemoteVideoEnabled bool   `json:"remote_video_enabled"`
 	DescribeEnabled    bool   `json:"describe_enabled"`
 }
@@ -256,7 +255,6 @@ func (h *VideoAnalysisHandler) GetSettings(c *gin.Context) {
 		Enabled:            cfg.Enabled,
 		SceneBaseURL:       cfg.SceneBaseURL,
 		StructureBaseURL:   cfg.StructureBaseURL,
-		MediaBaseURL:       cfg.MediaBaseURL,
 		RemoteVideoEnabled: cfg.RemoteVideoEnabled,
 		AssetDir:           cfg.AssetDir,
 		DescribeEnabled:    cfg.DescribeEnabled,
@@ -278,17 +276,12 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 	updated.Enabled = req.Enabled
 	updated.SceneBaseURL = strings.TrimSpace(req.SceneBaseURL)
 	updated.StructureBaseURL = strings.TrimSpace(req.StructureBaseURL)
-	updated.MediaBaseURL = strings.TrimSpace(req.MediaBaseURL)
 	updated.RemoteVideoEnabled = req.RemoteVideoEnabled
 	updated.DescribeEnabled = req.DescribeEnabled
 
 	if updated.Enabled {
 		if updated.SceneBaseURL == "" || updated.StructureBaseURL == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "启用视频分析需要填写 Scene 与 Structure 服务地址"})
-			return
-		}
-		if updated.MediaBaseURL == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "启用视频分析需要填写 media_base_url（detect/structure 访问 nowen-video 的媒体源地址）"})
 			return
 		}
 		if updated.AssetDir == "" {

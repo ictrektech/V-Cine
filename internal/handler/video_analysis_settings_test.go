@@ -20,7 +20,6 @@ func TestVideoAnalysisGetSettings(t *testing.T) {
 		Enabled:            true,
 		SceneBaseURL:       "http://scene:8910",
 		StructureBaseURL:   "http://structure:8911",
-		MediaBaseURL:       "http://nowen-video:8080",
 		RemoteVideoEnabled: true,
 		AssetDir:           "/cache/structure",
 		DescribeEnabled:    true,
@@ -44,7 +43,7 @@ func TestVideoAnalysisGetSettings(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	if !resp.Data.Enabled || resp.Data.SceneBaseURL != "http://scene:8910" || resp.Data.StructureBaseURL != "http://structure:8911" || resp.Data.MediaBaseURL != "http://nowen-video:8080" || !resp.Data.RemoteVideoEnabled || resp.Data.AssetDir != "/cache/structure" || !resp.Data.DescribeEnabled {
+	if !resp.Data.Enabled || resp.Data.SceneBaseURL != "http://scene:8910" || resp.Data.StructureBaseURL != "http://structure:8911" || !resp.Data.RemoteVideoEnabled || resp.Data.AssetDir != "/cache/structure" || !resp.Data.DescribeEnabled {
 		t.Fatalf("unexpected settings view: %+v", resp.Data)
 	}
 }
@@ -94,7 +93,7 @@ func TestVideoAnalysisUpdateSettingsPreservesAssetDir(t *testing.T) {
 	r := gin.New()
 	r.PUT("/settings", h.UpdateSettings)
 
-	body := `{"enabled":true,"scene_base_url":"http://scene:8910","structure_base_url":"http://structure:8911","media_base_url":"http://nowen-video:8080","remote_video_enabled":true,"asset_dir":"/data/should-be-ignored"}`
+	body := `{"enabled":true,"scene_base_url":"http://scene:8910","structure_base_url":"http://structure:8911","remote_video_enabled":true,"asset_dir":"/data/should-be-ignored"}`
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodPut, "/settings", bytes.NewBufferString(body)))
 
@@ -106,9 +105,6 @@ func TestVideoAnalysisUpdateSettingsPreservesAssetDir(t *testing.T) {
 	}
 	if !cfg.VideoAnalysis.Enabled {
 		t.Fatal("enabled should be updated")
-	}
-	if cfg.VideoAnalysis.MediaBaseURL != "http://nowen-video:8080" {
-		t.Fatalf("media_base_url should be updated, got %q", cfg.VideoAnalysis.MediaBaseURL)
 	}
 	if !cfg.VideoAnalysis.RemoteVideoEnabled {
 		t.Fatal("remote_video_enabled should be updated")
