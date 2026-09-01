@@ -29,4 +29,3 @@ Layout:
 
 The first user registered on first launch becomes the administrator. The library can point at the in-container `/media` directory, or at a supported remote storage configured inside the app.
 
-`NOWEN_ADULT_SCRAPER_ENABLED` is off by default; enable it only when there is a real business need and it complies with local regulations.

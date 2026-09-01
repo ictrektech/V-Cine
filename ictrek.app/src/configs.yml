@@ -123,12 +123,5 @@ configs:
       en: Video structure service base URL. Default http://172.17.0.1:48911 (same-host deployment); initial value only, change it at runtime in Nowen video-analysis settings.
     default: http://172.17.0.1:48911
 
-  - name: NOWEN_ADULT_SCRAPER_ENABLED
-    type: boolean
-    title:
-      zh-CN: 启用番号刮削
-      en: Enable Adult Scraper
-    description:
-      zh-CN: 是否启用应用内的可选番号元数据刮削服务。
-      en: Enable the optional in-app adult metadata scraper.
-    default: false
+  # NOWEN_ADULT_SCRAPER_ENABLED（番号刮削）不作为 VOS 可配置项暴露给普通用户：
+  # compose 内默认 false，开发/运维可通过注入环境变量开启；对用户开放时再在此登记。
