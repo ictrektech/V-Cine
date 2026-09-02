@@ -1,11 +1,15 @@
 package service
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -252,6 +256,138 @@ func TestVideoAnalysisClientSetBaseURLsRejectsInvalid(t *testing.T) {
 	}
 	if got := client.sceneBase.Load().String(); got != "http://old-scene:8910" {
 		t.Fatalf("scene base should remain unchanged, got %q", got)
+	}
+}
+
+func TestDownloadStructureArtifactExtractsTarAndVerifiesSizes(t *testing.T) {
+	artifact := &VideoAnalysisArtifact{
+		Files: []VideoAnalysisArtifactFile{
+			{Path: "manifest.json", Size: int64(len("{}"))},
+			{Path: "grids/scene_000.jpg", Size: int64(len("jpeg"))},
+		},
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v2/video/structure/jobs/structure-1/artifact" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/x-tar")
+		tw := tar.NewWriter(w)
+		_ = tw.WriteHeader(&tar.Header{Name: "manifest.json", Mode: 0o600, Size: int64(len("{}"))})
+		_, _ = tw.Write([]byte("{}"))
+		_ = tw.WriteHeader(&tar.Header{Name: "grids/scene_000.jpg", Mode: 0o600, Size: int64(len("jpeg"))})
+		_, _ = tw.Write([]byte("jpeg"))
+		_ = tw.Close()
+	}))
+	defer server.Close()
+
+	client, err := NewVideoAnalysisClient(server.URL, server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dst := t.TempDir()
+	if err := client.DownloadStructureArtifact(context.Background(), "structure-1", dst, artifact); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dst, "manifest.json"))
+	if err != nil || string(data) != "{}" {
+		t.Fatalf("manifest.json = %q err=%v", data, err)
+	}
+	data, err = os.ReadFile(filepath.Join(dst, "grids", "scene_000.jpg"))
+	if err != nil || string(data) != "jpeg" {
+		t.Fatalf("grid image = %q err=%v", data, err)
+	}
+}
+
+func TestDownloadStructureArtifactRejectsSizeMismatch(t *testing.T) {
+	artifact := &VideoAnalysisArtifact{
+		Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 999}},
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/x-tar")
+		tw := tar.NewWriter(w)
+		_ = tw.WriteHeader(&tar.Header{Name: "manifest.json", Mode: 0o600, Size: int64(len("{}"))})
+		_, _ = tw.Write([]byte("{}"))
+		_ = tw.Close()
+	}))
+	defer server.Close()
+
+	client, err := NewVideoAnalysisClient(server.URL, server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.DownloadStructureArtifact(context.Background(), "structure-1", t.TempDir(), artifact); err == nil {
+		t.Fatal("expected size mismatch error")
+	}
+}
+
+func TestDownloadStructureArtifactReturnsAPIErrorOnFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeAnalysisResponse(t, w, http.StatusGone, 41001, "staging 产物不存在", map[string]any{})
+	}))
+	defer server.Close()
+
+	client, err := NewVideoAnalysisClient(server.URL, server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = client.DownloadStructureArtifact(context.Background(), "structure-1", t.TempDir(), &VideoAnalysisArtifact{
+		Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}},
+	})
+	var apiErr *VideoAnalysisAPIError
+	if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusGone {
+		t.Fatalf("err = %v, want VideoAnalysisAPIError with HTTP 410", err)
+	}
+}
+
+func TestReleaseStructureJobSendsDeleteAndToleratesNotFound(t *testing.T) {
+	var pathCalled string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pathCalled = r.URL.Path
+		if r.Method == http.MethodDelete && r.URL.Path == "/api/v2/video/structure/jobs/structure-1" {
+			writeAnalysisResponse(t, w, http.StatusOK, 0, "ok", map[string]any{"job_id": "structure-1", "released": true})
+			return
+		}
+		writeAnalysisResponse(t, w, http.StatusNotFound, 40401, "job not found", map[string]any{})
+	}))
+	defer server.Close()
+
+	client, err := NewVideoAnalysisClient(server.URL, server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.ReleaseStructureJob(context.Background(), "structure-1"); err != nil {
+		t.Fatalf("release failed: %v", err)
+	}
+	if pathCalled != "/api/v2/video/structure/jobs/structure-1" {
+		t.Fatalf("DELETE path = %q", pathCalled)
+	}
+	// 404 视为已释放（幂等）
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeAnalysisResponse(t, w, http.StatusNotFound, 40401, "job not found", map[string]any{})
+	}))
+	defer server2.Close()
+	client2, err := NewVideoAnalysisClient(server2.URL, server2.URL, server2.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client2.ReleaseStructureJob(context.Background(), "structure-1"); err != nil {
+		t.Fatalf("404 release should be idempotent: %v", err)
+	}
+}
+
+func TestExtractArtifactTarRejectsPathTraversal(t *testing.T) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	_ = tw.WriteHeader(&tar.Header{Name: "../evil.txt", Mode: 0o600, Size: 1})
+	_, _ = tw.Write([]byte("x"))
+	_ = tw.Close()
+
+	dst := t.TempDir()
+	if err := extractArtifactTar(&buf, dst, &VideoAnalysisArtifact{Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}}}); err == nil {
+		t.Fatal("expected path traversal error")
+	}
+	if _, err := os.Stat(filepath.Join(dst, "..", "evil.txt")); !os.IsNotExist(err) {
+		t.Fatal("traversal file must not be written")
 	}
 }
 

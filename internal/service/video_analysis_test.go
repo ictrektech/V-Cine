@@ -28,6 +28,12 @@ type fakeVideoAnalysisClient struct {
 	describeError    error
 	describeResult   []byte
 	structureResult  []byte
+
+	artifact      *VideoAnalysisArtifact
+	downloadErr   error
+	releaseErr    error
+	downloadCalls int
+	releaseCalls  int
 }
 
 func (f *fakeVideoAnalysisClient) SubmitDetectJob(_ context.Context, request DetectJobRequest) (*ExternalJobRef, error) {
@@ -53,7 +59,29 @@ func (f *fakeVideoAnalysisClient) GetStructureJob(context.Context, string) (*Ext
 	if len(result) == 0 {
 		result, _ = json.Marshal(map[string]any{"video_hash": "hash-1", "scenes": []any{}})
 	}
-	return &ExternalJob{JobID: "structure-1", Status: "succeeded", Result: result}, nil
+	return &ExternalJob{JobID: "structure-1", Status: "succeeded", Result: result, Artifact: f.artifact}, nil
+}
+
+func (f *fakeVideoAnalysisClient) DownloadStructureArtifact(_ context.Context, _ string, dstDir string, _ *VideoAnalysisArtifact) error {
+	f.downloadCalls++
+	if f.downloadErr != nil {
+		return f.downloadErr
+	}
+	if err := os.MkdirAll(filepath.Join(dstDir, "grids"), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dstDir, "manifest.json"), []byte("{}"), 0o600); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dstDir, "grids", "scene_000.jpg"), []byte("jpeg"), 0o600); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *fakeVideoAnalysisClient) ReleaseStructureJob(context.Context, string) error {
+	f.releaseCalls++
+	return f.releaseErr
 }
 
 func (f *fakeVideoAnalysisClient) SubmitDescribeJob(_ context.Context, request DescribeJobRequest) (*ExternalJobRef, error) {
@@ -368,13 +396,16 @@ func TestVideoAnalysisServiceDescribeFailureMarksPartial(t *testing.T) {
 	}
 }
 
-func TestVideoAnalysisServiceClaimStagingFailureMarksFailed(t *testing.T) {
-	// structure 结果含 staging_dir，但指向不存在的目录 → claim 失败 → task failed + CLAIM_STAGING_FAILED
+func TestVideoAnalysisServiceClaimArtifactFailureMarksFailed(t *testing.T) {
+	// artifact 下载失败 → claim 失败 → task failed + CLAIM_STAGING_FAILED
 	client := &fakeVideoAnalysisClient{
+		artifact: &VideoAnalysisArtifact{
+			Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}},
+		},
+		downloadErr: errors.New("boom"),
 		structureResult: mustMarshalJSONBytes(t, map[string]any{
-			"video_hash":  "hash-1",
-			"staging_dir": "/nonexistent/staging/job-1",
-			"scenes":      []any{},
+			"video_hash": "hash-1",
+			"scenes":     []any{},
 		}),
 	}
 	service, tasks, mediaID := setupVideoAnalysisService(t, client)

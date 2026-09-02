@@ -60,6 +60,12 @@ func (f *fakeHandlerVideoAnalysisClient) SubmitDescribeJob(context.Context, serv
 func (f *fakeHandlerVideoAnalysisClient) GetDescribeJob(context.Context, string) (*service.ExternalJob, error) {
 	return nil, nil
 }
+func (f *fakeHandlerVideoAnalysisClient) DownloadStructureArtifact(context.Context, string, string, *service.VideoAnalysisArtifact) error {
+	return nil
+}
+func (f *fakeHandlerVideoAnalysisClient) ReleaseStructureJob(context.Context, string) error {
+	return nil
+}
 
 func TestVideoAnalysisHandlerGetMediaResult(t *testing.T) {
 	h, tasks, mediaID, _ := setupVideoAnalysisResultHandler(t)
@@ -67,7 +73,7 @@ func TestVideoAnalysisHandlerGetMediaResult(t *testing.T) {
 		MediaID: mediaID, LibraryID: "library-1", MediaTitle: "Movie",
 		VideoPath: "/media/movie.mp4", MappedVideoPath: "/photos/movie.mp4",
 		Trigger: model.VideoAnalysisTriggerManual, Status: model.VideoAnalysisStatusSucceeded, Stage: model.VideoAnalysisStageDone,
-		ResultJSON: `{"video_hash":"hash-1","metadata":{"video_path":"/photos/movie.mp4"},"staging_dir":"/staging/job-1","scenes":[{"scene_index":0,"start_time":0,"end_time":1,"start_frame":0,"end_frame":1}]}`,
+		ResultJSON: `{"video_hash":"hash-1","metadata":{"video_path":"/photos/movie.mp4"},"scenes":[{"scene_index":0,"start_time":0,"end_time":1,"start_frame":0,"end_frame":1}]}`,
 	}
 	if err := tasks.CreateIfNoActive(task); err != nil {
 		t.Fatal(err)
@@ -96,7 +102,7 @@ func TestVideoAnalysisHandlerServeSceneGrid(t *testing.T) {
 		MediaID: mediaID, LibraryID: "library-1", MediaTitle: "Movie",
 		VideoPath: "/media/movie.mp4", MappedVideoPath: "/photos/movie.mp4",
 		Trigger: model.VideoAnalysisTriggerManual, Status: model.VideoAnalysisStatusSucceeded, Stage: model.VideoAnalysisStageDone,
-		ResultJSON: `{"video_hash":"hash-1","metadata":{"video_path":"/photos/movie.mp4"},"staging_dir":"/staging/job-1","scenes":[{"scene_index":0,"start_time":0,"end_time":1,"start_frame":0,"end_frame":1,"grid_image":"scene_000.jpg"}]}`,
+		ResultJSON: `{"video_hash":"hash-1","metadata":{"video_path":"/photos/movie.mp4"},"scenes":[{"scene_index":0,"start_time":0,"end_time":1,"start_frame":0,"end_frame":1,"grid_image":"scene_000.jpg"}]}`,
 	}
 	if err := tasks.CreateIfNoActive(task); err != nil {
 		t.Fatal(err)

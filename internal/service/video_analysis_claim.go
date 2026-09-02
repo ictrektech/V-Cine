@@ -1,128 +1,111 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
+
+	"github.com/nowen-video/nowen-video/internal/model"
 )
 
-// claimStagingDir 把结构服务 staging 目录整体 mv 到 <assetDir>/<videoHash>/。
-//
-// 语义（结构服务无状态化契约）：structure job 成功后产物暂存于服务端
-// <staging_base>/<job_id>/，由上游自行搬走（搬走即归上游所有）。本函数执行
-// 这次搬移，成功后 asset_dir/<hash>/ 即 Nowen 持久持有的资产目录。
-//
-// 幂等：目标目录已存在则跳过（说明已搬移过），不覆盖。
-// 同卷优先：os.Rename 原子且便宜；跨文件系统（容器内两个独立挂载点，即使底层
-// 同一设备）rename 返回 EXDEV，此时 fallback 到 copy + delete（非原子，但正确）。
-func claimStagingDir(stagingDir, assetDir, videoHash string) (string, error) {
-	stagingDir = strings.TrimSpace(stagingDir)
-	if stagingDir == "" || !filepath.IsAbs(stagingDir) {
-		return "", errors.New("staging dir must be an absolute path")
+// claimArtifactForTask 通过 HTTP 下载 structure 产物（v2 Pull 交付）到 asset_dir/<hash>。
+// 下载在 cleanupMu 外进行，只在最终落盘（persist + rename）时加锁。
+// 幂等：目标目录已存在且含 manifest.json 则跳过。下载完成后调用 DELETE 释放服务端
+// staging（幂等，失败不致命，由服务端 TTL 兜底清理）。
+func (s *VideoAnalysisService) claimArtifactForTask(task *model.VideoAnalysisTask, videoHash string, artifact *VideoAnalysisArtifact) error {
+	dst := filepath.Join(s.assetDir, videoHash)
+	if dirExists(dst) && fileExists(filepath.Join(dst, "manifest.json")) {
+		return nil
 	}
-	videoHash = strings.TrimSpace(videoHash)
-	if videoHash == "" || videoHash == "." || videoHash == ".." || strings.ContainsAny(videoHash, "/\\") {
-		return "", errors.New("video hash is invalid for claim")
-	}
-	assetDir = filepath.Clean(strings.TrimSpace(assetDir))
-	if assetDir == "." || assetDir == "" {
-		return "", errors.New("asset dir is not configured")
-	}
-	if err := os.MkdirAll(assetDir, 0o755); err != nil {
-		return "", fmt.Errorf("create asset dir: %w", err)
+	if strings.TrimSpace(task.StructureJobID) == "" {
+		return fmt.Errorf("%w: artifact claim requires structure_job_id", errClaimStagingFailed)
 	}
 
-	dst := filepath.Join(assetDir, videoHash)
-	// 幂等：目标已存在则跳过（已搬移过），不覆盖。
-	if dirExists(dst) {
-		return dst, nil
-	}
-	if !dirExists(stagingDir) {
-		return "", fmt.Errorf("staging dir does not exist: %s", stagingDir)
+	tmp, err := s.downloadStructureArtifact(task.StructureJobID, artifact, s.assetDir)
+	if err != nil {
+		return fmt.Errorf("%w: %v", errClaimStagingFailed, err)
 	}
 
-	if err := os.Rename(stagingDir, dst); err != nil {
-		if !errors.Is(err, syscall.EXDEV) {
-			return "", fmt.Errorf("rename staging dir to asset dir: %w", err)
-		}
-		// 跨文件系统/挂载点：rename 不可用，fallback 到 copy + delete。
-		// copy 完成后删除源目录；源删除失败返回错误（调用方标 failed），
-		// 但产物已归上游所有，且源残留由结构服务 TTL 兜底清理；
-		// 下次重试时目标已存在会幂等跳过，可自愈。
-		if err := claimStagingDirCrossDevice(stagingDir, dst); err != nil {
-			return "", err
-		}
-	}
-	// 产物完整标志：manifest.json 必须存在（结构服务最后写它）。
-	if err := verifyClaimedManifest(dst); err != nil {
-		return "", err
-	}
-	return dst, nil
-}
-
-// claimStagingDirCrossDevice 跨文件系统搬移 fallback：copy + delete。
-// copy 非原子，失败会留半成品 dst —— 清理掉，避免下次幂等检查误判"已搬移"，
-// 否则半成品永远无法自愈。
-func claimStagingDirCrossDevice(stagingDir, dst string) error {
-	if err := copyDirRecursive(stagingDir, dst); err != nil {
-		_ = os.RemoveAll(dst)
-		return fmt.Errorf("claim staging via copy (EXDEV fallback): %w", err)
-	}
-	if err := os.RemoveAll(stagingDir); err != nil {
-		return fmt.Errorf("claim staging: copy ok but remove source %s: %w", stagingDir, err)
-	}
-	return nil
-}
-
-// verifyClaimedManifest 校验搬移/复制后的产物完整标志：manifest.json 必须存在
-// （结构服务最后写它），缺失说明产物不完整。
-func verifyClaimedManifest(dst string) error {
-	if !fileExists(filepath.Join(dst, "manifest.json")) {
-		return fmt.Errorf("claimed staging dir missing manifest.json: %s", dst)
-	}
-	return nil
-}
-
-// copyDirRecursive 递归复制 src 目录到 dst（保留文件权限），用于跨文件系统搬移 fallback。
-func copyDirRecursive(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(dst, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-		if !d.Type().IsRegular() {
-			// 跳过符号链接等非普通文件，避免复制不可靠对象。
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-		return copyFileWithMode(path, target, info.Mode())
-	})
-}
-
-// copyFileWithMode 复制单个文件内容并保留权限位。
-func copyFileWithMode(src, dst string, mode fs.FileMode) error {
-	data, err := os.ReadFile(src)
+	s.cleanupMu.Lock()
+	err = s.finalizeArtifactClaimLocked(task, videoHash, tmp, dst)
+	s.cleanupMu.Unlock()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
+
+	if s.logger != nil {
+		s.logger.Infow("Video analysis claim artifact succeeded",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"video_hash", videoHash,
+			"asset_dir", s.assetDir,
+		)
 	}
-	return os.WriteFile(dst, data, mode)
+	// 所有权确认：失败不致命（服务端 TTL 兜底清理）。
+	if err := s.client.ReleaseStructureJob(context.Background(), task.StructureJobID); err != nil && s.logger != nil {
+		s.logger.Warnw("Video analysis release structure job failed (TTL will clean)",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"structure_job_id", task.StructureJobID,
+			"error", err,
+		)
+	}
+	return nil
+}
+
+// finalizeArtifactClaimLocked 在持有 cleanupMu 时完成幂等复查、清理残留、
+// 持久化 video_hash 和最终 rename。失败时负责清理 tmp。
+func (s *VideoAnalysisService) finalizeArtifactClaimLocked(task *model.VideoAnalysisTask, videoHash, tmp, dst string) error {
+	if dirExists(dst) && fileExists(filepath.Join(dst, "manifest.json")) {
+		_ = os.RemoveAll(tmp)
+		return nil
+	}
+	// 清理历史遗留的不完整 dst（存在但缺 manifest.json），避免 rename 永远失败。
+	if !fileExists(filepath.Join(dst, "manifest.json")) {
+		if err := os.RemoveAll(dst); err != nil {
+			_ = os.RemoveAll(tmp)
+			return fmt.Errorf("%w: clean incomplete dst: %v", errClaimStagingFailed, err)
+		}
+	}
+	task.VideoHash = strings.TrimSpace(videoHash)
+	if err := s.persist(task); err != nil {
+		_ = os.RemoveAll(tmp)
+		return fmt.Errorf("persist task before claim: %w", err)
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		_ = os.RemoveAll(tmp)
+		return fmt.Errorf("%w: rename downloaded artifact: %v", errClaimStagingFailed, err)
+	}
+	return nil
+}
+
+// downloadStructureArtifact 下载到 assetDir/.tmp 下的唯一临时目录：
+// 与最终目录同文件系统，且 CleanOrphanStructure 会跳过隐藏的 .tmp，
+// 因此下载期间无需持有 cleanupMu。
+func (s *VideoAnalysisService) downloadStructureArtifact(jobID string, artifact *VideoAnalysisArtifact, assetDir string) (string, error) {
+	if err := os.MkdirAll(filepath.Join(assetDir, ".tmp"), 0o755); err != nil {
+		return "", fmt.Errorf("create artifact tmp dir: %w", err)
+	}
+	tmp, err := os.MkdirTemp(filepath.Join(assetDir, ".tmp"), "claim-")
+	if err != nil {
+		return "", fmt.Errorf("create artifact tmp dir: %w", err)
+	}
+	if err := os.Chmod(tmp, 0o755); err != nil {
+		_ = os.RemoveAll(tmp)
+		return "", fmt.Errorf("chmod artifact tmp dir: %w", err)
+	}
+	if err := s.client.DownloadStructureArtifact(context.Background(), jobID, tmp, artifact); err != nil {
+		_ = os.RemoveAll(tmp)
+		return "", err
+	}
+	if !fileExists(filepath.Join(tmp, "manifest.json")) {
+		_ = os.RemoveAll(tmp)
+		return "", errors.New("downloaded artifact missing manifest.json")
+	}
+	return tmp, nil
 }
 
 func dirExists(p string) bool {

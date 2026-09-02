@@ -72,10 +72,22 @@ type VideoAnalysisResult struct {
 	Scenes              []SceneResult          `json:"scenes"`
 }
 
+// VideoAnalysisArtifactFile artifact 清单中的单文件信息（v2 Pull 交付）。
+type VideoAnalysisArtifactFile struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+}
+
+// VideoAnalysisArtifact structure job 可下载产物清单（v2 Pull 交付）。
+// 由外部服务在 job 状态响应顶层返回，下载后按 files 校验产物完整性。
+type VideoAnalysisArtifact struct {
+	Files []VideoAnalysisArtifactFile `json:"files"`
+}
+
 type videoAnalysisStructureResult struct {
 	VideoHash    string                 `json:"video_hash"`
 	Metadata     videoAnalysisMetadata  `json:"metadata"`
-	StagingDir   string                 `json:"staging_dir"`
+	Artifact     *VideoAnalysisArtifact `json:"artifact,omitempty"`
 	Scenes       []videoAnalysisScene   `json:"scenes"`
 	Warnings     []VideoAnalysisWarning `json:"warnings"`
 	StageTimings map[string]float64     `json:"stage_timings"`
@@ -325,6 +337,32 @@ func detectVideoAnalysisImageContentType(path string) string {
 	default:
 		return "application/octet-stream"
 	}
+}
+
+// buildStructureResultJSON 组装持久化到任务的 structure 结果 JSON。
+// 外部服务把 artifact 清单放在 job status 顶层（与 result 平级），
+// 这里把它嵌入 result 一并持久化，claim 阶段只需读 task.ResultJSON。
+func buildStructureResultJSON(job *ExternalJob) (string, error) {
+	raw := job.Result
+	if len(raw) == 0 {
+		return "", nil
+	}
+	if job.Artifact == nil {
+		return string(raw), nil
+	}
+	var data map[string]any
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return "", err
+	}
+	if data == nil {
+		data = map[string]any{}
+	}
+	data["artifact"] = job.Artifact
+	out, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }
 
 func mergeDescribeResult(structureJSON string, describeJSON []byte) (string, error) {

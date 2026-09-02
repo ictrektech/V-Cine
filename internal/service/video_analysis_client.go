@@ -1,6 +1,7 @@
 package service
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -9,7 +10,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -79,6 +82,8 @@ type ExternalJob struct {
 	Attempt    int               `json:"attempt"`
 	Result     json.RawMessage   `json:"result"`
 	Error      *ExternalJobError `json:"error"`
+	// Artifact 为 structure job 可下载产物清单；服务端未实现或无产物时为 nil。
+	Artifact *VideoAnalysisArtifact `json:"artifact"`
 }
 
 type VideoAnalysisHealth struct {
@@ -177,6 +182,58 @@ func (c *VideoAnalysisClient) GetStructureJob(ctx context.Context, jobID string)
 	return c.getJob(ctx, c.structureBase.Load(), "/api/v2/video/structure/jobs/", jobID)
 }
 
+// DownloadStructureArtifact 下载 structure job 的 tar 产物（v2 Pull 交付）到 dstDir。
+// 下载后按 artifact.Files 校验每个文件存在且 size 一致（服务端未提供 sha256）。
+func (c *VideoAnalysisClient) DownloadStructureArtifact(ctx context.Context, jobID, dstDir string, artifact *VideoAnalysisArtifact) error {
+	if strings.TrimSpace(jobID) == "" {
+		return errors.New("job ID is required")
+	}
+	if artifact == nil || len(artifact.Files) == 0 {
+		return errors.New("artifact file list is empty")
+	}
+	requestURL := analysisRequestURL(c.structureBase.Load(), "/api/v2/video/structure/jobs/"+url.PathEscape(jobID)+"/artifact")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
+	if err != nil {
+		return fmt.Errorf("create artifact download request: %w", err)
+	}
+	req.Header.Set("Accept", "application/x-tar")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("download structure artifact: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return decodeAnalysisErrorResponse(resp)
+	}
+	if err := extractArtifactTar(resp.Body, dstDir, artifact); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ReleaseStructureJob 释放 structure job 的 staging 产物所有权（v2 Pull 交付）。
+// 幂等：job/产物已不存在（404）视为已释放。
+func (c *VideoAnalysisClient) ReleaseStructureJob(ctx context.Context, jobID string) error {
+	if strings.TrimSpace(jobID) == "" {
+		return errors.New("job ID is required")
+	}
+	// 响应结构同时作为接口契约说明；当前只关心请求成功，不读取字段。
+	var result struct {
+		JobID    string `json:"job_id"`
+		Released bool   `json:"released"`
+	}
+	if err := c.doJSON(ctx, http.MethodDelete, c.structureBase.Load(), "/api/v2/video/structure/jobs/"+url.PathEscape(jobID), nil, &result); err != nil {
+		var apiErr *VideoAnalysisAPIError
+		if errors.As(err, &apiErr) && apiErr.HTTPStatus == http.StatusNotFound {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
 func (c *VideoAnalysisClient) SubmitDescribeJob(ctx context.Context, request DescribeJobRequest) (*ExternalJobRef, error) {
 	if strings.TrimSpace(request.StructureJobID) == "" {
 		return nil, errors.New("structure_job_id is required")
@@ -231,6 +288,20 @@ func (c *VideoAnalysisClient) getJob(ctx context.Context, base *url.URL, endpoin
 	return &result, nil
 }
 
+type analysisEnvelope struct {
+	Code int             `json:"code"`
+	Msg  string          `json:"msg"`
+	Data json.RawMessage `json:"data"`
+}
+
+func decodeAnalysisEnvelope(payload []byte) (analysisEnvelope, error) {
+	var envelope analysisEnvelope
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		return envelope, err
+	}
+	return envelope, nil
+}
+
 func (c *VideoAnalysisClient) doJSON(ctx context.Context, method string, base *url.URL, endpoint string, requestBody, result any) error {
 	var body io.Reader
 	if requestBody != nil {
@@ -241,8 +312,7 @@ func (c *VideoAnalysisClient) doJSON(ctx context.Context, method string, base *u
 		body = bytes.NewReader(encoded)
 	}
 
-	requestURL := *base
-	requestURL.Path = path.Join(strings.TrimSuffix(base.Path, "/"), endpoint)
+	requestURL := analysisRequestURL(base, endpoint)
 	req, err := http.NewRequestWithContext(ctx, method, requestURL.String(), body)
 	if err != nil {
 		return fmt.Errorf("create video analysis request: %w", err)
@@ -267,12 +337,8 @@ func (c *VideoAnalysisClient) doJSON(ctx context.Context, method string, base *u
 		return errors.New("video analysis response exceeds size limit")
 	}
 
-	var envelope struct {
-		Code int             `json:"code"`
-		Msg  string          `json:"msg"`
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(payload, &envelope); err != nil {
+	envelope, err := decodeAnalysisEnvelope(payload)
+	if err != nil {
 		return fmt.Errorf("decode video analysis response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 || envelope.Code != 0 {
@@ -283,6 +349,87 @@ func (c *VideoAnalysisClient) doJSON(ctx context.Context, method string, base *u
 	}
 	if err := json.Unmarshal(envelope.Data, result); err != nil {
 		return fmt.Errorf("decode video analysis data: %w", err)
+	}
+	return nil
+}
+
+func decodeAnalysisErrorResponse(resp *http.Response) error {
+	payload, _ := io.ReadAll(io.LimitReader(resp.Body, maxVideoAnalysisResponseBytes+1))
+	envelope, _ := decodeAnalysisEnvelope(payload)
+	return &VideoAnalysisAPIError{HTTPStatus: resp.StatusCode, Code: envelope.Code, Message: envelope.Msg}
+}
+
+// extractArtifactTar 解包 tar 流到 dstDir，并校验 artifact.Files 全部存在且大小一致。
+// 路径穿越防护：拒绝绝对路径、.. 以及逃出 dstDir 的条目；跳过符号链接/设备等非普通文件。
+func extractArtifactTar(r io.Reader, dstDir string, artifact *VideoAnalysisArtifact) error {
+	if err := os.MkdirAll(dstDir, 0o755); err != nil {
+		return fmt.Errorf("create artifact dst dir: %w", err)
+	}
+	cleanDst := filepath.Clean(dstDir)
+	expected := make(map[string]int64, len(artifact.Files))
+	for _, f := range artifact.Files {
+		expected[filepath.Clean(f.Path)] = f.Size
+	}
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read artifact tar: %w", err)
+		}
+		name := filepath.Clean(hdr.Name)
+		if name == "." || name == ".." || filepath.IsAbs(name) || strings.HasPrefix(name, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("artifact tar contains unsafe path: %s", hdr.Name)
+		}
+		target := filepath.Join(cleanDst, name)
+		if target != cleanDst && !strings.HasPrefix(target, cleanDst+string(filepath.Separator)) {
+			return fmt.Errorf("artifact tar path escapes dst dir: %s", hdr.Name)
+		}
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				return fmt.Errorf("create artifact dir %s: %w", hdr.Name, err)
+			}
+		case tar.TypeReg:
+			want, ok := expected[name]
+			if !ok {
+				return fmt.Errorf("artifact tar contains unexpected file: %s", hdr.Name)
+			}
+			if hdr.Size != want {
+				return fmt.Errorf("artifact file size mismatch: %s got %d want %d", hdr.Name, hdr.Size, want)
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return fmt.Errorf("create artifact parent %s: %w", hdr.Name, err)
+			}
+			if err := writeArtifactFile(target, tr); err != nil {
+				return err
+			}
+		default:
+			// 跳过符号链接/设备等，与服务端“只下发普通文件”的语义一致。
+		}
+	}
+	for _, f := range artifact.Files {
+		path := filepath.Join(cleanDst, filepath.Clean(f.Path))
+		if _, err := os.Stat(path); err != nil {
+			return fmt.Errorf("artifact file missing after download: %s", f.Path)
+		}
+	}
+	return nil
+}
+
+func writeArtifactFile(target string, r io.Reader) error {
+	out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("create artifact file %s: %w", target, err)
+	}
+	if _, err := io.Copy(out, r); err != nil {
+		out.Close()
+		return fmt.Errorf("write artifact file %s: %w", target, err)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("close artifact file %s: %w", target, err)
 	}
 	return nil
 }
@@ -302,6 +449,12 @@ func (c *VideoAnalysisClient) validateJobRef(base *url.URL, job *ExternalJobRef)
 		return errors.New("video analysis API returned a cross-origin poll_url")
 	}
 	return nil
+}
+
+func analysisRequestURL(base *url.URL, endpoint string) url.URL {
+	u := *base
+	u.Path = path.Join(strings.TrimSuffix(base.Path, "/"), endpoint)
+	return u
 }
 
 func normalizeAnalysisBaseURL(raw string) (*url.URL, error) {

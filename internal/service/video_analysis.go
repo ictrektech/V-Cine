@@ -36,6 +36,8 @@ type videoAnalysisExternalClient interface {
 	GetStructureJob(context.Context, string) (*ExternalJob, error)
 	SubmitDescribeJob(context.Context, DescribeJobRequest) (*ExternalJobRef, error)
 	GetDescribeJob(context.Context, string) (*ExternalJob, error)
+	DownloadStructureArtifact(context.Context, string, string, *VideoAnalysisArtifact) error
+	ReleaseStructureJob(context.Context, string) error
 }
 
 type VideoAnalysisSubmitOptions struct {
@@ -804,7 +806,10 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 	}
 
 	task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusSucceeded)
-	task.ResultJSON = string(structureResult.Result)
+	task.ResultJSON, err = buildStructureResultJSON(structureResult)
+	if err != nil {
+		return fmt.Errorf("encode structure result: %w", err)
+	}
 	var resultHeader struct {
 		VideoHash string `json:"video_hash"`
 	}
@@ -888,7 +893,7 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 
 	// Phase 4: 搬移 staging 产物到 asset_dir（describe 之后，staging 已含 descriptions.json）。
 	// 失败 = 产物未落地 = 任务实际未完成，标 failed，RetryTask 从 structure 阶段重跑。
-	if err := s.claimStagingForTask(task); err != nil {
+	if err := s.claimArtifactsForTask(task); err != nil {
 		task.Stage = model.VideoAnalysisStageStructure
 		s.failTask(task, err)
 		return err
@@ -1203,55 +1208,25 @@ func (s *VideoAnalysisService) failTask(task *model.VideoAnalysisTask, err error
 	}
 }
 
-// claimStagingForTask 把 structure job 的 staging 产物 mv 到 asset_dir/<hash>/。
-// 必须在 describe 完成后调用（describe 读 staging 并写回 descriptions.json）。
+// claimArtifactsForTask 下载 structure job 的 artifact 产物到 asset_dir/<hash>。
+// 必须在 describe 完成后调用。
 // 失败返回 errClaimStagingFailed，由编排层标为 CLAIM_STAGING_FAILED。
-func (s *VideoAnalysisService) claimStagingForTask(task *model.VideoAnalysisTask) error {
+func (s *VideoAnalysisService) claimArtifactsForTask(task *model.VideoAnalysisTask) error {
 	if strings.TrimSpace(task.ResultJSON) == "" {
 		return nil
 	}
 	var result struct {
-		VideoHash  string `json:"video_hash"`
-		StagingDir string `json:"staging_dir"`
+		VideoHash string                 `json:"video_hash"`
+		Artifact  *VideoAnalysisArtifact `json:"artifact"`
 	}
 	if err := json.Unmarshal([]byte(task.ResultJSON), &result); err != nil {
 		return fmt.Errorf("decode structure result for claim: %w", err)
 	}
-	if strings.TrimSpace(result.StagingDir) == "" || strings.TrimSpace(result.VideoHash) == "" {
-		// 无 staging 产物（如 frame_grid=false 或旧结果），无需搬移。
+	if strings.TrimSpace(result.VideoHash) == "" || result.Artifact == nil || len(result.Artifact.Files) == 0 {
+		// 无结果或无可下载产物，无需 claim。
 		return nil
 	}
-	// 串行化 claim 与 CleanOrphanStructure，避免清理读到旧 hash 快照后误删刚搬移的目录。
-	s.cleanupMu.Lock()
-	defer s.cleanupMu.Unlock()
-
-	// 先把 video_hash 落库再搬移。
-	task.VideoHash = strings.TrimSpace(result.VideoHash)
-	if err := s.persist(task); err != nil {
-		return fmt.Errorf("persist task before claim: %w", err)
-	}
-	if _, err := claimStagingDir(result.StagingDir, s.assetDir, result.VideoHash); err != nil {
-		if s.logger != nil {
-			s.logger.Warnw("Video analysis claim staging failed",
-				"task_id", task.ID,
-				"media_id", task.MediaID,
-				"staging_dir", result.StagingDir,
-				"video_hash", result.VideoHash,
-				"error", err,
-			)
-		}
-		return fmt.Errorf("%w: %v", errClaimStagingFailed, err)
-	}
-	if s.logger != nil {
-		s.logger.Infow("Video analysis claim staging succeeded",
-			"task_id", task.ID,
-			"media_id", task.MediaID,
-			"staging_dir", result.StagingDir,
-			"video_hash", result.VideoHash,
-			"asset_dir", s.assetDir,
-		)
-	}
-	return nil
+	return s.claimArtifactForTask(task, result.VideoHash, result.Artifact)
 }
 
 // CleanOrphanStructure 清理 asset_dir 下未被任何视频分析任务引用的孤儿目录。
@@ -1284,7 +1259,8 @@ func (s *VideoAnalysisService) CleanOrphanStructure() error {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			// 跳过文件及隐藏目录（如 .tmp 下载临时区）。
 			continue
 		}
 		hash := entry.Name()
@@ -1680,7 +1656,7 @@ func (s *VideoAnalysisService) RunStage(ctx context.Context, taskID, stage strin
 	if stage == model.VideoAnalysisStageDescribe || (!task.IncludeDescriptions && stage == model.VideoAnalysisStageStructure) {
 		// 到达 done：搬移 staging 产物（describe 后 staging 已含 descriptions.json），
 		// 失败 = 产物未落地 = 标 failed，RetryTask 从 structure 阶段重跑。
-		if err := s.claimStagingForTask(task); err != nil {
+		if err := s.claimArtifactsForTask(task); err != nil {
 			task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusFailed)
 			task.Status = model.VideoAnalysisStatusFailed
 			task.ErrorCode = analysisErrorCode(err)
@@ -1780,7 +1756,7 @@ func (s *VideoAnalysisService) runStageByTask(ctx context.Context, task *model.V
 	// 最后一个阶段完成（下一阶段为 done）：搬移 staging 产物并计算图片 embedding。
 	// RunMissing 循环在下一次迭代发现 done 时退出，这里在退出前完成 claim。
 	if task.NextPendingStage() == model.VideoAnalysisStageDone {
-		if err := s.claimStagingForTask(task); err != nil {
+		if err := s.claimArtifactsForTask(task); err != nil {
 			task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusFailed)
 			task.ErrorCode = analysisErrorCode(err)
 			task.ErrorMessage = err.Error()
@@ -1841,7 +1817,10 @@ func (s *VideoAnalysisService) runStructureStage(ctx context.Context, task *mode
 	if err != nil {
 		return fmt.Errorf("structure stage: %w", err)
 	}
-	task.ResultJSON = string(structureResult.Result)
+	task.ResultJSON, err = buildStructureResultJSON(structureResult)
+	if err != nil {
+		return fmt.Errorf("encode structure result: %w", err)
+	}
 	var resultHeader struct {
 		VideoHash string `json:"video_hash"`
 	}
