@@ -17,8 +17,7 @@ services:
       NOWEN_APP_PORT: "8080"
       NOWEN_APP_DATA_DIR: /data
       NOWEN_APP_WEB_DIR: /app/web/dist
-      # VOS 子路径：服务端据此向 index.html 注入 <base href> 与 window.NOWEN_BASE_PATH 变量，
-      # 前端资源/API/WS/路由自动落在 /app/com.ictrek.nowen-video 前缀下（Traefik 再剥回）。
+      # VOS 子路径：后端 http.Server 层剥离此前缀；前端前缀由 VITE_BASE 在构建期写入。
       NOWEN_APP_WEB_BASE_PATH: "${NOWEN_APP_WEB_BASE_PATH:-/app/com.ictrek.nowen-video}"
       # ---- PostgreSQL：连共享 pgv（com.ictrek.pgv 在 vos_default 的别名）----
       NOWEN_DATABASE_HOST: "${NOWEN_DATABASE_HOST:-pgv}"

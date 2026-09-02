@@ -18,9 +18,11 @@ COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY web/ .
 
-# NOWEN_VERSION 只用于 VITE_APP_VERSION；放在 install 和 COPY 之后，避免版本变更使依赖/源码层缓存失效
+# NOWEN_VERSION 只用于 VITE_APP_VERSION；VITE_BASE 用于 VOS 子路径前缀（默认根路径/Tauri）
 ARG NOWEN_VERSION=0.1.0
+ARG VITE_BASE=/
 ENV VITE_APP_VERSION=${NOWEN_VERSION}
+ENV VITE_BASE=${VITE_BASE}
 RUN bun run build
 
 # =============================================

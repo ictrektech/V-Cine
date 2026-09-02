@@ -81,9 +81,7 @@ export default function App() {
       const response = await authApi.vosOIDC(accessToken)
       if (!response.data.token || !response.data.user) throw new Error('Nowen session unavailable')
       setAuth(response.data.token, response.data.user)
-      const basePath = typeof (window as any).__NOWEN_BASE_PATH__ === 'string'
-        ? (window as any).__NOWEN_BASE_PATH__.replace(/\/+$/, '')
-        : ''
+      const basePath = getBasePath()
       window.location.replace(basePath ? `${basePath}/` : '/')
     }).catch(() => setVOSLoginError(true))
   }, [isAuthenticated, isVOSFrame, setAuth, vosLoginAttempt])

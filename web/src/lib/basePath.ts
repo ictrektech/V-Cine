@@ -1,21 +1,25 @@
 /**
  * VOS 子路径（basePath）辅助模块。
  *
- * 接入 VOS 平台时，前端被 iframe 加载在 `/app/<app-id>/` 前缀下，
- * 服务端会向 index.html 注入：
- *   - `<base href="/app/<app-id>/">`：相对资源引用自动落到前缀下
- *   - `window.__NOWEN_BASE_PATH__ = "/app/<app-id>"`：供 JS 拼装绝对路径
+ * VOS 构建时通过 VITE_BASE 注入前缀（如 /app/com.ictrek.nowen-video/），
+ * Vite 会把它作为 BASE_URL；根路径/Tauri 构建不设 VITE_BASE，BASE_URL 为
+ * '/' 或 './'，此时 basePath 为空串。
  *
- * 独立部署（Tauri / 本地 server）时没有注入，__NOWEN_BASE_PATH__ 为空，
- * withBasePath 直接返回原路径，与旧行为完全一致。
+ * 兼容旧的后端注入 window.__NOWEN_BASE_PATH__，便于过渡期运行旧镜像。
  */
 
-/** 读取注入的 basePath，剥掉尾斜杠；未注入返回空串。 */
+/** 读取 basePath，剥掉尾斜杠；未配置返回空串。 */
 export function getBasePath(): string {
   if (typeof window === 'undefined') return ''
-  const base = window.__NOWEN_BASE_PATH__
-  if (typeof base === 'string' && base) {
-    return base.replace(/\/+$/, '')
+
+  const viteBase = import.meta.env.BASE_URL
+  if (viteBase && viteBase !== '/' && viteBase !== './') {
+    return viteBase.replace(/\/+$/, '')
+  }
+
+  const injected = window.__NOWEN_BASE_PATH__
+  if (typeof injected === 'string' && injected) {
+    return injected.replace(/\/+$/, '')
   }
   return ''
 }

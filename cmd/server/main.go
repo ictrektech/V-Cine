@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -1099,54 +1098,14 @@ func main() {
 		sugar.Warnf("mDNS 服务发现启动失败（可忽略）: %v", err)
 	}
 
-	// 静态文件（前端构建产物）。前端以相对路径构建（vite base: './'），
-	// 由注入的 <base href> 统一收敛到子路径前缀下，反向代理剥回根路径。
+	// 静态文件（前端构建产物）。VOS 子路径前缀由 VITE_BASE 在构建期写入，
+	// 后端只负责静态文件；子路径剥离开关见下方 http.Server 中间件。
 	r.Static("/assets", cfg.App.WebDir+"/assets")
 
-	// 读取并注入 <base href> 与 __NOWEN_BASE_PATH__ 的 index.html，缓存按 mtime 失效：
-	// dev 容器挂载源码热更新 dist 后无需重启，服务端立即返回新哈希引用，
-	// 避免"旧 index.html + 新 assets"导致白屏。
 	webDir := cfg.App.WebDir
 	indexPath := filepath.Join(webDir, "index.html")
-	var (
-		cookedMu    sync.Mutex
-		cookedMtime time.Time
-		cooked      []byte
-	)
-	loadCookedIndex := func() []byte {
-		cookedMu.Lock()
-		defer cookedMu.Unlock()
-		fi, err := os.Stat(indexPath)
-		if err != nil {
-			sugar.Warnf("读取前端入口 %s 失败（前端可能未构建）: %v", indexPath, err)
-			return cooked
-		}
-		if cooked != nil && fi.ModTime().Equal(cookedMtime) {
-			return cooked
-		}
-		indexBytes, err := os.ReadFile(indexPath)
-		if err != nil {
-			sugar.Warnf("读取前端入口 %s 失败: %v", indexPath, err)
-			return cooked
-		}
-		// 根部署也注入 <base href="/">：前端按相对路径（vite base './'）引用资源，
-		// 深层路由（如 /play/<id>）下浏览器会把 ./assets/... 解析到路由前缀上而 404；
-		// <base> 让相对引用统一落在站点根；VOS 子路径则落在注入的 iframe 前缀下。
-		bp := strings.TrimRight(cfg.App.WebBasePath, "/")
-		baseHref := "/"
-		if bp != "" {
-			baseHref = bp + "/"
-		}
-		inject := `<base href="` + baseHref + `"><script>window.__NOWEN_BASE_PATH__="` + bp + `";</script>`
-		cooked = []byte(strings.Replace(string(indexBytes), "<head>", "<head>"+inject, 1))
-		cookedMtime = fi.ModTime()
-		if bp != "" {
-			sugar.Infof("WebBasePath 注入: %s", bp)
-		}
-		return cooked
-	}
-	// 启动时预热：dist 缺失直接 fatal，避免部署缺前端时静默空页
-	if loadCookedIndex() == nil {
+	// 启动时校验：dist 缺失直接 fatal，避免部署缺前端时静默空页
+	if _, err := os.Stat(indexPath); err != nil {
 		sugar.Fatalf("读取 index.html 失败: %s", indexPath)
 	}
 
@@ -1173,7 +1132,7 @@ func main() {
 		}
 		// index.html 不缓存：dist 重建后浏览器立即拿到新哈希引用
 		c.Header("Cache-Control", "no-cache")
-		c.Data(http.StatusOK, "text/html; charset=utf-8", loadCookedIndex())
+		c.File(indexPath)
 	})
 
 	addr := fmt.Sprintf(":%d", cfg.App.Port)

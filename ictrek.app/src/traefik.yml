@@ -11,7 +11,7 @@
 #
 # 流量路径：
 #   /app/com.ictrek.nowen-video/... -> strip /app/... -> 容器根路径
-#   容器注入 <base href="/app/.../">，前端资源/API 再带前缀请求，Traefik 剥回
+#   前端构建期通过 VITE_BASE 写入前缀，资源/API 再带前缀请求，Traefik 剥回
 # ============================================================
 
 http:

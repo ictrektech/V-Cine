@@ -51,6 +51,8 @@ video_analysis:
 
 `asset_dir` 默认跟随 `cache_dir`，即 `<cache_dir>/structure`，一般无需单独配置；Nowen 容器无需挂载宿主 staging 目录。
 
+VOS 构建时通过 `VITE_BASE` 注入前端子路径前缀（如 `/app/com.ictrek.nowen-video/`），与 VAI 其他 app 一致；后端只负责静态文件与反向代理层剥离前缀，不再向 `index.html` 注入 `<base href>`。
+
 ```yaml
 # docker-compose.yml 示例（v2 Pull，Nowen 无需 staging 卷）
 services:
