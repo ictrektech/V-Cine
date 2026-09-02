@@ -12,6 +12,7 @@ import { parseDirectMatchId } from '@/utils/parseDirectMatchId'
 import { invalidateMediaListCaches } from '@/utils/invalidateMediaCaches'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
 import type { Series, SeasonInfo, Media, Playlist, WatchHistory, MediaPerson } from '@/types'
+import { routes } from '@/lib/routes'
 import {
   Play,
   Star,
@@ -480,7 +481,7 @@ export default function SeriesDetailPage() {
                 {/* 播放按钮 */}
                 {firstEpisode && (
                   <Link
-                    to={`/play/${firstEpisode.id}`}
+                    to={routes.player(firstEpisode.id)}
                     className="group relative inline-flex items-center gap-2.5 rounded-2xl px-8 py-3.5 text-base font-bold transition-all duration-300 hover:-translate-y-0.5"
                     style={{
                       background: 'var(--neon-blue)',

@@ -7,6 +7,8 @@ import VideoAnalysisResultSummary from './VideoAnalysisResultSummary'
 import VideoAnalysisSceneGrid, { type VideoAnalysisSceneGridState } from './VideoAnalysisSceneGrid'
 import VideoAnalysisWorkflow from './VideoAnalysisWorkflow'
 import { VIDEO_ANALYSIS_SCENES_PER_PAGE } from './videoAnalysisResultUtils'
+import { openAppUrl } from '@/lib/appUrl'
+import { routes } from '@/lib/routes'
 
 interface VideoAnalysisResultPanelProps {
   task: VideoAnalysisTask | null
@@ -119,7 +121,7 @@ export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysi
 
   const openSceneInPlayer = (scene: VideoAnalysisSceneResult) => {
     const start = Math.max(0, Math.floor(scene.start_time || 0))
-    window.open(`/play/${task.media_id}?start=${start}`, '_blank', 'noopener,noreferrer')
+    openAppUrl(routes.player(task.media_id, start))
   }
 
   return (
@@ -135,7 +137,7 @@ export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysi
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {onClose && <button onClick={onClose} className="btn-ghost rounded-lg px-3 py-2 text-sm">收起结果</button>}
-          <button onClick={() => window.open(`/play/${task.media_id}`, '_blank', 'noopener,noreferrer')} className="btn-ghost rounded-lg px-3 py-2 text-sm inline-flex items-center gap-1.5">
+          <button onClick={() => openAppUrl(routes.player(task.media_id))} className="btn-ghost rounded-lg px-3 py-2 text-sm inline-flex items-center gap-1.5">
             <ExternalLink size={14} /> 打开播放器
           </button>
         </div>

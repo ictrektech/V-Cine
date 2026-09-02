@@ -12,6 +12,7 @@ import { Play, Clock, Sparkles, ChevronLeft, ChevronRight, Star } from 'lucide-r
 import { streamApi } from '@/api'
 import { motion } from 'framer-motion'
 import { staggerContainerVariants, staggerItemVariants } from '@/lib/motion'
+import { routes } from '@/lib/routes'
 import HeroCarousel from '@/components/HeroCarousel'
 
 interface HomeData {
@@ -352,7 +353,7 @@ function ContinueWatchingRow({
             return (
               <motion.div key={item.id} variants={staggerItemVariants} className="flex-shrink-0">
                 <Link
-                  to={`/play/${item.media_id}`}
+                  to={routes.player(item.media_id)}
                   className="media-card group block w-[220px] sm:w-[260px]"
                 >
                   {/* 封面（16:9 横图，更贴近"继续观看"场景） */}

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { mediaApi, streamApi, seriesApi } from '@/api'
 import type { Media, MediaPlayInfo } from '@/types'
+import { routes } from '@/lib/routes'
 import VideoPlayer from '@/components/VideoPlayer'
 import WebCodecsPlayerShell from '@/components/WebCodecsPlayerShell'
 import PlayerScenePanel from '@/components/player/PlayerScenePanel'
@@ -102,7 +103,7 @@ export default function PlayerPage() {
   // 下一集回调
   const handleNext = useCallback(() => {
     if (nextEpisode) {
-      navigate(`/play/${nextEpisode.id}`, { replace: true })
+      navigate(routes.player(nextEpisode.id), { replace: true })
     }
   }, [nextEpisode, navigate])
 

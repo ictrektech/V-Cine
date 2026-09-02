@@ -7,6 +7,7 @@ import { useTranslation } from '@/i18n'
 import { usePagination } from '@/hooks/usePagination'
 import Pagination from '@/components/Pagination'
 import type { Playlist } from '@/types'
+import { routes } from '@/lib/routes'
 import {
   ListVideo,
   Plus,
@@ -203,7 +204,7 @@ export default function PlaylistsPage() {
                     >
                       {/* 缩略图 */}
                       <Link
-                        to={`/play/${item.media_id}`}
+                        to={routes.player(item.media_id)}
                         className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--bg-surface)' }}
                       >
                         <img

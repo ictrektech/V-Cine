@@ -11,7 +11,8 @@ import {
   X,
 } from 'lucide-react'
 import clsx from 'clsx'
-import { withBasePath } from '@/lib/basePath'
+import { toAppUrl } from '@/lib/appUrl'
+import { routes } from '@/lib/routes'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -225,7 +226,7 @@ export default function FileToolbar({
               variant="ghost"
               size="sm"
               className="px-2.5 text-xs text-amber-300 hover:bg-amber-400/10 hover:text-amber-200"
-              onClick={() => { window.location.href = withBasePath('/admin') }}
+              onClick={() => { window.location.href = toAppUrl(routes.admin()) }}
               title={videoAnalysisDisabledReason || '前往视频分析相关配置'}
             >
               前往配置

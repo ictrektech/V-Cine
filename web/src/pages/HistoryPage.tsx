@@ -7,6 +7,7 @@ import { usePageCache, invalidatePageCachePrefix } from '@/hooks/usePageCache'
 import { usePagination } from '@/hooks/usePagination'
 import { formatProgress, formatTime } from '@/utils/format'
 import type { WatchHistory } from '@/types'
+import { routes } from '@/lib/routes'
 import Pagination from '@/components/Pagination'
 import { Clock, Play, Trash2, X } from 'lucide-react'
 
@@ -132,7 +133,7 @@ export default function HistoryPage() {
             >
               {/* 缩略图 */}
               <Link
-                to={`/play/${item.media_id}`}
+                to={routes.player(item.media_id)}
                 className="relative h-20 w-36 flex-shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--bg-surface)' }}
               >
                 <img

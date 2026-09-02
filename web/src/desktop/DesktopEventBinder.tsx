@@ -12,6 +12,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
+import { routes } from '@/lib/routes'
 import { desktop } from './bridge'
 
 export default function DesktopEventBinder() {
@@ -79,7 +80,7 @@ export default function DesktopEventBinder() {
           const mediaId = u.searchParams.get('media_id')
           const path = u.pathname.replace(/^\/+/, '')
           if (path === 'play' && mediaId) {
-            navigate(`/play/${mediaId}`)
+            navigate(routes.player(mediaId))
           } else if (path === 'settings') {
             navigate('/admin')
           } else {

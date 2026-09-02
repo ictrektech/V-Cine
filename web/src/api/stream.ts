@@ -2,16 +2,16 @@ import { useAuthStore } from '@/stores/auth'
 import type {
   MediaPlayInfo,
 } from '@/types'
-import { withBasePath } from '@/lib/basePath'
+import { toAppUrl } from '@/lib/appUrl'
 import api from './client'
 
 // ==================== 流媒体 ====================
 
 // 兼容 VOS 子路径：海报/流媒体 URL 是 path-absolute（/api/...），
 // 不受 <base> 影响，必须显式加前缀才能经过 Traefik 命中应用；
-// 绝对 URL（http/https/data 等）由 withBasePath 透传，再拼上鉴权 token。
+// 绝对 URL（http/https/data 等）由 toAppUrl 透传，再拼上鉴权 token。
 function withBaseAndToken(url: string): string {
-  const prefixed = withBasePath(url)
+  const prefixed = toAppUrl(url)
   const token = useAuthStore.getState().token
   if (!token) return prefixed
   const sep = prefixed.includes('?') ? '&' : '?'

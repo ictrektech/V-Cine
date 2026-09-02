@@ -1,6 +1,8 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
-import { withBasePath } from '@/lib/basePath'
+import { getBasePath } from '@/lib/basePath'
+import { toAppUrl } from '@/lib/appUrl'
+import { routes } from '@/lib/routes'
 
 /**
  * 计算 API 基础地址。
@@ -22,11 +24,9 @@ function resolveApiBaseURL(): string {
   const w = window as any
   const isTauri = Boolean(w.__TAURI_INTERNALS__ || w.__TAURI__)
   if (!isTauri) {
-    // VOS mounts the iframe at /app/<app-id> and strips that prefix before
-    // proxying. Its injected base path must therefore prefix API calls too.
-    const vosBasePath = typeof w.__NOWEN_BASE_PATH__ === 'string'
-      ? w.__NOWEN_BASE_PATH__.replace(/\/+$/, '')
-      : ''
+    // VOS mounts the iframe at /app/<app-id>; API calls must carry the same prefix
+    // (由 VITE_BASE / 兼容注入得到).
+    const vosBasePath = getBasePath()
     return vosBasePath ? `${vosBasePath}/api` : '/api'
   }
 
@@ -156,9 +156,9 @@ function doLogout(reason: string, expectedToken: string | null) {
     useAuthStore.getState().logout()
   } catch { /* ignore */ }
   // 已经在登录页就不跳转，避免登录页自身形成整页刷新循环
-  // 接入子路径时登录页带前缀，需用 withBasePath 对齐
-  if (!window.location.pathname.startsWith(withBasePath('/login'))) {
-    window.location.replace(withBasePath('/login'))
+  // 接入子路径时登录页带前缀，需用 appUrl 对齐
+  if (!window.location.pathname.startsWith(toAppUrl(routes.login()))) {
+    window.location.replace(toAppUrl(routes.login()))
   }
   window.setTimeout(() => { loggingOut = false }, 3000)
 }

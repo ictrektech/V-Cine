@@ -5,7 +5,8 @@ import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
 import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/videoAnalysis'
 import { aiApi, adultScraperApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { extractErrMsg } from '@/utils/error'
-import { withBasePath } from '@/lib/basePath'
+import { openAppUrl, toAppUrl } from '@/lib/appUrl'
+import { routes } from '@/lib/routes'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
@@ -397,7 +398,7 @@ export default function FileManagerPage() {
     }
     const remoteLink = (
       <a
-        href={withBasePath('/admin?drawer=video-analysis')}
+        href={toAppUrl(routes.admin('video-analysis'))}
         className="inline-flex rounded-lg px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-400/10"
       >
         前往开启远程视频结构化
@@ -513,7 +514,7 @@ export default function FileManagerPage() {
       message: message || '视频分析服务状态异常，无法提交任务',
       confirmText: '前往设置',
       variant: 'warning',
-    })) window.location.href = withBasePath('/admin')
+    })) window.location.href = toAppUrl(routes.admin())
   }, [dialog])
 
   const submitBatchAnalyze = useCallback(async (force = false, includeDescriptions = false) => {
@@ -687,7 +688,7 @@ export default function FileManagerPage() {
 
   const handlePlayFile = useCallback((media: Media) => {
     // 打开新窗口播放
-    window.open(`/play/${media.id}`, '_blank')
+    openAppUrl(routes.player(media.id))
   }, [])
 
   const executeCreateFolder = useCallback(async () => {

@@ -4,7 +4,7 @@ import { LazyMotion, domAnimation } from 'framer-motion'
 import App from './App'
 import { initTheme } from './stores/theme'
 import { initI18n } from './i18n'
-import { withBasePath } from './lib/basePath'
+import { toAppUrl } from './lib/appUrl'
 import './index.css'
 
 const SW_DEV_RELOAD_KEY = 'nowen-sw-dev-cleanup-reload'
@@ -47,7 +47,7 @@ async function cleanupDevelopmentServiceWorker() {
 function registerProductionServiceWorker() {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register(withBasePath('/sw.js'), {
+      const registration = await navigator.serviceWorker.register(toAppUrl('/sw.js'), {
         updateViaCache: 'none',
       })
       // 每次启动主动检查 SW 更新，避免浏览器长期使用旧鉴权逻辑。

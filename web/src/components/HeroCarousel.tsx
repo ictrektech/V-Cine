@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { routes } from '@/lib/routes'
 import {
   motion,
   AnimatePresence,
@@ -307,7 +308,7 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
   // ---- 链接计算 ----
   const playLink = item.media.media_type === 'episode' && item.media.series_id
     ? `/series/${item.media.series_id}`
-    : `/play/${item.media.id}`
+    : routes.player(item.media.id)
   const detailLink = item.media.series_id
     ? `/series/${item.media.series_id}`
     : `/media/${item.media.id}`

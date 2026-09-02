@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useAuthStore } from '@/stores/auth'
-import { withBasePath } from '@/lib/basePath'
+import { toAppUrl } from '@/lib/appUrl'
 
 // ==================== 事件类型 ====================
 
@@ -220,7 +220,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     // 构建WebSocket URL
     // 接入子路径时需带 /app/<app-id> 前缀，经 Traefik 剥回后命中 /api/ws
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}${withBasePath('/api/ws')}?token=${encodeURIComponent(token)}`
+    const wsUrl = `${protocol}//${window.location.host}${toAppUrl('/api/ws')}?token=${encodeURIComponent(token)}`
 
     try {
       const ws = new WebSocket(wsUrl)

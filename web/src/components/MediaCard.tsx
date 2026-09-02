@@ -5,6 +5,7 @@ import type { Media, Series } from '@/types'
 import { useRef, useCallback } from 'react'
 import { motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from 'framer-motion'
 import { springDefault } from '@/lib/motion'
+import { routes } from '@/lib/routes'
 import { usePosterVersion } from '@/stores/mediaRefresh'
 
 interface MediaCardProps {
@@ -75,7 +76,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
     ? `/series/${series.id}`
     : media!.series_id
       ? `/series/${media!.series_id}`
-      : `/play/${media!.id}`
+      : routes.player(media!.id)
 
   const title = series ? series.title : media!.title
   const year = series ? series.year : media!.year

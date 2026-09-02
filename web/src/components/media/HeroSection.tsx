@@ -5,6 +5,7 @@ import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/i18n'
 import { formatDuration, formatDurationShort } from '@/utils/format'
 import type { Media, MediaPlayInfo, Playlist, WatchHistory } from '@/types'
+import { routes } from '@/lib/routes'
 import {
   Play,
   Heart,
@@ -211,7 +212,7 @@ export default function HeroSection({
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 {/* 播放按钮 */}
                 <Link
-                  to={`/play/${media.id}`}
+                  to={routes.player(media.id)}
                   className="group relative inline-flex items-center gap-2.5 rounded-2xl px-8 py-3.5 text-base font-bold transition-all duration-300 hover:-translate-y-0.5"
                   style={{
                     background: 'var(--neon-blue)',
