@@ -57,10 +57,6 @@ services:
       # 数据访问控制：平台把授权目录以相同层级 bind mount 到 exposed 下，
       # 应用通过 /exposed 消费；父挂载 rslave,ro 防止应用写视图结构。
       - ${VOS_APP_EXPOSED_PATH:-/nonexistent}:/exposed:rslave,ro
-      # 结构化 staging 共享卷：结构服务把产物暂存在宿主
-      # /data/video-structure-cache/<job_id>，claim 时按 result.staging_dir 原样
-      # mv/copy，因此容器内必须以相同路径可见
-      - /data/video-structure-cache:/data/video-structure-cache:rw
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health > /dev/null 2>&1 || exit 1"]
       interval: 30s

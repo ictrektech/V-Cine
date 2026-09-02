@@ -54,10 +54,9 @@ services:
       # 原生视频只读挂载（Nowen 读取并传给结构化）。
       # 原生视频目录（raw_dir）必须是只读的，避免 Nowen 误删/误改原始视频。
       # 注意：不能挂 /data:/data:ro —— docker 27 无法在只读 /data 下创建
-      # staging/asset 子挂载点（read-only file system），故只挂具体媒体目录。
+      # 媒体子目录挂载点（read-only file system），故只挂具体媒体目录。
       - /data/nowen-video-raw:/data/nowen-video-raw:ro
-      # 结构服务 staging 临时卷（可写；产物由 Nowen 搬走后归 Nowen 所有）
-      - /data/video-structure-cache:/data/video-structure-cache:rw
+      # 结构化产物改为 HTTP artifact 拉取（v2 Pull），Nowen 不再挂载服务端 staging 卷
       # 结构化产物持久目录默认在 /app/cache/structure（由 cache_dir 决定，无需单独挂载）
       # 配置必须持久化（含 .master.key，丢了解不开 ENC 密钥）
       - ../config:/app/config

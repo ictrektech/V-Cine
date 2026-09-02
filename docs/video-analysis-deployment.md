@@ -24,7 +24,7 @@ video_analysis:
   describe_enabled: false  # 场景描述功能，默认关闭
 ```
 
-**`asset_dir`（结构化产物数据目录）**：结构服务把产物暂存在 staging，Nowen 轮询到 succeeded 后把 `result.staging_dir` 整个 `mv`（跨文件系统时自动 fallback 为 copy）到 `asset_dir/<hash>/`（搬走即归 Nowen 持久持有）。`asset_dir` 默认跟随 `cache_dir`，即 `<cache_dir>/structure`，一般无需显式配置。
+**`asset_dir`（结构化产物数据目录）**：结构服务通过 HTTP artifact 交付产物（v2 Pull），Nowen 下载后存到 `asset_dir/<hash>/`（下载即归 Nowen 持久持有）。`asset_dir` 默认跟随 `cache_dir`，即 `<cache_dir>/structure`，一般无需显式配置。
 
 ### 2. 路径映射
 
@@ -45,24 +45,25 @@ video_analysis:
 - 源路径和目标路径必须是绝对路径
 - 路径映射后不允许跳出目标根目录（防止路径穿越攻击）
 
-### 3. staging 临时卷与 asset_dir 数据目录
+### 3. 结构化产物交付（v2 Pull）与 asset_dir 数据目录
 
-结构服务采用无状态化契约：产物暂存于 **staging 目录**（`<staging_base>/<job_id>/`），Nowen 轮询到 succeeded 后把 `result.staging_dir` 搬动到 **自己的 `asset_dir`**。`asset_dir` 默认跟随 `cache_dir`，即 `<cache_dir>/structure`，一般无需单独配置。
+结构服务采用无状态化契约，产物由 Nowen 通过 **HTTP artifact 拉取**（`GET /api/v2/video/structure/jobs/{id}/artifact`）下载到自己的 `asset_dir/<hash>/`，下载完成后调用 `DELETE /api/v2/video/structure/jobs/{id}` 释放服务端 staging。Nowen 不再需要知道服务端 staging 目录路径，也不需要共享卷。
+
+`asset_dir` 默认跟随 `cache_dir`，即 `<cache_dir>/structure`，一般无需单独配置；Nowen 容器无需挂载宿主 staging 目录。
 
 ```yaml
-# docker-compose.yml 示例
+# docker-compose.yml 示例（v2 Pull，Nowen 无需 staging 卷）
 services:
   nowen:
     volumes:
       # 原生视频只读（Nowen 读取并传给结构化）
       - /media:/media:ro
-      # staging 临时卷（可写；结构服务写入，Nowen 搬走）
-      - video-structure-cache:/data/video-structure-cache:rw
       # cache 目录（asset_dir 默认落在 <cache_dir>/structure）
       - cache:/cache
 
   video-structure:
     volumes:
+      # 结构服务本地 staging 缓存（仅结构服务使用，Nowen 不挂载）
       - video-structure-cache:/data/video-structure-cache
 
 volumes:
@@ -70,9 +71,8 @@ volumes:
 ```
 
 **重要：**
-- staging 是**临时**目录：Nowen 搬走后即归 Nowen 所有，未搬走的由结构服务 TTL（默认 6h）清理
+- Nowen 通过 HTTP 下载产物后即归 Nowen 所有；服务端 staging 由 `DELETE` 显式释放，未释放的由 TTL（默认 6h）兜底清理
 - `asset_dir` 默认 `<cache_dir>/structure`，已在 cache 卷内，无需单独挂载
-- staging 与 asset_dir 跨文件系统时，Nowen 会自动 fallback 为 copy+delete（`EXDEV`）
 - 路径映射中的 `target` 必须与 Structure 服务看到的视频路径一致
 
 ### 4. 配置验证
@@ -102,7 +102,6 @@ services:
     volumes:
       - ./config:/app/config
       - /media:/media:ro
-      - video-structure-cache:/data/video-structure-cache:rw   # staging 可写
       - cache:/cache                                            # asset_dir 默认落在 /cache/structure
     environment:
       - VIDEO_ANALYSIS_ENABLED=true
@@ -122,7 +121,7 @@ services:
       - "8911:8911"
     volumes:
       - /media:/photos  # 注意：这里映射为 /photos
-      - video-structure-cache:/data/video-structure-cache
+      - video-structure-cache:/data/video-structure-cache  # 结构服务本地 staging 缓存
 
 volumes:
   video-structure-cache:
@@ -173,21 +172,20 @@ video_analysis:
 
 ### 4. 任务失败，错误信息包含 "CLAIM_STAGING_FAILED"
 
-**原因：** staging 产物搬移失败（跨文件系统或权限问题）
+**原因：** v2 Pull 下载 artifact 失败，结构化产物未落地。
 
 **解决：**
-- 确认 `asset_dir` 与 staging（`video-structure-cache`）在**同一文件系统**（`os.Rename` 跨卷返回 EXDEV）
-- 确认 Nowen 对 staging 父目录有写权限（`/data:/data:ro` 下需子路径 `rw` 挂载）
-- 重试任务：RetryTask 会从 structure 阶段重新提交并再次搬移
+- 确认结构服务已实现 `/api/v2/video/structure/jobs/{id}/artifact`，且 job 状态返回值含 `artifact` 清单
+- 检查 `structure_base_url` 连通性
+- 重试任务：RetryTask 会从 structure 阶段重新提交并再次下载
 
 ### 5. 九宫格图片无法显示
 
-**原因：** asset_dir 挂载配置错误或产物未搬移
+**原因：** asset_dir 挂载配置错误或产物未下载
 
 **解决：**
 - 确认 `asset_dir` 与容器挂载点一致
-- 确认 staging/asset 子路径以 `rw` 挂载（覆盖父 `ro`）
-- 检查 `<asset_dir>/<hash>/grids/` 下图片文件是否存在
+- 检查 `asset_dir/<hash>/grids/` 下图片文件是否存在，确认 artifact 下载成功
 
 ### 6. STRM 文件无法分析
 

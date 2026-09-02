@@ -64,8 +64,7 @@ services:
       # 绿联 NAS 示例：
       # - /volume1/Media:/media
       # ---- 视频分析（可选）----
-      # staging 临时卷（可写；asset_dir 默认落在 <cache_dir>/structure，无需单独挂载）
-      # - video-structure-cache:/data/video-structure-cache:rw
+      # asset_dir 默认落在 <cache_dir>/structure，无需单独挂载
     # 硬件加速设备（按 SoC 开启对应的）
     devices:
       # 通用 DRM 节点（Mali / 瑞芯微 / Amlogic / Intel 都会暴露这个）
