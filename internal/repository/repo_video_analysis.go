@@ -213,7 +213,7 @@ func (r *VideoAnalysisTaskRepo) AvgElapsedByStatus(status string) (float64, erro
 	var avg float64
 	if err := r.db.Model(&model.VideoAnalysisTask{}).
 		Where("status = ? AND started_at IS NOT NULL AND finished_at IS NOT NULL", status).
-		Select("COALESCE(AVG(CAST((julianday(finished_at) - julianday(started_at)) * 86400 AS REAL)), 0)").
+		Select("COALESCE(AVG(EXTRACT(EPOCH FROM (finished_at - started_at))), 0)").
 		Scan(&avg).Error; err != nil {
 		return 0, err
 	}
