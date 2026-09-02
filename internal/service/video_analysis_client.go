@@ -393,11 +393,9 @@ func extractArtifactTar(r io.Reader, dstDir string, artifact *VideoAnalysisArtif
 				return fmt.Errorf("create artifact dir %s: %w", hdr.Name, err)
 			}
 		case tar.TypeReg:
-			want, ok := expected[name]
-			if !ok {
-				return fmt.Errorf("artifact tar contains unexpected file: %s", hdr.Name)
-			}
-			if hdr.Size != want {
+			// 清单外的文件（如 descriptions.json）也要正常落盘；
+			// 仅对清单内文件做大小预校验，防止异常声明写满磁盘。
+			if want, ok := expected[name]; ok && hdr.Size != want {
 				return fmt.Errorf("artifact file size mismatch: %s got %d want %d", hdr.Name, hdr.Size, want)
 			}
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {

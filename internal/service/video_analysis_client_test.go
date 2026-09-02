@@ -276,6 +276,8 @@ func TestDownloadStructureArtifactExtractsTarAndVerifiesSizes(t *testing.T) {
 		_, _ = tw.Write([]byte("{}"))
 		_ = tw.WriteHeader(&tar.Header{Name: "grids/scene_000.jpg", Mode: 0o600, Size: int64(len("jpeg"))})
 		_, _ = tw.Write([]byte("jpeg"))
+		_ = tw.WriteHeader(&tar.Header{Name: "descriptions.json", Mode: 0o600, Size: int64(len(`{"d":1}`))})
+		_, _ = tw.Write([]byte(`{"d":1}`))
 		_ = tw.Close()
 	}))
 	defer server.Close()
@@ -295,6 +297,10 @@ func TestDownloadStructureArtifactExtractsTarAndVerifiesSizes(t *testing.T) {
 	data, err = os.ReadFile(filepath.Join(dst, "grids", "scene_000.jpg"))
 	if err != nil || string(data) != "jpeg" {
 		t.Fatalf("grid image = %q err=%v", data, err)
+	}
+	data, err = os.ReadFile(filepath.Join(dst, "descriptions.json"))
+	if err != nil || string(data) != `{"d":1}` {
+		t.Fatalf("descriptions.json = %q err=%v", data, err)
 	}
 }
 
