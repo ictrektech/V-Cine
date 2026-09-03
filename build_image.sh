@@ -29,6 +29,9 @@ AMD_SHEETS=("AMD_with_cuda" "AMD_with_mxn100")
 # l4t sheet 只由 --profile l4t 写入（l4t_* tag）；默认 arm 构建写入会覆盖 Jetson 记录
 ARM_SHEETS=("ARM_without_cuda" "ARM_with_cuda")
 
+# VOS 始终挂载在 /app/com.ictrek.nowen-video/，必须让 Vite 构建期写入前缀；
+VITE_BASE="${VITE_BASE:-/app/com.ictrek.nowen-video/}"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION_FILE="${ROOT_DIR}/ictrek.app/VERSION"
 
@@ -182,6 +185,7 @@ build_image() {
   docker buildx build --load --provenance=false --sbom=false --pull=false \
     -f "${DOCKERFILE}" \
     --build-arg NOWEN_VERSION="${VERSION}" \
+    --build-arg VITE_BASE="${VITE_BASE}" \
     -t "${IMAGE_URI}" \
     "${ROOT_DIR}"
 }
