@@ -31,6 +31,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/nowen-video/nowen-video/internal/config"
+	"github.com/nowen-video/nowen-video/internal/database"
 
 	"github.com/nowen-video/nowen-video/internal/model"
 )
@@ -62,7 +63,7 @@ func main() {
 
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
-	db, err := config.OpenDB(cfg, logger)
+	db, err := database.Open(&cfg.Database, logger)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "打开数据库失败：%v\n", err)
 		os.Exit(1)

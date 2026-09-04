@@ -3,19 +3,13 @@ package config
 import (
 	cryptoRand "crypto/rand"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	gormlogger "gorm.io/gorm/logger"
 )
 
 // ==================== 子配置结构体 ====================
@@ -42,6 +36,10 @@ type DatabaseConfig struct {
 	MaxIdleConns int `mapstructure:"max_idle_conns"`
 	// 连接最大存活时间（秒）
 	ConnMaxLifetime int `mapstructure:"conn_max_lifetime"`
+	// 启动时连接重试次数（默认 5，重试耗尽则启动失败）
+	ConnectRetries int `mapstructure:"connect_retries"`
+	// 连接重试间隔（秒，默认 3）
+	ConnectRetryInterval int `mapstructure:"connect_retry_interval"`
 }
 
 // SecretsConfig 敏感信息/第三方服务 API 密钥
@@ -842,6 +840,8 @@ func setDefaults() {
 	viper.SetDefault("database.max_open_conns", 25)
 	viper.SetDefault("database.max_idle_conns", 10)
 	viper.SetDefault("database.conn_max_lifetime", 1800)
+	viper.SetDefault("database.connect_retries", 5)
+	viper.SetDefault("database.connect_retry_interval", 3)
 
 	// ---- 密钥 ----
 	viper.SetDefault("secrets.jwt_secret", "nowen-video-secret-change-me")
@@ -1513,8 +1513,6 @@ func (c *Config) updateSecretsFile(key, value string) {
 	}
 }
 
-// ==================== 数据库 DSN 构造 ====================
-
 // generateRandomSecret 生成随机密钥字符串
 func generateRandomSecret(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
@@ -1531,66 +1529,4 @@ func generateRandomSecret(length int) string {
 		b[i] = charset[int(b[i])%len(charset)]
 	}
 	return string(b)
-}
-
-// ==================== 数据库连接 ====================
-
-// GetDBDSN 返回 PostgreSQL 连接字符串
-func (c *Config) GetDBDSN() string {
-	return c.getPgDSN()
-}
-
-// getPgDSN 返回 PostgreSQL 连接字符串
-func (c *Config) getPgDSN() string {
-	return fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=%s",
-		c.Database.Host, c.Database.User, c.Database.Password, c.Database.DBName,
-		c.Database.Port, c.Database.SSLMode, c.Database.TimeZone,
-	)
-}
-
-// OpenDB 打开 PostgreSQL 数据库连接
-func OpenDB(cfg *Config, logger *zap.Logger) (*gorm.DB, error) {
-	sugar := logger.Sugar()
-
-	gormLog := gormlogger.New(
-		log.Default(),
-		gormlogger.Config{
-			SlowThreshold:             200 * time.Millisecond,
-			LogLevel:                  gormlogger.Warn,
-			IgnoreRecordNotFoundError: true,
-			Colorful:                  false,
-		},
-	)
-
-	dialector := postgres.Open(cfg.GetDBDSN())
-
-	db, err := gorm.Open(dialector, &gorm.Config{Logger: gormLog})
-	if err != nil {
-		return nil, fmt.Errorf("连接 PostgreSQL 失败: %w", err)
-	}
-
-	// 配置 PostgreSQL 连接池
-	if sqlDB, dbErr := db.DB(); dbErr == nil {
-		maxOpen := cfg.Database.MaxOpenConns
-		if maxOpen <= 0 {
-			maxOpen = 25
-		}
-		maxIdle := cfg.Database.MaxIdleConns
-		if maxIdle <= 0 {
-			maxIdle = 10
-		}
-		lifetime := cfg.Database.ConnMaxLifetime
-		if lifetime <= 0 {
-			lifetime = 1800
-		}
-		sqlDB.SetMaxOpenConns(maxOpen)
-		sqlDB.SetMaxIdleConns(maxIdle)
-		sqlDB.SetConnMaxLifetime(time.Duration(lifetime) * time.Second)
-		sugar.Infof("PostgreSQL 连接池: max_open=%d, max_idle=%d, lifetime=%ds", maxOpen, maxIdle, lifetime)
-	} else {
-		sugar.Warnf("获取底层 sql.DB 失败: %v", dbErr)
-	}
-
-	return db, nil
 }

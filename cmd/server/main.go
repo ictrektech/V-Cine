@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
+	"github.com/nowen-video/nowen-video/internal/database"
 	"github.com/nowen-video/nowen-video/internal/handler"
 	embyh "github.com/nowen-video/nowen-video/internal/handler/emby"
 	"github.com/nowen-video/nowen-video/internal/middleware"
@@ -46,7 +47,7 @@ func main() {
 	sugar := logger.Sugar()
 
 	// 初始化数据库
-	db, err := config.OpenDB(cfg, logger)
+	db, err := database.Open(&cfg.Database, logger)
 	if err != nil {
 		sugar.Fatalf("连接数据库失败: %v", err)
 	}
