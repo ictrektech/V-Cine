@@ -134,31 +134,19 @@ func (lfs *LocalFS) Type() string {
 
 // VFSManager 管理多个文件系统实例
 type VFSManager struct {
-	mu          sync.RWMutex
-	filesystems map[string]VFS // libraryID -> VFS
-	defaultFS   VFS            // 默认本地文件系统
-	webdavFS    VFS            // 全局 WebDAV 文件系统（从 WebDAVService 注入）
-	alistFS     VFS            // V2.3: 全局 Alist 文件系统
-	s3FS        VFS            // V2.3: 全局 S3 兼容对象存储文件系统
-	logger      *zap.SugaredLogger
+	mu        sync.RWMutex
+	defaultFS VFS // 默认本地文件系统
+	webdavFS  VFS // 全局 WebDAV 文件系统（从 WebDAVService 注入）
+	alistFS   VFS // V2.3: 全局 Alist 文件系统
+	s3FS      VFS // V2.3: 全局 S3 兼容对象存储文件系统
+	logger    *zap.SugaredLogger
 }
 
 func NewVFSManager(logger *zap.SugaredLogger) *VFSManager {
 	return &VFSManager{
-		filesystems: make(map[string]VFS),
-		defaultFS:   NewLocalFS(logger),
-		logger:      logger,
+		defaultFS: NewLocalFS(logger),
+		logger:    logger,
 	}
-}
-
-// GetFS 获取指定媒体库的文件系统
-func (m *VFSManager) GetFS(libraryID string) VFS {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if vfs, ok := m.filesystems[libraryID]; ok {
-		return vfs
-	}
-	return m.defaultFS
 }
 
 // SetGlobalWebDAVFS 设置全局 WebDAV 文件系统（由 WebDAVService 调用）
@@ -278,77 +266,6 @@ func (m *VFSManager) Walk(root string, fn filepath.WalkFunc) error {
 		})
 	}
 	return vfs.Walk(realRoot, fn)
-}
-
-// RegisterFS 为指定媒体库注册文件系统
-func (m *VFSManager) RegisterFS(libraryID string, vfs VFS) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.filesystems[libraryID] = vfs
-	m.logger.Infof("已注册 VFS: 媒体库=%s, 类型=%s", libraryID, vfs.Type())
-}
-
-// UnregisterFS 取消注册
-func (m *VFSManager) UnregisterFS(libraryID string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.filesystems, libraryID)
-}
-
-// GetDefault 获取默认文件系统（本地）
-func (m *VFSManager) GetDefault() VFS {
-	return m.defaultFS
-}
-
-// HasCustomFS 检查指定媒体库是否有自定义文件系统
-func (m *VFSManager) HasCustomFS(libraryID string) bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	_, exists := m.filesystems[libraryID]
-	return exists
-}
-
-// GetFSType 获取指定媒体库的文件系统类型
-func (m *VFSManager) GetFSType(libraryID string) string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if vfs, exists := m.filesystems[libraryID]; exists {
-		return vfs.Type()
-	}
-	return m.defaultFS.Type()
-}
-
-// GetAllFS 获取所有已注册的文件系统信息
-func (m *VFSManager) GetAllFS() map[string]string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	result := make(map[string]string)
-	result["default"] = m.defaultFS.Type()
-	for libraryID, vfs := range m.filesystems {
-		result[libraryID] = vfs.Type()
-	}
-	return result
-}
-
-// ClearAllFS 清除所有自定义文件系统
-func (m *VFSManager) ClearAllFS() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.filesystems = make(map[string]VFS)
-	m.logger.Info("已清除所有自定义文件系统")
-}
-
-// TestFSConnection 测试指定媒体库的文件系统连接
-func (m *VFSManager) TestFSConnection(libraryID string) error {
-	vfs := m.GetFS(libraryID)
-
-	// 尝试访问根目录来测试连接
-	_, err := vfs.Stat("/")
-	if err != nil {
-		return fmt.Errorf("文件系统连接测试失败: %w", err)
-	}
-
-	return nil
 }
 
 // ==================== VFS ReadSeeker 适配器 ====================

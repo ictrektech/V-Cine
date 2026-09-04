@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { storageApi, libraryApi } from '@/api'
+import { storageApi } from '@/api'
 import type { WebDAVConfig } from '@/api/storage'
 import { useStorageStatuses } from '@/hooks/useStorageStatuses'
-import type { Library } from '@/types'
 import {
   HardDrive,
   Cloud,
@@ -63,7 +62,6 @@ function toState(enabled?: boolean, connected?: boolean): ProviderState {
 export default function StorageTab() {
   // WebDAV 本地 state
   const [config, setConfig] = useState<WebDAVConfig>(DEFAULT_CONFIG)
-  const [libraries, setLibraries] = useState<Library[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -71,7 +69,6 @@ export default function StorageTab() {
   const [showPassword, setShowPassword] = useState(false)
   const [passwordDirty, setPasswordDirty] = useState(false)
   const [hasPassword, setHasPassword] = useState(false)
-  const [registeringLib, setRegisteringLib] = useState<string | null>(null)
 
   // 当前激活的 provider tab
   const [activeTab, setActiveTab] = useState<ProviderKey>('webdav')
@@ -80,11 +77,11 @@ export default function StorageTab() {
   const { webdavStatus, alistStatus, s3Status } = useStorageStatuses()
   const status = webdavStatus
 
-  // 加载 WebDAV 配置 + 统一状态概览 + 媒体库
+  // 加载 WebDAV 配置 + 统一状态概览
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      // 配置是表单的关键数据，优先单独加载；状态/媒体库是辅助信息，
+      // 配置是表单的关键数据，优先单独加载；状态是辅助信息，
       // 不能因为远程存储不可达（状态探测会卡住/超时）而挡住配置展示。
       const cfgRes = await storageApi.getWebDAVConfig()
       const data = cfgRes.data.data
@@ -96,13 +93,6 @@ export default function StorageTab() {
     } finally {
       setLoading(false)
     }
-
-    // 辅助信息后台加载：任一失败/超时都不影响表单
-    void libraryApi.list().then((res) => {
-      setLibraries(res.data.data || [])
-    }).catch(() => {
-      setLibraries([])
-    })
   }, [])
 
   useEffect(() => {
@@ -146,19 +136,6 @@ export default function StorageTab() {
       setToast({ ok: false, msg })
     } finally {
       setTesting(false)
-    }
-  }
-
-  const handleRegisterLib = async (libId: string) => {
-    setRegisteringLib(libId)
-    try {
-      await storageApi.registerWebDAVLibrary(libId)
-      setToast({ ok: true, msg: '已为媒体库注册 WebDAV 存储' })
-      await loadAll()
-    } catch (e: any) {
-      setToast({ ok: false, msg: e?.response?.data?.error || '注册失败' })
-    } finally {
-      setRegisteringLib(null)
     }
   }
 
@@ -292,7 +269,7 @@ export default function StorageTab() {
             <EnableRow
               icon={<Link2 size={16} />}
               title="启用 WebDAV 存储"
-              description="启用后可为媒体库挂载远程 WebDAV 目录"
+              description="启用后媒体库可使用 webdav:// 远程路径"
               checked={config.enabled}
               onChange={(v) => setConfig({ ...config, enabled: v })}
             />
@@ -468,134 +445,6 @@ export default function StorageTab() {
               }
             />
           </SectionShell>
-
-          {/* 媒体库挂载（仅 WebDAV 可用时显示） */}
-          {status?.enabled && status?.connected && (
-            <SectionShell
-              icon={<Link2 size={18} />}
-              title="媒体库挂载"
-              subtitle="将 WebDAV 注册为指定媒体库的数据源"
-              description={
-                <>
-                  将 WebDAV 存储挂载到媒体库后，扫描时会自动从远程读取文件。
-                  媒体库路径需以{' '}
-                  <code
-                    className="mx-0.5 rounded px-1.5 py-0.5 font-mono text-[11px]"
-                    style={{ background: 'var(--nav-hover-bg)', color: 'var(--neon-blue)', border: '1px solid var(--border-default)' }}
-                  >
-                    webdav://
-                  </code>
-                  、
-                  <code
-                    className="mx-0.5 rounded px-1.5 py-0.5 font-mono text-[11px] text-purple-600 dark:text-purple-300"
-                    style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}
-                  >
-                    alist://
-                  </code>
-                  {' '}或{' '}
-                  <code
-                    className="mx-0.5 rounded px-1.5 py-0.5 font-mono text-[11px] text-amber-600 dark:text-amber-300"
-                    style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
-                  >
-                    s3://
-                  </code>
-                  {' '}开头才会走远程存储。
-                </>
-              }
-            >
-              {libraries.length === 0 ? (
-                <div
-                  className="rounded-lg py-10 text-center text-sm"
-                  style={{
-                    color: 'var(--text-tertiary)',
-                    border: '1px dashed var(--storage-enable-row-border, var(--border-strong))',
-                  }}
-                >
-                  暂无媒体库
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {libraries.map((lib) => {
-                    const isWebDAV = lib.path?.startsWith('webdav://')
-                    const isAlist = lib.path?.startsWith('alist://')
-                    const isS3 = lib.path?.startsWith('s3://')
-                    const isRemote = isWebDAV || isAlist || isS3
-                    return (
-                      <li
-                        key={lib.id}
-                        className="flex items-center justify-between gap-3 rounded-lg p-3 transition-colors"
-                        style={{
-                          background: 'var(--storage-enable-row-bg, var(--nav-hover-bg))',
-                          border: '1px solid var(--storage-enable-row-border, var(--border-strong))',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--neon-blue)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--storage-enable-row-border, var(--border-strong))')}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className={
-                              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ' +
-                              (isWebDAV
-                                ? 'bg-primary-400/10 text-primary-600 dark:text-primary-300'
-                                : isAlist
-                                ? 'bg-purple-500/10 text-purple-600 dark:text-purple-300'
-                                : isS3
-                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-300'
-                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300')
-                            }
-                          >
-                            {isWebDAV ? (
-                              <Cloud size={16} />
-                            ) : isAlist ? (
-                              <Server size={16} />
-                            ) : isS3 ? (
-                              <Database size={16} />
-                            ) : (
-                              <HardDrive size={16} />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div
-                              className="truncate text-sm font-medium"
-                              style={{ color: 'var(--text-primary)' }}
-                            >
-                              {lib.name}
-                            </div>
-                            <div
-                              className="truncate text-[11px] font-mono"
-                              style={{ color: 'var(--text-tertiary)' }}
-                            >
-                              {lib.path}
-                            </div>
-                          </div>
-                        </div>
-                        {!isRemote && (
-                          <ActionButton
-                            variant="secondary"
-                            accent="neon"
-                            onClick={() => handleRegisterLib(lib.id)}
-                            disabled={registeringLib === lib.id}
-                            loading={registeringLib === lib.id}
-                            icon={<Link2 size={14} />}
-                            className="flex-shrink-0"
-                          >
-                            挂载 WebDAV
-                          </ActionButton>
-                        )}
-                        {isRemote && (
-                          <StatusBadge
-                            state="connected"
-                            label={isWebDAV ? 'WebDAV' : isAlist ? 'Alist' : 'S3'}
-                            size="sm"
-                          />
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </SectionShell>
-          )}
         </>
       )}
 

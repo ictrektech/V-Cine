@@ -134,7 +134,6 @@ func (r *AIRouter) FailoverChain() []string {
 // V10 重构：failover 功能已删除，始终返回 false。
 func (r *AIRouter) profileExplicitlyDisabled(p string) bool {
 	return false
-	return false
 }
 
 // MarkSuccess 在每次 AI 调用成功后由 AIService 回调

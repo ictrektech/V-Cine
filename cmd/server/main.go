@@ -630,7 +630,6 @@ func main() {
 		admin.PUT("/storage/webdav", handlers.Storage.UpdateWebDAVConfig)
 		admin.POST("/storage/webdav/test", handlers.Storage.TestWebDAVConnection)
 		admin.GET("/storage/webdav/status", handlers.Storage.GetWebDAVStatus)
-		admin.POST("/storage/webdav/libraries/register", handlers.Storage.RegisterWebDAVLibrary)
 		admin.GET("/storage/browse", handlers.Storage.BrowseRemoteDir)
 
 		// ==================== V2.3: Alist 聚合网盘管理 ====================

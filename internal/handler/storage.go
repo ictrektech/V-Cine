@@ -175,28 +175,6 @@ func (h *StorageHandler) GetWebDAVStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": status})
 }
 
-// RegisterWebDAVLibraryRequest 为媒体库注册 WebDAV 存储请求
-type RegisterWebDAVLibraryRequest struct {
-	LibraryID string `json:"library_id" binding:"required"`
-}
-
-// RegisterWebDAVLibrary 为指定媒体库注册 WebDAV 存储
-func (h *StorageHandler) RegisterWebDAVLibrary(c *gin.Context) {
-	var req RegisterWebDAVLibraryRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效: " + err.Error()})
-		return
-	}
-
-	if err := h.webdavService.RegisterWebDAVLibrary(req.LibraryID); err != nil {
-		h.logger.Errorf("为媒体库注册 WebDAV 存储失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "注册失败: " + err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "媒体库已成功注册 WebDAV 存储"})
-}
-
 // BrowseRemoteDir 浏览远程存储目录（webdav / alist / s3）
 func (h *StorageHandler) BrowseRemoteDir(c *gin.Context) {
 	storageType := c.Query("type")

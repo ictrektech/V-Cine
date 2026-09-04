@@ -125,10 +125,6 @@ export const storageApi = {
     api.post<{ message: string }>('/admin/storage/webdav/test', data),
   getWebDAVStatus: () =>
     api.get<{ data: WebDAVStatus }>('/admin/storage/webdav/status', { timeout: STATUS_TIMEOUT_MS }),
-  registerWebDAVLibrary: (libraryId: string) =>
-    api.post<{ message: string }>('/admin/storage/webdav/libraries/register', {
-      library_id: libraryId,
-    }),
 
   // ---------- 远程存储目录浏览 ----------
   browseRemote: (type: 'webdav' | 'alist' | 's3', path: string) =>

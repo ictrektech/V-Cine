@@ -112,29 +112,6 @@ func (s *WebDAVService) GetWebDAVFS() (VFS, error) {
 	return nil, fmt.Errorf("未找到对应的 WebDAV 客户端")
 }
 
-// RegisterWebDAVLibrary 为指定媒体库注册 WebDAV 文件系统
-func (s *WebDAVService) RegisterWebDAVLibrary(libraryID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	webdavCfg := s.config.Storage.WebDAV
-	if !webdavCfg.Enabled {
-		return fmt.Errorf("WebDAV 存储未启用")
-	}
-
-	configHash := s.getConfigHash(webdavCfg)
-	webdavFS, exists := s.clients[configHash]
-	if !exists {
-		return fmt.Errorf("WebDAV 客户端未初始化")
-	}
-
-	// 注册到 VFS 管理器
-	s.vfsMgr.RegisterFS(libraryID, webdavFS)
-	s.logger.Infof("已为媒体库 %s 注册 WebDAV 存储", libraryID)
-
-	return nil
-}
-
 // TestConnection 测试 WebDAV 连接
 func (s *WebDAVService) TestConnection(cfg config.WebDAVConfig) error {
 	if cfg.ServerURL == "" {
