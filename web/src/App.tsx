@@ -21,15 +21,12 @@ import SearchPage from '@/pages/SearchPage'
 import FavoritesPage from '@/pages/FavoritesPage'
 import HistoryPage from '@/pages/HistoryPage'
 import PlaylistsPage from '@/pages/PlaylistsPage'
+import MinePage from '@/pages/MinePage'
 import AdminPage from '@/pages/AdminPage'
 import SeriesDetailPage from '@/pages/SeriesDetailPage'
 import ProfilePage from '@/pages/ProfilePage'
 import StatsPage from '@/pages/StatsPage'
 import FileManagerPage from '@/pages/FileManagerPage'
-import PulsePage from '@/pages/PulsePage'
-import PreprocessPage from '@/pages/PreprocessPage'
-import SubtitlePreprocessPage from '@/pages/SubtitlePreprocessPage'
-import PreprocessLayout from '@/pages/PreprocessLayout'
 import BrowsePage from '@/pages/BrowsePage'
 import PersonDetailPage from '@/pages/PersonDetailPage'
 import CollectionsPage from '@/pages/CollectionsPage'
@@ -140,21 +137,24 @@ export default function App() {
               <Route path="media/:id" element={<MediaDetailPage />} />
               <Route path="series/:id" element={<SeriesDetailPage />} />
               <Route path="search" element={<SearchPage />} />
-              <Route path="favorites" element={<FavoritesPage />} />
-              <Route path="history" element={<HistoryPage />} />
-              <Route path="playlists" element={<PlaylistsPage />} />
+              {/* "我的"聚合页：四个子页保留原路径，tab 由 MinePage 呈现 */}
+              <Route element={<MinePage />}>
+                <Route path="favorites" element={<FavoritesPage />} />
+                <Route path="history" element={<HistoryPage />} />
+                <Route path="playlists" element={<PlaylistsPage />} />
+                <Route path="stats" element={<StatsPage />} />
+              </Route>
+              <Route path="mine" element={<Navigate to="/favorites" replace />} />
               <Route path="admin" element={<AdminPage />} />
               <Route path="scrape" element={<Navigate to="/files?tab=scrape" replace />} />
               <Route path="files" element={<FileManagerPage />} />
               <Route path="profile" element={<ProfilePage />} />
-              <Route path="stats" element={<StatsPage />} />
-              <Route path="pulse" element={<PulsePage />} />
-              <Route path="preprocess" element={<PreprocessLayout />}>
-                <Route index element={<PreprocessPage />} />
-                <Route path="subtitle" element={<SubtitlePreprocessPage />} />
-              </Route>
+              <Route path="pulse" element={<Navigate to="/admin?tab=pulse" replace />} />
+              {/* 兼容旧预处理独立页 —— 重定向到媒体库管理预处理 Tab */}
+              <Route path="preprocess" element={<Navigate to="/files?tab=preprocess" replace />} />
+              <Route path="preprocess/subtitle" element={<Navigate to="/files?tab=preprocess&pre=subtitle" replace />} />
               {/* 兼容旧侧栏入口 /subtitle-preprocess —— 重定向到新地址 */}
-              <Route path="subtitle-preprocess" element={<Navigate to="/preprocess/subtitle" replace />} />
+              <Route path="subtitle-preprocess" element={<Navigate to="/files?tab=preprocess&pre=subtitle" replace />} />
               <Route path="browse" element={<BrowsePage />} />
               <Route path="collections" element={<CollectionsPage />} />
               <Route path="collections/:id" element={<CollectionDetailPage />} />

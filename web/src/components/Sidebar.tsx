@@ -1,37 +1,26 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { libraryApi } from '@/api'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
-import { loadCachedLibraries, saveCachedLibraries } from '@/lib/libraryCache'
 import LanguageSwitcher from './LanguageSwitcher'
 import { useTranslation } from '@/i18n'
 import {
   Home,
   Search,
-  Heart,
-  Clock,
-  ListVideo,
   Settings,
   UserCog,
   LogOut,
-  Film,
-  Tv,
-  FolderOpen,
   ChevronLeft,
   Zap,
   Sun,
   Moon,
   Layers,
-  Video,
   X,
-  BarChart3,
+  UserRound,
   FolderOpen as FolderOpenIcon,
-  Activity,
   Library as LibraryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -50,95 +39,33 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   const { theme, toggleTheme } = useThemeStore()
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const { data: libraries = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['libraries'],
-    queryFn: async () => {
-      const res = await libraryApi.list()
-      const libs = res.data.data
-      saveCachedLibraries(libs)
-      return libs
-    },
-    placeholderData: loadCachedLibraries,
-  })
+  const { pathname } = useLocation()
   const [collapsed, setCollapsed] = useState(false)
   const { on, off } = useWebSocket()
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // 监听 WebSocket 事件，实时更新媒体库列表
+  // "我的"入口在四个子页（收藏/历史/播放列表/观影报告）下均保持高亮
+  const isMineActive = ['/favorites', '/history', '/playlists', '/stats']
+    .some((p) => pathname.startsWith(p))
+
+  // 监听 WebSocket 事件：刮削/扫描完成后 bump 全局海报版本，
+  // 让所有 MediaCard 的图片 URL 更新，破除浏览器缓存
   useEffect(() => {
-    const debouncedRefresh = () => {
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
-      refreshTimerRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['libraries'] })
-      }, 500)
-    }
-
-    // 全局海报版本 bump：刮削/扫描完成后让所有 MediaCard 的图片 URL 更新，破除浏览器缓存
     const bumpOnMediaChange = () => {
       bumpPosterVersion()
     }
 
-    on(WS_EVENTS.LIBRARY_DELETED, debouncedRefresh)
-    on(WS_EVENTS.LIBRARY_UPDATED, debouncedRefresh)
-    on(WS_EVENTS.SCAN_COMPLETED, debouncedRefresh)
     on(WS_EVENTS.SCAN_COMPLETED, bumpOnMediaChange)
     on(WS_EVENTS.SCRAPE_COMPLETED, bumpOnMediaChange)
 
     return () => {
-      off(WS_EVENTS.LIBRARY_DELETED, debouncedRefresh)
-      off(WS_EVENTS.LIBRARY_UPDATED, debouncedRefresh)
-      off(WS_EVENTS.SCAN_COMPLETED, debouncedRefresh)
       off(WS_EVENTS.SCAN_COMPLETED, bumpOnMediaChange)
       off(WS_EVENTS.SCRAPE_COMPLETED, bumpOnMediaChange)
-      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
     }
-  }, [on, off, queryClient])
+  }, [on, off])
 
   const handleLogout = () => {
     logout()
     navigate('/login')
-  }
-
-  const iconForType = (type: string) => {
-    switch (type) {
-      case 'movie': return <Film size={18} />
-      case 'tvshow': return <Tv size={18} />
-      case 'mixed': return <Layers size={18} />
-      case 'other': return <Video size={18} />
-      default: return <FolderOpen size={18} />
-    }
-  }
-
-  let libraryContent
-  if (libraries.length > 0) {
-    libraryContent = libraries.map((lib) => (
-      <NavLink
-        key={lib.id}
-        to={`/library/${lib.id}`}
-        className={({ isActive }) => clsx('nav-item', isActive && 'active')}
-        onClick={onMobileClose}
-      >
-        {iconForType(lib.type)}
-        {(!collapsed || isMobileOpen) && <span>{lib.name}</span>}
-      </NavLink>
-    ))
-  } else if (isError) {
-    libraryContent = (
-      <div className="mx-3 my-1 flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs text-surface-500">
-        <span>媒体库加载失败</span>
-        <button onClick={() => refetch()} className="text-neon hover:underline">重试</button>
-      </div>
-    )
-  } else {
-    libraryContent = [0, 1, 2].map((i) => (
-      <div key={i} className="mx-3 my-1 flex items-center gap-3 rounded-lg px-3 py-2">
-        <div className="h-4 w-4 shrink-0 animate-pulse rounded" style={{ background: 'var(--bg-skeleton-from)' }} />
-        {(!collapsed || isMobileOpen) && (
-          <div className="h-3 flex-1 animate-pulse rounded" style={{ background: 'var(--bg-skeleton-from)' }} />
-        )}
-      </div>
-    ))
   }
 
   // 桌面端用 collapsed，移动端始终展开全宽
@@ -181,7 +108,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         )}
       </div>
 
-      {/* 主导航 */}
+      {/* 主导航：首页 / 影视库 / 合集 / 搜索，层级递进保持简洁 */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-4">
         <NavLink
           to="/"
@@ -191,15 +118,6 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         >
           <Home size={18} />
           {(!collapsed || isMobileOpen) && <span>{t('nav.home')}</span>}
-        </NavLink>
-
-        <NavLink
-          to="/search"
-          className={({ isActive }) => clsx('nav-item', isActive && 'active')}
-          onClick={onMobileClose}
-        >
-          <Search size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.search')}</span>}
         </NavLink>
 
         <NavLink
@@ -217,62 +135,29 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           onClick={onMobileClose}
         >
           <LibraryIcon size={18} />
-          {(!collapsed || isMobileOpen) && <span>影视合集</span>}
+          {(!collapsed || isMobileOpen) && <span>合集</span>}
         </NavLink>
 
         <NavLink
-          to="/favorites"
+          to="/search"
           className={({ isActive }) => clsx('nav-item', isActive && 'active')}
           onClick={onMobileClose}
         >
-          <Heart size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.favorites')}</span>}
+          <Search size={18} />
+          {(!collapsed || isMobileOpen) && <span>{t('nav.search')}</span>}
         </NavLink>
 
+        {/* 我的：单入口，收藏/历史/播放列表/观影报告收进"我的"页 tab */}
         <NavLink
-          to="/history"
-          className={({ isActive }) => clsx('nav-item', isActive && 'active')}
+          to="/mine"
+          className={() => clsx('nav-item', isMineActive && 'active')}
           onClick={onMobileClose}
         >
-          <Clock size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.history')}</span>}
+          <UserRound size={18} />
+          {(!collapsed || isMobileOpen) && <span>{t('nav.mine')}</span>}
         </NavLink>
 
-        <NavLink
-          to="/playlists"
-          className={({ isActive }) => clsx('nav-item', isActive && 'active')}
-          onClick={onMobileClose}
-        >
-          <ListVideo size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.playlists')}</span>}
-        </NavLink>
-
-        <NavLink
-          to="/stats"
-          className={({ isActive }) => clsx('nav-item', isActive && 'active')}
-          onClick={onMobileClose}
-        >
-          <BarChart3 size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.stats')}</span>}
-        </NavLink>
-
-        {/* 媒体库列表 */}
-        {(libraries.length > 0 || isLoading || isError) && (
-          <>
-            {(!collapsed || isMobileOpen) && (
-              <div className="px-3 pb-1 pt-6 text-[10px] font-bold uppercase tracking-[0.2em] text-neon/40">
-                {t('nav.libraries')}
-              </div>
-            )}
-            {collapsed && !isMobileOpen && (
-              <div className="my-3 mx-3 border-t border-neon-blue/10" />
-            )}
-
-            {libraryContent}
-          </>
-        )}
-
-        {/* 管理入口 */}
+        {/* 管理中心 */}
         {user?.role === 'admin' && (
           <>
             {(!collapsed || isMobileOpen) && (
@@ -300,24 +185,6 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             >
               <FolderOpenIcon size={18} />
               {(!collapsed || isMobileOpen) && <span>{t('nav.files')}</span>}
-            </NavLink>
-
-            <NavLink
-              to="/pulse"
-              className={({ isActive }) => clsx('nav-item', isActive && 'active')}
-              onClick={onMobileClose}
-            >
-              <Activity size={18} />
-              {(!collapsed || isMobileOpen) && <span>{t('nav.pulse')}</span>}
-            </NavLink>
-
-            <NavLink
-              to="/preprocess"
-              className={({ isActive }) => clsx('nav-item', isActive && 'active')}
-              onClick={onMobileClose}
-            >
-              <Zap size={18} />
-              {(!collapsed || isMobileOpen) && <span>预处理</span>}
             </NavLink>
           </>
         )}

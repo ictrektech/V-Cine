@@ -30,6 +30,7 @@ const zhCN: Record<string, string> = {
   'nav.history': '观看历史',
   'nav.playlists': '播放列表',
   'nav.stats': '观影报告',
+  'nav.mine': '我的',
   'nav.profile': '个人设置',
   'nav.account': '账号',
   'nav.libraries': '媒体库',
@@ -415,6 +416,8 @@ const zhCN: Record<string, string> = {
 
   // ==================== 管理后台 ====================
   'admin.title': '系统设置',
+  'admin.consoleTitle': '管理中心',
+  'admin.tabPulse': '数据中心',
   'admin.connected': '实时连接',
   'admin.disconnected': '未连接',
   'admin.tabOverview': '概览',
