@@ -1,8 +1,9 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
 import LanguageSwitcher from './LanguageSwitcher'
@@ -11,7 +12,6 @@ import {
   Home,
   Search,
   Settings,
-  UserCog,
   LogOut,
   ChevronLeft,
   Zap,
@@ -32,6 +32,30 @@ interface SidebarProps {
   isMobileOpen?: boolean
   /** 移动端关闭回调 */
   onMobileClose?: () => void
+}
+
+// 导航项文案：侧边栏宽度固定，长文案（尤其英文）会被 CSS 截断成 "..."，检测到截断时在悬停时用 Tooltip 展示完整文案，避免信息丢失
+function NavLabel({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [truncated, setTruncated] = useState(false)
+
+  // 挂载（含折叠/展开切换时的重挂载）时测量一次即可：侧边栏宽度固定，
+  // 是否截断只取决于文案本身
+  useEffect(() => {
+    const el = ref.current
+    if (el) setTruncated(el.scrollWidth > el.clientWidth)
+  }, [text])
+
+  const span = <span ref={ref} className="truncate">{text}</span>
+
+  if (!truncated) return span
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{span}</TooltipTrigger>
+      <TooltipContent side="right">{text}</TooltipContent>
+    </Tooltip>
+  )
 }
 
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
@@ -117,7 +141,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           onClick={onMobileClose}
         >
           <Home size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.home')}</span>}
+          {(!collapsed || isMobileOpen) && <NavLabel text={t('nav.home')} />}
         </NavLink>
 
         <NavLink
@@ -126,7 +150,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           onClick={onMobileClose}
         >
           <Layers size={18} />
-          {(!collapsed || isMobileOpen) && <span>影视库</span>}
+          {(!collapsed || isMobileOpen) && <NavLabel text="影视库" />}
         </NavLink>
 
         <NavLink
@@ -144,7 +168,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           onClick={onMobileClose}
         >
           <Search size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.search')}</span>}
+          {(!collapsed || isMobileOpen) && <NavLabel text={t('nav.search')} />}
         </NavLink>
 
         {/* 我的：单入口，收藏/历史/播放列表/观影报告收进"我的"页 tab */}
@@ -154,7 +178,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           onClick={onMobileClose}
         >
           <UserRound size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.mine')}</span>}
+          {(!collapsed || isMobileOpen) && <NavLabel text={t('nav.mine')} />}
         </NavLink>
 
         {/* 管理中心 */}
@@ -175,7 +199,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               onClick={onMobileClose}
             >
               <Settings size={18} />
-              {(!collapsed || isMobileOpen) && <span>{t('nav.admin')}</span>}
+              {(!collapsed || isMobileOpen) && <NavLabel text={t('nav.admin')} />}
             </NavLink>
 
             <NavLink
@@ -184,104 +208,23 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               onClick={onMobileClose}
             >
               <FolderOpenIcon size={18} />
-              {(!collapsed || isMobileOpen) && <span>{t('nav.files')}</span>}
+              {(!collapsed || isMobileOpen) && <NavLabel text={t('nav.files')} />}
             </NavLink>
           </>
         )}
       </nav>
 
-      {/* 主题切换 + 用户信息 */}
+      {/* 用户卡片 + 快捷操作（个人设置/语言/主题/登出） */}
       <div className="border-t p-3 border-[var(--border-default)]">
-        {/* 主题切换按钮 */}
-        <div className={clsx('mb-3', collapsed && !isMobileOpen && 'flex justify-center')}>
-          <button
-            onClick={toggleTheme}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTheme() } }}
-            className={clsx(
-              'theme-toggle-btn group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300',
-              (collapsed && !isMobileOpen) ? 'justify-center' : 'w-full'
-            )}
-            style={{
-              color: 'var(--text-secondary)',
-              background: theme === 'light' ? 'var(--nav-hover-bg)' : undefined,
-              border: theme === 'light' ? '1px solid var(--border-default)' : '1px solid transparent',
-            }}
-            /* 注意：此处保留 style 因为需要根据 theme 状态动态切换 */
-            title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
-            aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
-            role="switch"
-            aria-checked={theme === 'dark'}
-          >
-            {/* 图标容器 - 固定尺寸确保对齐 */}
-            <div className="relative flex h-[18px] w-[18px] items-center justify-center flex-shrink-0">
-              <Sun
-                size={18}
-                className={clsx(
-                  'absolute transition-all duration-500',
-                  theme === 'light'
-                    ? 'rotate-0 scale-100 opacity-100 text-amber-500'
-                    : 'rotate-90 scale-0 opacity-0'
-                )}
-                style={theme === 'light' ? { filter: 'drop-shadow(0 0 4px rgba(245, 158, 11, 0.4))' } : undefined}
-              />
-              <Moon
-                size={18}
-                className={clsx(
-                  'absolute transition-all duration-500',
-                  theme === 'dark'
-                    ? 'rotate-0 scale-100 opacity-100 text-neon'
-                    : '-rotate-90 scale-0 opacity-0'
-                )}
-                style={theme === 'dark' ? { filter: 'drop-shadow(0 0 4px rgba(255,255,255,0.3))' } : undefined}
-              />
-            </div>
-            {(!collapsed || isMobileOpen) && (
-              <span className="transition-colors group-hover:text-[var(--text-primary)]">
-                {theme === 'dark' ? t('nav.darkMode') : t('nav.lightMode')}
-              </span>
-            )}
-            {/* 当前状态指示点 */}
-            {(!collapsed || isMobileOpen) && (
-              <span
-                className="ml-auto h-1.5 w-1.5 rounded-full flex-shrink-0"
-                style={{
-                  background: theme === 'dark' ? 'var(--neon-blue)' : '#f59e0b',
-                  boxShadow: theme === 'dark'
-                    ? '0 0 6px rgba(255,255,255,0.3)'
-                    : '0 0 6px rgba(245, 158, 11, 0.4)',
-                }}
-              />
-            )}
-          </button>
-        </div>
-
-        {/* 语言切换 */}
-        {(!collapsed || isMobileOpen) && (
-          <LanguageSwitcher />
-        )}
-
-        {/* 账号区 */}
-        {(!collapsed || isMobileOpen) && (
-          <div className="px-3 pb-1 pt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-neon/40">
-            {t('nav.account')}
-          </div>
-        )}
-        {collapsed && !isMobileOpen && (
-          <div className="my-2 mx-3 border-t border-neon-blue/10" />
-        )}
+        {/* 用户卡片：整体点击进入个人设置 */}
         <NavLink
           to="/profile"
           aria-label={t('nav.profile')}
-          className={({ isActive }) => clsx('nav-item', isActive && 'active')}
           onClick={onMobileClose}
+          className="flex items-center gap-3 rounded-xl p-2 transition-all hover:bg-[var(--nav-hover-bg)]"
         >
-          <UserCog size={18} />
-          {(!collapsed || isMobileOpen) && <span>{t('nav.profile')}</span>}
-        </NavLink>
-
-        <div className="mt-2 flex items-center gap-3">
-          {/* 霓虹头像 */}
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
             style={{
               background: 'var(--neon-blue)',
               boxShadow: 'var(--shadow-neon)',
@@ -291,24 +234,46 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             {user?.username?.charAt(0).toUpperCase()}
           </div>
           {(!collapsed || isMobileOpen) && (
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium text-theme-primary">
-                {user?.username}
-              </p>
-              <p className="text-xs text-theme-tertiary">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-theme-primary">{user?.username}</p>
+              <p className="truncate text-xs text-theme-tertiary">
                 {user?.role === 'admin' ? t('user.admin') : t('user.user')}
               </p>
             </div>
           )}
-          {(!collapsed || isMobileOpen) && (
-            <button
-              onClick={handleLogout}
-              className="rounded-lg p-1.5 text-surface-400 transition-all hover:text-red-400 hover:bg-red-400/5"
-              title={t('nav.logout')}
-            >
-              <LogOut size={16} />
-            </button>
-          )}
+        </NavLink>
+
+        {/* 快捷图标排 */}
+        <div className={clsx(
+          'mt-2',
+          (collapsed && !isMobileOpen) ? 'flex flex-col items-center gap-1' : 'flex items-center gap-1'
+        )}>
+          {/* 语言切换 */}
+          <LanguageSwitcher />
+
+          {/* 主题切换 */}
+          <button
+            onClick={toggleTheme}
+            className="relative flex h-9 w-9 items-center justify-center rounded-lg text-surface-400 transition-all hover:text-neon hover:bg-neon-blue/5"
+            title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
+            aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
+            role="switch"
+            aria-checked={theme === 'dark'}
+          >
+            {theme === 'dark'
+              ? <Moon size={17} className="text-neon" />
+              : <Sun size={17} className="text-amber-500" />}
+          </button>
+
+          {/* 登出 */}
+          <button
+            onClick={handleLogout}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-surface-400 transition-all hover:text-red-400 hover:bg-red-400/5"
+            title={t('nav.logout')}
+            aria-label={t('nav.logout')}
+          >
+            <LogOut size={17} />
+          </button>
         </div>
 
         {/* 折叠/展开按钮（折叠模式下显示在底部） */}
@@ -325,10 +290,14 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   )
 
   return (
-    <>
-      {/* 桌面端侧边栏 — 弹性宽度动画 */}
+    // Radix Tooltip 需要 Provider；仅包住侧边栏，不影响其他页面
+    <TooltipProvider delayDuration={300}>
+      {/* 桌面端侧边栏 */}
       <motion.aside
-        className="glass-panel-strong relative z-20 hidden h-screen flex-col md:flex overflow-hidden flex-shrink-0"
+        className={clsx(
+          'glass-panel-strong relative z-20 hidden h-screen flex-col md:flex overflow-hidden flex-shrink-0',
+          collapsed ? 'min-w-[68px]' : 'min-w-[210px]'
+        )}
         animate={collapsed ? 'collapsed' : 'expanded'}
         variants={sidebarVariants}
         style={{ willChange: 'width' }}
@@ -357,7 +326,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             {isMobileOpen && (
               <motion.aside
                 key="sidebar-drawer"
-                className="glass-panel-strong fixed inset-y-0 left-0 z-[9999] flex w-64 flex-col md:hidden"
+                className="glass-panel-strong fixed inset-y-0 left-0 z-[9999] flex w-52 flex-col md:hidden"
                 variants={sidebarMobileVariants}
                 initial="hidden"
                 animate="visible"
@@ -370,6 +339,6 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         </>,
         document.body
       )}
-    </>
+    </TooltipProvider>
   )
 }

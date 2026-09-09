@@ -157,8 +157,7 @@ export const sidebarVariants: Variants = {
     transition: { duration: durations.normal, ease: easeSmooth as unknown as [number, number, number, number] },
   },
   expanded: {
-    width: 240,
-    minWidth: 240,
+    width: 210,
     transition: { duration: durations.normal, ease: easeSmooth as unknown as [number, number, number, number] },
   },
 }

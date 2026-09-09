@@ -525,6 +525,17 @@
     transition: color 0.2s, background 0.2s;
   }
 
+  /* 宽度固定，长文案（如英文 Media Library Manager）截断为省略号；
+     图标不可被压缩，否则会出现"文字压住图标"的现象 */
+  .nav-item > svg {
+    flex-shrink: 0;
+  }
+  .nav-item > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .nav-item:hover {
     color: var(--text-primary);
     background: var(--nav-hover-bg);
