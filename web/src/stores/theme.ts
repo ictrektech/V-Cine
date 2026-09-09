@@ -218,12 +218,31 @@ function resolveMode(themeId: string): 'dark' | 'light' {
   return lightThemeIds.has(themeId) ? 'light' : 'dark'
 }
 
+/** 主题偏好：auto = 跟随系统（prefers-color-scheme） */
+export type ThemePreference = 'auto' | 'dark' | 'light'
+
+/** 系统是否偏好深色 */
+function systemPrefersDark(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return true
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+/** 将偏好解析为具体主题 ID */
+function resolveThemeId(preference: ThemePreference): string {
+  if (preference === 'light') return 'pure-light'
+  if (preference === 'dark') return 'neon-dark'
+  return systemPrefersDark() ? 'neon-dark' : 'pure-light'
+}
+
 // ==================== 主题 Store ====================
 interface ThemeStore {
   currentThemeId: string
   theme: 'dark' | 'light'
+  /** 用户偏好（auto 时 theme 为跟随系统后的实际模式） */
+  preference: ThemePreference
   customThemes: ThemeConfig[]
   setTheme: (id: string) => void
+  setPreference: (preference: ThemePreference) => void
   toggleTheme: () => void
   addCustomTheme: (theme: ThemeConfig) => void
   removeCustomTheme: (id: string) => void
@@ -236,6 +255,7 @@ export const useThemeStore = create<ThemeStore>()(
     (set, get) => ({
       currentThemeId: 'neon-dark',
       theme: 'dark' as const,
+      preference: 'auto' as const,
       customThemes: [],
 
       setTheme: (id: string) => {
@@ -243,26 +263,23 @@ export const useThemeStore = create<ThemeStore>()(
         // 防御无效主题 ID（如已删除的内置主题），回退到默认深色主题
         const safeId = allThemes.some((t) => t.id === id) ? id : 'neon-dark'
         const mode = resolveMode(safeId)
-        set({ currentThemeId: safeId, theme: mode })
+        set({ currentThemeId: safeId, theme: mode, preference: mode })
         applyTheme(safeId, allThemes)
       },
 
+      setPreference: (preference: ThemePreference) => {
+        const allThemes = [...builtinThemes, ...get().customThemes]
+        const id = resolveThemeId(preference)
+        set({ currentThemeId: id, theme: resolveMode(id), preference })
+        applyTheme(id, allThemes)
+      },
+
+      // 三态循环：深色 → 浅色 → 自动 → 深色
       toggleTheme: () => {
-        const { theme, currentThemeId, customThemes } = get()
-        // dark → pure-light，light → 上一个深色主题（默认 neon-dark）
-        if (theme === 'dark') {
-          const newId = 'pure-light'
-          set({ currentThemeId: newId, theme: 'light' })
-          applyTheme(newId, [...builtinThemes, ...customThemes])
-        } else {
-          // 切回默认深色主题；若之前的 ID 无效（如已删除的内置主题）则回退 neon-dark
-          const allThemes = [...builtinThemes, ...customThemes]
-          const fallbackDark = allThemes.some((t) => t.id === currentThemeId) && !lightThemeIds.has(currentThemeId)
-            ? currentThemeId
-            : 'neon-dark'
-          set({ currentThemeId: fallbackDark, theme: 'dark' })
-          applyTheme(fallbackDark, allThemes)
-        }
+        const { preference } = get()
+        const next: ThemePreference =
+          preference === 'auto' ? 'dark' : preference === 'dark' ? 'light' : 'auto'
+        get().setPreference(next)
       },
 
       addCustomTheme: (theme: ThemeConfig) => {
@@ -321,10 +338,36 @@ export function applyTheme(themeId: string, allThemes: ThemeConfig[]) {
 export function initTheme() {
   const state = useThemeStore.getState()
   const allThemes = [...builtinThemes, ...state.customThemes]
-  // 持久化的主题 ID 可能已不存在（如旧版内置主题被移除），回退到默认深色主题
-  if (!allThemes.some((t) => t.id === state.currentThemeId)) {
-    state.setTheme('neon-dark')
-    return
+  const fallbackId = allThemes.some((t) => t.id === state.currentThemeId)
+    ? state.currentThemeId
+    : 'neon-dark'
+  // 若持久化里没有偏好（老版本数据），按当前主题 ID 推导
+  const persisted = state.preference as ThemePreference | undefined
+  const preference: ThemePreference = persisted ?? resolveMode(fallbackId)
+
+  if (preference === 'auto') {
+    state.setPreference('auto')
+  } else {
+    // 保留用户原有的具体主题（含自定义主题），只补记偏好
+    useThemeStore.setState({
+      currentThemeId: fallbackId,
+      theme: resolveMode(fallbackId),
+      preference,
+    })
+    applyTheme(fallbackId, allThemes)
   }
-  applyTheme(state.currentThemeId, allThemes)
+
+  // 跟随系统：系统深浅色切换时实时生效
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      const { preference: current } = useThemeStore.getState()
+      if (current !== 'auto') return
+      const resolved = resolveThemeId('auto')
+      useThemeStore.setState({
+        currentThemeId: resolved,
+        theme: resolveMode(resolved),
+      })
+      applyTheme(resolved, [...builtinThemes, ...useThemeStore.getState().customThemes])
+    })
+  }
 }

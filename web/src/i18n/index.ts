@@ -12,6 +12,8 @@ export const SUPPORTED_LOCALES = [
 ] as const
 
 export type LocaleCode = typeof SUPPORTED_LOCALES[number]['code']
+/** 语言偏好：auto = 跟随浏览器语言 */
+export type LocalePreference = 'auto' | LocaleCode
 
 // 语言包映射
 const localeMessages: Record<LocaleCode, Record<string, string>> = {
@@ -22,27 +24,32 @@ const localeMessages: Record<LocaleCode, Record<string, string>> = {
 
 // i18n Store
 interface I18nStore {
-  locale: LocaleCode
-  setLocale: (locale: LocaleCode) => void
+  /** 只保存偏好；实际语言由 resolveLocale 推导，避免两处状态不同步 */
+  preference: LocalePreference
+  setLocale: (preference: LocalePreference) => void
 }
 
-// 检测浏览器语言
+// 检测浏览器语言：中文 → 简体中文，日文 → 日本語，其余（含英语与其它语种）→ English
 function detectBrowserLocale(): LocaleCode {
   const browserLang = navigator.language || (navigator as any).userLanguage || ''
   if (browserLang.startsWith('zh')) return 'zh-CN'
   if (browserLang.startsWith('ja')) return 'ja-JP'
-  if (browserLang.startsWith('en')) return 'en-US'
-  return 'zh-CN' // 默认中文
+  return 'en-US'
+}
+
+/** 将偏好解析为实际语言：auto 时读取浏览器语言 */
+export function resolveLocale(preference: LocalePreference): LocaleCode {
+  return preference === 'auto' ? detectBrowserLocale() : preference
 }
 
 export const useI18nStore = create<I18nStore>()(
   persist(
     (set) => ({
-      locale: detectBrowserLocale(),
-      setLocale: (locale: LocaleCode) => {
-        set({ locale })
+      preference: 'auto',
+      setLocale: (preference: LocalePreference) => {
+        set({ preference })
         // 更新 HTML lang 属性
-        document.documentElement.lang = locale
+        document.documentElement.lang = resolveLocale(preference)
       },
     }),
     {
@@ -58,7 +65,7 @@ export const useI18nStore = create<I18nStore>()(
  * @returns 翻译后的文本
  */
 export function t(key: string, params?: Record<string, string | number>): string {
-  const locale = useI18nStore.getState().locale
+  const locale = resolveLocale(useI18nStore.getState().preference)
   const messages = localeMessages[locale] || localeMessages['zh-CN']
   let text = messages[key] || localeMessages['zh-CN'][key] || key
 
@@ -77,8 +84,9 @@ export function t(key: string, params?: Record<string, string | number>): string
  * 当语言切换时，使用此 hook 的组件会自动重新渲染
  */
 export function useTranslation() {
-  const locale = useI18nStore((s) => s.locale)
+  const preference = useI18nStore((s) => s.preference)
   const setLocale = useI18nStore((s) => s.setLocale)
+  const locale = resolveLocale(preference)
 
   const translate = (key: string, params?: Record<string, string | number>): string => {
     const messages = localeMessages[locale] || localeMessages['zh-CN']
@@ -99,5 +107,5 @@ export function useTranslation() {
 // 初始化 i18n（App 启动时调用）
 export function initI18n() {
   const state = useI18nStore.getState()
-  document.documentElement.lang = state.locale
+  document.documentElement.lang = resolveLocale(state.preference)
 }
