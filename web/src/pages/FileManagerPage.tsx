@@ -12,12 +12,15 @@ import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
 import ScrapeManagerPage from '@/pages/ScrapeManagerPage'
+import PreprocessPage from '@/pages/PreprocessPage'
+import SubtitlePreprocessPage from '@/pages/SubtitlePreprocessPage'
 import LibraryManager from '@/components/LibraryManager'
 import { useScanProgress } from '@/hooks/useScanProgress'
 import AdultScraperSection from '@/components/admin/AdultScraperTab'
 import AdultScraperProSection from '@/components/admin/AdultScraperPro'
 import STRMConfigSection from '@/components/admin/STRMConfigSection'
 import VideoAnalysisTaskTab from '@/components/video-analysis/VideoAnalysisTaskTab'
+import SegmentedTabs from '@/components/ui/segmented-tabs'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
 import {
@@ -29,6 +32,8 @@ import {
   ShieldAlert,
   ScanLine,
   ArrowUpLeft,
+  Zap,
+  Subtitles,
   Library as LibraryIcon,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -66,8 +71,14 @@ export default function FileManagerPage() {
     if (tab === 'scrape') return 'scrape'
     if (tab === 'analysis') return 'analysis'
     if (tab === 'adult') return 'adult'
+    if (tab === 'preprocess') return 'preprocess'
     return 'files'
   })
+
+  // 预处理子 Tab：视频 / 字幕（URL 参数 pre=subtitle，兼容旧 /preprocess/subtitle 深链）
+  const [preSub, setPreSub] = useState<'video' | 'subtitle'>(() =>
+    searchParams.get('pre') === 'subtitle' ? 'subtitle' : 'video'
+  )
 
   // 切换Tab时同步URL参数
   const handleTabChange = useCallback((tab: TabType) => {
@@ -76,6 +87,21 @@ export default function FileManagerPage() {
       searchParams.delete('tab')
     } else {
       searchParams.set('tab', tab)
+    }
+    // 离开预处理 Tab 时清理其子 Tab 参数
+    if (tab !== 'preprocess') {
+      searchParams.delete('pre')
+    }
+    setSearchParams(searchParams, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  // 切换预处理子 Tab 并同步 URL
+  const handlePreSubChange = useCallback((sub: 'video' | 'subtitle') => {
+    setPreSub(sub)
+    if (sub === 'subtitle') {
+      searchParams.set('pre', 'subtitle')
+    } else {
+      searchParams.delete('pre')
     }
     setSearchParams(searchParams, { replace: true })
   }, [searchParams, setSearchParams])
@@ -781,70 +807,18 @@ export default function FileManagerPage() {
       </div>
 
       {/* Tab 切换栏 */}
-      <div className="flex items-center gap-1 p-1 rounded-xl glass-panel" style={{ width: 'fit-content' }}>
-        <button
-          onClick={() => handleTabChange('library')}
-          className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-            activeTab === 'library'
-              ? 'bg-neon-blue/10 text-neon shadow-sm'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
-          )}
-        >
-          <LibraryIcon size={16} />
-          媒体库
-        </button>
-        <button
-          onClick={() => handleTabChange('files')}
-          className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-            activeTab === 'files'
-              ? 'bg-neon-blue/10 text-neon shadow-sm'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
-          )}
-        >
-          <FolderOpen size={16} />
-          文件列表
-        </button>
-        <button
-          onClick={() => handleTabChange('scrape')}
-          className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-            activeTab === 'scrape'
-              ? 'bg-neon-blue/10 text-neon shadow-sm'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
-          )}
-        >
-          <Globe size={16} />
-          刮削任务
-        </button>
-        <button
-          onClick={() => handleTabChange('analysis')}
-          className={clsx(
-            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-            activeTab === 'analysis'
-              ? 'bg-neon-blue/10 text-neon shadow-sm'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
-          )}
-        >
-          <ScanLine size={16} />
-          视频分析
-        </button>
-        {nsfwEnabled === true && (
-          <button
-            onClick={() => handleTabChange('adult')}
-            className={clsx(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-              activeTab === 'adult'
-                ? 'bg-neon-blue/10 text-neon shadow-sm'
-                : 'text-surface-400 hover:text-surface-200 hover:bg-white/5'
-            )}
-          >
-            <ShieldAlert size={16} />
-            成人刮削
-          </button>
-        )}
-      </div>
+      <SegmentedTabs
+        tabs={[
+          { key: 'library', label: '媒体库', icon: LibraryIcon },
+          { key: 'files', label: '文件列表', icon: FolderOpen },
+          { key: 'scrape', label: '刮削任务', icon: Globe },
+          { key: 'analysis', label: '视频分析', icon: ScanLine },
+          { key: 'preprocess', label: '预处理', icon: Zap },
+          { key: 'adult', label: '成人刮削', icon: ShieldAlert, hidden: nsfwEnabled !== true },
+        ]}
+        active={activeTab}
+        onChange={(key) => handleTabChange(key as TabType)}
+      />
 
       {/* ==================== 媒体库管理 Tab ==================== */}
       {activeTab === 'library' && (
@@ -874,6 +848,23 @@ export default function FileManagerPage() {
           disabled={!videoAnalysisEnabled}
           disabledReason={videoAnalysisDisabledReason}
         />
+      )}
+
+      {/* ==================== 预处理 Tab（视频 / 字幕二级切换） ==================== */}
+      {activeTab === 'preprocess' && (
+        <div className="space-y-3">
+          <SegmentedTabs
+            tabs={[
+              { key: 'video', label: '视频预处理', icon: Zap },
+              { key: 'subtitle', label: '字幕预处理', icon: Subtitles },
+            ]}
+            active={preSub}
+            onChange={(key) => handlePreSubChange(key as 'video' | 'subtitle')}
+          />
+
+          {/* 按子 Tab 条件挂载，避免两个大组件同屏 */}
+          {preSub === 'video' ? <PreprocessPage /> : <SubtitlePreprocessPage />}
+        </div>
       )}
 
       {/* ==================== 成人刮削 Tab ==================== */}

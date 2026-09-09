@@ -10,7 +10,6 @@ import {
   Server,
   Cpu,
   Zap,
-  ArrowRight,
   Activity,
   ScanLine,
 } from 'lucide-react'
@@ -45,6 +44,8 @@ type Props = {
   tmdbConfig: TMDbConfigStatus | null
   doubanConfig: DoubanConfigStatus | null
   onOpenDrawer: (id: string) => void
+  /** 配置进度上报：由宿主页（AdminPage）渲染到标题栏的紧凑 chip */
+  onSetupStatusChange?: (status: { complete: boolean; short?: string; target?: string }) => void
 }
 
 // 状态徽章样式
@@ -83,7 +84,7 @@ function Card({ card, onClick }: { card: StatusCard; onClick: () => void }) {
   )
 }
 
-export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer }: Props) {
+export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer, onSetupStatusChange }: Props) {
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
   const [vaHealth, setVaHealth] = useState<VideoAnalysisHealthInfo | null>(null)
   const { webdavStatus, alistStatus, s3Status } = useStorageStatuses()
@@ -143,8 +144,18 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
 
   // ===== 下一步引导 =====
   const nextStep = !tmdbOk && !doubanOk
-    ? { text: '配置 TMDb API Key，自动获取海报、简介、评分', target: 'metadata' }
-    : (!aiOk ? { text: '配置 AI 服务，开启智能识别与搜索', target: 'ai' } : null)
+    ? { short: '元数据刮削', target: 'metadata' }
+    : (!aiOk ? { short: 'AI 服务', target: 'ai' } : null)
+
+  // 配置进度上报给宿主页标题栏（完成 → 绿色"配置就绪"；否则 → "待配置 · xx"）
+  const setupComplete = !nextStep
+  useEffect(() => {
+    onSetupStatusChange?.({
+      complete: setupComplete,
+      short: nextStep?.short,
+      target: nextStep?.target,
+    })
+  }, [setupComplete, nextStep?.short, nextStep?.target, onSetupStatusChange])
 
   // ===== 运行状态摘要 =====
   const memMB = systemInfo?.memory.process_used_mb ?? systemInfo?.memory.sys_mb ?? systemInfo?.memory.alloc_mb ?? 0
@@ -152,27 +163,6 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
 
   return (
     <div className="space-y-6">
-      {/* ===== 下一步引导条 ===== */}
-      {nextStep ? (
-        <button
-          onClick={() => onOpenDrawer(nextStep.target)}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all hover:brightness-105"
-          style={{ background: 'linear-gradient(135deg, var(--neon-blue-15, rgba(56,189,248,0.15)), transparent 70%)', border: '1px solid rgba(56,189,248,0.3)' }}
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neon/10">
-            <ArrowRight size={16} className="text-neon" />
-          </span>
-          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-            下一步：{nextStep.text}
-          </span>
-          <ChevronRight size={16} className="ml-auto shrink-0 text-neon/50" />
-        </button>
-      ) : (
-        <div className="flex w-full items-center gap-3 rounded-xl px-4 py-3" style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.3)' }}>
-          <span className="text-sm font-medium" style={{ color: '#16A34A' }}>✓ 核心配置已完成，可开始使用</span>
-        </div>
-      )}
-
       {/* ===== 媒体设置（配置重心）===== */}
       <section>
         <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>媒体设置</h2>

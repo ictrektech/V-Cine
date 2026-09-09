@@ -8,7 +8,14 @@ import type { SystemInfo, Library, User, TMDbConfigStatus, DoubanConfigStatus, S
 import {
   Wifi,
   WifiOff,
+  Settings as SettingsIcon,
+  Activity,
+  ShieldCheck,
+  CheckCircle2,
+  CircleAlert,
 } from 'lucide-react'
+import PulsePage from '@/pages/PulsePage'
+import SegmentedTabs from '@/components/ui/segmented-tabs'
 import MetadataScraperDrawer from '@/components/admin/MetadataScraperDrawer'
 import { AIDrawer, StorageDrawer, UsersDrawer, LogsDrawer, DashboardDrawer } from '@/components/admin/SimpleDrawers'
 
@@ -23,7 +30,21 @@ type DrawerId = (typeof DRAWER_IDS)[number]
 
 export default function AdminPage() {
   const { t } = useTranslation()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // 一级 Tab：系统设置 / 数据中心（URL 参数 tab=pulse，兼容旧 /pulse 深链）
+  const [activeTab, setActiveTab] = useState<'settings' | 'pulse'>(() =>
+    searchParams.get('tab') === 'pulse' ? 'pulse' : 'settings'
+  )
+  const handleTabChange = useCallback((tab: 'settings' | 'pulse') => {
+    setActiveTab(tab)
+    if (tab === 'pulse') {
+      searchParams.set('tab', 'pulse')
+    } else {
+      searchParams.delete('tab')
+    }
+    setSearchParams(searchParams, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null)
   const [libraries, setLibraries] = useState<Library[]>([])
@@ -87,6 +108,9 @@ export default function AdminPage() {
     const matched = DRAWER_IDS.find((d) => d === id)
     if (matched) setActiveDrawer(matched)
   }
+
+  // 配置进度（由 AdminOverview 上报）：渲染为标题栏右侧的紧凑 chip
+  const [setupStatus, setSetupStatus] = useState<{ complete: boolean; short?: string; target?: string }>({ complete: false })
   // 关闭 Drawer 后刷新概览数据：
   // 很多设置项（AI/视频分析/存储等）保存后只更新了自身组件状态，
   // 概览卡不会自动感知。这里统一在关闭时重新拉取，避免“保存后要手动刷新”。
@@ -101,10 +125,34 @@ export default function AdminPage() {
       {/* ==================== 顶部标题栏 ==================== */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="font-display text-2xl font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-            {t('admin.title')}
+          <h1 className="font-display text-2xl font-bold tracking-wide flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <ShieldCheck className="text-neon-blue animate-neon-breathe" size={24} />
+            {t('admin.consoleTitle')}
           </h1>
           <div className="flex items-center gap-3">
+            {/* 配置进度 chip（仅系统设置 Tab） */}
+            {activeTab === 'settings' && (
+              setupStatus.complete ? (
+                <span
+                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+                  style={{ color: '#16A34A', background: 'rgba(22,163,74,0.12)' }}
+                  title="核心配置已完成，可开始使用"
+                >
+                  <CheckCircle2 size={13} />
+                  配置就绪
+                </span>
+              ) : setupStatus.short ? (
+                <button
+                  onClick={() => openDrawer(setupStatus.target || '')}
+                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all hover:brightness-110"
+                  style={{ color: '#38BDF8', background: 'var(--neon-blue-15)', border: '1px solid var(--neon-blue-30)' }}
+                  title={`下一步：配置${setupStatus.short}`}
+                >
+                  <CircleAlert size={13} />
+                  待配置 · {setupStatus.short}
+                </button>
+              ) : null
+            )}
             {/* WebSocket 状态 */}
             <div className="flex items-center gap-2 text-xs">
               {connected ? (
@@ -123,16 +171,32 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* ==================== 配置概览（唯一落地视图） ==================== */}
-      <AdminOverview
-        systemInfo={systemInfo}
-        sysSettings={sysSettings}
-        libraries={libraries}
-        users={users}
-        tmdbConfig={tmdbConfig}
-        doubanConfig={doubanConfig}
-        onOpenDrawer={openDrawer}
+      {/* ==================== 一级 Tab：系统设置 / 数据中心 ==================== */}
+      <SegmentedTabs
+        className="mb-6"
+        tabs={[
+          { key: 'settings', label: t('admin.title'), icon: SettingsIcon },
+          { key: 'pulse', label: t('admin.tabPulse'), icon: Activity },
+        ]}
+        active={activeTab}
+        onChange={(key) => handleTabChange(key as 'settings' | 'pulse')}
       />
+
+      {/* ==================== Tab 内容 ==================== */}
+      {activeTab === 'pulse' ? (
+        <PulsePage />
+      ) : (
+        <AdminOverview
+          systemInfo={systemInfo}
+          sysSettings={sysSettings}
+          libraries={libraries}
+          users={users}
+          tmdbConfig={tmdbConfig}
+          doubanConfig={doubanConfig}
+          onOpenDrawer={openDrawer}
+          onSetupStatusChange={setSetupStatus}
+        />
+      )}
 
       {/* ===== 元数据刮削 Drawer ===== */}
       <MetadataScraperDrawer

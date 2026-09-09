@@ -282,7 +282,7 @@ export default function PlayerPage() {
           <button onClick={handleBack} className="btn-ghost rounded-lg px-4 py-2 text-sm text-white/80 hover:bg-white/10">
             返回
           </button>
-          <button onClick={() => navigate('/preprocess')} className="btn-primary rounded-lg px-4 py-2 text-sm">
+          <button onClick={() => navigate('/files?tab=preprocess')} className="btn-primary rounded-lg px-4 py-2 text-sm">
             查看进度
           </button>
         </div>

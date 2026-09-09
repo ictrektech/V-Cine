@@ -11,7 +11,6 @@ import type {
   PulseRecentPlayItem,
 } from '@/api/pulse'
 import {
-  Activity,
   Film,
   Tv,
   Users,
@@ -110,16 +109,6 @@ export default function PulsePage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* 页面标题 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Activity size={28} className="text-neon" />
-          <h1 className="font-display text-2xl font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-            {t('pulse.title')}
-          </h1>
-        </div>
-      </div>
-
       {/* Tab 切换 */}
       <div className="flex gap-1 rounded-xl p-1" style={{ background: 'var(--bg-surface)' }}>
         {([
