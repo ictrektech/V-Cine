@@ -1,4 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { libraryApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useEffect, useState, useRef } from 'react'
@@ -66,6 +68,24 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   const { pathname } = useLocation()
   const [collapsed, setCollapsed] = useState(false)
   const { on, off } = useWebSocket()
+
+  // 媒体库数量（"影视库"入口的计数徽章）；增删库/扫描完成后刷新
+  const queryClient = useQueryClient()
+  const { data: libraries = [] } = useQuery({
+    queryKey: ['libraries'],
+    queryFn: async () => (await libraryApi.list()).data.data,
+  })
+  useEffect(() => {
+    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['libraries'] })
+    on(WS_EVENTS.LIBRARY_UPDATED, invalidate)
+    on(WS_EVENTS.LIBRARY_DELETED, invalidate)
+    on(WS_EVENTS.SCAN_COMPLETED, invalidate)
+    return () => {
+      off(WS_EVENTS.LIBRARY_UPDATED, invalidate)
+      off(WS_EVENTS.LIBRARY_DELETED, invalidate)
+      off(WS_EVENTS.SCAN_COMPLETED, invalidate)
+    }
+  }, [on, off, queryClient])
 
   // "我的"入口在四个子页（收藏/历史/播放列表/观影报告）下均保持高亮
   const isMineActive = ['/favorites', '/history', '/playlists', '/stats']
@@ -151,6 +171,18 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         >
           <Layers size={18} />
           {(!collapsed || isMobileOpen) && <NavLabel text="影视库" />}
+          {(!collapsed || isMobileOpen) && libraries.length > 0 && (
+            <span
+              className="ml-auto inline-flex items-center rounded-md px-1.5 py-px text-[11px] font-medium tabular-nums"
+              style={{
+                background: 'var(--nav-hover-bg)',
+                color: 'var(--text-tertiary)',
+              }}
+              title={`${libraries.length} 个媒体库`}
+            >
+              {libraries.length}
+            </span>
+          )}
         </NavLink>
 
         <NavLink
