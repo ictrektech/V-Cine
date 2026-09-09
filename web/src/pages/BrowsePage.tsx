@@ -7,6 +7,7 @@ import { usePageCache, invalidatePageCachePrefix } from '@/hooks/usePageCache'
 import type { Series, MixedItem, Library } from '@/types'
 import MediaCard from '@/components/MediaCard'
 import Pagination from '@/components/Pagination'
+import SegmentedTabs from '@/components/ui/segmented-tabs'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   pageVariants,
@@ -418,47 +419,16 @@ export default function BrowsePage() {
         </div>
       </div>
 
-      {/* ===== 统计卡片 ===== */}
-      <motion.div
-        className="flex gap-2"
-        variants={staggerContainerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {[
-          { key: '' as const, label: '全部', icon: Layers, iconClass: 'text-neon-blue', gradientColor: 'var(--neon-blue)', value: stats.total },
-          { key: 'movie' as const, label: '电影', icon: Film, iconClass: 'text-purple-400', gradientColor: 'var(--neon-purple)', value: stats.movieCount },
-          { key: 'series' as const, label: '剧集', icon: Tv, iconClass: 'text-emerald-400', gradientColor: 'var(--neon-blue)', value: stats.seriesCount },
-        ].map((card) => (
-          <motion.div
-            key={card.key}
-            variants={staggerItemVariants}
-            className="relative flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-300"
-            style={{
-              background: 'var(--glass-bg)',
-              border: `1px solid ${mediaType === card.key ? 'var(--neon-blue-30)' : 'var(--neon-blue-6)'}`,
-            }}
-            onClick={() => updateUrl({ type: mediaType === card.key ? null : card.key })}
-          >
-            <card.icon size={13} className={card.iconClass} />
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{card.label}</span>
-            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-              {card.value}
-            </span>
-          </motion.div>
-        ))}
-        <motion.div
-          variants={staggerItemVariants}
-          className="relative flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all duration-300"
-          style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}
-        >
-          <Tag size={13} className="text-yellow-400" />
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>类型</span>
-          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            {serverPaginated ? '—' : allGenres.length}
-          </span>
-        </motion.div>
-      </motion.div>
+      {/* ===== 分类 Tab：全部 / 电影 / 剧集 ===== */}
+      <SegmentedTabs
+        tabs={[
+          { key: '', label: '全部', icon: Layers, count: stats.total },
+          { key: 'movie', label: '电影', icon: Film, count: stats.movieCount },
+          { key: 'series', label: '剧集', icon: Tv, count: stats.seriesCount },
+        ]}
+        active={mediaType ?? ''}
+        onChange={(key) => updateUrl({ type: key === '' ? null : key })}
+      />
 
       {/* ===== 工具栏 ===== */}
       <div className="space-y-3">
