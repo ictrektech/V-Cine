@@ -19,6 +19,7 @@ import {
   Zap,
   Sun,
   Moon,
+  Monitor,
   Layers,
   X,
   UserRound,
@@ -62,8 +63,17 @@ function NavLabel({ text }: { text: string }) {
 
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const { user, logout } = useAuthStore()
-  const { theme, toggleTheme } = useThemeStore()
+  const { theme, preference, toggleTheme } = useThemeStore()
   const { t } = useTranslation()
+  // 自动模式下显示"跟随系统"图标，否则按当前明暗显示日/月
+  const themeIcon = preference === 'auto'
+    ? <Monitor size={17} className="text-neon" />
+    : theme === 'dark'
+      ? <Moon size={17} className="text-neon" />
+      : <Sun size={17} className="text-amber-500" />
+  const themeTitle = preference === 'auto'
+    ? `${t('nav.themeAuto')}（${theme === 'dark' ? t('nav.darkMode') : t('nav.lightMode')}）`
+    : theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [collapsed, setCollapsed] = useState(false)
@@ -170,7 +180,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           onClick={onMobileClose}
         >
           <Layers size={18} />
-          {(!collapsed || isMobileOpen) && <NavLabel text="影视库" />}
+          {(!collapsed || isMobileOpen) && <NavLabel text={t('nav.browse')} />}
           {(!collapsed || isMobileOpen) && libraries.length > 0 && (
             <span
               className="ml-auto inline-flex items-center rounded-md px-1.5 py-px text-[11px] font-medium tabular-nums"
@@ -191,7 +201,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           onClick={onMobileClose}
         >
           <LibraryIcon size={18} />
-          {(!collapsed || isMobileOpen) && <span>合集</span>}
+          {(!collapsed || isMobileOpen) && <NavLabel text={t('nav.collections')} />}
         </NavLink>
 
         <NavLink
@@ -287,14 +297,12 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           <button
             onClick={toggleTheme}
             className="relative flex h-9 w-9 items-center justify-center rounded-lg text-surface-400 transition-all hover:text-neon hover:bg-neon-blue/5"
-            title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
-            aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
+            title={themeTitle}
+            aria-label={themeTitle}
             role="switch"
             aria-checked={theme === 'dark'}
           >
-            {theme === 'dark'
-              ? <Moon size={17} className="text-neon" />
-              : <Sun size={17} className="text-amber-500" />}
+            {themeIcon}
           </button>
 
           {/* 登出 */}
