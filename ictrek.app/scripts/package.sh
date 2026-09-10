@@ -225,7 +225,7 @@ assert "NOWEN_DATABASE_HOST" in compose and "pgv" in compose, "missing pgv datab
 assert "38085" in compose, "missing host port mapping"
 assert "vos_default" in compose and "external: true" in compose, "missing VOS network"
 routers = (stage / "routers.yml").read_text()
-for expected in ("com-ictrek-nowen-video", "iframe-src: /app/com.ictrek.nowen-video/", "entry-point: true", "embed: true"):
+for expected in ("kind: page", "iframe-src: /app/com.ictrek.nowen-video/", "entry-point: true", "embed: true"):
     assert expected in routers, f"missing router field {expected}"
 traefik = (stage / "traefik.yml").read_text()
 for expected in ("/app/com.ictrek.nowen-video", "nowen-video-web", "172.17.0.1:38085", "stripPrefix"):

@@ -43,7 +43,7 @@ http:
     nowen-video-top-open-redirect:
       redirectRegex:
         regex: '^(https?://[^/]+)/app/com\.ictrek\.nowen-video/?(?:\?.*)?$'
-        replacement: '${1}/#/app/com.ictrek.nowen-video/com-ictrek-nowen-video/nowen-video'
+        replacement: '${1}/#/app/com.ictrek.nowen-video/nowen-video'
         permanent: false
 
     nowen-video-web-slash:

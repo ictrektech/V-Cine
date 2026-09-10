@@ -7,7 +7,7 @@ Nowen Video is a self-hosted media service for organizing and playing your home 
 During installation, choose the profile matching your VOS host: `AMD64`, generic `ARM64`, or `l4t` for Jetson devices. After installation, open it from the VOS sidebar:
 
 ```text
-Nowen Video -> Home Media
+Nowen Video
 ```
 
 ## Data Directory

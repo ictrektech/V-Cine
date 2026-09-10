@@ -1,20 +1,12 @@
 routers:
-  - id: com-ictrek-nowen-video
-    kind: group
+  - id: nowen-video
+    kind: page
     title:
       zh-CN: Nowen Video
       en: Nowen Video
     icon: lucide:film
     order: 260
-    children:
-      - id: nowen-video
-        kind: page
-        title:
-          zh-CN: 家庭影音
-          en: Home Media
-        icon: lucide:clapperboard
-        iframe-src: /app/com.ictrek.nowen-video/
-        order: 10
-        keep-alive: true
-        entry-point: true
-        embed: true
+    iframe-src: /app/com.ictrek.nowen-video/
+    keep-alive: true
+    entry-point: true
+    embed: true
