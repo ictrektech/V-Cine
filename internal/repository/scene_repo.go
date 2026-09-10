@@ -87,6 +87,15 @@ func (r *SceneRepo) DeleteByTaskID(taskID string) error {
 	return r.db.Where("video_analysis_task_id = ?", taskID).Delete(&model.Scene{}).Error
 }
 
+// DeleteOrphaned 删除关联任务已不存在的孤儿 scenes。
+// 不依赖 DB 的 FK 级联（老库可能缺失约束），供任务批量清理后兜底调用。
+func (r *SceneRepo) DeleteOrphaned() (int64, error) {
+	result := r.db.
+		Where("video_analysis_task_id NOT IN (SELECT id FROM video_analysis_tasks)").
+		Delete(&model.Scene{})
+	return result.RowsAffected, result.Error
+}
+
 // SearchByText 通过文本 embedding 搜索场景（余弦距离）
 
 // SceneEmbeddingUpdate 场景图片 embedding 更新参数

@@ -29,6 +29,8 @@ type FileManagerService struct {
 
 	// 视频分析任务清理（可选注入）
 	videoAnalysisRepo *repository.VideoAnalysisTaskRepo
+	// 删除媒体后回收 cache/structure 孤儿产物（可选注入）
+	videoAnalysis *VideoAnalysisService
 	// 删除媒体时清理转码/预处理/ABR 缓存（可选注入）
 	cacheCleaner *MediaCacheCleaner
 
@@ -136,6 +138,11 @@ func (s *FileManagerService) SetWSHub(hub *WSHub) {
 // SetVideoAnalysisTaskRepo 设置视频分析任务仓库（用于媒体删除时清理关联任务）
 func (s *FileManagerService) SetVideoAnalysisTaskRepo(repo *repository.VideoAnalysisTaskRepo) {
 	s.videoAnalysisRepo = repo
+}
+
+// SetVideoAnalysisService 注入视频分析服务（用于媒体删除后回收 structure 孤儿目录）。
+func (s *FileManagerService) SetVideoAnalysisService(va *VideoAnalysisService) {
+	s.videoAnalysis = va
 }
 
 // SetCacheCleaner 设置删除媒体时的缓存清理器（延迟注入）。
@@ -709,6 +716,13 @@ func (s *FileManagerService) UpdateFileInfo(mediaID string, updates map[string]i
 
 // DeleteFile 安全删除文件记录（仅删除数据库记录，不删除原始文件）
 func (s *FileManagerService) DeleteFile(mediaID, userID string) error {
+	return s.deleteFile(mediaID, userID, true)
+}
+
+// deleteFile 删除文件记录并执行关联清理。
+// cleanOrphanStructure=false 时跳过 cache/structure 孤儿目录回收
+// （批量删除在全部结束后统一执行一次，避免每个媒体各做一次全目录扫描）。
+func (s *FileManagerService) deleteFile(mediaID, userID string, cleanOrphanStructure bool) error {
 	media, err := s.mediaRepo.FindByID(mediaID)
 	if err != nil {
 		return fmt.Errorf("文件不存在")
@@ -735,6 +749,13 @@ func (s *FileManagerService) DeleteFile(mediaID, userID string) error {
 		}
 	}
 
+	// 任务删除后回收 cache/structure 下不再被引用的孤儿产物（best-effort）
+	if cleanOrphanStructure && s.videoAnalysis != nil {
+		if err := s.videoAnalysis.CleanOrphanStructure(); err != nil && s.logger != nil {
+			s.logger.Warnf("删除媒体后清理 structure 孤儿失败: media_id=%s, err=%v", mediaID, err)
+		}
+	}
+
 	// 删除媒体记录后清理相关转码/预处理/ABR 缓存（best-effort）
 	if s.cacheCleaner != nil {
 		s.cacheCleaner.Clean(mediaID)
@@ -755,10 +776,16 @@ func (s *FileManagerService) DeleteFile(mediaID, userID string) error {
 // BatchDeleteFiles 批量安全删除
 func (s *FileManagerService) BatchDeleteFiles(mediaIDs []string, userID string) (deleted int, errors []string) {
 	for _, id := range mediaIDs {
-		if err := s.DeleteFile(id, userID); err != nil {
+		if err := s.deleteFile(id, userID, false); err != nil {
 			errors = append(errors, fmt.Sprintf("%s: %s", id, err.Error()))
 		} else {
 			deleted++
+		}
+	}
+	// 孤儿目录回收在批量结束后统一执行一次，避免每个媒体各做一次全目录扫描
+	if deleted > 0 && s.videoAnalysis != nil {
+		if err := s.videoAnalysis.CleanOrphanStructure(); err != nil && s.logger != nil {
+			s.logger.Warnf("批量删除后清理 structure 孤儿失败: count=%d, err=%v", deleted, err)
 		}
 	}
 	return

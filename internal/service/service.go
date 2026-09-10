@@ -480,8 +480,10 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	fileWatcher.SetVideoAnalysis(svcs.VideoAnalysis, svcs.VideoAnalysisWorker)
 
 	// 延迟注入：FileManager 需要 VideoAnalysisTaskRepo（用于媒体删除时清理关联任务）
+	// 及 VideoAnalysisService（用于删除后回收 cache/structure 孤儿产物）。
 	if svcs.FileManager != nil {
 		svcs.FileManager.SetVideoAnalysisTaskRepo(repos.VideoAnalysis)
+		svcs.FileManager.SetVideoAnalysisService(svcs.VideoAnalysis)
 	}
 
 	// 延迟注入：StreamService 需要 PreprocessService（用于自动选择预处理内容）

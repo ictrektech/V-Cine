@@ -199,12 +199,13 @@ func (r *VideoAnalysisTaskRepo) DeleteByID(id string) error {
 	return gorm.ErrRecordNotFound
 }
 
-// DeleteByMediaID 删除指定媒体的所有视频分析任务（用于媒体删除时清理）
+// DeleteByMediaID 删除指定媒体的所有视频分析任务（用于媒体删除时清理）。
+// running 任务不删除，避免与 worker 抢状态（与 DeleteByID 的保护一致）。
 func (r *VideoAnalysisTaskRepo) DeleteByMediaID(mediaID string) (int64, error) {
 	if mediaID == "" {
 		return 0, nil
 	}
-	result := r.db.Where("media_id = ?", mediaID).Delete(&model.VideoAnalysisTask{})
+	result := r.db.Where("media_id = ? AND status <> ?", mediaID, model.VideoAnalysisStatusRunning).Delete(&model.VideoAnalysisTask{})
 	return result.RowsAffected, result.Error
 }
 

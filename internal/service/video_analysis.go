@@ -536,12 +536,15 @@ func (s *VideoAnalysisService) RetryTask(taskID string) (*model.VideoAnalysisTas
 	}
 
 	// Keep completed upstream work and clear only the failed stage and below.
+	// 注意:VideoHash 必须保留。已 claim 的 structure 目录由 video_hash 列保护,
+	// 若在此处清空,重试期间任意一次 CleanOrphanStructure 会把目录当孤儿删除,
+	// 导致重试再次失败后 DB 中的 scenes/结果引用到已丢失的图片。
+	// 新 claim 成功后会用新 hash 覆盖(同一视频 hash 不变,目录幂等复用)。
 	switch task.Stage {
 	case model.VideoAnalysisStageStructure:
 		task.StructureJobID = ""
 		task.DescribeJobID = ""
 		task.ResultJSON = ""
-		task.VideoHash = ""
 		task.Progress = 50
 	case model.VideoAnalysisStageDescribe:
 		task.DescribeJobID = ""
@@ -552,7 +555,6 @@ func (s *VideoAnalysisService) RetryTask(taskID string) (*model.VideoAnalysisTas
 		task.StructureJobID = ""
 		task.DescribeJobID = ""
 		task.ResultJSON = ""
-		task.VideoHash = ""
 		task.FallbackUsed = false
 		task.Progress = 0
 	}
@@ -627,6 +629,12 @@ func (s *VideoAnalysisService) CleanupOldTasks(keepRecent int) (int64, error) {
 	deleted, err := s.tasks.CleanupOldTasks(keepRecent)
 	if err != nil {
 		return 0, err
+	}
+	// 显式清理被删任务的孤儿 scenes（不依赖 DB 的 FK 级联）。
+	if s.sceneRepo != nil {
+		if _, sceneErr := s.sceneRepo.DeleteOrphaned(); sceneErr != nil && s.logger != nil {
+			s.logger.Warnw("清理孤儿 scenes 失败", "error", sceneErr)
+		}
 	}
 	if err := s.CleanOrphanStructure(); err != nil && s.logger != nil {
 		s.logger.Warnw("清理任务后回收 structure 孤儿失败", "error", err)
