@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 # Build the nowen-video image from source, push it to the ictrek SWR registry
-# under a version-pinned arch tag, and record that tag in the shared Feishu
-# spreadsheet (record only — ictrek.app/scripts/package.sh does NOT read Feishu;
-# it derives the tag from ictrek.app/VERSION).
+# under a unique arch tag (<平台>_<日期>_<githash>, e.g. amd_20260909_1a2b3c4),
+# and record that tag in the shared Feishu spreadsheet (read side:
+# ictrek.app/scripts/package.sh pulls the latest tag per profile from Feishu).
+#
+# Tag 与构建解耦：每次构建唯一、一天多次构建互不覆盖；发布（v0.x.x）由
+# ./update_version 在镜像就绪后单独触发。
 #
 # Run NATIVELY on the matching build host: tc232 (amd64) / tc192 (arm64).
 # Base images are pulled from SWR (run scripts/mirror_base_images.sh first),
 # never from Docker Hub.
 #
-#   ./build_image.sh                 # auto-detect arch, read VERSION, build+push+record
+#   ./build_image.sh                 # auto-detect arch, build+push+record (tag arch_<date>_<sha>)
 #   ./build_image.sh --no-push       # build only, skip push
 #   ./build_image.sh --no-feishu     # skip the Feishu record
-#   ./build_image.sh --no-build --no-push  # record-only (build+push already done)
-#   ./build_image.sh --version 0.1.3 # override version
-#   ./build_image.sh --profile l4t   # Jetson/L4T build (Dockerfile.l4t, tag l4t_<version>)
+#   ./build_image.sh --version 0.1.3 # override the app version build-arg
+#   ./build_image.sh --profile l4t   # Jetson/L4T build (Dockerfile.l4t, tag l4t_<date>_<sha>)
 set -euo pipefail
 
 # ---------------- config ----------------
@@ -120,10 +122,13 @@ done
 VERSION="${VERSION_OVERRIDE:-$(tr -d '[:space:]' < "${VERSION_FILE}")}"
 [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "invalid VERSION: ${VERSION}"
 
+# tag：<平台>_<日期>_<githash>，与发布版本解耦（VERSION 只作为 build-arg 写入应用）
+GIT_SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || die "not a git repo")"
+BUILD_DATE="$(date +%Y%m%d)"
 if [[ -n "$TAG_PREFIX" ]]; then
-  TAG="${TAG_PREFIX}_${VERSION}"
+  TAG="${TAG_PREFIX}_${BUILD_DATE}_${GIT_SHA}"
 else
-  TAG="${ARCH}_${VERSION}"
+  TAG="${ARCH}_${BUILD_DATE}_${GIT_SHA}"
 fi
 IMAGE_URI="${IMAGE_REPO}:${TAG}"
 
@@ -398,3 +403,4 @@ record_feishu() {
 push_image
 record_feishu
 log "done: ${IMAGE_URI}"
+log "镜像就绪后发布：./update_version [patch|minor|major]"

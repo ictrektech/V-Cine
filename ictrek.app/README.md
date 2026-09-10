@@ -3,7 +3,7 @@
 本目录包含 VOS app `com.ictrek.nowen-video` 的安装包模板。
 
 VOS OIDC 登录会以已验签的 VOS `sub` 绑定 Nowen 账号；同名的既有本地账号会在首次 VOS 登录时自动绑定，并按 VOS 管理员身份同步为 Nowen 管理员。
-发布流程以 `push_release.sh` 推送 tag 触发的 GitHub Actions 为准（`update_version.sh` 只升版本、不推 tag）。
+发布流程以 `update_version` 推送 tag 触发的 GitHub Actions 为准；镜像构建与发布解耦（先构建后发布）。
 
 ## 镜像准备（发布前必做）
 
@@ -26,31 +26,28 @@ ssh tc232  'cd nowen-video && ./scripts/mirror_base_images.sh'   # amd64 基镜�
 ssh tc192  'cd nowen-video && ./scripts/mirror_base_images.sh'   # arm64 基镜像
 ```
 
-**每次发布**：**先升版本、后构建、最后推 tag**——构建机 `git pull` 后读到的 `ictrek.app/VERSION` 才是新版本，且 tag 永远在镜像就绪后才推（否则 CI 会打出一个引用了不存在镜像的包）。
+**每次发布**：**先构建、后发布**——镜像 tag 为 `<平台>_<日期>_<githash>`（如 `amd_20260909_1a2b3c4`），每次构建唯一、互不覆盖；构建失败直接重跑 `build_image.sh`，不会产生悬空的版本号提交。所有 profile 镜像就绪后再 bump 版本并推 tag 触发 CI。
 
 ```bash
 cd apps/nowen-video
-# ① 本地：bump VERSION + commit + 推分支（不推 tag、不触发 CI），并打本地 tag
-./ictrek.app/scripts/update_version.sh
-
-# ② 构建机上原生构建（基镜像从 SWR 拉，构建走 --pull=false），推 SWR + 写飞书
+# ① 构建机上原生构建（基镜像从 SWR 拉，构建走 --pull=false），推 SWR + 写飞书
 #    default profile：飞书记录写入该架构的全部 sheet（与 motrix 同一套：
 #    amd → AMD_with_cuda、AMD_with_mxn100；
 #    arm → ARM_without_cuda、ARM_with_cuda、thor_spark（l4t 只由 --profile l4t 写入，避免同名覆盖），组件列头 nowen-video
-ssh tc232  'cd nowen-video && git pull && ./build_image.sh'                    # AMD64: amd_${VERSION} + 推送 + 写飞书
-ssh tc192  'cd nowen-video && git pull && ./build_image.sh'                    # ARM64: arm_${VERSION} + 推送 + 写飞书
-ssh <jetson>'cd nowen-video && git pull && ./build_image.sh --profile l4t'     # Jetson/L4T: l4t_${VERSION} + 推送 + 只写 l4t sheet
+ssh tc232  'cd nowen-video && git pull && ./build_image.sh'                    # AMD64: amd_<日期>_<sha> + 推送 + 写飞书
+ssh tc192  'cd nowen-video && git pull && ./build_image.sh'                    # ARM64: arm_<日期>_<sha> + 推送 + 写飞书
+ssh <jetson>'cd nowen-video && git pull && ./build_image.sh --profile l4t'     # Jetson/L4T: l4t_<日期>_<sha> + 推送 + 只写 l4t sheet
 
-# ③ 本地：确认所需 profile 镜像都已 push 后，推 tag 触发 GitHub Actions 打包上架
-./ictrek.app/scripts/push_release.sh
+# ② 本地：镜像全部就绪后发布——bump VERSION + commit + 推分支和 tag（触发 CI 打包上架）
+./update_version
 ```
 
-`build_image.sh` 的 `VERSION` 默认取 `ictrek.app/VERSION`（`--version` 覆盖）；`--profile default|l4t` 选择构建变体（默认 `default` 即 `docker/Dockerfile` + arch tag，`l4t` 即 `docker/Dockerfile.l4t` + `l4t_${VERSION}`）；`--no-push` / `--no-feishu` 用于调试。
-镜像必须先于发布 tag 完成构建、推送并登记飞书；打包时从飞书读取各架构最新 tag。SWR 镜像从 0.1.2 起接入；更早的 0.1.1 历史包仍指向 Docker Hub。
+`build_image.sh` 的 `VERSION` 默认取 `ictrek.app/VERSION`（`--version` 覆盖，仅作为 build-arg 写入应用，不进镜像 tag）；`--profile default|l4t` 选择构建变体（默认 `default` 即 `docker/Dockerfile`，`l4t` 即 `docker/Dockerfile.l4t`）；`--no-push` / `--no-feishu` 用于调试。
+镜像必须先于发布完成构建、推送并登记飞书；打包时从飞书读取各架构最新 tag。SWR 镜像从 0.1.2 起接入；更早的 0.1.1 历史包仍指向 Docker Hub。
 
 ## 打包
 
-发布入口是 `ictrek.app/scripts/push_release.sh`：读 `VERSION` 拼出 `vos-nowen-video-v${VERSION}`，确认镜像就绪后推 tag；GitHub Actions 收到 tag 后生成 pull 包并更新 GitHub release / VOS App Store。`update_version.sh` 只负责 bump VERSION、提交 release commit、推分支并打本地 tag，**不推 tag**。
+发布入口是 `update_version`（薄壳委托 `ictrek.app/scripts/update_version.sh`）：bump `VERSION`、提交 release commit、推分支并推送 `vos-nowen-video-v${VERSION}` tag；GitHub Actions 收到 tag 后生成 pull 包并更新 GitHub release / VOS App Store。**前置**：所有 profile 镜像已构建、推送并登记飞书。
 
 本地 `package.sh` 只用于调试或手动验证，不会递增或写回 `VERSION`：
 
