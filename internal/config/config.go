@@ -1465,23 +1465,62 @@ func (c *Config) SetVideoAnalysisDescribeEnabled(enabled bool) {
 // Providers 列表中的 api_key 在闭包内手动加密（不走 encryptPaths，因为需要逐条处理）。
 // encryptPaths 为 nil：scene_describe_ai.api_key 已移除，该 section 无敏感字段。
 func (c *Config) SaveAIConfig() error {
-	return SaveSection(c, "ai", "ai.yaml", nil, func() AIConfig {
-		// 对 Providers 列表中的 api_key 做加密
-		ac := c.AI
-		if len(ac.Providers) > 0 {
-			encProviders := make([]AIProviderEntry, len(ac.Providers))
-			for i, p := range ac.Providers {
-				if p.APIKey != "" && !strings.HasPrefix(p.APIKey, "ENC:") {
-					if enc, err := secretcrypto.Encrypt(p.APIKey); err == nil {
-						p.APIKey = enc
-					}
+	return SaveSection(c, "ai", "ai.yaml", nil, c.aiSectionSnapshot)
+}
+
+// aiSectionSnapshot 返回持久化用的 AI 配置快照（对 Providers api_key 做加密）。
+// 调用方需已持有 c.mu。
+func (c *Config) aiSectionSnapshot() AIConfig {
+	// 对 Providers 列表中的 api_key 做加密
+	ac := c.AI
+	if len(ac.Providers) > 0 {
+		encProviders := make([]AIProviderEntry, len(ac.Providers))
+		for i, p := range ac.Providers {
+			if p.APIKey != "" && !strings.HasPrefix(p.APIKey, "ENC:") {
+				if enc, err := secretcrypto.Encrypt(p.APIKey); err == nil {
+					p.APIKey = enc
 				}
-				encProviders[i] = p
 			}
-			ac.Providers = encProviders
+			encProviders[i] = p
 		}
-		return ac
-	})
+		ac.Providers = encProviders
+	}
+	return ac
+}
+
+// AISnapshot 返回 AI 配置的只读快照（加锁拷贝，避免与运行期写操作竞争）。
+// 业务读取 AI 配置应一律通过本方法，保证读到最新状态且无数据竞争。
+func (c *Config) AISnapshot() AIConfig {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.AI
+}
+
+// UpdateAIConfig 在锁内更新 AI 配置并持久化到 config/ai.yaml 分片文件
+// （与 SaveAIConfig 相同的 api_key 加密处理）。
+// 持久化失败时用拷贝回滚内存状态（避免共享切片底层数组导致回滚不彻底）；
+// 落盘在 c.mu 之外执行，避免文件 I/O 阻塞并发的 AI 配置读取。
+func (c *Config) UpdateAIConfig(update func(*AIConfig)) error {
+	c.mu.Lock()
+	old := deepCopyAIConfig(c.AI)
+	update(&c.AI)
+	c.mu.Unlock()
+
+	if err := c.SaveAIConfig(); err != nil {
+		c.mu.Lock()
+		c.AI = old
+		c.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
+// deepCopyAIConfig 拷贝 AI 配置（拷贝 Providers 切片），用于回滚时避免共享切片底层数组。
+// update 回调只修改 Providers 与顶层标量字段；若未来出现原地修改嵌套切片的回调，再加深拷贝。
+func deepCopyAIConfig(c AIConfig) AIConfig {
+	out := c
+	out.Providers = append([]AIProviderEntry(nil), c.Providers...)
+	return out
 }
 
 // saveConfig 将当前配置写入配置文件

@@ -444,16 +444,16 @@ func (h *AIHandler) AddProvider(c *gin.Context) {
 		}
 	}
 
-	h.cfg.AI.Providers = append(h.cfg.AI.Providers, config.AIProviderEntry{
-		ID:      id,
-		Name:    req.Name,
-		APIBase: req.APIBase,
-		APIKey:  req.APIKey,
-		Models:  req.Models,
-		Enabled: true,
-	})
-
-	if err := h.cfg.SaveAIConfig(); err != nil {
+	if err := h.cfg.UpdateAIConfig(func(cfg *config.AIConfig) {
+		cfg.Providers = append(cfg.Providers, config.AIProviderEntry{
+			ID:      id,
+			Name:    req.Name,
+			APIBase: req.APIBase,
+			APIKey:  req.APIKey,
+			Models:  req.Models,
+			Enabled: true,
+		})
+	}); err != nil {
 		h.logger.Errorf("保存供应商配置失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
@@ -485,37 +485,38 @@ func (h *AIHandler) UpdateProvider(c *gin.Context) {
 		return
 	}
 
-	found := false
-	for i, p := range h.cfg.AI.Providers {
-		if p.ID == id {
+	updated := false
+	if err := h.cfg.UpdateAIConfig(func(cfg *config.AIConfig) {
+		for i, pr := range cfg.Providers {
+			if pr.ID != id {
+				continue
+			}
 			if req.Name != "" {
-				h.cfg.AI.Providers[i].Name = req.Name
+				cfg.Providers[i].Name = req.Name
 			}
 			if req.APIBase != "" {
-				h.cfg.AI.Providers[i].APIBase = req.APIBase
+				cfg.Providers[i].APIBase = req.APIBase
 			}
 			// api_key 留空时保留原值
 			if req.APIKey != "" {
-				h.cfg.AI.Providers[i].APIKey = req.APIKey
+				cfg.Providers[i].APIKey = req.APIKey
 			}
 			if req.Models != nil {
-				h.cfg.AI.Providers[i].Models = req.Models
+				cfg.Providers[i].Models = req.Models
 			}
 			if req.Enabled != nil {
-				h.cfg.AI.Providers[i].Enabled = *req.Enabled
+				cfg.Providers[i].Enabled = *req.Enabled
 			}
-			found = true
+			updated = true
 			break
 		}
-	}
-	if !found {
-		c.JSON(http.StatusNotFound, gin.H{"error": "供应商不存在"})
-		return
-	}
-
-	if err := h.cfg.SaveAIConfig(); err != nil {
+	}); err != nil {
 		h.logger.Errorf("保存供应商配置失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
+		return
+	}
+	if !updated {
+		c.JSON(http.StatusNotFound, gin.H{"error": "供应商不存在"})
 		return
 	}
 	h.aiService.SyncConfig()
@@ -532,29 +533,32 @@ func (h *AIHandler) DeleteProvider(c *gin.Context) {
 	}
 
 	found := false
-	newProviders := make([]config.AIProviderEntry, 0, len(h.cfg.AI.Providers))
-	for _, p := range h.cfg.AI.Providers {
-		if p.ID == id {
-			found = true
-			continue
+	if err := h.cfg.UpdateAIConfig(func(cfg *config.AIConfig) {
+		newProviders := make([]config.AIProviderEntry, 0, len(cfg.Providers))
+		for _, p := range cfg.Providers {
+			if p.ID == id {
+				found = true
+				continue
+			}
+			newProviders = append(newProviders, p)
 		}
-		newProviders = append(newProviders, p)
+		if !found {
+			return
+		}
+		cfg.Providers = newProviders
+
+		// 如果删除的是当前激活的供应商，清空激活字段
+		if cfg.ActiveProvider == id {
+			cfg.ActiveProvider = ""
+			cfg.ActiveModel = ""
+		}
+	}); err != nil {
+		h.logger.Errorf("保存供应商配置失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
+		return
 	}
 	if !found {
 		c.JSON(http.StatusNotFound, gin.H{"error": "供应商不存在"})
-		return
-	}
-	h.cfg.AI.Providers = newProviders
-
-	// 如果删除的是当前激活的供应商，清空激活字段
-	if h.cfg.AI.ActiveProvider == id {
-		h.cfg.AI.ActiveProvider = ""
-		h.cfg.AI.ActiveModel = ""
-	}
-
-	if err := h.cfg.SaveAIConfig(); err != nil {
-		h.logger.Errorf("保存供应商配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
 	}
 	h.aiService.SyncConfig()
@@ -573,18 +577,18 @@ func (h *AIHandler) SetActive(c *gin.Context) {
 		return
 	}
 
-	// 从 Providers 列表中查找配置
-	found := h.cfg.AI.FindProvider(req.Provider)
-
-	// 只设顶层激活 ID，实际配置在 Providers 列表中
-	h.cfg.AI.ActiveProvider = req.Provider
-	if req.Model != "" {
-		h.cfg.AI.ActiveModel = req.Model
-	} else if found != nil {
-		h.cfg.AI.ActiveModel = found.DefaultModel()
-	}
-
-	if err := h.cfg.SaveAIConfig(); err != nil {
+	var activeProvider, activeModel string
+	if err := h.cfg.UpdateAIConfig(func(cfg *config.AIConfig) {
+		// 只设顶层激活 ID，实际配置在 Providers 列表中
+		cfg.ActiveProvider = req.Provider
+		if req.Model != "" {
+			cfg.ActiveModel = req.Model
+		} else if found := cfg.FindProvider(req.Provider); found != nil {
+			cfg.ActiveModel = found.DefaultModel()
+		}
+		activeProvider = cfg.ActiveProvider
+		activeModel = cfg.ActiveModel
+	}); err != nil {
 		h.logger.Errorf("保存 AI 配置失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
@@ -592,8 +596,8 @@ func (h *AIHandler) SetActive(c *gin.Context) {
 	h.aiService.SyncConfig()
 
 	c.JSON(http.StatusOK, gin.H{"message": "AI 配置已更新", "data": gin.H{
-		"active_provider": h.cfg.AI.ActiveProvider,
-		"active_model":    h.cfg.AI.ActiveModel,
+		"active_provider": activeProvider,
+		"active_model":    activeModel,
 	}})
 }
 

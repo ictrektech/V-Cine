@@ -1134,14 +1134,9 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 		}
 	}
 
-	// 同步到全局配置
-	s.appCfg.AI = s.cfg
-	s.cfgMu.Unlock()
-
-	// 持久化到 config/ai.yaml
-	if err := s.appCfg.SaveAIConfig(); err != nil {
-		s.logger.Warnf("AI 配置已更新但持久化失败: %v", err)
-		// 不阻塞热更新生效，仅警告
+	// 同步到全局配置并持久化（UpdateAIConfig 在 c.mu 锁内写回 + 落盘 + api_key 加密）
+	if err := s.appCfg.UpdateAIConfig(func(cfg *config.AIConfig) { *cfg = s.cfg }); err != nil {
+		s.logger.Errorf("AI 配置已更新但持久化失败: %v", err)
 		return nil
 	}
 	s.logger.Infof("AI 配置已更新并写入 config/ai.yaml")
@@ -1155,7 +1150,7 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 func (s *AIService) SyncConfig() {
 	s.cfgMu.Lock()
 	defer s.cfgMu.Unlock()
-	s.cfg = s.appCfg.AI
+	s.cfg = s.appCfg.AISnapshot()
 }
 
 // ==================== 连接测试 ====================
