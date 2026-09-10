@@ -458,7 +458,6 @@ func (h *AIHandler) AddProvider(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
 	}
-	h.aiService.SyncConfig()
 
 	c.JSON(http.StatusOK, gin.H{"message": "供应商已添加", "data": gin.H{
 		"id": id, "name": req.Name, "api_base": req.APIBase,
@@ -519,7 +518,6 @@ func (h *AIHandler) UpdateProvider(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "供应商不存在"})
 		return
 	}
-	h.aiService.SyncConfig()
 
 	c.JSON(http.StatusOK, gin.H{"message": "供应商已更新"})
 }
@@ -561,7 +559,6 @@ func (h *AIHandler) DeleteProvider(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "供应商不存在"})
 		return
 	}
-	h.aiService.SyncConfig()
 
 	c.JSON(http.StatusOK, gin.H{"message": "供应商已删除"})
 }
@@ -593,7 +590,6 @@ func (h *AIHandler) SetActive(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
 	}
-	h.aiService.SyncConfig()
 
 	c.JSON(http.StatusOK, gin.H{"message": "AI 配置已更新", "data": gin.H{
 		"active_provider": activeProvider,

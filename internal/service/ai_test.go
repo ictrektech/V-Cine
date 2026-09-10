@@ -91,11 +91,8 @@ func TestSearchIntentFormatDebug_Minimal(t *testing.T) {
 // ==================== AI 缓存测试 ====================
 
 func TestAICache_MemoryLayer(t *testing.T) {
-	svc := &AIService{
-		cache:  make(map[string]*aiCacheEntry),
-		cfg:    testAIConfig(),
-		logger: testLogger(),
-	}
+	app := &config.Config{AI: testAIConfig()}
+	svc := testAIService(app)
 
 	// 写入缓存
 	svc.SetCache("test_key", "test_value")
@@ -131,7 +128,7 @@ func TestDesensitize_Healthy(t *testing.T) {
 	cfg.Desensitize.Enabled = true
 	cfg.Desensitize.BaseURL = srv.URL
 	cfg.Desensitize.Timeout = 2
-	svc := &AIService{cfg: cfg, logger: testLogger()}
+	svc := testAIService(&config.Config{AI: cfg})
 
 	res := svc.TestDesensitize()
 	if res["success"] != true {
@@ -147,7 +144,7 @@ func TestDesensitize_Unreachable(t *testing.T) {
 	cfg.Desensitize.Enabled = true
 	cfg.Desensitize.BaseURL = "http://127.0.0.1:1" // 不可达端口
 	cfg.Desensitize.Timeout = 1
-	svc := &AIService{cfg: cfg, logger: testLogger()}
+	svc := testAIService(&config.Config{AI: cfg})
 
 	res := svc.TestDesensitize()
 	if res["success"] != false {
@@ -159,7 +156,7 @@ func TestDesensitize_Unreachable(t *testing.T) {
 }
 
 func TestDesensitize_NotConfigured(t *testing.T) {
-	svc := &AIService{cfg: testAIConfig(), logger: testLogger()}
+	svc := testAIService(&config.Config{AI: testAIConfig()})
 	res := svc.TestDesensitize()
 	if res["success"] != false {
 		t.Fatalf("期望 success=false, 得到 %v", res["success"])
@@ -167,11 +164,8 @@ func TestDesensitize_NotConfigured(t *testing.T) {
 }
 
 func TestAICache_ClearCache(t *testing.T) {
-	svc := &AIService{
-		cache:  make(map[string]*aiCacheEntry),
-		cfg:    testAIConfig(),
-		logger: testLogger(),
-	}
+	app := &config.Config{AI: testAIConfig()}
+	svc := testAIService(app)
 
 	// 写入多条缓存
 	svc.SetCache("key1", "value1")
@@ -192,11 +186,8 @@ func TestAICache_ClearCache(t *testing.T) {
 }
 
 func TestAICache_Stats(t *testing.T) {
-	svc := &AIService{
-		cache:  make(map[string]*aiCacheEntry),
-		cfg:    testAIConfig(),
-		logger: testLogger(),
-	}
+	app := &config.Config{AI: testAIConfig()}
+	svc := testAIService(app)
 
 	svc.SetCache("key1", "value1")
 	svc.SetCache("key2", "value2")
@@ -214,5 +205,15 @@ func testAIConfig() config.AIConfig {
 	return config.AIConfig{
 		Enabled:       false,
 		CacheTTLHours: 24,
+	}
+}
+
+// testAIService 构造一个用于单测的 AIService（provider 实时读取权威状态 app.AI）。
+func testAIService(app *config.Config) *AIService {
+	return &AIService{
+		appCfg:   app,
+		provider: NewAIConfigProvider(app),
+		cache:    make(map[string]*aiCacheEntry),
+		logger:   testLogger(),
 	}
 }

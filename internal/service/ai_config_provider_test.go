@@ -1,6 +1,9 @@
 package service
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -82,6 +85,36 @@ func TestAIConfigProviderUpdateAppliesImmediately(t *testing.T) {
 	}
 	if !p.IsEnabled() {
 		t.Fatal("Update 后 IsEnabled() 应为 true")
+	}
+}
+
+// 回归测试：UpdateConfig（AI 开关保存路径）更新 timeout 后，权威状态 app.AI
+// 与持久化文件均应包含新值——旧实现丢失了 timeout 字段，重启后用户改动被静默丢弃。
+func TestUpdateConfigPersistsTimeout(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	app := &config.Config{AI: testAIConfig()}
+	p := NewAIConfigProvider(app)
+	svc := NewAIService(app.AI, app, nil, nil, zap.NewNop().Sugar(), p)
+
+	if err := svc.UpdateConfig(map[string]interface{}{
+		"timeout": float64(45),
+		"enabled": true,
+	}); err != nil {
+		t.Fatalf("UpdateConfig 失败: %v", err)
+	}
+
+	if got := p.Snapshot().Timeout; got != 45 {
+		t.Errorf("Timeout = %d, 期望 45", got)
+	}
+
+	// 持久化文件也应包含新超时（重启后生效）
+	data, err := os.ReadFile(filepath.Join("config", "ai.yaml"))
+	if err != nil {
+		t.Fatalf("读取 ai.yaml 失败: %v", err)
+	}
+	if !strings.Contains(string(data), "timeout: 45") {
+		t.Errorf("ai.yaml 应包含 timeout: 45")
 	}
 }
 

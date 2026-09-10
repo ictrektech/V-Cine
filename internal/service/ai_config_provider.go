@@ -100,6 +100,15 @@ func (p *AIConfigProvider) IsSmartSearchEnabled() bool {
 	return cfg.AutoPilot || cfg.EnableSmartSearch
 }
 
+// IsRecommendReasonEnabled 检查推荐理由生成是否启用。
+func (p *AIConfigProvider) IsRecommendReasonEnabled() bool {
+	if !p.IsEnabled() {
+		return false
+	}
+	cfg := p.snapshot()
+	return cfg.AutoPilot || cfg.EnableRecommendReason
+}
+
 // IsMetadataEnhanceEnabled 检查元数据增强是否启用。
 func (p *AIConfigProvider) IsMetadataEnhanceEnabled() bool {
 	if !p.IsEnabled() {

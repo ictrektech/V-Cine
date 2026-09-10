@@ -66,12 +66,12 @@ type AIErrorLog struct {
 
 // AIService AI 功能统一服务
 type AIService struct {
-	// cfgMu 保护 cfg 的读/写，避免热更新与并发请求读取发生竞争。
-	cfgMu  sync.RWMutex
-	cfg    config.AIConfig
-	appCfg *config.Config
+	// routerMu 保护 router 的读/写（SetRouter 在启动期注入，读取并发安全）。
+	routerMu sync.RWMutex
+	router   *AIRouter
+	appCfg   *config.Config
 
-	// provider 是统一的 AI 配置访问入口（兼容期与 cfg 并存）
+	// provider 是 AI 配置的唯一访问入口（无状态，实时读取权威状态 app.AI）
 	provider *AIConfigProvider
 
 	mediaRepo *repository.MediaRepo
@@ -112,9 +112,6 @@ type AIService struct {
 	errorLogs []AIErrorLog
 	errorMu   sync.Mutex
 
-	// V7: 可选的智能路由（由 NewAIRouter 注入。为 nil 时边路以原逻辑走）
-	router *AIRouter
-
 	describeEnabledSetter func(bool)
 }
 
@@ -147,7 +144,6 @@ func NewAIService(cfg config.AIConfig, appCfg *config.Config, mediaRepo *reposit
 	}
 
 	s := &AIService{
-		cfg:       cfg,
 		appCfg:    appCfg,
 		provider:  provider,
 		mediaRepo: mediaRepo,
@@ -195,15 +191,15 @@ func desensitizeClient(timeout int) *http.Client {
 //
 // 二次设置会覆盖（用于运行时替换 router 实现，例如热升级测试）。
 func (s *AIService) SetRouter(r *AIRouter) {
-	s.cfgMu.Lock()
+	s.routerMu.Lock()
 	s.router = r
-	s.cfgMu.Unlock()
+	s.routerMu.Unlock()
 }
 
 // Router 返回当前注入的 router（可能为 nil）
 func (s *AIService) Router() *AIRouter {
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
+	s.routerMu.RLock()
+	defer s.routerMu.RUnlock()
 	return s.router
 }
 
@@ -212,95 +208,43 @@ func (s *AIService) Router() *AIRouter {
 // AutoPilot 语义：只要 profiles 中有配了 APIKey 与 APIBase 的激活 provider，
 // 即使 Enabled=false 也会被视为启用，从而避免「用户填了 key 却忘记打 enabled 开关」造成的 AI 不生效。
 func (s *AIService) IsEnabled() bool {
-	if s.provider != nil {
-		return s.provider.IsEnabled()
-	}
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
-	ap := s.cfg.ActiveProfile()
-	if ap == nil || ap.APIKey == "" || ap.APIBase == "" {
-		return false
-	}
-	if s.cfg.AutoPilot {
-		return true
-	}
-	return s.cfg.Enabled
+	return s.provider.IsEnabled()
 }
 
 // Provider 返回当前生效的 AI 服务商（来自 AI 配置中心，可在管理面板动态切换）
 func (s *AIService) Provider() string {
-	if s.provider != nil {
-		return s.provider.ActiveProvider()
-	}
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
-	return s.cfg.ActiveProvider
+	return s.provider.ActiveProvider()
 }
 
 // Model 返回当前生效的 AI 模型
 func (s *AIService) Model() string {
-	if s.provider != nil {
-		return s.provider.ActiveModel()
-	}
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
-	return s.cfg.ActiveModel
+	return s.provider.ActiveModel()
 }
 
 // IsSmartSearchEnabled 检查智能搜索是否启用
 func (s *AIService) IsSmartSearchEnabled() bool {
-	if s.provider != nil {
-		return s.provider.IsSmartSearchEnabled()
-	}
-	if !s.IsEnabled() {
-		return false
-	}
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
-	return s.cfg.AutoPilot || s.cfg.EnableSmartSearch
+	return s.provider.IsSmartSearchEnabled()
 }
 
 // IsRecommendReasonEnabled 检查推荐理由生成是否启用
 func (s *AIService) IsRecommendReasonEnabled() bool {
-	if !s.IsEnabled() {
-		return false
-	}
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
-	return s.cfg.AutoPilot || s.cfg.EnableRecommendReason
+	return s.provider.IsRecommendReasonEnabled()
 }
 
 // IsMetadataEnhanceEnabled 检查元数据增强是否启用
 func (s *AIService) IsMetadataEnhanceEnabled() bool {
-	if s.provider != nil {
-		return s.provider.IsMetadataEnhanceEnabled()
-	}
-	if !s.IsEnabled() {
-		return false
-	}
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
-	return s.cfg.AutoPilot || s.cfg.EnableMetadataEnhance
+	return s.provider.IsMetadataEnhanceEnabled()
 }
 
 // IsAutoPilotEnabled 是否处于全自动托管模式
 func (s *AIService) IsAutoPilotEnabled() bool {
-	if s.provider != nil {
-		return s.provider.IsAutoPilotEnabled()
-	}
-	if !s.IsEnabled() {
-		return false
-	}
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
-	return s.cfg.AutoPilot
+	return s.provider.IsAutoPilotEnabled()
 }
 
-// snapshotCfg 返回当前 cfg 的一个值拷贝。
+// snapshotCfg 返回当前 AI 配置的一个值拷贝（实时读自权威状态 app.AI，
+// 供单个请求/调用内部使用，期间配置变化不影响本次处理）。
 func (s *AIService) snapshotCfg() config.AIConfig {
-	s.cfgMu.RLock()
-	defer s.cfgMu.RUnlock()
-	return s.cfg
+	return s.provider.Snapshot()
 }
 
 // ==================== LLM 调用核心 ====================
@@ -751,9 +695,7 @@ func (s *AIService) GetCache(key string) (string, bool) {
 	// 第二层：持久化缓存
 	if s.cacheRepo != nil {
 		if val, found := s.cacheRepo.Get(key); found {
-			s.cfgMu.RLock()
-			ttl := s.cfg.CacheTTLHours
-			s.cfgMu.RUnlock()
+			ttl := s.provider.Snapshot().CacheTTLHours
 			// 回填内存缓存
 			s.cacheMu.Lock()
 			s.cache[key] = &aiCacheEntry{
@@ -770,9 +712,7 @@ func (s *AIService) GetCache(key string) (string, bool) {
 
 // SetCache 写入缓存（双层：同时写入内存和持久化存储）
 func (s *AIService) SetCache(key, value string) {
-	s.cfgMu.RLock()
-	ttl := s.cfg.CacheTTLHours
-	s.cfgMu.RUnlock()
+	ttl := s.provider.Snapshot().CacheTTLHours
 	if ttl <= 0 {
 		return // 不缓存
 	}
@@ -836,9 +776,7 @@ func (s *AIService) rateLimit() {
 	}
 
 	// 2) 最小请求间隔
-	s.cfgMu.RLock()
-	interval := time.Duration(s.cfg.RequestIntervalMs) * time.Millisecond
-	s.cfgMu.RUnlock()
+	interval := time.Duration(s.provider.Snapshot().RequestIntervalMs) * time.Millisecond
 	if interval <= 0 {
 		return
 	}
@@ -875,9 +813,7 @@ func (s *AIService) triggerCooldown(wait time.Duration, reason string) {
 
 // checkBudget 检查月度预算
 func (s *AIService) checkBudget() bool {
-	s.cfgMu.RLock()
-	budget := s.cfg.MonthlyBudget
-	s.cfgMu.RUnlock()
+	budget := s.provider.Snapshot().MonthlyBudget
 	if budget <= 0 {
 		return true // 不限制
 	}
@@ -1014,103 +950,113 @@ func (s *AIService) SetDescribeEnabledCallback(fn func(bool)) {
 
 // UpdateConfig 动态更新 AI 配置
 //
-// 支持的 updates 字段：
-//   - 顶层基础字段（enabled / provider / api_base / api_key / model / timeout / 各功能开关 / 高级设置）
-//   - 顶层扁平字段（active_provider / active_model / api_base / api_key / enabled / 各功能开关 / 高级设置）
-//
-// 写入规则：
-//  1. 顶层字段更新到 s.cfg
-//  2. 持久化到 config/ai.yaml
+// 处理流程：
+//  1. provider.Update 在 c.mu 锁内应用 updates 到权威状态 app.AI 并持久化
+//  2. 应用非配置类副作用（HTTP client 超时、视频分析 describe 开关）
 func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
-	s.cfgMu.Lock()
+	if err := s.provider.Update(func(cfg *config.AIConfig) {
+		applyAIConfigUpdates(cfg, updates)
+	}); err != nil {
+		return err
+	}
+
+	// 副作用：热更新 HTTP client 超时与视频分析 describe 开关（非配置字段）
+	if v, ok := updates["timeout"].(float64); ok {
+		s.client.Timeout = time.Duration(int(v)) * time.Second
+	}
+	if v, ok := updates["describe_enabled"].(bool); ok {
+		s.appCfg.SetVideoAnalysisDescribeEnabled(v)
+		if s.describeEnabledSetter != nil {
+			s.describeEnabledSetter(v)
+		}
+	}
+	s.logger.Infof("AI 配置已更新并写入 config/ai.yaml")
+	return nil
+}
+
+// applyAIConfigUpdates 将 updates 应用到 AI 配置（纯配置变更，不含副作用）。
+// 唯一调用方：AIService.UpdateConfig（经 provider.Update 在 c.mu 锁内执行）。
+func applyAIConfigUpdates(cfg *config.AIConfig, updates map[string]interface{}) {
 	for key, val := range updates {
 		switch key {
 		case "enabled":
 			if v, ok := val.(bool); ok {
-				s.cfg.Enabled = v
+				cfg.Enabled = v
 			}
 		case "auto_pilot":
 			if v, ok := val.(bool); ok {
-				s.cfg.AutoPilot = v
+				cfg.AutoPilot = v
 				// 开启 AutoPilot 时隐式点亮主开关与子功能开关，避免老配置遗留中的 false 干扰「一键设为」体验
 				if v {
-					s.cfg.Enabled = true
-					s.cfg.EnableSmartSearch = true
-					s.cfg.EnableRecommendReason = true
-					s.cfg.EnableMetadataEnhance = true
+					cfg.Enabled = true
+					cfg.EnableSmartSearch = true
+					cfg.EnableRecommendReason = true
+					cfg.EnableMetadataEnhance = true
 				}
 			}
 		case "block_local_ai":
 			if v, ok := val.(bool); ok {
-				s.cfg.BlockLocalAI = v
+				cfg.BlockLocalAI = v
 			}
 		case "active_provider":
 			if v, ok := val.(string); ok {
-				s.cfg.ActiveProvider = v
+				cfg.ActiveProvider = v
 			}
 		case "active_model":
 			if v, ok := val.(string); ok {
-				s.cfg.ActiveModel = v
+				cfg.ActiveModel = v
 			}
 		case "timeout":
 			if v, ok := val.(float64); ok {
-				s.cfg.Timeout = int(v)
-				s.client.Timeout = time.Duration(int(v)) * time.Second
+				cfg.Timeout = int(v)
 			}
 		case "enable_smart_search":
 			if v, ok := val.(bool); ok {
-				s.cfg.EnableSmartSearch = v
+				cfg.EnableSmartSearch = v
 			}
 		case "enable_recommend_reason":
 			if v, ok := val.(bool); ok {
-				s.cfg.EnableRecommendReason = v
+				cfg.EnableRecommendReason = v
 			}
 		case "enable_metadata_enhance":
 			if v, ok := val.(bool); ok {
-				s.cfg.EnableMetadataEnhance = v
-			}
-		case "describe_enabled":
-			if v, ok := val.(bool); ok {
-				s.appCfg.SetVideoAnalysisDescribeEnabled(v)
-				if s.describeEnabledSetter != nil {
-					s.describeEnabledSetter(v)
-				}
+				cfg.EnableMetadataEnhance = v
 			}
 		case "monthly_budget":
 			if v, ok := val.(float64); ok {
-				s.cfg.MonthlyBudget = int(v)
+				cfg.MonthlyBudget = int(v)
 			}
 		case "cache_ttl_hours":
 			if v, ok := val.(float64); ok {
-				s.cfg.CacheTTLHours = int(v)
+				cfg.CacheTTLHours = int(v)
 			}
 		case "max_concurrent":
 			if v, ok := val.(float64); ok {
-				s.cfg.MaxConcurrent = int(v)
+				cfg.MaxConcurrent = int(v)
 			}
 		case "request_interval_ms":
 			if v, ok := val.(float64); ok {
-				s.cfg.RequestIntervalMs = int(v)
+				cfg.RequestIntervalMs = int(v)
 			}
 		case "desensitize":
 			if v, ok := val.(map[string]interface{}); ok {
 				if enabled, ok := v["enabled"].(bool); ok {
-					s.cfg.Desensitize.Enabled = enabled
+					cfg.Desensitize.Enabled = enabled
 				}
 				if baseURL, ok := v["base_url"].(string); ok {
-					s.cfg.Desensitize.BaseURL = baseURL
+					cfg.Desensitize.BaseURL = baseURL
 				}
 				if timeout, ok := v["timeout"].(float64); ok {
-					s.cfg.Desensitize.Timeout = int(timeout)
+					cfg.Desensitize.Timeout = int(timeout)
 				}
 				if ner, ok := v["ner"].(bool); ok {
-					s.cfg.Desensitize.NER = ner
+					cfg.Desensitize.NER = ner
 				}
 				if imageEnabled, ok := v["image_enabled"].(bool); ok {
-					s.cfg.Desensitize.ImageEnabled = imageEnabled
+					cfg.Desensitize.ImageEnabled = imageEnabled
 				}
 				if imageTimeout, ok := v["image_timeout"].(float64); ok {
-					s.cfg.Desensitize.ImageTimeout = int(imageTimeout)
+					cfg.Desensitize.ImageTimeout = int(imageTimeout)
 				}
 				if scopes, ok := v["image_scopes"].([]interface{}); ok {
 					raw := make([]string, 0, len(scopes))
@@ -1119,38 +1065,20 @@ func (s *AIService) UpdateConfig(updates map[string]interface{}) error {
 							raw = append(raw, s)
 						}
 					}
-					s.cfg.Desensitize.ImageScopes = sanitizeDesensitizeImageScopes(raw)
+					cfg.Desensitize.ImageScopes = sanitizeDesensitizeImageScopes(raw)
 				}
 			}
 		case "scene_describe_ai":
 			if v, ok := val.(map[string]interface{}); ok {
 				if providerID, ok := v["provider_id"].(string); ok {
-					s.cfg.SceneDescribeAI.ProviderID = providerID
+					cfg.SceneDescribeAI.ProviderID = providerID
 				}
 				if model, ok := v["model"].(string); ok {
-					s.cfg.SceneDescribeAI.Model = model
+					cfg.SceneDescribeAI.Model = model
 				}
 			}
 		}
 	}
-
-	// 同步到全局配置并持久化（UpdateAIConfig 在 c.mu 锁内写回 + 落盘 + api_key 加密）
-	if err := s.appCfg.UpdateAIConfig(func(cfg *config.AIConfig) { *cfg = s.cfg }); err != nil {
-		s.logger.Errorf("AI 配置已更新但持久化失败: %v", err)
-		return nil
-	}
-	s.logger.Infof("AI 配置已更新并写入 config/ai.yaml")
-	return nil
-}
-
-// SyncConfig 将 handler 修改后的 appCfg.AI 同步回 service 内部副本。
-// handler 直接操作 h.cfg.AI（即 appCfg.AI）后必须调用此方法，
-// 否则 service 的 s.cfg 副本与磁盘/内存中的实际状态不一致，
-// GetStatus 等读操作将返回过期数据。
-func (s *AIService) SyncConfig() {
-	s.cfgMu.Lock()
-	defer s.cfgMu.Unlock()
-	s.cfg = s.appCfg.AISnapshot()
 }
 
 // ==================== 连接测试 ====================
@@ -1310,7 +1238,7 @@ func (s *AIService) GetCacheStats() map[string]interface{} {
 		"memory_total":   total,
 		"memory_active":  total - expired,
 		"memory_expired": expired,
-		"ttl_hours":      s.cfg.CacheTTLHours,
+		"ttl_hours":      s.provider.Snapshot().CacheTTLHours,
 	}
 
 	// 持久化缓存统计
