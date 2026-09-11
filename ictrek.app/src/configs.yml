@@ -1,14 +1,28 @@
 configs:
-  # Nowen 的私有数据目录统一使用平台注入的 VOS_APP_STORAGE_PATH：
-  #   - data/cache/media 均落在 ${VOS_APP_STORAGE_PATH} 下（应用私有目录）
-  #   - 不再提供 NOWEN_WORKSPACE_PATH 配置，避免被指向公共目录导致
-  #     .jwt_secret / 缓存等私有数据暴露在公共共享里
-  # 公共媒体目录由用户在 compose/授权里单独挂载，不作为 workspace 根目录。
+  # Nowen 的私有数据目录统一使用平台注入的 VOS_APP_STORAGE_PATH（应用私有目录），
+  # 避免被指向公共目录导致 .jwt_secret / 缓存等私有数据暴露在公共共享里。
+  #
+  # 媒体目录三层设计：
+  #   1. 主媒体库：NOWEN_MEDIA_PATH（type: path，安装时必选）→ /media
+  #   2. 运行期补充：数据访问授权目录挂到 /exposed（VOS_APP_EXPOSED_PATH，rslave,ro）
+  #   3. 私有数据：VOS_APP_STORAGE_PATH（/data、/cache），永不暴露
 
   # NOWEN_APP_WEB_BASE_PATH 不暴露为 VOS 可配置项：VOS 下挂载前缀由
   # traefik.yml / manifest.yml / routers.yml 三重锁死为 /app/com.ictrek.nowen-video，
   # 用户改动必与路由失配导致白屏；compose 内 ${NOWEN_APP_WEB_BASE_PATH:-...} 默认值兜底，
   # 独立部署走 config.yaml 的 web_base_path。
+
+  # ---- 媒体库目录（主媒体库，安装时必选公共目录/宿主机路径）----
+  # 平台渲染为「公共目录下拉 + 推荐 + 宿主机路径输入」控件（type: path）。
+  # 不设 default：安装/升级时必须显式选择来源，避免 /media 双语义。
+  - name: NOWEN_MEDIA_PATH
+    type: path
+    title:
+      zh-CN: 媒体库目录
+      en: Media Library Path
+    description:
+      zh-CN: "宿主机上存放影视、音乐等媒体文件的目录。该目录将映射到容器内的 /media，作为媒体库来源。"
+      en: "Directory on the host holding movies, music and other media files. It will be mapped to /media inside the container as the media library source."
 
   - name: NOWEN_PORT
     type: integer

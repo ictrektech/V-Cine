@@ -48,13 +48,12 @@ services:
     ports:
       - "${NOWEN_PORT:-38085}:8080"
     volumes:
-      # 私有数据统一放到平台注入的 VOS_APP_STORAGE_PATH（应用私有目录），
-      # 不要再让用户把 workspace 指向公共目录，避免 .jwt_secret 等暴露。
+      # 私有数据（应用私有目录），避免 .jwt_secret 等暴露在公共共享里
       - ${VOS_APP_STORAGE_PATH}/data:/data
       - ${VOS_APP_STORAGE_PATH}/cache:/cache
-      - ${VOS_APP_STORAGE_PATH}/media:/media
-      # 数据访问控制：平台把授权目录以相同层级 bind mount 到 exposed 下，
-      # 应用通过 /exposed 消费；父挂载 rslave,ro 防止应用写视图结构。
+      # 主媒体库（安装时必选 NOWEN_MEDIA_PATH）
+      - ${NOWEN_MEDIA_PATH}:/media
+      # 数据访问授权目录挂载到 /exposed；父挂载 rslave,ro 防止应用写视图结构
       - ${VOS_APP_EXPOSED_PATH:-/nonexistent}:/exposed:rslave,ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health > /dev/null 2>&1 || exit 1"]
