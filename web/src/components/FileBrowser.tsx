@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi, storageApi } from '@/api'
 import type { StorageType } from '@/lib/storageSchemes'
+import { cn } from '@/lib/utils'
 import {
   Folder,
   FolderOpen,
@@ -18,6 +19,16 @@ interface FsEntry {
   path: string
 }
 
+// 静态快捷入口：主媒体库
+const MEDIA_ENTRY = { path: '/media', name: '主媒体库', desc: '安装时选择的媒体库目录' }
+
+// 快捷入口条目
+interface QuickEntry {
+  path: string
+  name: string
+  desc: string
+}
+
 interface FileBrowserProps {
   open: boolean
   onClose: () => void
@@ -32,6 +43,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
   const [items, setItems] = useState<FsEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [quickEntries, setQuickEntries] = useState<QuickEntry[]>([])
 
   const browse = useCallback(async (path: string) => {
     setLoading(true)
@@ -52,11 +64,84 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
     }
   }, [storageType])
 
+  // 构建快捷入口（仅本地模式）：/media + 枚举 /exposed/volumes/<工作区> 下的
+  // public（公共目录）/ users（用户数据）子目录，探测存在性。
+  // 失败静默隐藏；未指定初始路径时，自动落到第一个存在的快捷入口。
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (storageType !== 'local') {
       browse(initialPath || '/')
+      return
     }
-  }, [open, initialPath, browse])
+    // 竞态保护：关闭/重新打开时丢弃未完成的旧请求结果
+    let cancelled = false
+    const probe = async (path: string): Promise<boolean> => {
+      try {
+        await adminApi.browseFS(path)
+        return true
+      } catch {
+        return false
+      }
+    }
+    ;(async () => {
+      const entries: QuickEntry[] = []
+      if (await probe(MEDIA_ENTRY.path)) {
+        entries.push(MEDIA_ENTRY)
+      }
+      if (cancelled) return
+      let workspaces: FsEntry[] = []
+      try {
+        const res = await adminApi.browseFS('/exposed/volumes')
+        workspaces = res.data.data.items || []
+      } catch {
+        // /exposed 不存在（独立部署）→ 无工作区入口
+      }
+      if (cancelled) return
+      // 各工作区独立并行探测；先收集到各自数组再按工作区顺序组装，保证 entries 顺序确定
+      const wsEntries = await Promise.all(
+        workspaces.map(async (ws) => {
+          const found: QuickEntry[] = []
+          if (await probe(`${ws.path}/public`)) {
+            found.push({ path: `${ws.path}/public`, name: '公共目录', desc: `授权的公共目录（${ws.name}）` })
+          }
+          // 用户数据：<工作区>/users/<用户名>/data，枚举用户
+          try {
+            const usersRes = await adminApi.browseFS(`${ws.path}/users`)
+            const users = usersRes.data.data.items || []
+            const userEntries = await Promise.all(
+              users.map(async (u) => {
+                const dataPath = `${ws.path}/users/${u.name}/data`
+                if (await probe(dataPath)) {
+                  return { path: dataPath, name: `用户数据（${u.name}）`, desc: '授权的用户私人数据目录' }
+                }
+                return null
+              })
+            )
+            for (const e of userEntries) {
+              if (e) found.push(e)
+            }
+          } catch {
+            // users 子目录不存在 → 静默隐藏
+          }
+          return found
+        })
+      )
+      for (const found of wsEntries) {
+        entries.push(...found)
+      }
+      if (cancelled) return
+      setQuickEntries(entries)
+      // 落点：指定了初始路径则用它，否则第一个快捷入口，再否则根目录
+      const target = initialPath && initialPath !== '/'
+        ? initialPath
+        : entries[0]?.path || '/'
+      browse(target)
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, storageType, initialPath])
 
   // ESC 关闭
   useEffect(() => {
@@ -121,6 +206,39 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
 
         {/* 目录列表 */}
         <div className="mx-5 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 200px)' }}>
+          {/* 快捷入口：/media 与授权目录（存在时显示，仅本地模式） */}
+          {storageType === 'local' && quickEntries.length > 0 && (
+            <div className="mb-3">
+              <div className="mb-1.5 px-1 text-xs font-medium text-muted-foreground">
+                快捷入口
+              </div>
+              <div className="space-y-1">
+                {quickEntries.map((entry) => {
+                  const isActive = entry.path === currentPath
+                  return (
+                    <button
+                      key={entry.path}
+                      onClick={() => browse(entry.path)}
+                      className={cn(
+                        'group flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors',
+                        isActive
+                          ? 'border-primary bg-accent text-accent-foreground'
+                          : 'border-input hover:bg-accent hover:text-accent-foreground'
+                      )}
+                    >
+                      <FolderOpen size={16} className={cn('flex-shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium">{entry.name}</div>
+                        <div className="truncate text-xs text-muted-foreground">{entry.desc}</div>
+                      </div>
+                      <ChevronRight size={14} className={cn('flex-shrink-0 transition-opacity', isActive ? 'text-primary opacity-100' : 'text-muted-foreground opacity-0 group-hover:opacity-100')} />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* 上级目录 */}
           {parentPath && (
             <button
@@ -180,7 +298,10 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
           }}
         >
           <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
-            已选择: {currentPath}
+            {(() => {
+              const hit = quickEntries.find(e => e.path === currentPath)
+              return hit ? `已选择: ${hit.name}（${currentPath}）` : `已选择: ${currentPath}`
+            })()}
           </p>
           <div className="flex items-center gap-2">
             <button
