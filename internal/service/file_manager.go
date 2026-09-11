@@ -596,7 +596,14 @@ func (s *FileManagerService) ScanDirectoryFiles(dirPath string) ([]map[string]in
 		return nil, fmt.Errorf("目录路径不能为空")
 	}
 
-	info, err := os.Stat(dirPath)
+	// 根为软链时 Walk（Lstat 语义）不会遍历，解析为真实路径遍历；
+	// 文件路径回写为可读前缀（与 Library.Path 的字面匹配保持一致）
+	realRoot, rerr := filepath.EvalSymlinks(dirPath)
+	if rerr != nil {
+		realRoot = dirPath
+	}
+
+	info, err := os.Stat(realRoot)
 	if err != nil {
 		return nil, fmt.Errorf("目录不存在: %s", dirPath)
 	}
@@ -613,31 +620,45 @@ func (s *FileManagerService) ScanDirectoryFiles(dirPath string) ([]map[string]in
 	}
 
 	var files []map[string]interface{}
-	err = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(realRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // 跳过无法访问的文件
 		}
 		if info.IsDir() {
 			return nil
 		}
+		// 软链目标为文件则保留（NAS 软链媒体库常见场景），为目录则跳过（避免下钻与环）
+		if info.Mode()&os.ModeSymlink != 0 {
+			target, terr := os.Stat(path)
+			if terr != nil || target.IsDir() {
+				return nil
+			}
+			info = target
+		}
 
-		ext := strings.ToLower(filepath.Ext(path))
+		// 回写可读前缀：root + 真实路径相对部分
+		displayPath := path
+		if rel, rerr := filepath.Rel(realRoot, path); rerr == nil {
+			displayPath = filepath.Join(dirPath, rel)
+		}
+
+		ext := strings.ToLower(filepath.Ext(displayPath))
 		if !videoExts[ext] {
 			return nil
 		}
 
 		// 检查是否已导入
-		existing, _ := s.mediaRepo.FindByFilePath(path)
+		existing, _ := s.mediaRepo.FindByFilePath(displayPath)
 		imported := existing != nil
 
 		files = append(files, map[string]interface{}{
-			"path":     path,
-			"name":     info.Name(),
+			"path":     displayPath,
+			"name":     filepath.Base(displayPath),
 			"size":     info.Size(),
 			"ext":      ext,
 			"modified": info.ModTime(),
 			"imported": imported,
-			"title":    s.extractTitleFromPath(path),
+			"title":    s.extractTitleFromPath(displayPath),
 		})
 
 		return nil

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -247,15 +248,21 @@ func (h *AdminHandler) BrowseFS(c *gin.Context) {
 	// 安全检查：清理路径，防止路径遍历攻击
 	dir = filepath.Clean(dir)
 
-	// 安全限制：检查请求路径是否在允许的范围内
-	// 允许的路径：根路径（/）、常见挂载点、已配置的媒体库路径的父目录
-	allowed := h.isAllowedBrowsePath(dir)
+	// 安全限制：先解析软链得到真实路径再校验，防止 ?path=<指向 /proc 等的软链> 绕过黑名单；
+	// 解析失败时按原路径校验，由后续 ReadDir 返回明确错误。
+	// 真实路径仅用于校验与读取，响应中的 current 保持请求路径，
+	// 与前端快捷入口的路径一致（否则软链入口的选中态无法匹配）
+	real := dir
+	if resolved, rerr := filepath.EvalSymlinks(dir); rerr == nil {
+		real = resolved
+	}
+	allowed := h.isAllowedBrowsePath(real)
 	if !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权浏览该目录，仅允许浏览媒体库相关路径"})
 		return
 	}
 
-	entries, err := os.ReadDir(dir)
+	entries, err := os.ReadDir(real)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无法读取目录: " + err.Error()})
 		return
@@ -269,10 +276,6 @@ func (h *AdminHandler) BrowseFS(c *gin.Context) {
 
 	var items []FsEntry
 	for _, entry := range entries {
-		// 只返回目录（文件浏览器只需要选择文件夹）
-		if !entry.IsDir() {
-			continue
-		}
 		// 跳过隐藏目录和系统目录
 		name := entry.Name()
 		if name[0] == '.' {
@@ -282,9 +285,21 @@ func (h *AdminHandler) BrowseFS(c *gin.Context) {
 		if h.isSensitiveDir(name) {
 			continue
 		}
+		path := filepath.Join(dir, name)
+		// Stat 跟随软链：统一按目标信息判断目录，坏链 err != nil 自然跳过
+		info, serr := os.Stat(path)
+		if serr != nil || !info.IsDir() {
+			continue
+		}
+		// 软链目录解析后校验黑名单，防止 <可见路径> -> /proc 等软链绕过导航限制
+		if entry.Type()&fs.ModeSymlink != 0 {
+			if resolved, rerr := filepath.EvalSymlinks(path); rerr == nil && !h.isAllowedBrowsePath(resolved) {
+				continue
+			}
+		}
 		items = append(items, FsEntry{
 			Name:  name,
-			Path:  filepath.Join(dir, name),
+			Path:  path,
 			IsDir: true,
 		})
 	}

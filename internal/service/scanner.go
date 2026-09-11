@@ -446,6 +446,28 @@ func (s *ScannerService) walkLibraryPath(root string, fn filepath.WalkFunc) erro
 	return filepath.Walk(root, fn)
 }
 
+// walkFollowSymlink 跟随软链根目录遍历，回调中的 path 回写为 root 前缀（可读形态）。
+// filepath.Walk 对软链根用 Lstat 不会遍历，先解析为真实路径遍历；由于 Walk 产出的
+// 文件路径以真实路径开头，与 Library.Path（可读软链形式）的字面匹配会不一致，
+// 因此将真实路径前缀替换回 root 后再回调 fn。库内无软链时与 walkLibraryPath 等价。
+func (s *ScannerService) walkFollowSymlink(root string, fn filepath.WalkFunc) error {
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil || realRoot == root {
+		return s.walkLibraryPath(root, fn)
+	}
+	return filepath.Walk(realRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fn(path, info, err)
+		}
+		// 回写可读前缀：root + 真实路径相对部分
+		rel, rerr := filepath.Rel(realRoot, path)
+		if rerr != nil {
+			return fn(path, info, err)
+		}
+		return fn(filepath.Join(root, rel), info, err)
+	})
+}
+
 // statLibraryPath 根据路径前缀选择合适的 Stat 实现
 func (s *ScannerService) statLibraryPath(p string) (os.FileInfo, error) {
 	if s.vfsMgr != nil && IsRemotePath(p) {
@@ -941,7 +963,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 	// 改为每条根路径一个 goroutine，IO 并行打满。
 	if len(allPaths) <= 1 {
 		for _, root := range allPaths {
-			if walkErr := s.walkLibraryPath(root, walkFn); walkErr != nil {
+			if walkErr := s.walkFollowSymlink(root, walkFn); walkErr != nil {
 				s.logger.Warnf("扫描路径失败: %s, 错误: %v", root, walkErr)
 				err = walkErr
 			}
@@ -959,7 +981,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 			walkWg.Add(1)
 			go func() {
 				defer walkWg.Done()
-				if walkErr := s.walkLibraryPath(root, walkFn); walkErr != nil {
+				if walkErr := s.walkFollowSymlink(root, walkFn); walkErr != nil {
 					s.logger.Warnf("扫描路径失败: %s, 错误: %v", root, walkErr)
 					errMu.Lock()
 					if firstErr == nil {

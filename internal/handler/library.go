@@ -14,6 +14,8 @@ import (
 
 // normalizeLibraryPaths 将 Paths 和 Path 合并为单一的完整路径列表，去除空白与重复项
 // paths 优先；若 paths 为空则退化为 [path]。结果可能为空切片。
+// 路径保持用户传入的可读形态入库（如 /exposed/volumes/<工作区>）；软链解析
+// 由遍历层（WalkFollowSymlink）内部处理，扫描记录的文件路径同样回写为可读前缀。
 func normalizeLibraryPaths(paths []string, path string) []string {
 	out := make([]string, 0, len(paths)+1)
 	seen := make(map[string]bool)
