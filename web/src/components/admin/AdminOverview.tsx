@@ -46,6 +46,8 @@ type Props = {
   onOpenDrawer: (id: string) => void
   /** 配置进度上报：由宿主页（AdminPage）渲染到标题栏的紧凑 chip */
   onSetupStatusChange?: (status: { complete: boolean; short?: string; target?: string }) => void
+  /** AI 配置在抽屉里保存后自增，触发首页状态卡重新拉取（避免显示过期的开启状态） */
+  aiStatusRefresh?: number
 }
 
 // 状态徽章样式
@@ -84,16 +86,17 @@ function Card({ card, onClick }: { card: StatusCard; onClick: () => void }) {
   )
 }
 
-export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer, onSetupStatusChange }: Props) {
+export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer, onSetupStatusChange, aiStatusRefresh = 0 }: Props) {
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
   const [vaHealth, setVaHealth] = useState<VideoAnalysisHealthInfo | null>(null)
   const { webdavStatus, alistStatus, s3Status } = useStorageStatuses()
 
   // 自取 AI / 视频分析状态（只读，失败静默；存储状态由 useStorageStatuses 统一轮询）
+  // aiStatusRefresh：AI 抽屉里保存后自增，触发这里重拉，避免首页状态卡显示过期状态
   useEffect(() => {
     aiApi.getStatus().then((res) => setAiStatus(res.data.data)).catch(() => {})
     videoAnalysisApi.getHealth().then((res) => setVaHealth(res.data.data)).catch(() => setVaHealth(null))
-  }, [])
+  }, [aiStatusRefresh])
 
   // ===== 各模块状态计算 =====
   // 元数据刮削：TMDb / 豆瓣 两个子项

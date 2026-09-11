@@ -60,6 +60,8 @@ export default function AdminPage() {
   const [doubanConfig, setDoubanConfig] = useState<DoubanConfigStatus | null>(null)
   // 当前打开的 Drawer（同一时刻最多一个）
   const [activeDrawer, setActiveDrawer] = useState<DrawerId | null>(null)
+  // AI 抽屉关闭时自增：通知首页状态卡重新拉取 AI 状态（避免显示过期的开启状态）
+  const [aiStatusRefresh, setAiStatusRefresh] = useState(0)
 
   // 支持从文件管理页跳转直达视频分析设置
   useEffect(() => {
@@ -195,6 +197,7 @@ export default function AdminPage() {
           doubanConfig={doubanConfig}
           onOpenDrawer={openDrawer}
           onSetupStatusChange={setSetupStatus}
+          aiStatusRefresh={aiStatusRefresh}
         />
       )}
 
@@ -217,10 +220,20 @@ export default function AdminPage() {
       />
 
       {/* ===== 其余模块 Drawer ===== */}
-      <AIDrawer open={activeDrawer === 'ai'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
+      <AIDrawer open={activeDrawer === 'ai'} onOpenChange={(open) => {
+        if (!open) {
+          closeDrawer()
+          setAiStatusRefresh(k => k + 1) // 抽屉关闭 → 首页状态卡重拉
+        }
+      }} />
       <VideoAnalysisDrawer
         open={activeDrawer === 'video-analysis'}
-        onOpenChange={(open) => { if (!open) closeDrawer() }}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDrawer()
+            setAiStatusRefresh(k => k + 1) // 抽屉关闭 → 首页状态卡重拉
+          }
+        }}
         onNavigateToAI={() => setActiveDrawer('ai')}
       />
       <StorageDrawer open={activeDrawer === 'storage'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
