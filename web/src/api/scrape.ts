@@ -77,14 +77,6 @@ export const fileManagerApi = {
   importFile: (data: import('@/types').FileImportRequest) =>
     api.post<{ data: import('@/types').Media; message: string }>('/admin/files/import', data),
 
-  // 批量导入
-  batchImportFiles: (files: import('@/types').FileImportRequest[]) =>
-    api.post<{ message: string; data: import('@/types').BatchImportResult }>('/admin/files/import/batch', { files }),
-
-  // 扫描目录
-  scanDirectory: (path: string) =>
-    api.get<{ data: import('@/types').ScannedFile[]; total: number }>('/admin/files/scan', { params: { path } }),
-
   // 更新文件信息
   updateFile: (id: string, data: Record<string, unknown>) =>
     api.put<{ data: import('@/types').Media; message: string }>(`/admin/files/${id}`, data),

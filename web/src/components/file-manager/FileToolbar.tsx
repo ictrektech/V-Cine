@@ -3,7 +3,6 @@ import {
   Search,
   Filter,
   Plus,
-  ScanLine,
   ChevronDown,
   ChevronRight,
   ArrowUpDown,
@@ -46,7 +45,6 @@ interface FileToolbarProps {
   libraries: Library[]
   // 操作
   onImport: () => void
-  onScanDir: () => void
   // 视图
   viewMode: 'table' | 'grid'
   onViewModeChange: (mode: 'table' | 'grid') => void
@@ -76,7 +74,7 @@ export default function FileToolbar({
   sortBy, onSortByChange,
   sortOrder, onToggleSortOrder,
   libraries,
-  onImport, onScanDir,
+  onImport,
   viewMode, onViewModeChange,
   selectedCount,
   scrapeSource, onScrapeSourceChange,
@@ -125,9 +123,6 @@ export default function FileToolbar({
         {/* 导入按钮 */}
         <button onClick={onImport} className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
           <Plus size={16} /> 导入文件
-        </button>
-        <button onClick={onScanDir} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
-          <ScanLine size={16} /> 扫描目录
         </button>
 
         <div className="h-6 w-px bg-surface-700" />

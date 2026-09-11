@@ -33,6 +33,10 @@ func (r *MediaRepo) FindByID(id string) (*model.Media, error) {
 func (r *MediaRepo) FindByFilePath(filePath string) (*model.Media, error) {
 	var media model.Media
 	err := r.db.Where("file_path = ?", filePath).First(&media).Error
+	if err != nil {
+		// 未找到等错误时返回 nil，调用方以 existing != nil 判断存在性
+		return nil, err
+	}
 	return &media, err
 }
 

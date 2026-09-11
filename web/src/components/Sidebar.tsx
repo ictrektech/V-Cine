@@ -245,7 +245,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             </NavLink>
 
             <NavLink
-              to="/files"
+              to="/files?tab=library"
               className={({ isActive }) => clsx('nav-item', isActive && 'active')}
               onClick={onMobileClose}
             >

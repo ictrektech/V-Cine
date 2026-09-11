@@ -186,6 +186,7 @@ export interface Media {
   file_path: string
   file_size: number
   media_type: 'movie' | 'episode'
+  stream_url?: string
   video_codec: string
   audio_codec: string
   resolution: string
@@ -1088,15 +1089,6 @@ export interface FileImportRequest {
   overview?: string
 }
 
-export interface BatchImportResult {
-  total: number
-  success: number
-  failed: number
-  skipped: number
-  errors: string[]
-  media_ids: string[]
-}
-
 export interface RenamePreview {
   media_id: string
   old_title: string
@@ -1140,16 +1132,6 @@ export interface FileOperationLog {
   new_value: string
   user_id: string
   created_at: string
-}
-
-export interface ScannedFile {
-  path: string
-  name: string
-  size: number
-  ext: string
-  modified: string
-  imported: boolean
-  title: string
 }
 
 // ==================== AI 助手 ====================

@@ -820,8 +820,6 @@ func main() {
 		admin.POST("/files/folders/delete", handlers.FileManager.DeleteFolder)
 		admin.GET("/files/:id", handlers.FileManager.GetFileDetail)
 		admin.POST("/files/import", handlers.FileManager.ImportFile)
-		admin.POST("/files/import/batch", handlers.FileManager.BatchImportFiles)
-		admin.GET("/files/scan", handlers.FileManager.ScanDirectory)
 		admin.PUT("/files/:id", handlers.FileManager.UpdateFile)
 		admin.DELETE("/files/:id", handlers.FileManager.DeleteFile)
 		admin.POST("/files/batch/delete", handlers.FileManager.BatchDeleteFiles)

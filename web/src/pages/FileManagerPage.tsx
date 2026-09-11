@@ -46,7 +46,6 @@ import {
   FolderTree,
   Breadcrumb,
   ImportFileModal,
-  ScanDirectoryModal,
   EditFileModal,
   FileDetailModal,
   RenameModal,
@@ -900,7 +899,6 @@ export default function FileManagerPage() {
           onToggleSortOrder={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
           libraries={visibleLibraries}
           onImport={() => setActiveDialog('import')}
-          onScanDir={() => setActiveDialog('scanDir')}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           selectedCount={selectedIds.size}
@@ -1002,6 +1000,7 @@ export default function FileManagerPage() {
                     onEdit={(media) => { setEditMedia(media); setActiveDialog('edit') }}
                     onScrape={handleScrapeFile}
                     onDelete={handleDeleteFile}
+                    libraries={visibleLibraries}
                     page={page}
                     totalPages={totalPages}
                     total={total}
@@ -1042,14 +1041,6 @@ export default function FileManagerPage() {
 
       {activeDialog === 'import' && (
         <ImportFileModal
-          libraries={visibleLibraries}
-          onClose={() => setActiveDialog('none')}
-          onSuccess={refreshData}
-        />
-      )}
-
-      {activeDialog === 'scanDir' && (
-        <ScanDirectoryModal
           libraries={visibleLibraries}
           onClose={() => setActiveDialog('none')}
           onSuccess={refreshData}

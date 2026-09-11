@@ -349,9 +349,9 @@ export const adminApi = {
     }),
 
   // 文件系统浏览
-  browseFS: (path: string) =>
-    api.get<{ data: { current: string; parent: string; items: { name: string; path: string; is_dir: boolean }[] } }>('/admin/fs/browse', {
-      params: { path },
+  browseFS: (path: string, includeFiles?: boolean) =>
+    api.get<{ data: { current: string; parent: string; items: { name: string; path: string; is_dir: boolean; size?: number }[] } }>('/admin/fs/browse', {
+      params: { path, ...(includeFiles ? { include_files: 1 } : {}) },
     }),
 
   // 一键清空数据（保留影视文件）

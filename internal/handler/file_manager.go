@@ -200,42 +200,6 @@ func (h *FileManagerHandler) ImportFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": media, "message": "文件导入成功"})
 }
 
-// BatchImportFiles 批量导入影视文件
-func (h *FileManagerHandler) BatchImportFiles(c *gin.Context) {
-	var req struct {
-		Files []service.FileImportRequest `json:"files" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效"})
-		return
-	}
-
-	userID := c.GetString("user_id")
-	result := h.fileService.BatchImportFiles(req.Files, userID)
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "批量导入完成",
-		"data":    result,
-	})
-}
-
-// ScanDirectory 扫描目录获取可导入的影视文件
-func (h *FileManagerHandler) ScanDirectory(c *gin.Context) {
-	path := c.Query("path")
-	if path == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "目录路径不能为空"})
-		return
-	}
-
-	files, err := h.fileService.ScanDirectoryFiles(path)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": files, "total": len(files)})
-}
-
 // ==================== 文件编辑 ====================
 
 // UpdateFile 更新文件信息

@@ -11,12 +11,16 @@ import {
   Loader2,
   Check,
   HardDrive,
+  FileVideo,
 } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
+import { formatFileSize } from '@/components/file-manager/constants'
 
 interface FsEntry {
   name: string
   path: string
+  is_dir?: boolean
+  size?: number
 }
 
 // 静态快捷入口：主媒体库
@@ -35,22 +39,31 @@ interface FileBrowserProps {
   onSelect: (path: string) => void
   initialPath?: string
   storageType?: StorageType
+  /** 'dir'（默认，目录选择）；'file'（选择文件，文件条目可选中） */
+  selectMode?: 'dir' | 'file'
+  /** selectMode='file' 时按扩展名过滤（如 ['.mp4', '.mkv']），空则不过滤 */
+  fileExtensions?: string[]
 }
 
-export default function FileBrowser({ open, onClose, onSelect, initialPath, storageType = 'local' }: FileBrowserProps) {
+export default function FileBrowser({ open, onClose, onSelect, initialPath, storageType = 'local', selectMode = 'dir', fileExtensions }: FileBrowserProps) {
   const [currentPath, setCurrentPath] = useState(initialPath || '/')
   const [parentPath, setParentPath] = useState('')
   const [items, setItems] = useState<FsEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [quickEntries, setQuickEntries] = useState<QuickEntry[]>([])
+  // 文件模式下选中的文件路径（空串表示未选中）
+  const [selectedFile, setSelectedFile] = useState('')
+
+  const isFileMode = selectMode === 'file'
+  const extSet = fileExtensions && fileExtensions.length > 0 ? new Set(fileExtensions.map(e => e.toLowerCase())) : null
 
   const browse = useCallback(async (path: string) => {
     setLoading(true)
     setError('')
     try {
       const res = storageType === 'local'
-        ? await adminApi.browseFS(path)
+        ? await adminApi.browseFS(path, isFileMode)
         : await storageApi.browseRemote(storageType, path)
       const data = res.data.data
       setCurrentPath(data.current)
@@ -62,7 +75,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
     } finally {
       setLoading(false)
     }
-  }, [storageType])
+  }, [storageType, isFileMode])
 
   // 构建快捷入口（仅本地模式）：/media + 枚举 /exposed/volumes/<工作区> 下的
   // public（公共目录）/ users（用户数据）子目录，探测存在性。
@@ -180,7 +193,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
             className="font-display text-base font-bold tracking-wide"
             style={{ color: 'var(--text-primary)' }}
           >
-            选择文件夹
+            {isFileMode ? '选择服务器文件' : '选择文件夹'}
           </h2>
           <button
             onClick={onClose}
@@ -275,19 +288,41 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
             </div>
           )}
 
-          {!loading && items.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => browse(item.path)}
-              className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[var(--nav-hover-bg)]"
-            >
-              <FolderOpen size={16} className="flex-shrink-0 text-amber-400/70 transition-colors group-hover:text-amber-400" />
-              <span className="flex-1 truncate text-sm" style={{ color: 'var(--text-primary)' }}>
-                {item.name}
-              </span>
-              <ChevronRight size={14} className="flex-shrink-0 text-surface-600 opacity-0 transition-opacity group-hover:opacity-100" />
-            </button>
-          ))}
+          {!loading && items.map((item) => {
+            const isDir = item.is_dir !== false
+            if (!isDir && extSet && !extSet.has(item.name.slice(item.name.lastIndexOf('.')).toLowerCase())) {
+              return null
+            }
+            const selected = !isDir && selectedFile === item.path
+            return (
+              <button
+                key={item.path}
+                onClick={() => {
+                  if (isDir) {
+                    browse(item.path)
+                  } else {
+                    setSelectedFile(selected ? '' : item.path)
+                  }
+                }}
+                className={cn(
+                  'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[var(--nav-hover-bg)]',
+                  selected && 'border border-primary bg-accent'
+                )}
+              >
+                {isDir
+                  ? <FolderOpen size={16} className="flex-shrink-0 text-amber-400/70 transition-colors group-hover:text-amber-400" />
+                  : <FileVideo size={16} className="flex-shrink-0 text-neon/70" />}
+                <span className="flex-1 truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+                  {item.name}
+                </span>
+                {!isDir && item.size != null && item.size > 0 && (
+                  <span className="flex-shrink-0 text-xs text-muted-foreground">{formatFileSize(item.size)}</span>
+                )}
+                {isDir && <ChevronRight size={14} className="flex-shrink-0 text-surface-600 opacity-0 transition-opacity group-hover:opacity-100" />}
+                {selected && <Check size={14} className="flex-shrink-0 text-primary" />}
+              </button>
+            )
+          })}
         </div>
 
         {/* 底部操作栏 */}
@@ -298,10 +333,12 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
           }}
         >
           <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
-            {(() => {
-              const hit = quickEntries.find(e => e.path === currentPath)
-              return hit ? `已选择: ${hit.name}（${currentPath}）` : `已选择: ${currentPath}`
-            })()}
+            {isFileMode
+              ? (selectedFile ? `已选择: ${selectedFile}` : '未选择文件')
+              : (() => {
+                const hit = quickEntries.find(e => e.path === currentPath)
+                return hit ? `已选择: ${hit.name}（${currentPath}）` : `已选择: ${currentPath}`
+              })()}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -316,14 +353,22 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
             </button>
             <button
               onClick={() => {
+                if (isFileMode) {
+                  if (selectedFile) {
+                    onSelect(selectedFile)
+                    onClose()
+                  }
+                  return
+                }
                 const selected = storageType === 'local' ? currentPath : currentPath.replace(/^\//, '') || '/'
                 onSelect(selected)
                 onClose()
               }}
-              className="btn-primary gap-1.5 px-4 py-2 text-sm"
+              disabled={isFileMode && !selectedFile}
+              className="btn-primary gap-1.5 px-4 py-2 text-sm disabled:opacity-50"
             >
               <Check size={14} />
-              选择此文件夹
+              {isFileMode ? '选择此文件' : '选择此文件夹'}
             </button>
           </div>
         </div>

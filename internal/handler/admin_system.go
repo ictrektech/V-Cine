@@ -268,10 +268,14 @@ func (h *AdminHandler) BrowseFS(c *gin.Context) {
 		return
 	}
 
+	// include_files=1 时同时返回文件条目（供"选文件"类场景使用，默认仅目录保持兼容）
+	includeFiles := c.Query("include_files") == "1"
+
 	type FsEntry struct {
 		Name  string `json:"name"`
 		Path  string `json:"path"`
 		IsDir bool   `json:"is_dir"`
+		Size  int64  `json:"size"`
 	}
 
 	var items []FsEntry
@@ -288,7 +292,25 @@ func (h *AdminHandler) BrowseFS(c *gin.Context) {
 		path := filepath.Join(dir, name)
 		// Stat 跟随软链：统一按目标信息判断目录，坏链 err != nil 自然跳过
 		info, serr := os.Stat(path)
-		if serr != nil || !info.IsDir() {
+		if serr != nil {
+			continue
+		}
+		// 文件：仅 include_files 模式返回；软链文件同样受黑名单校验
+		if !info.IsDir() {
+			if !includeFiles {
+				continue
+			}
+			if entry.Type()&fs.ModeSymlink != 0 {
+				if resolved, rerr := filepath.EvalSymlinks(path); rerr == nil && !h.isAllowedBrowsePath(resolved) {
+					continue
+				}
+			}
+			items = append(items, FsEntry{
+				Name:  name,
+				Path:  path,
+				IsDir: false,
+				Size:  info.Size(),
+			})
 			continue
 		}
 		// 软链目录解析后校验黑名单，防止 <可见路径> -> /proc 等软链绕过导航限制

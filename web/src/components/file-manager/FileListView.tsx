@@ -43,6 +43,7 @@ interface FileListViewProps {
   onEdit: (media: Media) => void
   onScrape: (id: string) => void
   onDelete: (id: string) => void
+  libraries?: { id: string; name: string }[]
   // 分页
   page: number
   totalPages: number
@@ -69,6 +70,7 @@ export default function FileListView({
   files, loading, viewMode, selectedIds,
   onToggleSelect, onToggleSelectAll,
   onViewDetail, onEdit, onScrape, onDelete,
+  libraries,
   page, totalPages, total, pageSize, pageSizeOptions, onPageChange, onPageSizeChange,
   subFolders, currentFolderPath, onNavigateFolder,
   onPlayFile, onCopyFilePath,
@@ -83,6 +85,12 @@ export default function FileListView({
   const closeCtxMenu = useCallback(() => {
     setCtxMenu(prev => ({ ...prev, visible: false }))
   }, [])
+
+  // 来源显示：媒体库名
+  const sourceLabel = (file: Media): string => {
+    const lib = libraries?.find(l => l.id === file.library_id)
+    return lib ? lib.name : '未知'
+  }
 
   // 表格横向滚动时显示标题列分隔线
   const [tableScrolled, setTableScrolled] = useState(false)
@@ -216,7 +224,7 @@ export default function FileListView({
       <div className="p-12 text-center">
         <FolderOpen size={48} className="mx-auto mb-4 text-surface-500" />
         <p className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>暂无影视文件</p>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>点击"导入文件"或"扫描目录"开始添加</p>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>点击"导入文件"开始添加，或为媒体库添加路径后扫描</p>
       </div>
     )
   }
@@ -315,6 +323,7 @@ export default function FileListView({
                 <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>年份</TableHead>
                 <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>评分</TableHead>
                 <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>大小</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>来源</TableHead>
                 <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>状态</TableHead>
                 <TableHead className="sticky top-0 z-20 px-2.5 py-2 text-right" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>操作</TableHead>
               </TableRow>
@@ -385,6 +394,9 @@ export default function FileListView({
                   </TableCell>
                   <TableCell className="hidden px-2.5 py-2 xl:table-cell" style={{ color: 'var(--text-secondary)' }}>
                     {file.file_size > 0 ? formatFileSize(file.file_size) : '-'}
+                  </TableCell>
+                  <TableCell className="hidden px-2.5 py-2 xl:table-cell">
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{sourceLabel(file)}</span>
                   </TableCell>
                   <TableCell className="hidden px-2.5 py-2 xl:table-cell">
                     {renderScrapeBadge(file, 'md')}

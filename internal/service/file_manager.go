@@ -61,16 +61,6 @@ type FileImportRequest struct {
 	Overview  string `json:"overview"`
 }
 
-// BatchImportResult 批量导入结果
-type BatchImportResult struct {
-	Total    int      `json:"total"`
-	Success  int      `json:"success"`
-	Failed   int      `json:"failed"`
-	Skipped  int      `json:"skipped"`
-	Errors   []string `json:"errors"`
-	MediaIDs []string `json:"media_ids"`
-}
-
 // RenamePreview AI重命名预览
 type RenamePreview struct {
 	MediaID     string `json:"media_id"`
@@ -497,6 +487,11 @@ func (s *FileManagerService) ImportFile(req FileImportRequest, userID string) (*
 		return nil, fmt.Errorf("文件路径不能为空")
 	}
 
+	// 目标媒体库必选：library_id 为空串入库会违反 fk_media_library 外键（SQLSTATE 23503）
+	if req.LibraryID == "" {
+		return nil, fmt.Errorf("请选择目标媒体库")
+	}
+
 	// 检查文件是否存在
 	if _, err := os.Stat(req.FilePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("文件不存在: %s", req.FilePath)
@@ -554,121 +549,6 @@ func (s *FileManagerService) ImportFile(req FileImportRequest, userID string) (*
 	})
 
 	return media, nil
-}
-
-// BatchImportFiles 批量导入影视文件
-func (s *FileManagerService) BatchImportFiles(files []FileImportRequest, userID string) *BatchImportResult {
-	result := &BatchImportResult{
-		Total:    len(files),
-		MediaIDs: make([]string, 0),
-	}
-
-	for i, req := range files {
-		media, err := s.ImportFile(req, userID)
-		if err != nil {
-			if strings.Contains(err.Error(), "已存在") {
-				result.Skipped++
-			} else {
-				result.Failed++
-			}
-			result.Errors = append(result.Errors, fmt.Sprintf("[%d] %s: %s", i+1, req.FilePath, err.Error()))
-		} else {
-			result.Success++
-			result.MediaIDs = append(result.MediaIDs, media.ID)
-		}
-
-		// 广播进度
-		s.broadcastEvent("batch_import_progress", map[string]interface{}{
-			"current": i + 1,
-			"total":   len(files),
-			"success": result.Success,
-			"failed":  result.Failed,
-			"skipped": result.Skipped,
-		})
-	}
-
-	return result
-}
-
-// ScanDirectoryFiles 扫描目录获取可导入的影视文件列表
-func (s *FileManagerService) ScanDirectoryFiles(dirPath string) ([]map[string]interface{}, error) {
-	if dirPath == "" {
-		return nil, fmt.Errorf("目录路径不能为空")
-	}
-
-	// 根为软链时 Walk（Lstat 语义）不会遍历，解析为真实路径遍历；
-	// 文件路径回写为可读前缀（与 Library.Path 的字面匹配保持一致）
-	realRoot, rerr := filepath.EvalSymlinks(dirPath)
-	if rerr != nil {
-		realRoot = dirPath
-	}
-
-	info, err := os.Stat(realRoot)
-	if err != nil {
-		return nil, fmt.Errorf("目录不存在: %s", dirPath)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("路径不是目录: %s", dirPath)
-	}
-
-	// 支持的视频格式
-	videoExts := map[string]bool{
-		".mp4": true, ".mkv": true, ".avi": true, ".mov": true,
-		".wmv": true, ".flv": true, ".webm": true, ".m4v": true,
-		".ts": true, ".rmvb": true, ".rm": true, ".3gp": true,
-		".strm": true, // STRM 远程流文件
-	}
-
-	var files []map[string]interface{}
-	err = filepath.Walk(realRoot, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // 跳过无法访问的文件
-		}
-		if info.IsDir() {
-			return nil
-		}
-		// 软链目标为文件则保留（NAS 软链媒体库常见场景），为目录则跳过（避免下钻与环）
-		if info.Mode()&os.ModeSymlink != 0 {
-			target, terr := os.Stat(path)
-			if terr != nil || target.IsDir() {
-				return nil
-			}
-			info = target
-		}
-
-		// 回写可读前缀：root + 真实路径相对部分
-		displayPath := path
-		if rel, rerr := filepath.Rel(realRoot, path); rerr == nil {
-			displayPath = filepath.Join(dirPath, rel)
-		}
-
-		ext := strings.ToLower(filepath.Ext(displayPath))
-		if !videoExts[ext] {
-			return nil
-		}
-
-		// 检查是否已导入
-		existing, _ := s.mediaRepo.FindByFilePath(displayPath)
-		imported := existing != nil
-
-		files = append(files, map[string]interface{}{
-			"path":     displayPath,
-			"name":     filepath.Base(displayPath),
-			"size":     info.Size(),
-			"ext":      ext,
-			"modified": info.ModTime(),
-			"imported": imported,
-			"title":    s.extractTitleFromPath(displayPath),
-		})
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("扫描目录失败: %w", err)
-	}
-
-	return files, nil
 }
 
 // ==================== 文件编辑 ====================
