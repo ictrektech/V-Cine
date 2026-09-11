@@ -262,8 +262,7 @@ func (h *VideoAnalysisHandler) GetSettings(c *gin.Context) {
 }
 
 // UpdateSettings 保存视频分析可配置项。
-// scene_base_url / structure_base_url / describe_enabled 保存后立即生效，
-// enabled 仍需要重启生效。
+// 所有设置（含 enabled 总开关）保存后立即生效，无需重启。
 // asset_dir 只读，不在此接口修改；max_concurrent / poll_interval_seconds / job_timeout_minutes 保持现有值。
 func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 	var req updateVideoAnalysisSettingsRequest
@@ -311,6 +310,7 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 		h.service.SetDescribeEnabled(updated.DescribeEnabled)
+		h.service.SetEnabled(updated.Enabled)
 	}
 	c.Status(http.StatusOK)
 }

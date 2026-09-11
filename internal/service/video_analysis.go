@@ -146,6 +146,13 @@ func (s *VideoAnalysisService) SetDescribeEnabled(enabled bool) {
 	s.mu.Unlock()
 }
 
+// SetEnabled 热更新视频分析总开关，保存后立即生效（健康检查实时反映，无需重启）。
+func (s *VideoAnalysisService) SetEnabled(enabled bool) {
+	s.mu.Lock()
+	s.enabled = enabled
+	s.mu.Unlock()
+}
+
 // SetVFSManager 注入远程文件系统管理器（webdav/alist/s3），用于远程媒体提交分析。
 func (s *VideoAnalysisService) SetVFSManager(vfsMgr *VFSManager) {
 	s.vfsMgr = vfsMgr
