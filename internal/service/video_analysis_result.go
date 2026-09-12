@@ -95,7 +95,10 @@ type videoAnalysisStructureResult struct {
 }
 
 type videoAnalysisDescribeResult struct {
-	VideoHash    string                       `json:"video_hash"`
+	VideoHash string `json:"video_hash"`
+	// Status describe 阶段整体结果："completed" 全部成功 / "partial" 存在失败场景。
+	// 旧版服务不返回该字段（空值按 completed 处理）。
+	Status       string                       `json:"status"`
 	Descriptions []videoAnalysisSceneDescribe `json:"descriptions"`
 	Warnings     []VideoAnalysisWarning       `json:"warnings"`
 }

@@ -13,11 +13,14 @@ import (
 
 // claimArtifactForTask 通过 HTTP 下载 structure 产物（v2 Pull 交付）到 asset_dir/<hash>。
 // 下载在 cleanupMu 外进行，只在最终落盘（persist + rename）时加锁。
-// 幂等：目标目录已存在且含 manifest.json 则跳过。下载完成后调用 DELETE 释放服务端
-// staging（幂等，失败不致命，由服务端 TTL 兜底清理）。
-func (s *VideoAnalysisService) claimArtifactForTask(task *model.VideoAnalysisTask, videoHash string, artifact *VideoAnalysisArtifact) error {
+// 幂等：目标目录已存在且含 manifest.json 则跳过。release=true 时下载完成后调用
+// DELETE 释放服务端 staging；release=false 时保留 staging，供服务端增量重试。
+func (s *VideoAnalysisService) claimArtifactForTask(task *model.VideoAnalysisTask, videoHash string, artifact *VideoAnalysisArtifact, release bool) error {
 	dst := filepath.Join(s.assetDir, videoHash)
 	if dirExists(dst) && fileExists(filepath.Join(dst, "manifest.json")) {
+		if release {
+			s.releaseStructureJob(task)
+		}
 		return nil
 	}
 	if strings.TrimSpace(task.StructureJobID) == "" {
@@ -44,7 +47,14 @@ func (s *VideoAnalysisService) claimArtifactForTask(task *model.VideoAnalysisTas
 			"asset_dir", s.assetDir,
 		)
 	}
-	// 所有权确认：失败不致命（服务端 TTL 兜底清理）。
+	if release {
+		s.releaseStructureJob(task)
+	}
+	return nil
+}
+
+// releaseStructureJob 释放服务端 staging 所有权（幂等，失败不致命，TTL 兜底）。
+func (s *VideoAnalysisService) releaseStructureJob(task *model.VideoAnalysisTask) {
 	if err := s.client.ReleaseStructureJob(context.Background(), task.StructureJobID); err != nil && s.logger != nil {
 		s.logger.Warnw("Video analysis release structure job failed (TTL will clean)",
 			"task_id", task.ID,
@@ -53,7 +63,6 @@ func (s *VideoAnalysisService) claimArtifactForTask(task *model.VideoAnalysisTas
 			"error", err,
 		)
 	}
-	return nil
 }
 
 // finalizeArtifactClaimLocked 在持有 cleanupMu 时完成幂等复查、清理残留、

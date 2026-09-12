@@ -36,7 +36,7 @@ func TestClaimArtifactForTaskDownloadsAndReleases(t *testing.T) {
 	client := &fakeVideoAnalysisClient{}
 	const resultJSON = `{"video_hash":"hash-1","artifact":{"files":[{"path":"manifest.json","size":2},{"path":"grids/scene_000.jpg","size":4}]}}`
 	svc, task := newClaimArtifactTestService(t, client, resultJSON)
-	if err := svc.claimArtifactsForTask(task); err != nil {
+	if err := svc.claimArtifactsForTask(task, true); err != nil {
 		t.Fatal(err)
 	}
 	if client.downloadCalls != 1 || client.releaseCalls != 1 {
@@ -50,6 +50,20 @@ func TestClaimArtifactForTaskDownloadsAndReleases(t *testing.T) {
 	}
 }
 
+func TestClaimArtifactForTaskKeepsStagingWhenReleaseFalse(t *testing.T) {
+	// describe 失败路径（release=false）：下载九宫格到本地，但保留服务端 staging
+	// 供增量重试（resubmit describe job 相同 structure_job_id）。
+	client := &fakeVideoAnalysisClient{}
+	const resultJSON = `{"video_hash":"hash-1","artifact":{"files":[{"path":"manifest.json","size":2}]}}`
+	svc, task := newClaimArtifactTestService(t, client, resultJSON)
+	if err := svc.claimArtifactsForTask(task, false); err != nil {
+		t.Fatal(err)
+	}
+	if client.downloadCalls != 1 || client.releaseCalls != 0 {
+		t.Fatalf("downloadCalls=%d releaseCalls=%d, want 1/0 (staging kept for retry)", client.downloadCalls, client.releaseCalls)
+	}
+}
+
 func TestClaimArtifactForTaskIdempotentWhenTargetExists(t *testing.T) {
 	client := &fakeVideoAnalysisClient{}
 	const resultJSON = `{"video_hash":"hash-1","artifact":{"files":[{"path":"manifest.json","size":2}]}}`
@@ -60,7 +74,7 @@ func TestClaimArtifactForTaskIdempotentWhenTargetExists(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(svc.assetDir, "hash-1", "manifest.json"), []byte("{}"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.claimArtifactsForTask(task); err != nil {
+	if err := svc.claimArtifactsForTask(task, false); err != nil {
 		t.Fatal(err)
 	}
 	if client.downloadCalls != 0 || client.releaseCalls != 0 {
@@ -68,11 +82,30 @@ func TestClaimArtifactForTaskIdempotentWhenTargetExists(t *testing.T) {
 	}
 }
 
+func TestClaimArtifactForTaskReleasesWhenAlreadyClaimed(t *testing.T) {
+	// 已 claim 后重试成功路径（release=true）：不再重新下载，但释放服务端 staging。
+	client := &fakeVideoAnalysisClient{}
+	const resultJSON = `{"video_hash":"hash-1","artifact":{"files":[{"path":"manifest.json","size":2}]}}`
+	svc, task := newClaimArtifactTestService(t, client, resultJSON)
+	if err := os.MkdirAll(filepath.Join(svc.assetDir, "hash-1", "grids"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(svc.assetDir, "hash-1", "manifest.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.claimArtifactsForTask(task, true); err != nil {
+		t.Fatal(err)
+	}
+	if client.downloadCalls != 0 || client.releaseCalls != 1 {
+		t.Fatalf("downloadCalls=%d releaseCalls=%d, want 0/1 (idempotent skip + release)", client.downloadCalls, client.releaseCalls)
+	}
+}
+
 func TestClaimArtifactForTaskCleansTmpOnDownloadError(t *testing.T) {
 	client := &fakeVideoAnalysisClient{downloadErr: errors.New("boom")}
 	const resultJSON = `{"video_hash":"hash-1","artifact":{"files":[{"path":"manifest.json","size":2}]}}`
 	svc, task := newClaimArtifactTestService(t, client, resultJSON)
-	if err := svc.claimArtifactsForTask(task); err == nil {
+	if err := svc.claimArtifactsForTask(task, false); err == nil {
 		t.Fatal("expected download error")
 	}
 	if client.releaseCalls != 0 {

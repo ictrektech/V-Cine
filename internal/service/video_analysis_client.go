@@ -73,15 +73,17 @@ type ExternalJobError struct {
 }
 
 type ExternalJob struct {
-	JobID      string            `json:"job_id"`
-	Type       string            `json:"type"`
-	Status     string            `json:"status"`
-	CreatedAt  int64             `json:"created_at"`
-	StartedAt  int64             `json:"started_at"`
-	FinishedAt int64             `json:"finished_at"`
-	Attempt    int               `json:"attempt"`
-	Result     json.RawMessage   `json:"result"`
-	Error      *ExternalJobError `json:"error"`
+	JobID      string `json:"job_id"`
+	Type       string `json:"type"`
+	Status     string `json:"status"`
+	CreatedAt  int64  `json:"created_at"`
+	StartedAt  int64  `json:"started_at"`
+	FinishedAt int64  `json:"finished_at"`
+	Attempt    int    `json:"attempt"`
+	// Progress 任务执行中非空，格式 "已完成/总数"（如 "12/73"）；尽力而为字段。
+	Progress string            `json:"progress,omitempty"`
+	Result   json.RawMessage   `json:"result"`
+	Error    *ExternalJobError `json:"error"`
 	// Artifact 为 structure job 可下载产物清单；服务端未实现或无产物时为 nil。
 	Artifact *VideoAnalysisArtifact `json:"artifact"`
 }

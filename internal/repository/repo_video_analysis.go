@@ -34,6 +34,11 @@ func (r *VideoAnalysisTaskRepo) Update(task *model.VideoAnalysisTask) error {
 	return r.db.Save(task).Error
 }
 
+// UpdateProgress 只更新进度列。轮询期间高频更新，避免整行 Save 反复写大 ResultJSON。
+func (r *VideoAnalysisTaskRepo) UpdateProgress(id string, progress float64) error {
+	return r.db.Model(&model.VideoAnalysisTask{}).Where("id = ?", id).Update("progress", progress).Error
+}
+
 func (r *VideoAnalysisTaskRepo) ClaimQueued(id string) (bool, error) {
 	var task model.VideoAnalysisTask
 	if err := r.db.Select("media_id").First(&task, "id = ?", id).Error; err != nil {

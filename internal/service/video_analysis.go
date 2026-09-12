@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -778,7 +779,8 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 	if err != nil {
 		return err
 	}
-	structureResult, err := s.waitForJob(ctx, structureJob, s.client.GetStructureJob)
+	structureProgress := s.jobProgressUpdater(task, 50, 90)
+	structureResult, err := s.waitForJobWithProgress(ctx, structureJob, s.client.GetStructureJob, structureProgress)
 	if err != nil && !task.FallbackUsed && shouldFallbackToScenes(err) {
 		if s.logger != nil {
 			s.logger.Infow("Video analysis structure stage using scenes fallback",
@@ -795,7 +797,7 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		}
 		structureJob, err = s.submitStructureWithScenes(ctx, task, detectResult)
 		if err == nil {
-			structureResult, err = s.waitForJob(ctx, structureJob, s.client.GetStructureJob)
+			structureResult, err = s.waitForJobWithProgress(ctx, structureJob, s.client.GetStructureJob, structureProgress)
 		}
 	}
 	if err != nil {
@@ -854,7 +856,7 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		if err != nil {
 			return s.completeDescribePartial(task, fmt.Errorf("describe stage: %w", err), "")
 		}
-		describeResult, err := s.waitForJob(ctx, describeJob, s.client.GetDescribeJob)
+		describeResult, err := s.waitForJobWithProgress(ctx, describeJob, s.client.GetDescribeJob, s.jobProgressUpdater(task, 90, 100))
 		if err != nil {
 			if s.logger != nil {
 				s.logger.Warnw("Video analysis describe stage failed",
@@ -894,6 +896,12 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 			}
 		}
 
+		// describe 部分失败（result.status = "partial"）：成功场景的描述已保留，
+		// 标记任务 partial，可重新提交 describe job 增量补齐失败场景。
+		if describeResultStatus(describeResult.Result) == "partial" {
+			return s.completeDescribePartial(task, describePartialError(describeResult.Result), "DESCRIBE_PARTIAL")
+		}
+
 		if s.logger != nil {
 			s.logger.Infow("Video analysis describe stage completed",
 				"task_id", task.ID,
@@ -906,9 +914,9 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSkipped)
 	}
 
-	// Phase 4: 搬移 staging 产物到 asset_dir（describe 之后，staging 已含 descriptions.json）。
-	// 失败 = 产物未落地 = 任务实际未完成，标 failed，RetryTask 从 structure 阶段重跑。
-	if err := s.claimArtifactsForTask(task); err != nil {
+	// Phase 4: 搬移 staging 产物到 asset_dir（describe 之后 claim；describe 全部成功时
+	// 产物才含 descriptions.json）。失败 = 产物未落地 = 任务实际未完成，标 failed，RetryTask 从 structure 阶段重跑。
+	if err := s.claimArtifactsForTask(task, true); err != nil {
 		task.Stage = model.VideoAnalysisStageStructure
 		s.failTask(task, err)
 		return err
@@ -1121,7 +1129,19 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 	return job.JobID, nil
 }
 
+// completeDescribePartial describe 阶段未全部成功时的收尾：
+// 先尽力 claim 九宫格产物（staging 有 TTL，避免重试前丢失；幂等，失败不致命），
+// 再把任务标记为 partial（结构已成功，仅描述未全部完成）。
+// 同时清空 describe_job_id，重试时重新提交 describe job（服务端按 staging 增量/全量生成）。
 func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysisTask, err error, errorCode string) error {
+	if claimErr := s.claimArtifactsForTask(task, false); claimErr != nil && s.logger != nil {
+		s.logger.Warnw("Video analysis claim artifacts after describe failure failed (non-fatal)",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"error", claimErr,
+		)
+	}
+	task.DescribeJobID = ""
 	task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusFailed)
 	task.Status = model.VideoAnalysisStatusPartial
 	task.Progress = 90
@@ -1133,10 +1153,46 @@ func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysis
 		task.ErrorCode = analysisErrorCode(err)
 	}
 	task.ErrorMessage = err.Error()
-	return s.persist(task)
+	if persistErr := s.persist(task); persistErr != nil {
+		return persistErr
+	}
+	// 图片 embedding（non-fatal）：九宫格已 claim，尽力计算，避免图片检索缺口。
+	if embErr := s.computeSceneEmbeddings(task); embErr != nil && s.logger != nil {
+		s.logger.Warnw("Video analysis compute scene embeddings failed (non-fatal)",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"error", embErr,
+		)
+	}
+	return nil
+}
+
+// describePartialError 从 describe 结果 warnings 构造部分失败错误信息（取首个详情）。
+func describePartialError(describeJSON []byte) error {
+	var parsed videoAnalysisDescribeResult
+	if err := json.Unmarshal(describeJSON, &parsed); err != nil || len(parsed.Warnings) == 0 {
+		return errors.New("部分场景描述失败")
+	}
+	return fmt.Errorf("%d 个场景描述失败: %s", len(parsed.Warnings), parsed.Warnings[0].Message)
+}
+
+// describeResultStatus 解析 describe result 的整体状态（"completed"/"partial"）。
+// 旧版服务不返回该字段，空值按 completed 处理。
+func describeResultStatus(describeJSON []byte) string {
+	var parsed videoAnalysisDescribeResult
+	if err := json.Unmarshal(describeJSON, &parsed); err != nil {
+		return ""
+	}
+	return parsed.Status
 }
 
 func (s *VideoAnalysisService) waitForJob(ctx context.Context, jobID string, get func(context.Context, string) (*ExternalJob, error)) (*ExternalJob, error) {
+	return s.waitForJobWithProgress(ctx, jobID, get, nil)
+}
+
+// waitForJobWithProgress 轮询外部 job；onPoll 在每次未结束时调用，
+// 用于把外部 progress 字段（"12/73"）映射到任务进度（尽力而为）。
+func (s *VideoAnalysisService) waitForJobWithProgress(ctx context.Context, jobID string, get func(context.Context, string) (*ExternalJob, error), onPoll func(*ExternalJob)) (*ExternalJob, error) {
 	ticker := time.NewTicker(s.pollInterval)
 	defer ticker.Stop()
 	for {
@@ -1156,12 +1212,66 @@ func (s *VideoAnalysisService) waitForJob(ctx context.Context, jobID string, get
 			}
 			return nil, &externalJobFailedError{Code: job.Error.Code, Message: job.Error.Message}
 		}
+		if onPoll != nil {
+			onPoll(job)
+		}
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
 		}
 	}
+}
+
+// jobProgressUpdater 把外部 job 的 progress（"12/73"）映射到任务进度区间 [from, to)，
+// 仅在数值前进时落库（尽力而为，失败不影响任务本身）。
+func (s *VideoAnalysisService) jobProgressUpdater(task *model.VideoAnalysisTask, from, to float64) func(*ExternalJob) {
+	return func(job *ExternalJob) {
+		frac, ok := parseJobProgressFraction(job.Progress)
+		if !ok {
+			return
+		}
+		p := from + frac*(to-from)
+		if p > to-1 {
+			p = to - 1
+		}
+		if p <= task.Progress {
+			return
+		}
+		task.Progress = p
+		if err := s.tasks.UpdateProgress(task.ID, p); err != nil {
+			if s.logger != nil {
+				s.logger.Warnw("Video analysis progress update failed (non-fatal)",
+					"task_id", task.ID, "error", err)
+			}
+			return
+		}
+		s.broadcast(task)
+	}
+}
+
+// parseJobProgressFraction 解析 "12/73" 格式为 12/73。
+func parseJobProgressFraction(raw string) (float64, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, false
+	}
+	parts := strings.SplitN(raw, "/", 2)
+	if len(parts) != 2 {
+		return 0, false
+	}
+	done, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+	if err != nil || done < 0 {
+		return 0, false
+	}
+	total, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	if err != nil || total <= 0 {
+		return 0, false
+	}
+	if done > total {
+		done = total
+	}
+	return done / total, true
 }
 
 func (s *VideoAnalysisService) verifyFileSnapshot(task *model.VideoAnalysisTask) error {
@@ -1224,9 +1334,10 @@ func (s *VideoAnalysisService) failTask(task *model.VideoAnalysisTask, err error
 }
 
 // claimArtifactsForTask 下载 structure job 的 artifact 产物到 asset_dir/<hash>。
+// release 表示是否释放服务端 staging：describe 成功后为 true；describe 失败时为
+// false，staging 保留给服务端增量重试。
 // 必须在 describe 完成后调用。
-// 失败返回 errClaimStagingFailed，由编排层标为 CLAIM_STAGING_FAILED。
-func (s *VideoAnalysisService) claimArtifactsForTask(task *model.VideoAnalysisTask) error {
+func (s *VideoAnalysisService) claimArtifactsForTask(task *model.VideoAnalysisTask, release bool) error {
 	if strings.TrimSpace(task.ResultJSON) == "" {
 		return nil
 	}
@@ -1241,7 +1352,7 @@ func (s *VideoAnalysisService) claimArtifactsForTask(task *model.VideoAnalysisTa
 		// 无结果或无可下载产物，无需 claim。
 		return nil
 	}
-	return s.claimArtifactForTask(task, result.VideoHash, result.Artifact)
+	return s.claimArtifactForTask(task, result.VideoHash, result.Artifact, release)
 }
 
 // CleanOrphanStructure 清理 asset_dir 下未被任何视频分析任务引用的孤儿目录。
@@ -1657,6 +1768,10 @@ func (s *VideoAnalysisService) RunStage(ctx context.Context, taskID, stage strin
 	}
 
 	if stageErr != nil {
+		if stage == model.VideoAnalysisStageDescribe && task.Status == model.VideoAnalysisStatusPartial {
+			// describe 未全部成功已在 runDescribeStage 内按 partial 收尾（含 claim），保留状态
+			return nil
+		}
 		task.SetStageStatus(stage, model.VideoAnalysisStageStatusFailed)
 		task.Status = model.VideoAnalysisStatusFailed
 		task.ErrorCode = analysisErrorCode(stageErr)
@@ -1669,9 +1784,9 @@ func (s *VideoAnalysisService) RunStage(ctx context.Context, taskID, stage strin
 
 	task.SetStageStatus(stage, model.VideoAnalysisStageStatusSucceeded)
 	if stage == model.VideoAnalysisStageDescribe || (!task.IncludeDescriptions && stage == model.VideoAnalysisStageStructure) {
-		// 到达 done：搬移 staging 产物（describe 后 staging 已含 descriptions.json），
+		// 到达 done：搬移 staging 产物（describe 全部成功时产物才含 descriptions.json，并释放服务端 staging）。
 		// 失败 = 产物未落地 = 标 failed，RetryTask 从 structure 阶段重跑。
-		if err := s.claimArtifactsForTask(task); err != nil {
+		if err := s.claimArtifactsForTask(task, true); err != nil {
 			task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusFailed)
 			task.Status = model.VideoAnalysisStatusFailed
 			task.ErrorCode = analysisErrorCode(err)
@@ -1756,12 +1871,11 @@ func (s *VideoAnalysisService) runStageByTask(ctx context.Context, task *model.V
 		stageErr = s.runDescribeStage(ctx, task)
 	}
 	if stageErr != nil {
-		task.SetStageStatus(stage, model.VideoAnalysisStageStatusFailed)
-		if stage == model.VideoAnalysisStageDescribe {
-			_ = s.completeDescribePartial(task, stageErr, "")
-			s.persist(task)
+		if stage == model.VideoAnalysisStageDescribe && task.Status == model.VideoAnalysisStatusPartial {
+			// describe 未全部成功已在 runDescribeStage 内按 partial 收尾（含 claim），保留状态
 			return nil
 		}
+		task.SetStageStatus(stage, model.VideoAnalysisStageStatusFailed)
 		task.ErrorCode = analysisErrorCode(stageErr)
 		task.ErrorMessage = stageErr.Error()
 		s.persist(task)
@@ -1771,7 +1885,7 @@ func (s *VideoAnalysisService) runStageByTask(ctx context.Context, task *model.V
 	// 最后一个阶段完成（下一阶段为 done）：搬移 staging 产物并计算图片 embedding。
 	// RunMissing 循环在下一次迭代发现 done 时退出，这里在退出前完成 claim。
 	if task.NextPendingStage() == model.VideoAnalysisStageDone {
-		if err := s.claimArtifactsForTask(task); err != nil {
+		if err := s.claimArtifactsForTask(task, true); err != nil {
 			task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusFailed)
 			task.ErrorCode = analysisErrorCode(err)
 			task.ErrorMessage = err.Error()
@@ -1817,7 +1931,8 @@ func (s *VideoAnalysisService) runStructureStage(ctx context.Context, task *mode
 	if err != nil {
 		return err
 	}
-	structureResult, err := s.waitForJob(ctx, structureJob, s.client.GetStructureJob)
+	structureProgress := s.jobProgressUpdater(task, 50, 90)
+	structureResult, err := s.waitForJobWithProgress(ctx, structureJob, s.client.GetStructureJob, structureProgress)
 	if err != nil && !task.FallbackUsed && shouldFallbackToScenes(err) {
 		task.FallbackUsed = true
 		task.StructureJobID = ""
@@ -1826,7 +1941,7 @@ func (s *VideoAnalysisService) runStructureStage(ctx context.Context, task *mode
 		}
 		structureJob, err = s.submitStructureWithScenes(ctx, task, detectResult)
 		if err == nil {
-			structureResult, err = s.waitForJob(ctx, structureJob, s.client.GetStructureJob)
+			structureResult, err = s.waitForJobWithProgress(ctx, structureJob, s.client.GetStructureJob, structureProgress)
 		}
 	}
 	if err != nil {
@@ -1851,6 +1966,8 @@ func (s *VideoAnalysisService) runStructureStage(ctx context.Context, task *mode
 }
 
 // runDescribeStage 执行 Describe 阶段
+// describe 未全部成功时任务已按 partial 收尾（含 claim），返回非 nil 错误让调用方
+// 保留 partial 状态，不覆盖为 succeeded/failed。
 func (s *VideoAnalysisService) runDescribeStage(ctx context.Context, task *model.VideoAnalysisTask) error {
 	if !task.IncludeDescriptions {
 		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSkipped)
@@ -1861,20 +1978,37 @@ func (s *VideoAnalysisService) runDescribeStage(ctx context.Context, task *model
 	}
 	describeJob, err := s.ensureDescribeJob(ctx, task)
 	if err != nil {
-		return s.completeDescribePartial(task, err, "")
+		if perr := s.completeDescribePartial(task, err, ""); perr != nil {
+			return perr
+		}
+		return err
 	}
-	describeResult, err := s.waitForJob(ctx, describeJob, s.client.GetDescribeJob)
+	describeResult, err := s.waitForJobWithProgress(ctx, describeJob, s.client.GetDescribeJob, s.jobProgressUpdater(task, 90, 100))
 	if err != nil {
-		return s.completeDescribePartial(task, err, "")
+		if perr := s.completeDescribePartial(task, err, ""); perr != nil {
+			return perr
+		}
+		return err
 	}
 	mergedResult, err := mergeDescribeResult(task.ResultJSON, describeResult.Result)
 	if err != nil {
-		return s.completeDescribePartial(task, err, "DESCRIBE_MERGE_ERROR")
+		if perr := s.completeDescribePartial(task, err, "DESCRIBE_MERGE_ERROR"); perr != nil {
+			return perr
+		}
+		return err
 	}
 	task.ResultJSON = mergedResult
 	if err := s.updateSceneDescriptionsFromDescribe(task, describeResult); err != nil && s.logger != nil {
 		s.logger.Warnw("Video analysis update scene descriptions failed (non-fatal)",
 			"task_id", task.ID, "media_id", task.MediaID, "error", err)
+	}
+	// describe 部分失败（result.status = "partial"）：成功描述已保留，标记任务 partial
+	if describeResultStatus(describeResult.Result) == "partial" {
+		partialErr := describePartialError(describeResult.Result)
+		if perr := s.completeDescribePartial(task, partialErr, "DESCRIBE_PARTIAL"); perr != nil {
+			return perr
+		}
+		return partialErr
 	}
 	return nil
 }

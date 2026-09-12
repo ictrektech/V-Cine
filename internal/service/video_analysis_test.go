@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -21,13 +22,14 @@ import (
 )
 
 type fakeVideoAnalysisClient struct {
-	detectSubmits    []DetectJobRequest
-	structureSubmits []StructureJobRequest
-	describeSubmits  []DescribeJobRequest
-	structureError   error
-	describeError    error
-	describeResult   []byte
-	structureResult  []byte
+	detectSubmits      []DetectJobRequest
+	structureSubmits   []StructureJobRequest
+	describeSubmits    []DescribeJobRequest
+	structureError     error
+	describeError      error
+	describeJobFailure *ExternalJobError
+	describeResult     []byte
+	structureResult    []byte
 
 	artifact      *VideoAnalysisArtifact
 	downloadErr   error
@@ -93,6 +95,9 @@ func (f *fakeVideoAnalysisClient) SubmitDescribeJob(_ context.Context, request D
 }
 
 func (f *fakeVideoAnalysisClient) GetDescribeJob(context.Context, string) (*ExternalJob, error) {
+	if f.describeJobFailure != nil {
+		return &ExternalJob{JobID: "describe-1", Status: "failed", Error: f.describeJobFailure}, nil
+	}
 	result := f.describeResult
 	if len(result) == 0 {
 		result, _ = json.Marshal(map[string]any{"video_hash": "hash-1", "descriptions": []any{}})
@@ -345,6 +350,7 @@ func TestVideoAnalysisServiceProcessesDescribeWhenEnabled(t *testing.T) {
 	client := &fakeVideoAnalysisClient{
 		describeResult: mustMarshalJSONBytes(t, map[string]any{
 			"video_hash": "hash-1",
+			"status":     "completed",
 			"descriptions": []map[string]any{{
 				"scene_index": 0,
 				"description": "画面展示一群人在室外广场活动。",
@@ -393,6 +399,132 @@ func TestVideoAnalysisServiceDescribeFailureMarksPartial(t *testing.T) {
 	}
 	if stored.Status != model.VideoAnalysisStatusPartial || stored.Stage != model.VideoAnalysisStageDescribe || stored.ResultJSON == "" || stored.VideoHash != "hash-1" {
 		t.Fatalf("unexpected partial task: %+v", stored)
+	}
+}
+
+func TestVideoAnalysisServiceDescribeJobFailedMarksPartialAndClaims(t *testing.T) {
+	// describe job 全部失败（status=failed + DESCRIBE_ERROR）→ task partial，
+	// 九宫格仍要 claim 落盘（staging TTL 兜底前取走），describe job 清空待重试重提。
+	client := &fakeVideoAnalysisClient{
+		artifact: &VideoAnalysisArtifact{
+			Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}},
+		},
+		describeJobFailure: &ExternalJobError{Code: "DESCRIBE_ERROR", Message: "全部 73 个场景描述失败: 场景 0 描述失败: Connection error."},
+	}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusPartial {
+		t.Fatalf("status = %q, want partial", stored.Status)
+	}
+	if stored.ErrorCode != "DESCRIBE_ERROR" {
+		t.Fatalf("error_code = %q, want DESCRIBE_ERROR", stored.ErrorCode)
+	}
+	if stored.DescribeStatus != model.VideoAnalysisStageStatusFailed {
+		t.Fatalf("describe_status = %q, want failed", stored.DescribeStatus)
+	}
+	if client.downloadCalls == 0 {
+		t.Fatal("artifact should be claimed even when describe failed")
+	}
+	if stored.DescribeJobID != "" {
+		t.Fatalf("describe_job_id = %q, want empty for retry resubmit", stored.DescribeJobID)
+	}
+}
+
+func TestVideoAnalysisServiceDescribePartialResultMarksPartial(t *testing.T) {
+	// describe job succeeded + result.status = "partial" → task partial（DESCRIBE_PARTIAL），
+	// 成功场景的描述保留，九宫格 claim 落盘。
+	client := &fakeVideoAnalysisClient{
+		artifact: &VideoAnalysisArtifact{
+			Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}},
+		},
+		structureResult: mustMarshalJSONBytes(t, map[string]any{
+			"video_hash": "hash-1",
+			"scenes": []map[string]any{
+				{"scene_index": 0, "start_time": 0.0, "end_time": 1.0, "grid_image": "scene_000.jpg"},
+				{"scene_index": 1, "start_time": 1.0, "end_time": 2.0, "grid_image": "scene_001.jpg"},
+			},
+		}),
+		describeResult: mustMarshalJSONBytes(t, map[string]any{
+			"video_hash": "hash-1",
+			"status":     "partial",
+			"descriptions": []map[string]any{
+				{"scene_index": 0, "description": "画面展示一群人在室外广场活动。", "status": "ok"},
+				{"scene_index": 1, "description": "", "status": "failed", "error": "大模型调用失败"},
+			},
+			"warnings": []map[string]any{{"code": "DESC_LLM_ERROR", "message": "场景 1 描述失败: 大模型调用失败", "target_id": "1"}},
+		}),
+	}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusPartial {
+		t.Fatalf("status = %q, want partial", stored.Status)
+	}
+	if stored.ErrorCode != "DESCRIBE_PARTIAL" {
+		t.Fatalf("error_code = %q, want DESCRIBE_PARTIAL", stored.ErrorCode)
+	}
+	if stored.DescribeStatus != model.VideoAnalysisStageStatusFailed {
+		t.Fatalf("describe_status = %q, want failed", stored.DescribeStatus)
+	}
+	if client.downloadCalls == 0 {
+		t.Fatal("artifact should be claimed for partial describe")
+	}
+	// 成功场景的描述保留在 ResultJSON
+	if !strings.Contains(stored.ResultJSON, "画面展示一群人在室外广场活动。") {
+		t.Fatal("successful description should be preserved in result JSON")
+	}
+}
+
+func TestVideoAnalysisServiceRunStageDescribeFailureKeepsPartial(t *testing.T) {
+	// RunStage 的 describe 失败 → partial（不被覆盖为 succeeded），
+	// 且重试时重新提交 describe job（而非轮询同一个已失败的 job）。
+	client := &fakeVideoAnalysisClient{describeError: &VideoAnalysisAPIError{HTTPStatus: 200, Code: 70301, Message: "describe failed"}}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.RunStage(context.Background(), task.ID, model.VideoAnalysisStageDescribe); err != nil {
+		t.Fatalf("RunStage describe should swallow partial failure: %v", err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusPartial {
+		t.Fatalf("status = %q, want partial", stored.Status)
+	}
+	if stored.DescribeStatus != model.VideoAnalysisStageStatusFailed {
+		t.Fatalf("describe_status = %q, want failed", stored.DescribeStatus)
+	}
+	// 第一次 ProcessTask + 一次 RunStage 重试 = 两次提交 describe job
+	if len(client.describeSubmits) != 2 {
+		t.Fatalf("describe submits = %d, want 2 (retry should resubmit)", len(client.describeSubmits))
 	}
 }
 

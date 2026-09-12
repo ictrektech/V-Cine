@@ -181,7 +181,16 @@ video_analysis:
 - 检查 `structure_base_url` 连通性
 - 重试任务：RetryTask 会从 structure 阶段重新提交并再次下载
 
-### 5. 九宫格图片无法显示
+### 5. 任务失败，错误码为 DESCRIBE_ERROR / DESCRIBE_PARTIAL
+
+**原因：** 场景描述阶段未全部成功。`DESCRIBE_ERROR` 表示全部场景描述失败（describe job 状态为 failed）；`DESCRIBE_PARTIAL` 表示部分场景失败（describe job 成功但 `result.status = "partial"`），失败详情在任务 `error_message` 中。
+
+**解决：**
+- 任务状态为 partial/failed 时可直接重试：RetryTask 会重新提交 describe job（相同 structure_job_id），全失败重新全量生成、部分失败只重新描述失败的场景（增量），成功场景复用
+- 描述服务的 staging 产物有 TTL（生产 6 小时 / dev 7 天），请在 TTL 内重试；Nowen 已在描述失败时把九宫格 claim 到本地，不受 TTL 影响
+- 检查 describe 使用的视觉模型配置（`scene_describe_ai`）与供应商连通性
+
+### 6. 九宫格图片无法显示
 
 **原因：** asset_dir 挂载配置错误或产物未下载
 
@@ -189,13 +198,13 @@ video_analysis:
 - 确认 `asset_dir` 与容器挂载点一致
 - 检查 `asset_dir/<hash>/grids/` 下图片文件是否存在，确认 artifact 下载成功
 
-### 6. STRM 文件无法分析
+### 7. STRM 文件无法分析
 
 **原因：** 远程流媒体文件不支持视频分析
 
 **说明：** 视频分析需要直接读取视频文件进行帧采样，STRM 等远程流媒体格式暂不支持。
 
-### 7. 任务一直卡在 "running" 状态
+### 8. 任务一直卡在 "running" 状态
 
 **原因：** 服务重启导致任务状态丢失
 
