@@ -65,6 +65,9 @@ type VideoAnalysisTask struct {
 	ErrorMessage   string `json:"error_message" gorm:"type:text"`
 	Attempt        int    `json:"attempt" gorm:"default:0"`
 
+	// StageTimings 各阶段实际耗时（秒），由编排层在阶段状态流转时记录，JSON 序列化存储。
+	StageTimings map[string]float64 `json:"stage_timings,omitempty" gorm:"serializer:json;type:text"`
+
 	IncludeDescriptions bool `json:"include_descriptions" gorm:"default:false"`
 	Force               bool `json:"force" gorm:"default:false"`
 	FallbackUsed        bool `json:"fallback_used" gorm:"default:false"`
@@ -74,6 +77,11 @@ type VideoAnalysisTask struct {
 	DetectStatus    string `json:"detect_status" gorm:"type:text;default:''"`
 	StructureStatus string `json:"structure_status" gorm:"type:text;default:''"`
 	DescribeStatus  string `json:"describe_status" gorm:"type:text;default:''"`
+
+	// stageStartedAt/stageStartedStage 当前计时阶段的起点（非持久化，进程重启后丢失，
+	// 阶段耗时按尽力而为记录）。
+	stageStartedAt    time.Time
+	stageStartedStage string
 
 	StartedAt  *time.Time `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at"`
@@ -128,8 +136,9 @@ func (t *VideoAnalysisTask) StageStatus(stage string) string {
 	return ""
 }
 
-// SetStageStatus 设置指定阶段的独立状态
+// SetStageStatus 设置指定阶段的独立状态，并在状态流转时记录阶段耗时。
 func (t *VideoAnalysisTask) SetStageStatus(stage, status string) {
+	prev := t.StageStatus(stage)
 	switch stage {
 	case VideoAnalysisStageDetect:
 		t.DetectStatus = status
@@ -137,6 +146,32 @@ func (t *VideoAnalysisTask) SetStageStatus(stage, status string) {
 		t.StructureStatus = status
 	case VideoAnalysisStageDescribe:
 		t.DescribeStatus = status
+	}
+	t.recordStageTiming(stage, prev, status)
+}
+
+// recordStageTiming 阶段耗时记录（尽力而为）：
+//   - 阶段进入 running 且尚未完成过：记录计时起点（重跑已完成阶段不重新计时）；
+//   - 该阶段流转到 succeeded/failed：按起点记录耗时（秒）；
+//   - skipped 等其他流转不计时；起点不持久化，进程重启后丢失时自动跳过。
+func (t *VideoAnalysisTask) recordStageTiming(stage, prev, status string) {
+	if status == VideoAnalysisStageStatusRunning {
+		if prev != VideoAnalysisStageStatusSucceeded {
+			t.stageStartedAt = time.Now()
+			t.stageStartedStage = stage
+		}
+		return
+	}
+	if stage == t.stageStartedStage && !t.stageStartedAt.IsZero() &&
+		(status == VideoAnalysisStageStatusSucceeded || status == VideoAnalysisStageStatusFailed) {
+		if t.StageTimings == nil {
+			t.StageTimings = make(map[string]float64)
+		}
+		t.StageTimings[stage] = time.Since(t.stageStartedAt).Seconds()
+	}
+	if stage == t.stageStartedStage {
+		t.stageStartedAt = time.Time{}
+		t.stageStartedStage = ""
 	}
 }
 
