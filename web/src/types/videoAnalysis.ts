@@ -20,6 +20,8 @@ export interface VideoAnalysisTask {
   error_code: string
   error_message: string
   attempt: number
+  /** 媒体级执行序号（按创建时间升序，最新一次最大），由后端查询侧计算 */
+  seq?: number
   include_descriptions: boolean
   force: boolean
   fallback_used: boolean
@@ -42,6 +44,8 @@ export interface VideoAnalysisWorkflow {
   detect_status: VideoAnalysisStageStatus
   structure_status: VideoAnalysisStageStatus
   describe_status: VideoAnalysisStageStatus
+  /** 各阶段实际耗时（秒） */
+  stage_timings?: Record<string, number>
   error_code?: string
   error_message?: string
   started_at?: string | null

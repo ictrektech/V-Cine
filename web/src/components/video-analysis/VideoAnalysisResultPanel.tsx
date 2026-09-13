@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, ExternalLink, FileVideo, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2 } from 'lucide-react'
 import { videoAnalysisApi } from '@/api'
 import type { VideoAnalysisResult, VideoAnalysisSceneResult, VideoAnalysisTask } from '@/types/videoAnalysis'
 import VideoAnalysisResultInsights from './VideoAnalysisResultInsights'
@@ -12,10 +12,9 @@ import { routes } from '@/lib/routes'
 
 interface VideoAnalysisResultPanelProps {
   task: VideoAnalysisTask | null
-  onClose?: () => void
 }
 
-export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysisResultPanelProps) {
+export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPanelProps) {
   const [result, setResult] = useState<VideoAnalysisResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -107,12 +106,12 @@ export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysi
 
   if (!task) {
     return (
-      <section className="glass-panel rounded-xl p-4" aria-labelledby="video-analysis-result-heading">
+      <section className="rounded-xl border bg-muted/30 p-4" aria-labelledby="video-analysis-result-heading">
         <div className="flex items-start gap-2 text-sm text-amber-100">
-          <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-400" />
           <div>
             <h3 id="video-analysis-result-heading" className="font-medium">无法定位结果任务</h3>
-            <p className="mt-1 text-surface-300">当前筛选或分页中未包含该任务，请调整筛选条件后重试。</p>
+            <p className="mt-1 text-muted-foreground">当前筛选或分页中未包含该任务，请调整筛选条件后重试。</p>
           </div>
         </div>
       </section>
@@ -125,38 +124,21 @@ export default function VideoAnalysisResultPanel({ task, onClose }: VideoAnalysi
   }
 
   return (
-    <section className="glass-panel rounded-xl p-4 space-y-4" aria-labelledby="video-analysis-result-heading">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h3 id="video-analysis-result-heading" className="flex items-center gap-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-            <FileVideo size={18} className="text-neon" /> 结果详情
-          </h3>
-          <p className="mt-1 text-xs text-surface-400">
-            {task.media_title || '未命名媒体'} · 任务 {task.id.slice(0, 8)} · {result?.scene_count ?? 0} 个场景
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {onClose && <button onClick={onClose} className="btn-ghost rounded-lg px-3 py-2 text-sm">收起结果</button>}
-          <button onClick={() => openAppUrl(routes.player(task.media_id))} className="btn-ghost rounded-lg px-3 py-2 text-sm inline-flex items-center gap-1.5">
-            <ExternalLink size={14} /> 打开播放器
-          </button>
-        </div>
-      </div>
-
+    <section className="space-y-4">
       <VideoAnalysisWorkflow taskId={task.id} />
 
       {loading ? (
-        <div className="rounded-xl border border-white/5 bg-black/10 py-16 text-center">
-          <Loader2 className="mx-auto animate-spin text-neon" />
-          <p className="mt-2 text-sm text-surface-400">正在加载结果详情…</p>
+        <div className="rounded-xl border border bg-muted/30 py-16 text-center">
+          <Loader2 className="mx-auto animate-spin text-primary" />
+          <p className="mt-2 text-sm text-muted-foreground">正在加载结果详情…</p>
         </div>
       ) : error ? (
         <div className="rounded-xl border border-amber-400/20 bg-amber-500/5 p-4 text-sm text-amber-100">
           <div className="flex items-start gap-2">
-            <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+            <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-400" />
             <div>
               <div className="font-medium">无法展示结果详情</div>
-              <p className="mt-1 text-surface-300">{error}</p>
+              <p className="mt-1 text-muted-foreground">{error}</p>
             </div>
           </div>
         </div>
