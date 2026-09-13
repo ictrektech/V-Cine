@@ -70,7 +70,7 @@ func TestLibraryServiceEnqueueAutoVideoAnalysisOnlyNewMediaSinceBoundary(t *test
 		t.Fatalf("result = %+v", result)
 	}
 
-	list, total, err := repos.VideoAnalysis.List(1, 10, "", library.ID, "")
+	list, total, err := repos.VideoAnalysis.List(1, 10, "", library.ID, "", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}

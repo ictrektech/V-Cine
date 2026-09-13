@@ -506,7 +506,14 @@ func (s *VideoAnalysisService) GetTask(taskID string) (*model.VideoAnalysisTask,
 	if !s.IsAvailable() {
 		return nil, errors.New("video analysis service is not configured")
 	}
-	return s.tasks.FindByID(taskID)
+	task, err := s.tasks.FindByID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	batch := []model.VideoAnalysisTask{*task}
+	s.tasks.AssignMediaSeq(batch)
+	*task = batch[0]
+	return task, nil
 }
 
 func (s *VideoAnalysisService) GetLatestTaskByMediaID(mediaID string) (*model.VideoAnalysisTask, error) {
@@ -516,11 +523,13 @@ func (s *VideoAnalysisService) GetLatestTaskByMediaID(mediaID string) (*model.Vi
 	return s.tasks.FindLatestByMediaID(mediaID)
 }
 
-func (s *VideoAnalysisService) ListTasks(page, pageSize int, status, libraryID, keyword string) ([]model.VideoAnalysisTask, int64, error) {
+// ListTasks 查询任务列表。groupByMedia=true 时按媒体去重仅返回每个媒体最新一条，
+// mediaID 非空时返回该媒体的任务历史（用于前端展开）。
+func (s *VideoAnalysisService) ListTasks(page, pageSize int, status, libraryID, keyword, mediaID string, groupByMedia bool) ([]model.VideoAnalysisTask, int64, error) {
 	if !s.IsAvailable() {
 		return nil, 0, errors.New("video analysis service is not configured")
 	}
-	return s.tasks.List(page, pageSize, status, libraryID, strings.TrimSpace(keyword))
+	return s.tasks.List(page, pageSize, status, libraryID, strings.TrimSpace(keyword), mediaID, groupByMedia)
 }
 
 func (s *VideoAnalysisService) RetryTask(taskID string) (*model.VideoAnalysisTask, error) {
@@ -716,6 +725,10 @@ func (s *VideoAnalysisService) processClaimedTask(parent context.Context, taskID
 	if task.StartedAt == nil {
 		task.StartedAt = &now
 	}
+	// 标记当前待执行阶段为 running：工作流 UI 展示与阶段耗时计时使用。
+	if task.Stage != model.VideoAnalysisStageDone && !task.IsStageDone(task.Stage) {
+		task.SetStageStatus(task.Stage, model.VideoAnalysisStageStatusRunning)
+	}
 	if err := s.persist(task); err != nil {
 		return err
 	}
@@ -771,6 +784,7 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 	task.SetStageStatus(model.VideoAnalysisStageDetect, model.VideoAnalysisStageStatusSucceeded)
 
 	task.Stage = model.VideoAnalysisStageStructure
+	task.SetStageStatus(model.VideoAnalysisStageStructure, model.VideoAnalysisStageStatusRunning)
 	task.Progress = 50
 	if err := s.persist(task); err != nil {
 		return err
@@ -848,6 +862,7 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 
 	if task.IncludeDescriptions {
 		task.Stage = model.VideoAnalysisStageDescribe
+		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusRunning)
 		task.Progress = 90
 		if err := s.persist(task); err != nil {
 			return err
@@ -1722,6 +1737,7 @@ func (s *VideoAnalysisService) GetWorkflow(taskID string) (*WorkflowStatus, erro
 		DetectStatus:    task.DetectStatus,
 		StructureStatus: task.StructureStatus,
 		DescribeStatus:  task.DescribeStatus,
+		StageTimings:    task.StageTimings,
 		ErrorCode:       task.ErrorCode,
 		ErrorMessage:    task.ErrorMessage,
 		StartedAt:       task.StartedAt,
@@ -2015,18 +2031,19 @@ func (s *VideoAnalysisService) runDescribeStage(ctx context.Context, task *model
 
 // WorkflowStatus 工作流状态详情
 type WorkflowStatus struct {
-	TaskID          string     `json:"task_id"`
-	MediaID         string     `json:"media_id"`
-	MediaTitle      string     `json:"media_title"`
-	Status          string     `json:"status"`
-	Stage           string     `json:"stage"`
-	Progress        float64    `json:"progress"`
-	DetectStatus    string     `json:"detect_status"`
-	StructureStatus string     `json:"structure_status"`
-	DescribeStatus  string     `json:"describe_status"`
-	ErrorCode       string     `json:"error_code,omitempty"`
-	ErrorMessage    string     `json:"error_message,omitempty"`
-	StartedAt       *time.Time `json:"started_at,omitempty"`
-	FinishedAt      *time.Time `json:"finished_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
+	TaskID          string             `json:"task_id"`
+	MediaID         string             `json:"media_id"`
+	MediaTitle      string             `json:"media_title"`
+	Status          string             `json:"status"`
+	Stage           string             `json:"stage"`
+	Progress        float64            `json:"progress"`
+	DetectStatus    string             `json:"detect_status"`
+	StructureStatus string             `json:"structure_status"`
+	DescribeStatus  string             `json:"describe_status"`
+	StageTimings    map[string]float64 `json:"stage_timings,omitempty"`
+	ErrorCode       string             `json:"error_code,omitempty"`
+	ErrorMessage    string             `json:"error_message,omitempty"`
+	StartedAt       *time.Time         `json:"started_at,omitempty"`
+	FinishedAt      *time.Time         `json:"finished_at,omitempty"`
+	CreatedAt       time.Time          `json:"created_at"`
 }

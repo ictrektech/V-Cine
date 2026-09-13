@@ -18,7 +18,7 @@ export const videoAnalysisApi = {
   batchSubmit: (data: { media_ids: string[]; force?: boolean; include_descriptions?: boolean }) =>
     api.post<{ data: VideoAnalysisBatchResult }>('/admin/video-analysis/tasks/batch', data),
 
-  listTasks: (params: { page?: number; page_size?: number; status?: string; library_id?: string; keyword?: string }) =>
+  listTasks: (params: { page?: number; page_size?: number; status?: string; library_id?: string; keyword?: string; media_id?: string; group_by_media?: boolean }) =>
     api.get<{ data: VideoAnalysisTaskPage }>('/admin/video-analysis/tasks', { params }),
 
   getLatestTaskByMedia: (mediaId: string) =>

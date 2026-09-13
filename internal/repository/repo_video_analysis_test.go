@@ -88,7 +88,7 @@ func TestVideoAnalysisRepoListsAndCountsTasks(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	tasks, total, err := repo.List(1, 2, "", "library-1", "")
+	tasks, total, err := repo.List(1, 2, "", "library-1", "", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func TestVideoAnalysisRepoDeleteByMediaID(t *testing.T) {
 	}
 
 	// 验证删除后该媒体没有任务
-	tasks, total, err := repo.List(1, 100, "", "", "")
+	tasks, total, err := repo.List(1, 100, "", "", "", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,5 +259,121 @@ func TestVideoAnalysisRepoDeleteByMediaID(t *testing.T) {
 	}
 	if deletedCount != 0 {
 		t.Fatalf("deleted count for empty = %d, want 0", deletedCount)
+	}
+}
+
+func TestVideoAnalysisRepoListGroupsByMedia(t *testing.T) {
+	repo := setupVideoAnalysisRepo(t)
+	first := newVideoAnalysisTask("media-1", model.VideoAnalysisStatusSucceeded)
+	first.CreatedAt = time.Now().Add(-time.Hour)
+	if err := repo.CreateIfNoActive(first); err != nil {
+		t.Fatal(err)
+	}
+	second := newVideoAnalysisTask("media-1", model.VideoAnalysisStatusRunning)
+	second.CreatedAt = time.Now()
+	if err := repo.CreateIfNoActive(second); err != nil {
+		t.Fatal(err)
+	}
+	other := newVideoAnalysisTask("media-2", model.VideoAnalysisStatusFailed)
+	if err := repo.CreateIfNoActive(other); err != nil {
+		t.Fatal(err)
+	}
+
+	// 分组：每个媒体仅返回最新一条，按时间倒序
+	tasks, total, err := repo.List(1, 10, "", "", "", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 || len(tasks) != 2 {
+		t.Fatalf("grouped list = %d tasks (total %d), want 2", len(tasks), total)
+	}
+	if tasks[0].MediaID != "media-2" {
+		t.Fatalf("first group = %q, want latest media media-2", tasks[0].MediaID)
+	}
+	if tasks[1].ID != second.ID {
+		t.Fatalf("media-1 group head = %q, want latest %q", tasks[1].ID, second.ID)
+	}
+
+	// 组头状态过滤：running 的 media-1 命中，succeeded 的历史不参与
+	tasks, total, err = repo.List(1, 10, model.VideoAnalysisStatusRunning, "", "", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 1 || len(tasks) != 1 || tasks[0].MediaID != "media-1" {
+		t.Fatalf("status-filtered groups = %d tasks (total %d), want only media-1", len(tasks), total)
+	}
+
+	// media_id 过滤：返回该媒体全部历史（含旧记录）
+	tasks, total, err = repo.List(1, 10, "", "", "", "media-1", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 || len(tasks) != 2 {
+		t.Fatalf("media history = %d tasks (total %d), want 2", len(tasks), total)
+	}
+	if tasks[0].ID != second.ID || tasks[1].ID != first.ID {
+		t.Fatalf("media history order = %q, %q; want newest first", tasks[0].ID, tasks[1].ID)
+	}
+}
+
+func TestVideoAnalysisRepoAssignMediaSeq(t *testing.T) {
+	repo := setupVideoAnalysisRepo(t)
+	first := newVideoAnalysisTask("media-1", model.VideoAnalysisStatusFailed)
+	first.CreatedAt = time.Now().Add(-2 * time.Hour)
+	if err := repo.CreateIfNoActive(first); err != nil {
+		t.Fatal(err)
+	}
+	second := newVideoAnalysisTask("media-1", model.VideoAnalysisStatusPartial)
+	second.CreatedAt = time.Now().Add(-time.Hour)
+	if err := repo.CreateIfNoActive(second); err != nil {
+		t.Fatal(err)
+	}
+	third := newVideoAnalysisTask("media-1", model.VideoAnalysisStatusRunning)
+	third.CreatedAt = time.Now()
+	if err := repo.CreateIfNoActive(third); err != nil {
+		t.Fatal(err)
+	}
+	other := newVideoAnalysisTask("media-2", model.VideoAnalysisStatusSucceeded)
+	if err := repo.CreateIfNoActive(other); err != nil {
+		t.Fatal(err)
+	}
+
+	// 分组列表：组头为每个媒体最新一条，seq = 该媒体第几次执行
+	tasks, _, err := repo.List(1, 10, "", "", "", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks) != 2 {
+		t.Fatalf("grouped list = %d tasks, want 2", len(tasks))
+	}
+	if tasks[0].MediaID != "media-2" || tasks[0].Seq != 1 {
+		t.Fatalf("media-2 seq = %d, want 1", tasks[0].Seq)
+	}
+	if tasks[1].ID != third.ID || tasks[1].Seq != 3 {
+		t.Fatalf("media-1 latest seq = %d, want 3", tasks[1].Seq)
+	}
+
+	// 媒体历史：按创建时间升序编号（最新一次最大）
+	tasks, _, err = repo.List(1, 10, "", "", "", "media-1", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks) != 3 {
+		t.Fatalf("media history = %d tasks, want 3", len(tasks))
+	}
+	if tasks[0].Seq != 3 || tasks[1].Seq != 2 || tasks[2].Seq != 1 {
+		t.Fatalf("media history seqs = %d, %d, %d; want 3, 2, 1", tasks[0].Seq, tasks[1].Seq, tasks[2].Seq)
+	}
+
+	// 单任务查询
+	got, err := repo.FindByID(second.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := []model.VideoAnalysisTask{*got}
+	repo.AssignMediaSeq(batch)
+	*got = batch[0]
+	if got.Seq != 2 {
+		t.Fatalf("AssignMediaSeq seq = %d, want 2", got.Seq)
 	}
 }

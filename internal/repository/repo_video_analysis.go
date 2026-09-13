@@ -64,6 +64,49 @@ func (r *VideoAnalysisTaskRepo) FindByID(id string) (*model.VideoAnalysisTask, e
 	return &task, err
 }
 
+// AssignMediaSeq 为任务批量填充媒体级执行序号（按媒体内创建时间升序，最新一次序号最大）。
+// 序号在查询侧计算、不落库；查询失败时尽力而为（seq 保持 0）。
+func (r *VideoAnalysisTaskRepo) AssignMediaSeq(tasks []model.VideoAnalysisTask) {
+	if len(tasks) == 0 {
+		return
+	}
+	mediaIDs := make([]string, 0, len(tasks))
+	seen := make(map[string]struct{}, len(tasks))
+	for _, task := range tasks {
+		if task.MediaID == "" {
+			continue
+		}
+		if _, ok := seen[task.MediaID]; ok {
+			continue
+		}
+		seen[task.MediaID] = struct{}{}
+		mediaIDs = append(mediaIDs, task.MediaID)
+	}
+	if len(mediaIDs) == 0 {
+		return
+	}
+	var rows []struct {
+		ID  string
+		Seq int
+	}
+	err := r.db.Table("video_analysis_tasks").
+		Select("id, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY created_at ASC, id ASC) AS seq").
+		Where("media_id IN ?", mediaIDs).
+		Scan(&rows).Error
+	if err != nil {
+		return
+	}
+	seqByID := make(map[string]int, len(rows))
+	for _, row := range rows {
+		seqByID[row.ID] = row.Seq
+	}
+	for i := range tasks {
+		if seq, ok := seqByID[tasks[i].ID]; ok {
+			tasks[i].Seq = seq
+		}
+	}
+}
+
 func (r *VideoAnalysisTaskRepo) FindActiveByMediaID(mediaID string) (*model.VideoAnalysisTask, error) {
 	var task model.VideoAnalysisTask
 	err := r.db.Where("media_id = ? AND status IN ?", mediaID, model.VideoAnalysisActiveStatuses).
@@ -125,7 +168,10 @@ func (r *VideoAnalysisTaskRepo) RequeueFailed(task *model.VideoAnalysisTask) err
 	return nil
 }
 
-func (r *VideoAnalysisTaskRepo) List(page, pageSize int, status, libraryID, keyword string) ([]model.VideoAnalysisTask, int64, error) {
+// List 查询任务列表。
+// mediaID 非空时仅返回该媒体的任务历史；groupByMedia=true 时按媒体去重，
+// 仅返回每个媒体最新一条（组头），total 为过滤后的媒体组数。
+func (r *VideoAnalysisTaskRepo) List(page, pageSize int, status, libraryID, keyword, mediaID string, groupByMedia bool) ([]model.VideoAnalysisTask, int64, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -137,22 +183,40 @@ func (r *VideoAnalysisTaskRepo) List(page, pageSize int, status, libraryID, keyw
 	}
 
 	query := r.db.Model(&model.VideoAnalysisTask{})
+	if groupByMedia {
+		// 每个媒体仅保留最新一条：JOIN 子查询取各媒体 created_at 最新的任务。
+		latest := r.db.Model(&model.VideoAnalysisTask{}).
+			Select("media_id, MAX(created_at) AS max_created").
+			Group("media_id")
+		query = query.Joins("JOIN (?) v ON video_analysis_tasks.media_id = v.media_id AND video_analysis_tasks.created_at = v.max_created", latest)
+	}
+	if mediaID != "" {
+		query = query.Where("video_analysis_tasks.media_id = ?", mediaID)
+	}
 	if status != "" {
-		query = query.Where("status = ?", status)
+		query = query.Where("video_analysis_tasks.status = ?", status)
 	}
 	if libraryID != "" {
-		query = query.Where("library_id = ?", libraryID)
+		query = query.Where("video_analysis_tasks.library_id = ?", libraryID)
 	}
 	if keyword != "" {
-		query = query.Where("LOWER(media_title) LIKE ?", "%"+strings.ToLower(keyword)+"%")
+		query = query.Where("LOWER(video_analysis_tasks.media_title) LIKE ?", "%"+strings.ToLower(keyword)+"%")
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
+	if groupByMedia {
+		// Count 之后限定列（避免 GORM 把 "video_analysis_tasks.*" 引号化为单个列名）
+		query = query.Select("video_analysis_tasks.*")
+	}
 	var tasks []model.VideoAnalysisTask
-	err := query.Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&tasks).Error
-	return tasks, total, err
+	err := query.Order("video_analysis_tasks.created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&tasks).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	r.AssignMediaSeq(tasks)
+	return tasks, total, nil
 }
 
 func (r *VideoAnalysisTaskRepo) CountByStatus() (map[string]int64, error) {

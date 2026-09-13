@@ -56,7 +56,7 @@ func TestFileManagerDeleteCleansVideoAnalysisTasks(t *testing.T) {
 	}
 
 	// 验证视频分析任务已被清理
-	tasks, total, err := repos.VideoAnalysis.List(1, 100, "", "", "")
+	tasks, total, err := repos.VideoAnalysis.List(1, 100, "", "", "", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestFileManagerDeleteWithoutVideoAnalysisRepo(t *testing.T) {
 	}
 
 	// 视频分析任务仍然存在（因为没有注入清理逻辑）
-	tasks, total, err := repos.VideoAnalysis.List(1, 100, "", "", "")
+	tasks, total, err := repos.VideoAnalysis.List(1, 100, "", "", "", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}

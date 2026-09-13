@@ -133,7 +133,8 @@ func (h *VideoAnalysisHandler) ListTasks(c *gin.Context) {
 	if pageSize > 100 {
 		pageSize = 100
 	}
-	tasks, total, err := h.service.ListTasks(page, pageSize, c.Query("status"), c.Query("library_id"), c.Query("keyword"))
+	groupByMedia := c.Query("group_by_media") == "true"
+	tasks, total, err := h.service.ListTasks(page, pageSize, c.Query("status"), c.Query("library_id"), c.Query("keyword"), c.Query("media_id"), groupByMedia)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询任务列表失败"})
 		return

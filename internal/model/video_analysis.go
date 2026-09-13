@@ -78,6 +78,10 @@ type VideoAnalysisTask struct {
 	StructureStatus string `json:"structure_status" gorm:"type:text;default:''"`
 	DescribeStatus  string `json:"describe_status" gorm:"type:text;default:''"`
 
+	// Seq 该任务在媒体全部执行历史中的序号（按创建时间升序，最新一次最大），
+	// 由查询侧计算，不落库。
+	Seq int `json:"seq" gorm:"-"`
+
 	// stageStartedAt/stageStartedStage 当前计时阶段的起点（非持久化，进程重启后丢失，
 	// 阶段耗时按尽力而为记录）。
 	stageStartedAt    time.Time
