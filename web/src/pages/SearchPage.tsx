@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { mediaApi, aiApi } from '@/api'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { mediaApi, aiApi, videoAnalysisApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import type { Media, SearchIntent } from '@/types'
+import type { SceneSearchResult } from '@/types/videoAnalysis'
+import { formatVideoAnalysisSeconds } from '@/components/video-analysis/videoAnalysisResultUtils'
+import { Skeleton } from '@/components/ui/skeleton'
 import MediaGrid from '@/components/MediaGrid'
 import Pagination from '@/components/Pagination'
 import {
@@ -15,6 +18,7 @@ import {
   Calendar,
   Star,
   Sparkles,
+  Layers,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useTranslation } from '@/i18n'
@@ -47,6 +51,14 @@ export default function SearchPage() {
   const [searched, setSearched] = useState(false)
   const toast = useToast()
   const { t } = useTranslation()
+
+  // 搜索模式：媒体（标题/筛选）/ 场景（向量检索，图片路）
+  const [searchMode, setSearchMode] = useState<'media' | 'scene'>('media')
+  const [sceneResults, setSceneResults] = useState<SceneSearchResult[]>([])
+  const [sceneLoading, setSceneLoading] = useState(false)
+  const [sceneFailed, setSceneFailed] = useState(false)
+  const [sceneSearched, setSceneSearched] = useState(false)
+  const [sceneLimit, setSceneLimit] = useState(30)
 
   // 从 URL 参数读取分页状态
   const page = parseInt(searchParams.get('page') || '1', 10) || 1
@@ -139,74 +151,111 @@ export default function SearchPage() {
     }
   }, [filterType, sortBy, yearRange, minRating, size])
 
-  // 防抖搜索
+  // 输入清空时清空结果
   useEffect(() => {
     if (!query.trim()) {
       setResults([])
       setTotal(0)
       setSearched(false)
-      return
     }
+  }, [query])
 
-    const timer = setTimeout(() => {
-      setPage(1)
-      // 同步搜索关键词到 URL
-      const params = new URLSearchParams(searchParams)
-      params.set('q', query.trim())
-      params.delete('page')
-      setSearchParams(params, { replace: true })
-      // 先尝试 AI 智能搜索
-      if (query.trim().length > 4) {
-        aiAbortRef.current?.abort()
-        const controller = new AbortController()
-        aiAbortRef.current = controller
-        setAiLoading(true)
-        aiApi.smartSearch(query.trim())
-          .then((res) => {
-            if (!controller.signal.aborted) {
-              const intent = res.data.data
-              if (intent.parsed) {
-                setAiParsed(intent)
-                doSearch(query, 1, intent)
-              } else {
-                setAiParsed(null)
-                doSearch(query, 1)
-              }
-            }
-          })
-          .catch(() => {
-            if (!controller.signal.aborted) {
+  // 媒体搜索：点击按钮/回车触发（含 AI 智能搜索：先解析意图再检索）
+  const runMediaSearch = useCallback(() => {
+    const q = query.trim()
+    if (!q) return
+    setSearched(true)
+    const params = new URLSearchParams(searchParams)
+    params.set('q', q)
+    params.delete('page')
+    setSearchParams(params, { replace: true })
+
+    if (q.length > 4) {
+      aiAbortRef.current?.abort()
+      const controller = new AbortController()
+      aiAbortRef.current = controller
+      setAiLoading(true)
+      aiApi.smartSearch(q)
+        .then((res) => {
+          if (!controller.signal.aborted) {
+            const intent = res.data.data
+            if (intent.parsed) {
+              setAiParsed(intent)
+              doSearch(q, 1, intent)
+            } else {
               setAiParsed(null)
-              doSearch(query, 1)
+              doSearch(q, 1)
             }
-          })
-          .finally(() => {
-            if (!controller.signal.aborted) {
-              setAiLoading(false)
-            }
-          })
-      } else {
-        setAiParsed(null)
-        doSearch(query, 1)
-      }
-    }, 400)
+          }
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setAiParsed(null)
+            doSearch(q, 1)
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setAiLoading(false)
+        })
+    } else {
+      setAiParsed(null)
+      doSearch(q, 1)
+    }
+  }, [query, searchParams, setSearchParams, doSearch])
 
-    return () => clearTimeout(timer)
-  }, [query, doSearch])
+  // 首次挂载：URL 带 q 时自动搜一次（保持链接可分享）
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q) {
+      setSearched(true)
+      doSearch(q, 1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
 // 翻页时搜索
   useEffect(() => {
-    if (page > 1 && query.trim()) {
+    if (searchMode === 'media' && page > 1 && query.trim()) {
       doSearch(query, page)
     }
   }, [page, query, doSearch])
 
 // 筛选/排序/每页数量变化时重新搜索（回到第 1 页）
   useEffect(() => {
-    if (query.trim() && searched) {
+    if (searchMode === 'media' && query.trim() && searched) {
       doSearch(query, 1)
     }
   }, [filterType, sortBy, yearRange, minRating, size])
+
+  // 场景搜索：点击按钮/回车触发（每次 query 都要跑一次 SigLIP2 文本编码，
+  // 不随输入自动搜，避免无效推理带来的 CPU 压力）
+  const runSceneSearch = useCallback((limitOverride?: number) => {
+    const q = query.trim()
+    if (!q) return
+    const limit = limitOverride ?? sceneLimit
+    setSceneLoading(true)
+    setSceneFailed(false)
+    setSceneSearched(true)
+    const params = new URLSearchParams(searchParams)
+    params.set('q', q)
+    setSearchParams(params, { replace: true })
+    videoAnalysisApi.searchScenes(q, 'image', limit)
+      .then((res) => {
+        setSceneResults(res.data.data || [])
+        setSceneFailed(false)
+      })
+      .catch(() => setSceneFailed(true))
+      .finally(() => setSceneLoading(false))
+  }, [query, searchParams, setSearchParams, sceneLimit])
+
+  // 输入清空或切出场景模式时清空结果
+  useEffect(() => {
+    if (searchMode !== 'scene' || !query.trim()) {
+      setSceneResults([])
+      setSceneFailed(false)
+      setSceneSearched(false)
+    }
+  }, [searchMode, query])
 
   const totalPages = Math.ceil(total / size)
   const hasActiveFilters = filterType !== '' || sortBy !== 'relevance' || yearRange.min > 0 || yearRange.max > 0 || minRating > 0
@@ -220,6 +269,32 @@ export default function SearchPage() {
 
   return (
     <div>
+      {/* 搜索模式切换：媒体 / 场景 */}
+      <div className="mb-3 flex items-center gap-2">
+        {[
+          { value: 'media', label: t('search.tabMedia') },
+          { value: 'scene', label: t('search.tabScene') },
+        ].map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => {
+              setSearchMode(tab.value as 'media' | 'scene')
+              // 切到场景模式且已有输入时自动搜一次（单次显式动作）
+              if (tab.value === 'scene' && query.trim()) runSceneSearch()
+            }}
+            className={clsx(
+              'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+              searchMode === tab.value
+                ? 'bg-neon-blue/15 text-neon border border-neon-blue/30'
+                : 'text-surface-400 hover:text-surface-300'
+            )}
+            style={searchMode !== tab.value ? { border: '1px solid var(--border-default)' } : {}}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
 {/* 搜索栏 - 霓虹风格 */}
       <div className="relative mb-4">
         <SearchIcon
@@ -230,8 +305,11 @@ export default function SearchPage() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (searchMode === 'scene' ? runSceneSearch() : runMediaSearch())
+          }}
           className="input pl-12 pr-24 py-3.5 text-base"
-placeholder={t('search.searchPlaceholder')}
+          placeholder={searchMode === 'scene' ? t('search.sceneInputPlaceholder') : t('search.searchPlaceholder')}
           autoFocus
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -253,12 +331,21 @@ placeholder={t('search.searchPlaceholder')}
           >
             <SlidersHorizontal size={16} />
           </button>
+          <button
+            onClick={() => (searchMode === 'scene' ? runSceneSearch() : runMediaSearch())}
+            className="rounded-lg p-1.5 text-surface-500 transition-colors hover:text-neon"
+            title={t('search.searchButton')}
+          >
+            <SearchIcon size={16} />
+          </button>
         </div>
       </div>
 
-      {/* 筛选栏 */}
+      {/* 筛选/配置栏（媒体：类型/年份/评分/排序；场景：相似场景数） */}
       {showFilters && (
         <div className="animate-slide-up mb-6 glass-panel rounded-xl p-4 space-y-4">
+          {searchMode === 'media' ? (
+            <>
 {/* 类型筛选 */}
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -360,11 +447,38 @@ placeholder={t('search.searchPlaceholder')}
               ✕ {t('search.clearFilters')}
             </button>
           )}
+            </>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                <Layers size={12} /> {t('search.sceneCountLabel')}:
+              </span>
+              {[30, 50, 80, 100].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => {
+                    setSceneLimit(n)
+                    // 已有结果时立即用新 K 重查；否则下次搜索生效
+                    if (sceneSearched) runSceneSearch(n)
+                  }}
+                  className={clsx(
+                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                    sceneLimit === n
+                      ? 'bg-neon-blue/15 text-neon border border-neon-blue/30'
+                      : 'text-surface-400 hover:text-surface-300'
+                  )}
+                  style={sceneLimit !== n ? { border: '1px solid var(--border-default)' } : {}}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* 搜索结果摘要 */}
-      {searched && (
+      {/* 搜索结果摘要（媒体） */}
+      {searched && searchMode === 'media' && (
         <div className="mb-4 flex items-center gap-3 text-sm text-surface-400">
           <span>
             {t('search.found')} <span className="font-semibold text-neon">{total}</span> {t('search.results2')}
@@ -391,7 +505,9 @@ placeholder={t('search.searchPlaceholder')}
         </div>
       )}
 
-      <MediaGrid items={results} loading={loading} />
+      {searchMode === 'media' ? (
+        <>
+          <MediaGrid items={results} loading={loading} />
 
       {/* 空状态 */}
       {searched && !loading && results.length === 0 && (
@@ -420,15 +536,120 @@ placeholder={t('search.searchPlaceholder')}
         </div>
       )}
 
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        total={total}
-        pageSize={size}
-        pageSizeOptions={[20, 30, 50, 100]}
-        onPageChange={setPage}
-        onPageSizeChange={setSize}
-      />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={size}
+            pageSizeOptions={[20, 30, 50, 100]}
+            onPageChange={setPage}
+            onPageSizeChange={setSize}
+          />
+        </>
+      ) : (
+        <>
+          {sceneLoading && (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-video rounded-xl" />
+              ))}
+            </div>
+          )}
+          {!sceneLoading && sceneFailed && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <p className="text-sm text-amber-400">{t('search.sceneSearchFailed')}</p>
+              <p className="mt-1 text-sm text-surface-600">{t('search.sceneUnavailable')}</p>
+            </div>
+          )}
+          {!sceneLoading && !sceneFailed && sceneResults.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {sceneResults.map((r) => (
+                <SceneSearchCard key={r.id} result={r} />
+              ))}
+            </div>
+          )}
+          {!sceneLoading && !sceneFailed && sceneSearched && sceneResults.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div
+                className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl"
+                style={{
+                  background: 'var(--neon-blue-5)',
+                  border: '1px solid var(--neon-blue-8)',
+                }}
+              >
+                <Film size={36} className="text-surface-600" />
+              </div>
+              <p className="font-display text-base font-semibold tracking-wide text-surface-300">{t('search.sceneNoMatch')}</p>
+              <p className="mt-1 text-sm text-surface-600">{t('search.sceneNoMatchHint')}</p>
+            </div>
+          )}
+        </>
+      )}
     </div>
+  )
+}
+
+// SceneSearchCard 场景检索结果卡片：拉取场景帧图（带鉴权 blob），点击跳转到对应时间点播放
+function SceneSearchCard({ result }: { result: SceneSearchResult }) {
+  const navigate = useNavigate()
+  const [url, setUrl] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let objectUrl: string | null = null
+    let cancelled = false
+    videoAnalysisApi
+      .getSceneGridBlob(result.media_id, result.scene_index, result.video_analysis_task_id)
+      .then((res) => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(res.data)
+        setUrl(objectUrl)
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true)
+      })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [result.media_id, result.scene_index, result.video_analysis_task_id])
+
+  return (
+    <button
+      onClick={() => navigate(`/play/${result.media_id}?start=${Math.floor(result.start_time)}`)}
+      title={result.description}
+      className="group text-left"
+    >
+      <div
+        className="relative aspect-video overflow-hidden rounded-xl border"
+        style={{ borderColor: 'var(--border-default)' }}
+      >
+        {url ? (
+          <img
+            src={url}
+            alt={result.description}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            {failed ? (
+              <span className="text-xs text-surface-600">加载失败</span>
+            ) : (
+              <Skeleton className="h-full w-full rounded-none" />
+            )}
+          </div>
+        )}
+      </div>
+      <div className="mt-2 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium text-surface-200 transition-colors group-hover:text-neon">
+            {result.media_title || '未命名媒体'}
+          </span>
+          <span className="shrink-0 text-[10px] text-surface-500">
+            {formatVideoAnalysisSeconds(result.start_time)} - {formatVideoAnalysisSeconds(result.end_time)}
+          </span>
+        </div>
+      </div>
+    </button>
   )
 }

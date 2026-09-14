@@ -172,3 +172,17 @@ export interface VideoAnalysisResult {
   finished_at: string | null
   scenes: VideoAnalysisSceneResult[]
 }
+// SceneSearchResult 场景向量检索结果（文搜图，mode=image）
+export interface SceneSearchResult {
+  id: string
+  video_analysis_task_id: string
+  scene_index: number
+  start_time: number
+  end_time: number
+  image_path: string
+  description: string
+  /** 余弦距离（0 = 完全一致），相似度 = 1 - distance */
+  distance: number
+  media_id: string
+  media_title: string
+}

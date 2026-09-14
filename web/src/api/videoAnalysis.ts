@@ -9,6 +9,7 @@ import type {
   VideoAnalysisTask,
   VideoAnalysisTaskPage,
   VideoAnalysisWorkflow,
+  SceneSearchResult,
 } from '@/types/videoAnalysis'
 
 export const videoAnalysisApi = {
@@ -58,6 +59,12 @@ export const videoAnalysisApi = {
     api.get<Blob>(`/media/${mediaId}/video-analysis/scenes/${sceneIndex}/grid`, {
       params: taskId ? { task_id: taskId } : undefined,
       responseType: 'blob',
+    }),
+
+  /** 场景向量检索：文本 → SigLIP2 文本向量 → 检索场景图片 embedding 列（mode=image） */
+  searchScenes: (q: string, mode: 'image' | 'text' = 'image', limit = 30) =>
+    api.get<{ data: SceneSearchResult[] }>('/video-analysis/scenes/search', {
+      params: { q, mode, limit },
     }),
     // Workflow
   getWorkflow: (taskId: string) =>
