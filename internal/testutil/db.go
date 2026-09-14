@@ -1,11 +1,12 @@
 // Package testutil 提供测试基础设施工具函数。
-// NewTestDB() 连接 PostgreSQL 测试数据库，通过 DROP/CREATE 重建 schema 确保隔离性。
-// 使用说明：多包测试时需用 `go test -p 1` 避免并发冲突。
+// NewTestDB() 连接 PostgreSQL 测试数据库：每个测试包使用独立 schema（按测试二进制名派生），
+// 包间互不干扰，`go test` 默认并行跑包也不会互相销毁 schema，无需 -p 1。
 package testutil
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +17,9 @@ import (
 )
 
 var mu sync.Mutex
+
+// initializedSchemas 本进程内已初始化（重建 + AutoMigrate）的包级 schema
+var initializedSchemas sync.Map
 
 func getTestDSN() string {
 	if dsn := os.Getenv("NOWEN_TEST_DATABASE_DSN"); dsn != "" {
@@ -141,8 +145,9 @@ func dsnConfig() (host, port, user, password, dbname, sslmode string) {
 }
 
 // NewTestDB 创建一个 PostgreSQL 测试数据库连接并执行 AutoMigrate。
-// 每次调用重建 public schema（DROP + CREATE），确保测试隔离性。
-// 注意：多包测试时请用 `go test -p 1` 避免并发 schema 冲突。
+// 每个测试二进制（包）使用独立的 schema（按测试二进制名派生），包间互不干扰，
+// `go test` 默认并行跑包也不会互相销毁，无需 -p 1。
+// 本进程内每个 schema 只重建 + AutoMigrate 一次，后续调用仅 TRUNCATE 清表（快）。
 func NewTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -152,42 +157,45 @@ func NewTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("❌ 安全拦截：测试数据库名 %q 不包含 \"test\"，拒绝 DROP SCHEMA 操作", dbname)
 	}
 
-	if err := ensureTestDB(); err != nil {
+	mu.Lock()
+	err := ensureTestDB()
+	mu.Unlock()
+	if err != nil {
 		t.Fatalf("无法初始化测试数据库: %v", err)
 	}
 
-	mu.Lock()
-	t.Cleanup(func() { mu.Unlock() })
-
-	db, err := gorm.Open(postgres.Open(getTestDSN()), &gorm.Config{})
+	// 每个测试包独立 schema（按测试二进制名派生），包间互不干扰；
+	// search_path 指向包 schema（连接池级参数，所有连接生效），表落在本包 schema
+	schema := testSchemaName(t)
+	dsn := getTestDSN() + fmt.Sprintf(" search_path=%s,public", schema)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("连接测试数据库失败: %v", err)
 	}
 
-	// 重建 schema 确保隔离性。
-	// 必须先显式删除 pgvector 扩展（此时其所在 schema 仍存在，可干净删除），
-	// 再删 schema；若直接 DROP SCHEMA 连带删除扩展，可能留下悬空目录项（孤儿状态），
-	// 使后续 CREATE EXTENSION IF NOT EXISTS 静默跳过、vector 类型不可用。
-	if err := db.Exec("DROP EXTENSION IF EXISTS vector CASCADE").Error; err != nil {
-		t.Fatalf("删除 pgvector 扩展失败: %v", err)
-	}
-	if err := db.Exec("DROP SCHEMA IF EXISTS public CASCADE").Error; err != nil {
-		t.Fatalf("删除 public schema 失败: %v", err)
-	}
-	if err := db.Exec("CREATE SCHEMA public").Error; err != nil {
-		t.Fatalf("创建 public schema 失败: %v", err)
-	}
-	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS vector").Error; err != nil {
+	// pgvector 扩展整库安装一次（public schema，永不被包级 DROP 触及，避免孤儿状态）
+	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS vector SCHEMA public").Error; err != nil {
 		t.Fatalf("安装 pgvector 扩展失败: %v", err)
 	}
-	// 验证 vector 类型真正可用（防止 IF NOT EXISTS 静默跳过 / 孤儿状态残留）
+	// 验证 vector 类型真正可用
 	var vecType string
 	if err := db.Raw("SELECT to_regtype('vector')::text").Scan(&vecType).Error; err != nil || vecType == "" {
 		t.Fatalf("pgvector 未就绪：vector 类型不可用（服务器可能未安装 pgvector 或扩展状态损坏）")
 	}
 
-	if err := model.AutoMigrate(db); err != nil {
-		t.Fatalf("测试数据库迁移失败: %v", err)
+	// 本进程内每个 schema 只重建 + AutoMigrate 一次；后续仅 TRUNCATE 清表（快）
+	if _, loaded := initializedSchemas.LoadOrStore(schema, struct{}{}); !loaded {
+		if err := db.Exec(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schema)).Error; err != nil {
+			t.Fatalf("重置 schema %s 失败: %v", schema, err)
+		}
+		if err := db.Exec(fmt.Sprintf("CREATE SCHEMA %s", schema)).Error; err != nil {
+			t.Fatalf("创建 schema %s 失败: %v", schema, err)
+		}
+		if err := model.AutoMigrate(db); err != nil {
+			t.Fatalf("测试数据库迁移失败: %v", err)
+		}
+	} else if err := truncateTables(db, schema); err != nil {
+		t.Fatalf("清空表失败: %v", err)
 	}
 
 	// 关闭外键检查（session 级别，连接关闭后自动恢复）
@@ -195,4 +203,36 @@ func NewTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("关闭外键检查失败: %v", err)
 	}
 	return db
+}
+
+// truncateTables 清空 schema 下所有表（保留表结构，比 DROP/CREATE + AutoMigrate 快）
+func truncateTables(db *gorm.DB, schema string) error {
+	var tables []string
+	if err := db.Raw(`SELECT tablename FROM pg_tables WHERE schemaname = ?`, schema).Scan(&tables).Error; err != nil {
+		return err
+	}
+	if len(tables) == 0 {
+		return nil
+	}
+	names := make([]string, len(tables))
+	for i, tb := range tables {
+		names[i] = fmt.Sprintf("%q.%q", schema, tb)
+	}
+	return db.Exec(fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE", strings.Join(names, ", "))).Error
+}
+
+// testSchemaName 按测试二进制名生成包级 schema 名（每个测试包独立，包间可安全并行）
+func testSchemaName(t *testing.T) string {
+	base := filepath.Base(os.Args[0])
+	name := strings.TrimSuffix(base, ".test")
+	name = strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		return '_'
+	}, name)
+	if name == "" {
+		return "test_default"
+	}
+	return "t_" + name
 }
