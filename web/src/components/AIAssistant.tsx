@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   MessageSquare,
   Send,
@@ -36,37 +39,66 @@ interface AIAssistantProps {
   onToggle: () => void
 }
 
-/** AI助手触发按钮（嵌入到工具栏中） */
+/** AI助手触发按钮（右下角悬浮 FAB，portal 挂到 body 避免被工具栏的 backdrop-filter 捕获 fixed 定位） */
 export function AIAssistantButton({ isOpen, onToggle, selectedCount }: {
   isOpen: boolean
   onToggle: () => void
   selectedCount: number
 }) {
-  return (
+  return createPortal(
     <button
       onClick={onToggle}
       className={clsx(
-        'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-        isOpen
-          ? 'text-white shadow-md shadow-neon-blue/20'
-          : 'btn-ghost hover:text-neon'
+        'fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 hover:scale-105',
+        isOpen ? 'bg-surface-800 text-surface-100' : 'bg-primary text-primary-foreground'
       )}
-      style={isOpen ? {
-        background: 'var(--neon-blue)',
-      } : undefined}
       title={isOpen ? '关闭AI助手' : '打开AI助手'}
     >
-      <Bot size={16} />
-      <span>AI 助手</span>
-      {selectedCount > 0 && (
-        <span className={clsx(
-          'ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold',
-          isOpen ? 'bg-white/20' : 'bg-neon-blue/20 text-neon'
-        )}>
+      {isOpen ? <X size={22} /> : <Bot size={24} />}
+      {selectedCount > 0 && !isOpen && (
+        <span
+          className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+          style={{ background: 'var(--neon-blue)', border: '1px solid var(--bg-primary)' }}
+        >
           {selectedCount}
         </span>
       )}
-    </button>
+    </button>,
+    document.body
+  )
+}
+
+/** Markdown 渲染（react-markdown + remark-gfm：正确渲染 AI 回复中的表格/标题/列表） */
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <div className="space-y-2 text-xs leading-relaxed">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // 解构掉 node（react-markdown passNode 默认开启，会把 hast 节点对象传入组件），
+          // 避免对象值展开到 DOM 元素上触发 React 告警
+          h1: ({ node, ...p }) => <h1 className="text-sm font-bold mt-2 mb-1 first:mt-0" {...p} />,
+          h2: ({ node, ...p }) => <h2 className="text-sm font-bold mt-2 mb-1 first:mt-0" {...p} />,
+          h3: ({ node, ...p }) => <h3 className="text-xs font-bold mt-2 mb-1 first:mt-0" {...p} />,
+          p: ({ node, ...p }) => <p className="whitespace-pre-wrap" {...p} />,
+          ul: ({ node, ...p }) => <ul className="list-disc pl-4 space-y-0.5 my-1" {...p} />,
+          ol: ({ node, ...p }) => <ol className="list-decimal pl-4 space-y-0.5 my-1" {...p} />,
+          table: ({ node, ...p }) => (
+            <div className="my-1 overflow-x-auto rounded-md border" style={{ borderColor: 'var(--border-default)' }}>
+              <table className="w-full text-xs" {...p} />
+            </div>
+          ),
+          th: ({ node, ...p }) => <th className="border-b px-2 py-1 text-left font-medium bg-muted/50" {...p} />,
+          td: ({ node, ...p }) => <td className="border-b px-2 py-1" {...p} />,
+          code: ({ node, ...p }) => <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded" {...p} />,
+          a: ({ node, ...p }) => <a className="text-neon underline" target="_blank" rel="noreferrer" {...p} />,
+          blockquote: ({ node, ...p }) => <blockquote className="border-l-2 pl-2 text-muted-foreground" {...p} />,
+          hr: () => <hr className="my-2 border-border" />,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   )
 }
 
@@ -225,31 +257,6 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
     { label: '🎬 误分类检测', cmd: '分析文件库中被误标记为电影的剧集文件，提供重分类建议' },
   ]
 
-  // 渲染消息内容（支持简单Markdown）
-  const renderContent = (content: string) => {
-    // 简单的Markdown渲染
-    const lines = content.split('\n')
-    return lines.map((line, i) => {
-      if (line.startsWith('## ')) {
-        return <h3 key={i} className="text-sm font-bold mt-2 mb-1" style={{ color: 'var(--text-primary)' }}>{line.slice(3)}</h3>
-      }
-      if (line.startsWith('### ')) {
-        return <h4 key={i} className="text-xs font-bold mt-2 mb-1" style={{ color: 'var(--text-primary)' }}>{line.slice(4)}</h4>
-      }
-      if (line.startsWith('- ')) {
-        return <div key={i} className="text-xs pl-2 py-0.5" style={{ color: 'var(--text-secondary)' }}>{line}</div>
-      }
-      if (line.startsWith('| ')) {
-        return <div key={i} className="text-xs font-mono py-0.5" style={{ color: 'var(--text-secondary)' }}>{line}</div>
-      }
-      if (line.startsWith('**') && line.endsWith('**')) {
-        return <div key={i} className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{line.slice(2, -2)}</div>
-      }
-      if (line.trim() === '') return <div key={i} className="h-1" />
-      return <div key={i} className="text-xs" style={{ color: 'var(--text-secondary)' }}>{line}</div>
-    })
-  }
-
   // 渲染预览列表
   const renderPreviews = (previews: OperationPreview[], msgIndex: number) => {
     if (!previews || previews.length === 0) return null
@@ -327,56 +334,38 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
   if (!isOpen) return null
 
   return (
-    <div
-      className={clsx(
-        'flex flex-col h-full',
-        isMinimized ? 'w-72' : 'w-full',
-      )}
-    >
-      <div className="glass-panel-strong rounded-2xl shadow-lg flex flex-col overflow-hidden h-full"
-        style={{
-          border: '1px solid rgba(0, 170, 255, 0.15)',
-        }}
-      >
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full bg-card border border-border rounded-xl shadow-lg overflow-hidden">
         {/* 标题栏 */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{
-            borderColor: 'var(--border-default)',
-            background: 'var(--bg-secondary)',
-          }}
-        >
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: 'var(--neon-blue)' }}>
-              <Bot size={16} style={{ color: 'var(--text-on-neon)' }} />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Bot size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>AI 文件助手</h3>
-              <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+              <h3 className="text-sm font-bold text-foreground">AI 文件助手</h3>
+              <p className="text-[10px] text-muted-foreground">
                 {selectedMediaIds.length > 0 ? `已选 ${selectedMediaIds.length} 个文件` : '自然语言管理文件'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => { setShowHistory(!showHistory) ; if (!showHistory) loadHistory() }}
-              className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
-              style={{ color: 'var(--text-tertiary)' }} title="操作历史">
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="操作历史">
               <History size={14} />
             </button>
             <button onClick={handleNewSession}
-              className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
-              style={{ color: 'var(--text-tertiary)' }} title="新建会话">
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title="新建会话">
               <Trash2 size={14} />
             </button>
             <button onClick={() => setIsMinimized(!isMinimized)}
-              className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
-              style={{ color: 'var(--text-tertiary)' }}>
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
             </button>
             <button onClick={onToggle}
-              className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
-              style={{ color: 'var(--text-tertiary)' }}>
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               <X size={14} />
             </button>
           </div>
@@ -386,27 +375,25 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
           <>
             {/* 操作历史面板 */}
             {showHistory && (
-              <div className="border-b px-4 py-3 max-h-48 overflow-y-auto" style={{ borderColor: 'var(--border-default)', scrollbarWidth: 'thin' }}>
-                <h4 className="text-xs font-bold mb-2" style={{ color: 'var(--text-secondary)' }}>操作历史</h4>
+              <div className="max-h-48 overflow-y-auto border-b px-4 py-3" style={{ scrollbarWidth: 'thin' }}>
+                <h4 className="mb-2 text-xs font-bold text-foreground">操作历史</h4>
                 {opHistory.length === 0 ? (
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>暂无操作记录</p>
+                  <p className="text-xs text-muted-foreground">暂无操作记录</p>
                 ) : (
                   <div className="space-y-1.5">
                     {opHistory.map(op => (
-                      <div key={op.id} className="flex items-center justify-between p-2 rounded-lg text-xs"
-                        style={{ background: 'var(--bg-secondary)' }}>
+                      <div key={op.id} className="flex items-center justify-between rounded-lg bg-muted/50 p-2 text-xs">
                         <div className="flex-1 min-w-0">
-                          <span className={clsx('font-medium', op.undone ? 'line-through text-surface-500' : '')}
-                            style={{ color: op.undone ? undefined : 'var(--text-primary)' }}>
+                          <span className={clsx('font-medium', op.undone ? 'line-through text-muted-foreground' : 'text-foreground')}>
                             {op.action}
                           </span>
-                          <span className="ml-2" style={{ color: 'var(--text-tertiary)' }}>
+                          <span className="ml-2 text-muted-foreground">
                             {op.previews?.length || 0} 项
                           </span>
                         </div>
                         {!op.undone && op.previews?.length > 0 && (
                           <button onClick={() => handleUndo(op.id)}
-                            className="flex items-center gap-1 px-2 py-1 rounded text-xs text-amber-400 hover:bg-amber-400/10 transition-colors">
+                            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-amber-400 transition-colors hover:bg-amber-400/10">
                             <Undo2 size={10} /> 撤销
                           </button>
                         )}
@@ -417,25 +404,17 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
               </div>
             )}
 
-            {/* 消息列表 */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
-              style={{
-                minHeight: '200px',
-                maxHeight: '400px',
-                scrollBehavior: 'smooth',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(255,255,255,0.1) transparent',
-              }}>
+            {/* 消息列表：flex-1 填满面板，输入区钉底 */}
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3" style={{ scrollbarWidth: 'thin' }}>
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
-                    style={{ background: 'var(--neon-blue)', opacity: 0.3 }}>
-                    <Sparkles size={24} style={{ color: 'var(--text-on-neon)' }} />
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Sparkles size={24} />
                   </div>
-                  <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="mb-1 text-sm font-medium text-foreground">
                     你好！我是AI文件助手
                   </p>
-                  <p className="text-xs text-center mb-4" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="mb-4 text-center text-xs text-muted-foreground">
                     用自然语言告诉我你想做什么<br />
                     比如重命名、刮削、分类整理等
                   </p>
@@ -445,8 +424,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                       <button
                         key={i}
                         onClick={() => { setInput(cmd.cmd); setTimeout(() => inputRef.current?.focus(), 50) }}
-                        className="w-full text-left px-3 py-2 rounded-lg text-xs transition-all hover:ring-1 hover:ring-neon/20"
-                        style={{ background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}
+                        className="w-full rounded-lg bg-muted/50 px-3 py-2 text-left text-xs text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
                       >
                         {cmd.label}
                       </button>
@@ -458,22 +436,23 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                   <div key={i} className={clsx('flex gap-2', msg.role === 'user' ? 'flex-row-reverse' : '')}>
                     {/* 头像 */}
                     <div className={clsx(
-                      'w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0',
-                      msg.role === 'user' ? 'bg-neon-blue/20' : ''
-                    )}
-                      style={msg.role === 'assistant' ? { background: 'var(--neon-blue)' } : undefined}>
-                      {msg.role === 'user'
-                        ? <User size={12} className="text-neon" />
-                        : <Bot size={12} style={{ color: 'var(--text-on-neon)' }} />
-                      }
+                      'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg',
+                      msg.role === 'user' ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'
+                    )}>
+                      {msg.role === 'user' ? <User size={12} /> : <Bot size={12} />}
                     </div>
                     {/* 消息内容 */}
                     <div className={clsx(
-                      'flex-1 min-w-0 rounded-xl px-3 py-2',
-                      msg.role === 'user' ? 'bg-neon-blue/10 ml-8' : 'mr-8'
-                    )}
-                      style={msg.role === 'assistant' ? { background: 'var(--bg-secondary)' } : undefined}>
-                      {renderContent(msg.content)}
+                      'min-w-0 max-w-[85%] rounded-xl px-3 py-2',
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    )}>
+                      {msg.role === 'assistant' ? (
+                        <MarkdownContent content={msg.content} />
+                      ) : (
+                        <p className="whitespace-pre-wrap text-xs">{msg.content}</p>
+                      )}
                       {renderPreviews(msg.previews || [], i)}
                       {renderActions(msg.actions || [])}
                     </div>
@@ -482,14 +461,13 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
               )}
               {loading && (
                 <div className="flex gap-2">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--neon-blue)' }}>
-                    <Bot size={12} style={{ color: 'var(--text-on-neon)' }} />
+                  <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <Bot size={12} />
                   </div>
-                  <div className="rounded-xl px-3 py-2" style={{ background: 'var(--bg-secondary)' }}>
+                  <div className="rounded-xl bg-muted px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Loader2 size={12} className="animate-spin text-neon" />
-                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>思考中...</span>
+                      <span className="text-xs text-muted-foreground">思考中...</span>
                     </div>
                   </div>
                 </div>
@@ -498,11 +476,10 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
             </div>
 
             {/* 输入区域 */}
-            <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>
+            <div className="border-t px-4 py-3">
               {/* 选中文件提示 */}
               {selectedMediaIds.length > 0 && (
-                <div className="flex items-center gap-1.5 mb-2 px-2 py-1 rounded-lg text-[10px]"
-                  style={{ background: 'var(--bg-secondary)', color: 'var(--text-tertiary)' }}>
+                <div className="mb-2 flex items-center gap-1.5 rounded-lg bg-muted/50 px-2 py-1 text-[10px] text-muted-foreground">
                   <MessageSquare size={10} />
                   已关联 {selectedMediaIds.length} 个选中文件
                 </div>
@@ -519,30 +496,18 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                     }
                   }}
                   placeholder="输入指令，如：帮我把这些文件按电影格式重命名..."
-                  className="flex-1 resize-none rounded-xl px-3 py-2 text-xs outline-none transition-all focus:ring-1 focus:ring-neon/30"
-                  style={{
-                    background: 'var(--bg-secondary)',
-                    color: 'var(--text-primary)',
-                    minHeight: '36px',
-                    maxHeight: '80px',
-                  }}
+                  className="min-h-9 max-h-20 flex-1 resize-none rounded-xl bg-muted/50 px-3 py-2 text-xs text-foreground outline-none transition-all placeholder:text-muted-foreground focus:ring-1 focus:ring-neon/30"
                   rows={1}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || loading}
                   className={clsx(
-                    'flex items-center justify-center w-9 h-9 rounded-xl transition-all',
+                    'flex h-9 w-9 items-center justify-center rounded-xl transition-all',
                     input.trim() && !loading
-                      ? 'hover:scale-105 active:scale-95'
-                      : 'opacity-30 cursor-not-allowed'
+                      ? 'bg-primary text-primary-foreground hover:scale-105 active:scale-95'
+                      : 'bg-muted/50 text-muted-foreground opacity-50'
                   )}
-                  style={{
-                    background: input.trim() && !loading
-                      ? 'var(--neon-blue)'
-                      : 'var(--bg-secondary)',
-                    color: input.trim() && !loading ? 'var(--text-on-neon)' : 'var(--text-tertiary)',
-                  }}
                 >
                   <Send size={14} />
                 </button>
@@ -560,12 +525,11 @@ export function AIAssistantPanel({ isOpen, children }: { isOpen: boolean; childr
   return (
     <div
       className={clsx(
-        'flex-shrink-0 overflow-hidden transition-all duration-300 ease-out',
-        isOpen ? 'ml-4 w-[380px] opacity-100' : 'w-0 opacity-0'
+        'fixed bottom-24 right-6 z-50 w-[380px] transition-all duration-300 ease-out',
+        isOpen ? 'visible opacity-100 translate-y-0' : 'invisible pointer-events-none opacity-0 translate-y-4'
       )}
-      style={{ maxHeight: isOpen ? 'calc(100vh - 280px)' : 0 }}
     >
-      <div className="w-[380px] h-full">
+      <div className="h-[calc(100vh-160px)] w-full">
         {children}
       </div>
     </div>
