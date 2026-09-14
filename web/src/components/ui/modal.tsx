@@ -8,9 +8,12 @@ import clsx from 'clsx'
 // 2. pointer-events: none → Radix DismissableLayer 自动恢复
 // 3. FocusScope 焦点劫持 → 内层 Dialog 的 FocusScope 自动接管焦点
 //
-// API 与原 createPortal 版本保持一致，迁移无感。
+// 开关动画由 data-state 驱动（animate-dialog-*-in/out，keyframes 见 tailwind.config）。
+// 组件需常驻挂载并传入受控 open —— 条件渲染（{show && <Modal>}）会跳过关闭动画。
 
 interface ModalProps {
+  /** 是否打开。推荐传入受控状态；默认 true（兼容父级条件渲染的旧用法，此时无关闭动画） */
+  open?: boolean
   onClose?: () => void
   children: ReactNode
   /** 弹窗面板的 class，默认 w-full，宽度由调用方控制 */
@@ -22,6 +25,7 @@ interface ModalProps {
 }
 
 export function Modal({
+  open = true,
   onClose,
   children,
   className,
@@ -30,7 +34,7 @@ export function Modal({
 }: ModalProps) {
   return (
     <DialogPrimitive.Root
-      open
+      open={open}
       onOpenChange={(open) => {
         if (!open) onClose?.()
       }}
@@ -39,27 +43,31 @@ export function Modal({
         {/* 遮罩层 */}
         <DialogPrimitive.Overlay
           className={clsx(
-            'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm',
+            'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm data-[state=open]:animate-dialog-overlay-in data-[state=closed]:animate-dialog-overlay-out',
             overlayClassName,
           )}
         />
-        {/* 面板 */}
-        <DialogPrimitive.Content
-          className={clsx(
-            'fixed left-1/2 top-1/2 z-[100] w-full -translate-x-1/2 -translate-y-1/2 p-4',
-            className,
-          )}
-          onPointerDownOutside={(e) => {
-            // dismissible=false 时阻止点击外部关闭
-            if (!dismissible) e.preventDefault()
-          }}
-          onEscapeKeyDown={(e) => {
-            // dismissible=false 时阻止 ESC 关闭
-            if (!dismissible) e.preventDefault()
-          }}
-        >
-          {children}
-        </DialogPrimitive.Content>
+        {/* 居中容器：flex 定位替代 translate，slide-up+blur 动画无需位置补偿 */}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <DialogPrimitive.Content
+            className={clsx(
+              'w-full rounded-lg p-4',
+              // slide-up + blur（与 ui/drawer.tsx 同款，keyframes 见 tailwind.config）
+              'data-[state=open]:animate-dialog-content-in data-[state=closed]:animate-dialog-content-out',
+              className,
+            )}
+            onPointerDownOutside={(e) => {
+              // dismissible=false 时阻止点击外部关闭
+              if (!dismissible) e.preventDefault()
+            }}
+            onEscapeKeyDown={(e) => {
+              // dismissible=false 时阻止 ESC 关闭
+              if (!dismissible) e.preventDefault()
+            }}
+          >
+            {children}
+          </DialogPrimitive.Content>
+        </div>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   )
