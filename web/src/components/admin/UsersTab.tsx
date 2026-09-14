@@ -465,8 +465,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
       </div>
 
       {/* 创建用户弹窗 */}
-      {showCreateModal && (
-        <Modal onClose={() => setShowCreateModal(false)} className="max-w-md">
+      <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} className="max-w-md">
           <div className="glass-panel-strong rounded-2xl p-6 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -523,12 +522,10 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
               </button>
             </div>
           </div>
-        </Modal>
-      )}
+      </Modal>
 
       {/* 重置密码弹窗 */}
-      {resetPwdUser && (
-        <Modal onClose={() => setResetPwdUser(null)} className="max-w-sm">
+      <Modal open={!!resetPwdUser} onClose={() => setResetPwdUser(null)} className="max-w-sm">
           <div className="glass-panel-strong rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -540,7 +537,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
               </button>
             </div>
             <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>
-              为用户 <strong style={{ color: 'var(--text-primary)' }}>{resetPwdUser.username}</strong> 设置新密码
+              为用户 <strong style={{ color: 'var(--text-primary)' }}>{resetPwdUser?.username}</strong> 设置新密码
             </p>
             <input
               type="password"
@@ -573,8 +570,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
               </button>
             </div>
           </div>
-        </Modal>
-      )}
+      </Modal>
     </div>
   )
 }

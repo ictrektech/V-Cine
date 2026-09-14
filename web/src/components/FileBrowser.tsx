@@ -165,10 +165,8 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, onClose])
 
-  if (!open) return null
-
   return (
-    <Modal onClose={onClose} className="max-w-lg">
+    <Modal open={open} onClose={onClose} className="max-w-lg">
       <div
         className="rounded-2xl overflow-hidden animate-slide-up"
         style={{

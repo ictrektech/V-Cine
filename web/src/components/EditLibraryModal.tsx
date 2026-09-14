@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import FileBrowser from './FileBrowser'
 import { type StorageType, storageTypeFromPath, joinRemotePath, pathPlaceholder } from '@/lib/storageSchemes'
+import { Modal } from '@/components/ui/modal'
 
 const STORAGE_TYPE_LABELS: Record<StorageType, string> = {
   local: '本地路径',
@@ -151,7 +152,12 @@ function ToggleSwitch({
   )
 }
 
-export default function EditLibraryModal({ open, library, onClose, onUpdate }: EditLibraryModalProps) {
+export default function EditLibraryModal({ open, library: libraryProp, onClose, onUpdate }: EditLibraryModalProps) {
+  // 关闭时保留最后一次非空 library，让退出动画期间内容仍在（否则 Radix 无法播放关闭动画）
+  const [library, setLibraryShadow] = useState<Library | null>(libraryProp)
+  useEffect(() => {
+    if (libraryProp) setLibraryShadow(libraryProp)
+  }, [libraryProp])
   const [selectedType, setSelectedType] = useState<Library['type']>('movie')
   const [name, setName] = useState('')
   // 多路径模式
@@ -177,7 +183,6 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
   const [metadataSourceTooltip, setMetadataSourceTooltip] = useState(DEFAULT_METADATA_SOURCE_TOOLTIP)
   const [nsfwEnabled, setNsfwEnabled] = useState(true)
   const nameInputRef = useRef<HTMLInputElement>(null)
-  const overlayRef = useRef<HTMLDivElement>(null)
 
   // 打开时用现有数据填充表单
   useEffect(() => {
@@ -241,22 +246,6 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
     return () => { cancelled = true }
   }, [open])
 
-  // 点击遮罩关闭
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current) {
-      onClose()
-    }
-  }
-
-  // ESC关闭
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) onClose()
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [open, onClose])
-
   // 更新高级设置的辅助函数
   const updateAdvanced = <K extends keyof LibraryAdvancedSettings>(
     key: K,
@@ -301,8 +290,6 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
     }
   }
 
-  if (!open || !library) return null
-
   const browsingStorageType = browsingIndex !== null ? storageTypeFromPath(paths[browsingIndex] || '') : 'local'
   const mainStorageType = storageTypeFromPath(paths[0] || '')
 
@@ -310,13 +297,10 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
     METADATA_LANG_OPTIONS.find((l) => l.value === advanced.metadata_lang)?.label || advanced.metadata_lang
 
   return (
-    <div
-      ref={overlayRef}
-      className="modal-overlay flex items-center justify-center animate-fade-in"
-      onClick={handleOverlayClick}
-    >
+    <Modal open={open} onClose={onClose} className="max-w-xl">
+      {library && (
       <div
-        className="relative w-full max-w-xl mx-4 rounded-2xl overflow-hidden animate-slide-up"
+        className="relative -m-4 rounded-2xl overflow-hidden"
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-strong)',
@@ -971,6 +955,7 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
           </div>
         </div>
       </div>
+      )}
 
       {/* 文件浏览器（本地 / 远程目录） */}
       <FileBrowser
@@ -986,6 +971,6 @@ export default function EditLibraryModal({ open, library, onClose, onUpdate }: E
         }}
         initialPath={browsingStorageType === 'local' ? (browsingIndex !== null ? paths[browsingIndex] : '') || '/' : '/'}
       />
-    </div>
+    </Modal>
   )
 }

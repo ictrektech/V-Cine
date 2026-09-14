@@ -1039,24 +1039,27 @@ export default function FileManagerPage() {
 
       {/* ==================== 对话框 ==================== */}
 
-      {activeDialog === 'import' && (
-        <ImportFileModal
-          libraries={visibleLibraries}
+      <ImportFileModal
+        open={activeDialog === 'import'}
+        libraries={visibleLibraries}
           onClose={() => setActiveDialog('none')}
           onSuccess={refreshData}
-        />
-      )}
+      />
 
-      {activeDialog === 'edit' && editMedia && (
+      {editMedia && (
         <EditFileModal
+          key={editMedia.id}
+          open={activeDialog === 'edit'}
           media={editMedia}
           onClose={() => setActiveDialog('none')}
           onSuccess={() => { fetchFiles() }}
-        />
+      />
       )}
 
-      {activeDialog === 'detail' && detailMedia && (
+      {detailMedia && (
         <FileDetailModal
+          key={detailMedia.id}
+          open={activeDialog === 'detail'}
           media={detailMedia}
           videoAnalysisDescribeEnabled={videoAnalysisDescribeEnabled}
           remoteVideoEnabled={remoteVideoEnabled}
@@ -1088,12 +1091,12 @@ export default function FileManagerPage() {
             setActiveTab('analysis')
             setActiveDialog('none')
           }}
-        />
+      />
       )}
 
-      {activeDialog === 'batchAnalyze' && (
-        <BatchAnalyzeModal
-          selectedCount={selectedIds.size}
+      <BatchAnalyzeModal
+        open={activeDialog === 'batchAnalyze'}
+        selectedCount={selectedIds.size}
           videoAnalysisEnabled={videoAnalysisEnabled}
           videoAnalysisDescribeEnabled={videoAnalysisDescribeEnabled}
           disabledReason={videoAnalysisDisabledReason}
@@ -1102,21 +1105,17 @@ export default function FileManagerPage() {
             void submitBatchAnalyze(force, includeDescriptions)
             setActiveDialog('none')
           }}
-        />
-      )}
+      />
 
-      {activeDialog === 'rename' && (
-        <RenameModal
-          selectedCount={selectedIds.size}
+      <RenameModal
+        open={activeDialog === 'rename'}
+        selectedCount={selectedIds.size}
           selectedIds={selectedIds}
           onClose={() => setActiveDialog('none')}
           onSuccess={() => { fetchFiles(); setActiveDialog('none') }}
-        />
-      )}
+      />
 
-      {activeDialog === 'logs' && (
-        <OperationLogsModal onClose={() => setActiveDialog('none')} />
-      )}
+      <OperationLogsModal open={activeDialog === 'logs'} onClose={() => setActiveDialog('none')} />
 
       {/* ==================== 文件夹操作弹窗 ==================== */}
 

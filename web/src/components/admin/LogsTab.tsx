@@ -523,8 +523,7 @@ export default function LogsTab() {
       </div>
 
       {/* ===== 清理对话框 ===== */}
-      {showCleanDialog && (
-        <Modal onClose={() => setShowCleanDialog(false)} className="max-w-md">
+      <Modal open={showCleanDialog} onClose={() => setShowCleanDialog(false)} className="max-w-md">
           <div className="glass-panel rounded-2xl p-6">
             <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
               清理旧日志
@@ -563,7 +562,6 @@ export default function LogsTab() {
             </div>
           </div>
         </Modal>
-      )}
     </div>
   )
 }

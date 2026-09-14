@@ -365,8 +365,7 @@ export default function DoubanConfigSection({ doubanConfig, setDoubanConfig }: P
       </div>
 
       {/* ===== 懒人版导入引导模态框 ===== */}
-      {importOpen && (
-        <Modal onClose={closeImport} className="max-w-2xl">
+      <Modal open={importOpen} onClose={closeImport} className="max-w-2xl">
           <div className="glass-panel rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -558,7 +557,6 @@ export default function DoubanConfigSection({ doubanConfig, setDoubanConfig }: P
             )}
           </div>
         </Modal>
-      )}
     </section>
   )
 }

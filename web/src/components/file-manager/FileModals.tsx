@@ -37,13 +37,18 @@ function guessLibraryId(path: string, libraries: Library[]): string {
   return hits[0]?.id || ''
 }
 
-export function ImportFileModal({ libraries, onClose, onSuccess }: ImportFileModalProps) {
+export function ImportFileModal({ open = true, libraries, onClose, onSuccess }: ImportFileModalProps) {
   const toast = useToast()
   const [importPath, setImportPath] = useState('')
   const [importTitle, setImportTitle] = useState('')
   const [importMediaType, setImportMediaType] = useState('movie')
   // 目标媒体库必选（library_id 为空会被 FK 外键拒绝），默认第一个库
   const [importLibraryId, setImportLibraryId] = useState(libraries[0]?.id || '')
+
+  // libraries 异步加载后补默认值（组件随页面常驻挂载，初始值可能取到空数组）
+  useEffect(() => {
+    if (open && !importLibraryId && libraries[0]?.id) setImportLibraryId(libraries[0].id)
+  }, [open, libraries, importLibraryId])
   const [importing, setImporting] = useState(false)
   const [browserOpen, setBrowserOpen] = useState(false)
 
@@ -67,8 +72,8 @@ export function ImportFileModal({ libraries, onClose, onSuccess }: ImportFileMod
   }
 
   return (
-    <Modal onClose={onClose} className="max-w-lg">
-      <div className="glass-panel-strong rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="max-w-lg">
+      <div className="glass-panel-strong rounded-2xl p-6">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <Plus className="inline-block mr-2 mb-0.5" size={20} /> 导入影视文件
         </h3>
@@ -153,7 +158,7 @@ interface EditFileModalProps {
   onSuccess: () => void
 }
 
-export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps) {
+export function EditFileModal({ open = true, media, onClose, onSuccess }: EditFileModalProps) {
   const toast = useToast()
   const [editForm, setEditForm] = useState<Record<string, unknown>>({
     title: media.title, orig_title: media.orig_title, year: media.year,
@@ -173,8 +178,8 @@ export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps)
   }
 
   return (
-    <Modal onClose={onClose} className="max-w-lg">
-      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="max-w-lg">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <Edit3 className="inline-block mr-2 mb-0.5" size={20} /> 编辑文件信息
         </h3>
@@ -233,7 +238,7 @@ interface FileDetailModalProps {
   onViewAnalysis: (task?: VideoAnalysisTask | null) => void
 }
 
-export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, remoteVideoEnabled = false, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
+export function FileDetailModal({ open = true, media, videoAnalysisDescribeEnabled = true, remoteVideoEnabled = false, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
   const toast = useToast()
   const [analysisTask, setAnalysisTask] = useState<VideoAnalysisTask | null>(null)
   const [loadingAnalysis, setLoadingAnalysis] = useState(true)
@@ -296,8 +301,8 @@ export function FileDetailModal({ media, videoAnalysisDescribeEnabled = true, re
   }
 
   return (
-    <Modal onClose={onClose} className="max-w-2xl">
-      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="max-w-2xl">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
             <Eye className="inline-block mr-2 mb-0.5" size={20} /> 文件详情
@@ -433,13 +438,13 @@ interface BatchAnalyzeModalProps {
   onConfirm: (options: { force: boolean; includeDescriptions: boolean }) => void
 }
 
-export function BatchAnalyzeModal({ selectedCount, videoAnalysisEnabled, videoAnalysisDescribeEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
+export function BatchAnalyzeModal({ open = true, selectedCount, videoAnalysisEnabled, videoAnalysisDescribeEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
   const [force, setForce] = useState(false)
   const [includeDescriptions, setIncludeDescriptions] = useState(false)
 
   return (
-    <Modal onClose={onClose} className="max-w-lg">
-      <div className="glass-panel-strong rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="max-w-lg">
+      <div className="glass-panel-strong rounded-2xl p-6">
         <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
           <ScanSearch className="inline-block mr-2 mb-0.5" size={20} /> 批量分析视频
         </h3>
@@ -521,7 +526,7 @@ interface RenameModalProps {
   onSuccess: () => void
 }
 
-export function RenameModal({ selectedCount, selectedIds, onClose, onSuccess }: RenameModalProps) {
+export function RenameModal({ open = true, selectedCount, selectedIds, onClose, onSuccess }: RenameModalProps) {
   const toast = useToast()
   const [useAIRename, setUseAIRename] = useState(false)
   const [renameTemplate, setRenameTemplate] = useState('{title} ({year}) [{resolution}]')
@@ -573,8 +578,8 @@ export function RenameModal({ selectedCount, selectedIds, onClose, onSuccess }: 
   }
 
   return (
-    <Modal onClose={onClose} className="max-w-3xl">
-      <div className="glass-panel-strong rounded-2xl p-6 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="max-w-3xl">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[85vh] flex flex-col">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <Wand2 className="inline-block mr-2 mb-0.5" size={20} /> AI批量重命名
           <span className="text-xs font-normal ml-2 px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400">
@@ -725,16 +730,17 @@ interface OperationLogsModalProps {
   onClose: () => void
 }
 
-export function OperationLogsModal({ onClose }: OperationLogsModalProps) {
+export function OperationLogsModal({ open = true, onClose }: OperationLogsModalProps) {
   const [opLogs, setOpLogs] = useState<FileOperationLog[]>([])
 
-  useState(() => {
+  useEffect(() => {
+    if (!open) return
     fileManagerApi.getOperationLogs(50).then(res => setOpLogs(res.data.data || [])).catch(() => {})
-  })
+  }, [open])
 
   return (
-    <Modal onClose={onClose} className="max-w-2xl">
-      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="max-w-2xl">
+      <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] flex flex-col">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <History className="inline-block mr-2 mb-0.5" size={20} /> 操作日志
         </h3>

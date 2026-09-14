@@ -810,8 +810,7 @@ export default function AITab() {
       </section>
 
       {/* ==================== 开启全自动托管模式提示 ==================== */}
-      {showAutoPilotWarning && (
-        <Modal onClose={cancelAutoPilotWarning} className="max-w-md">
+      <Modal open={showAutoPilotWarning} onClose={cancelAutoPilotWarning} className="max-w-md">
           <div className="glass-panel rounded-2xl p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
             <h3 className="text-lg font-semibold text-theme-primary">开启全自动托管模式</h3>
             <p className="text-sm text-theme-muted leading-relaxed">
@@ -827,11 +826,9 @@ export default function AITab() {
             </div>
           </div>
         </Modal>
-      )}
 
       {/* ==================== 新增/编辑供应商弹窗 ==================== */}
-      {showProviderDialog && (
-        <Modal onClose={() => setShowProviderDialog(false)} className="max-w-md">
+      <Modal open={showProviderDialog} onClose={() => setShowProviderDialog(false)} className="max-w-md">
           <div className="glass-panel rounded-2xl p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
             <h3 className="text-lg font-semibold text-theme-primary">
               {editingProvider ? '编辑供应商' : '新增供应商'}
@@ -974,8 +971,7 @@ export default function AITab() {
               </button>
             </div>
           </div>
-        </Modal>
-      )}
+      </Modal>
 
       {/* ==================== 数据脱敏 ==================== */}
       <section>

@@ -523,11 +523,11 @@ export default function DashboardTab({
       </section>
 
       {/* 二次确认弹窗 */}
-      {clearDialogOpen && (
-        <Modal
-          onClose={() => { setClearDialogOpen(false); setClearConfirmText('') }}
-          dismissible={!clearLoading}
-          className="max-w-md"
+      <Modal
+        open={clearDialogOpen}
+        onClose={() => { setClearDialogOpen(false); setClearConfirmText('') }}
+        dismissible={!clearLoading}
+        className="max-w-md"
         >
           <div className="rounded-2xl p-6 space-y-5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-elevated)' }}>
             <div className="flex items-center gap-3">
@@ -605,7 +605,6 @@ export default function DashboardTab({
             </div>
           </div>
         </Modal>
-      )}
     </div>
   )
 }

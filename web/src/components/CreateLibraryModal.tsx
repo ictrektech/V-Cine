@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import FileBrowser from './FileBrowser'
 import { type StorageType, REMOTE_SCHEMES, joinRemotePath, pathPlaceholder } from '@/lib/storageSchemes'
+import { Modal } from '@/components/ui/modal'
 
 
 // 内容类型配置
@@ -213,7 +214,6 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
   const [metadataSourceTooltip, setMetadataSourceTooltip] = useState(DEFAULT_METADATA_SOURCE_TOOLTIP)
   const [nsfwEnabled, setNsfwEnabled] = useState(true)
   const nameInputRef = useRef<HTMLInputElement>(null)
-  const overlayRef = useRef<HTMLDivElement>(null)
 
   // 打开时重置状态
   useEffect(() => {
@@ -265,22 +265,6 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
     return () => { cancelled = true }
   }, [open])
 
-  // 点击遮罩关闭
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current) {
-      onClose()
-    }
-  }
-
-  // ESC关闭
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) onClose()
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [open, onClose])
-
   // 更新高级设置的辅助函数
   const updateAdvanced = <K extends keyof LibraryAdvancedSettings>(
     key: K,
@@ -328,19 +312,13 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
     }
   }
 
-  if (!open) return null
-
   const selectedLangLabel =
     METADATA_LANG_OPTIONS.find((l) => l.value === advanced.metadata_lang)?.label || advanced.metadata_lang
 
   return (
-    <div
-      ref={overlayRef}
-      className="modal-overlay flex items-center justify-center animate-fade-in"
-      onClick={handleOverlayClick}
-    >
+    <Modal open={open} onClose={onClose} className="max-w-xl">
       <div
-        className="relative w-full max-w-xl mx-4 rounded-2xl overflow-hidden animate-slide-up"
+        className="relative -m-4 rounded-2xl overflow-hidden"
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-strong)',
@@ -1118,6 +1096,6 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
         }}
         initialPath={storageType === 'local' ? (browsingIndex !== null ? paths[browsingIndex] : '') || '/' : '/'}
       />
-    </div>
+    </Modal>
   )
 }
