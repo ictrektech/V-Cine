@@ -6,6 +6,9 @@ import { useTranslation } from '@/i18n'
 import { formatDuration, formatDurationShort } from '@/utils/format'
 import type { Media, MediaPlayInfo, Playlist, WatchHistory } from '@/types'
 import { routes } from '@/lib/routes'
+import { storageTypeFromPath } from '@/lib/storageSchemes'
+import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
+import OfflinePlayButton from '@/components/OfflinePlayButton'
 import {
   Play,
   Heart,
@@ -103,6 +106,11 @@ export default function HeroSection({
   }
 
   const playbackLabel = getPlaybackLabel(playInfo, t)
+  // 该媒体所在远程存储是否断连（本地媒体永远不在离线集合中）；
+  // 后端实时探测的 source_unavailable 兜底轮询竞态
+  const offlineTypes = useOfflineRemoteTypes()
+  const sourceOffline =
+    offlineTypes.has(storageTypeFromPath(media.file_path)) || !!playInfo?.source_unavailable
 
   return (
     <>
@@ -210,7 +218,10 @@ export default function HeroSection({
 
               {/* 操作按钮组 */}
               <div className="mb-4 flex flex-wrap items-center gap-3">
-                {/* 播放按钮 */}
+                {/* 播放按钮：源离线时禁用并说明 */}
+                {sourceOffline ? (
+                  <OfflinePlayButton />
+                ) : (
                 <Link
                   to={routes.player(media.id)}
                   className="group relative inline-flex items-center gap-2.5 rounded-2xl px-8 py-3.5 text-base font-bold transition-all duration-300 hover:-translate-y-0.5"
@@ -225,6 +236,7 @@ export default function HeroSection({
                     ? t('hero.continuePlayAt', { time: formatDurationShort(watchProgress.position) })
                     : t('media.play')}
                 </Link>
+                )}
 
                 {/* 预告片按钮 */}
                 {media.trailer_url && onShowTrailer && (

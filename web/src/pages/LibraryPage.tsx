@@ -5,6 +5,9 @@ import { useToast } from '@/components/Toast'
 import type { Media, Series, MixedItem } from '@/types'
 import MediaCard from '@/components/MediaCard'
 import Pagination from '@/components/Pagination'
+import RemoteOfflineBanner from '@/components/RemoteOfflineBanner'
+import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
+import { storageTypeFromPath, type StorageType } from '@/lib/storageSchemes'
 import {
   Tv,
   Film,
@@ -65,6 +68,20 @@ export default function LibraryPage() {
   const [filterGenre, setFilterGenre] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const toast = useToast()
+
+  // ===== 远程存储离线状态（管理员可见；状态未知时不标记） =====
+  const offlineTypes = useOfflineRemoteTypes()
+  // 当前库内包含的已断连远程存储类型（用于提示条）
+  const scopeOfflineTypes = useMemo(() => {
+    const types = new Set<StorageType>()
+    mixedItems.forEach((item) => {
+      const t = item.type === 'series'
+        ? (item.series ? storageTypeFromPath(item.series.folder_path) : 'local' as const)
+        : (item.media ? storageTypeFromPath(item.media.file_path) : 'local' as const)
+      if (offlineTypes.has(t)) types.add(t)
+    })
+    return types
+  }, [mixedItems, offlineTypes])
 
   const handleViewModeChange = useCallback((mode: LibraryViewMode) => {
     setViewMode(mode)
@@ -522,6 +539,9 @@ export default function LibraryPage() {
           </div>
         )}
       </div>
+
+      {/* 远程存储断连提示：一条消息解释当前库内所有「源离线」媒体 */}
+      <RemoteOfflineBanner types={scopeOfflineTypes} />
 
       {/* ===== 全部内容视图 ===== */}
       {viewTab === 'all' && (

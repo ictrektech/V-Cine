@@ -5,9 +5,13 @@ import { useToast } from '@/components/Toast'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { usePageCache, invalidatePageCachePrefix } from '@/hooks/usePageCache'
 import type { Series, MixedItem, Library } from '@/types'
+import { getLibraryPaths } from '@/types'
 import MediaCard from '@/components/MediaCard'
 import Pagination from '@/components/Pagination'
 import SegmentedTabs from '@/components/ui/segmented-tabs'
+import RemoteOfflineBanner from '@/components/RemoteOfflineBanner'
+import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
+import { storageTypeFromPath, type StorageType } from '@/lib/storageSchemes'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   pageVariants,
@@ -34,6 +38,7 @@ import {
   Clock,
   SlidersHorizontal,
   Play,
+  WifiOff,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -93,6 +98,10 @@ export default function BrowsePage() {
   // ===== 数据状态 =====
   const [libraries, setLibraries] = useState<Library[]>([])
 
+  // ===== 远程存储离线状态（管理员可见；状态未知时不标记） =====
+  const offlineTypes = useOfflineRemoteTypes()
+  const libOffline = (lib: Library) => getLibraryPaths(lib).some((p) => offlineTypes.has(storageTypeFromPath(p)))
+
   // ===== 筛选状态（全部从 URL 读取，单一数据源） =====
   const page = parseInt(searchParams.get('page') || '1', 10) || 1
   const size = parseInt(searchParams.get('size') || '30', 10) || 30
@@ -113,6 +122,19 @@ export default function BrowsePage() {
   const viewMode = (searchParams.get('view') || 'grid') as ViewMode
   const [showFilters, setShowFilters] = useState(false)
   const [showSortDropdown, setShowSortDropdown] = useState(false)
+
+  // 当前筛选范围内包含的已断连远程存储类型（用于提示条）
+  const scopeOfflineTypes = useMemo(() => {
+    const paths = selectedLibrary
+      ? getLibraryPaths(libraries.find((l) => l.id === selectedLibrary) ?? { path: '', extra_paths: undefined })
+      : libraries.flatMap(getLibraryPaths)
+    const types = new Set<StorageType>()
+    for (const p of paths) {
+      const t = storageTypeFromPath(p)
+      if (offlineTypes.has(t)) types.add(t)
+    }
+    return types
+  }, [libraries, selectedLibrary, offlineTypes])
 
   // 搜索输入框的本地状态（仅用于输入，提交时才同步到 URL）
   const [searchInput, setSearchInput] = useState(searchQuery)
@@ -430,6 +452,9 @@ export default function BrowsePage() {
         onChange={(key) => updateUrl({ type: key === '' ? null : key })}
       />
 
+      {/* 远程存储断连提示：一条消息解释当前范围内所有「源离线」媒体 */}
+      <RemoteOfflineBanner types={scopeOfflineTypes} />
+
       {/* ===== 工具栏 ===== */}
       <div className="space-y-3">
         {/* 第一行：媒体库选择 + 搜索 + 排序 + 视图 */}
@@ -458,6 +483,7 @@ export default function BrowsePage() {
                 <button
                   key={lib.id}
                   onClick={() => { updateUrl({ lib: lib.id }) }}
+                  title={libOffline(lib) ? `${lib.name}（远程存储连接不上）` : lib.name}
                   className={clsx(
                     'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                     selectedLibrary === lib.id && 'font-semibold'
@@ -472,6 +498,9 @@ export default function BrowsePage() {
                   }}
                 >
                   {lib.name}
+                  {libOffline(lib) && (
+                    <WifiOff size={11} className="ml-1 inline-block" style={{ color: 'rgb(251, 191, 36)' }} aria-label="远程存储连接不上" />
+                  )}
                 </button>
               ))}
             </div>

@@ -2,6 +2,8 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import Sidebar from './Sidebar'
 import { Menu } from 'lucide-react'
+import { useAuthStore } from '@/stores/auth'
+import { StorageStatusesProvider } from '@/hooks/useStorageStatuses'
 
 // 滚动位置保存 key 前缀
 const SCROLL_KEY_PREFIX = 'nowen_scroll_'
@@ -11,6 +13,8 @@ export default function Layout() {
   const location = useLocation()
   const mainRef = useRef<HTMLElement>(null)
   const prevPathRef = useRef(location.pathname + location.search)
+  // 远程存储状态探测接口仅管理员可用，非管理员不轮询（Provider 始终挂载）
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
 
   // 路由切换时自动关闭移动端侧边栏
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function Layout() {
     return () => mainEl.removeEventListener('scroll', handleScroll)
   }, [location.pathname, location.search])
 
-  return (
+  const body = (
     <div
       className="relative flex h-full flex-col overflow-hidden"
       style={{ backgroundColor: 'transparent' }}
@@ -106,4 +110,8 @@ export default function Layout() {
       </div>
     </div>
   )
+
+  // Provider 始终挂载（AdminPage 等管理组件依赖 useStorageStatuses），
+  // 非管理员仅跳过轮询（探测接口仅管理员可用）
+  return <StorageStatusesProvider poll={isAdmin}>{body}</StorageStatusesProvider>
 }

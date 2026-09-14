@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Play, Tv, Film, Info } from 'lucide-react'
+import { Play, Tv, Film, Info, WifiOff } from 'lucide-react'
 import { streamApi } from '@/api'
 import type { Media, Series } from '@/types'
 import { useRef, useCallback } from 'react'
@@ -7,6 +7,8 @@ import { motion, useMotionValue, useTransform, useSpring, useMotionTemplate } fr
 import { springDefault } from '@/lib/motion'
 import { routes } from '@/lib/routes'
 import { usePosterVersion } from '@/stores/mediaRefresh'
+import { storageTypeFromPath } from '@/lib/storageSchemes'
+import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
 
 interface MediaCardProps {
   media?: Media
@@ -58,6 +60,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
   }
 
   const navigate = useNavigate()
+  const offlineTypes = useOfflineRemoteTypes()
 
   // 确定链接目标和显示数据
   const isSeries = !!series || !!(media?.series_id)
@@ -99,12 +102,18 @@ export default function MediaCard({ media, series }: MediaCardProps) {
       ? !!(media!.series?.poster_path) || !!media!.poster_path
       : !!media!.poster_path
 
-  // 点击播放按钮 — 阻止冒泡，导航到播放页
+  // 该卡片对应的远程存储是否断连（本地媒体永远不在离线集合中）
+  const sourceOffline = series
+    ? offlineTypes.has(storageTypeFromPath(series.folder_path))
+    : offlineTypes.has(storageTypeFromPath(media!.file_path))
+
+  // 点击播放按钮 — 阻止冒泡，导航到播放页；源离线时不进入播放页
   const handlePlayClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    if (sourceOffline) return
     navigate(playTo)
-  }, [navigate, playTo])
+  }, [navigate, playTo, sourceOffline])
 
   return (
     <motion.div
@@ -137,7 +146,9 @@ export default function MediaCard({ media, series }: MediaCardProps) {
               <img
                 src={posterUrl}
                 alt={title}
-                className="h-full w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110"
+                className={sourceOffline
+                  ? 'h-full w-full object-cover opacity-50 grayscale transition-all duration-500'
+                  : 'h-full w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110'}
                 loading="lazy"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none'
@@ -172,7 +183,9 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                       background: 'var(--bg-overlay)',
                       boxShadow: 'none',
                     }}
-                    title={isSeries ? '查看系列' : '立即播放'}
+                    title={sourceOffline
+                      ? '远程存储连接不上，暂时无法播放'
+                      : isSeries ? '查看系列' : '立即播放'}
                   >
                     <Play size={18} className="ml-0.5 text-white" fill="white" />
                   </button>
@@ -198,6 +211,22 @@ export default function MediaCard({ media, series }: MediaCardProps) {
             {!isSeries && media!.resolution && (
               <span className="badge-neon-overlay absolute right-2 top-2 z-20" style={{ transform: 'translateZ(0)' }}>
                 {media!.resolution}
+              </span>
+            )}
+
+            {/* 源离线徽章：电影放左上（右上被分辨率标签占用），剧集放右上（左上被季集标签占用） */}
+            {sourceOffline && (
+              <span
+                className={`absolute z-20 flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium backdrop-blur-md ${isSeries ? 'right-2 top-2' : 'left-2 top-2'}`}
+                style={{
+                  background: 'rgba(0,0,0,0.65)',
+                  color: 'rgb(251, 191, 36)',
+                  border: '1px solid rgba(251, 191, 36, 0.3)',
+                  transform: 'translateZ(0)',
+                }}
+              >
+                <WifiOff size={11} />
+                源离线
               </span>
             )}
 

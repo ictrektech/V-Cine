@@ -19,6 +19,13 @@ export function joinRemotePath(storageType: StorageType, rel: string): string {
   return rel === '/' ? scheme : scheme + rel
 }
 
+export const STORAGE_TYPE_LABELS: Record<StorageType, string> = {
+  local: '本地路径',
+  webdav: 'WebDAV',
+  alist: 'Alist',
+  s3: 'S3',
+}
+
 export function pathPlaceholder(storageType: StorageType, idx: number): string {
   if (storageType === 'local') {
     return idx === 0 ? '主路径，如: /media/movies 或 D:\\Videos' : '额外路径'
