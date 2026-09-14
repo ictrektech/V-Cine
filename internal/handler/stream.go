@@ -241,9 +241,9 @@ func (h *StreamHandler) Poster(c *gin.Context) {
 		return
 	}
 
-	// 远程海报 —— 通过 VFS 读取并流式输出
+	// 远程海报 —— 通过 VFS 读取并流式输出（有界打开：远端不可达时立即回退占位图）
 	if service.IsRemotePath(posterPath) {
-		vfsFile, openErr := h.streamService.OpenMediaFile(posterPath)
+		vfsFile, openErr := h.streamService.OpenMediaFileBounded(posterPath)
 		if openErr != nil {
 			c.Header("Content-Type", "image/svg+xml")
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")

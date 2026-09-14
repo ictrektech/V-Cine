@@ -42,6 +42,7 @@ type MediaPlayInfo struct {
 	SpriteVTTURL        string  `json:"sprite_vtt_url"`         // 进度条雪碧图 WebVTT 索引地址
 	CanRemux            bool    `json:"can_remux"`              // 是否支持 remux（MKV等容器内编码兼容但容器不兼容）
 	RemuxURL            string  `json:"remux_url"`              // Remux 播放地址（零转码，仅转封装）
+	SourceUnavailable   bool    `json:"source_unavailable"`     // 远程存储不可达（挂载断连），媒体不可播放
 }
 
 // 浏览器可直接播放的文件格式
@@ -320,8 +321,21 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 	// 远程文件扩展名可能与实际容器不一致（例如 .mp4 实际是 MPEG-TS），
 	// 直接按扩展名直放会导致浏览器 DEMUXER_ERROR_COULD_NOT_OPEN。
 	// 这里对远程直放候选做一次文件头嗅探，确认是浏览器可直放的容器。
-	if canDirect && IsRemotePath(media.FilePath) && !s.looksBrowserDirectPlayableRemote(media.FilePath) {
-		canDirect = false
+	var sourceUnavailable bool
+	// 远程媒体：每次请求实时有界探测连通性（不依赖轮询/缓存，挂载断连时 2s 内失败），
+	// 再嗅探文件头确认可直放
+	if IsRemotePath(media.FilePath) {
+		f, openErr := s.OpenMediaFileBounded(media.FilePath)
+		if openErr != nil {
+			// 挂载断连：标记不可用并禁用直放
+			sourceUnavailable = true
+			canDirect = false
+		} else {
+			_ = f.Close()
+			if canDirect && !s.looksBrowserDirectPlayableRemote(media.FilePath) {
+				canDirect = false
+			}
+		}
 	}
 
 	info := &MediaPlayInfo{
@@ -334,6 +348,7 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 		CanDirectPlay: canDirect,
 		IsSTRM:        false,
 	}
+	info.SourceUnavailable = sourceUnavailable
 
 	// 读取系统设置：播放时是否自动触发转码（默认开启，保持原有自动转码行为）
 	info.AutoTranscodeOnPlay = true
@@ -384,6 +399,10 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 	return info, nil
 }
 
+// RemoteProbeTimeout 远程文件有界探测/打开的最大等待时间。
+// 远端不可达时最多等这么久，避免播放信息、海报等接口长时间阻塞。
+const RemoteProbeTimeout = 2 * time.Second
+
 // looksBrowserDirectPlayableRemote 通过读取远程文件头判断是否真的是浏览器可直放的容器。
 // 远程文件扩展名可能和实际容器不一致（例如 .mp4 实际是 MPEG-TS），
 // 直接按扩展名直放会导致浏览器 DEMUXER_ERROR_COULD_NOT_OPEN:
@@ -423,6 +442,32 @@ func (s *StreamService) looksBrowserDirectPlayableRemote(filePath string) bool {
 		s.remoteDirectPlayCache.Store(filePath, playable)
 	}
 	return playable
+}
+
+// OpenMediaFileBounded 有界打开媒体文件：远端不可达时最多等 RemoteProbeTimeout，
+// 超时返回错误（迟到的打开结果会被关闭，避免泄漏远程连接），
+// 供海报等接口在远端不可达时立即回退。
+func (s *StreamService) OpenMediaFileBounded(p string) (VFSFile, error) {
+	type openResult struct {
+		f   VFSFile
+		err error
+	}
+	done := make(chan openResult, 1)
+	go func() {
+		f, err := s.OpenMediaFile(p)
+		done <- openResult{f, err}
+	}()
+	select {
+	case r := <-done:
+		return r.f, r.err
+	case <-time.After(RemoteProbeTimeout):
+		go func() {
+			if r := <-done; r.f != nil {
+				_ = r.f.Close()
+			}
+		}()
+		return nil, fmt.Errorf("打开媒体文件超时(%s)", RemoteProbeTimeout)
+	}
 }
 
 // GetDirectStreamInfo 获取直接播放的文件路径和MIME类型
