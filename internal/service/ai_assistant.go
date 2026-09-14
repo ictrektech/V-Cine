@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -71,6 +72,42 @@ type Intent struct {
 	Reasoning  string            `json:"reasoning"`  // AI推理过程
 }
 
+// UnmarshalJSON 兼容 LLM 输出的 params 值类型不稳定（字符串/布尔/数字/嵌套对象）：
+// Params 声明为 map[string]string，此处把非字符串值转换为字符串，避免整体解析失败。
+func (i *Intent) UnmarshalJSON(data []byte) error {
+	type alias Intent
+	var v struct {
+		alias
+		Params json.RawMessage `json:"params"`
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*i = Intent(v.alias)
+	i.Params = map[string]string{}
+	if len(v.Params) == 0 {
+		return nil
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal(v.Params, &m); err != nil {
+		return nil
+	}
+	for k, v := range m {
+		switch tv := v.(type) {
+		case string:
+			i.Params[k] = tv
+		case bool:
+			i.Params[k] = strconv.FormatBool(tv)
+		case float64:
+			i.Params[k] = strconv.FormatFloat(tv, 'f', -1, 64)
+		default:
+			b, _ := json.Marshal(v)
+			i.Params[k] = string(b)
+		}
+	}
+	return nil
+}
+
 // SuggestedAction 建议的操作
 type SuggestedAction struct {
 	ID          string `json:"id"`
@@ -79,6 +116,27 @@ type SuggestedAction struct {
 	Action      string `json:"action"`      // 操作类型
 	Params      string `json:"params"`      // JSON参数
 	Dangerous   bool   `json:"dangerous"`   // 是否危险操作
+}
+
+// UnmarshalJSON 兼容 LLM 输出的 params 为字符串或对象两种形态（输出不稳定），
+// 避免对象形态无法解析进 string 字段导致整体 JSON 解析失败回退显示原始文本。
+func (a *SuggestedAction) UnmarshalJSON(data []byte) error {
+	type alias SuggestedAction
+	var v struct {
+		alias
+		Params json.RawMessage `json:"params"`
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*a = SuggestedAction(v.alias)
+	var s string
+	if err := json.Unmarshal(v.Params, &s); err == nil {
+		a.Params = s
+	} else if raw := string(v.Params); raw != "null" && raw != "" {
+		a.Params = raw // 对象形态：保留原始 JSON 文本
+	}
+	return nil
 }
 
 // OperationPreview 操作预览
@@ -188,7 +246,7 @@ func (s *AIAssistantService) Chat(req ChatRequest, userID string) (*ChatResponse
 	systemPrompt := s.buildSystemPrompt()
 	userPrompt := s.buildUserPrompt(req.Message, contextInfo, session)
 
-	response, err := s.ai.ChatCompletion(systemPrompt, userPrompt, 0.3, 2000)
+	response, err := s.ai.ChatCompletionJSON(systemPrompt, userPrompt, 0.3, 10000)
 	if err != nil {
 		return nil, fmt.Errorf("AI处理失败: %w", err)
 	}
@@ -271,7 +329,7 @@ func (s *AIAssistantService) buildSystemPrompt() string {
 {
   "message": "你的回复文本（使用Markdown格式，友好自然的语气）",
   "intent": {
-    "action": "操作类型（rename/scrape/delete/classify/tag/analyze/fix/suggest/analyze_misclassification/reclassify）",
+    "action": "操作类型（rename_template/rename_ai/scrape/batch_tag/tag/analyze/analyze_misclassification/reclassify/reclassify_high_confidence/reclassify_all，不要使用其他类型）",
     "sub_action": "子操作类型",
     "targets": "操作目标（all/selected/filtered）",
     "params": {"key": "value"},
@@ -401,6 +459,13 @@ func (s *AIAssistantService) parseAIResponse(response string, session *ChatSessi
 	cleanResponse = strings.TrimSuffix(cleanResponse, "```")
 	cleanResponse = strings.TrimSpace(cleanResponse)
 
+	// 截取首尾花括号之间的 JSON 主体（LLM 可能在 JSON 前后输出说明文字或多余片段）
+	if start := strings.Index(cleanResponse, "{"); start >= 0 {
+		if end := strings.LastIndex(cleanResponse, "}"); end > start {
+			cleanResponse = cleanResponse[start : end+1]
+		}
+	}
+
 	msg := ChatMsg{
 		Role:      "assistant",
 		Timestamp: time.Now(),
@@ -528,7 +593,7 @@ func (s *AIAssistantService) ExecuteAction(req ExecuteRequest, userID string) (*
 		return s.executeRenameAI(session, targetAction, userID)
 	case "scrape":
 		return s.executeScrape(session, targetAction, userID)
-	case "batch_tag":
+	case "batch_tag", "tag":
 		return s.executeBatchTag(session, targetAction, userID)
 	case "analyze":
 		return s.executeAnalyze(session, userID)

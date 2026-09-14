@@ -258,7 +258,7 @@ func (s *AIService) snapshotCfg() config.AIConfig {
 //   - 整体最长等待 ≈ 15s，超过后返回最后一次错误
 func supportsJSONResponseFormat(provider string) bool {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
-	case "openai", "deepseek", "qwen", "zhipu":
+	case "openai", "deepseek", "qwen", "zhipu", "ollama", "custom_ollama":
 		return true
 	default:
 		return false
@@ -266,6 +266,17 @@ func supportsJSONResponseFormat(provider string) bool {
 }
 
 func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature float64, maxTokens int) (string, error) {
+	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false)
+}
+
+// ChatCompletionJSON 强制 JSON 输出的补全（response_format=json_object），用于意图解析等
+// 结构化任务，避免 LLM 自由输出 JSON 时 message 字段含未转义引号导致解析失败回退显示原始文本。
+// 仅对支持 json_object 的 provider 生效，其余 provider 退化为普通补全。
+func (s *AIService) ChatCompletionJSON(systemPrompt, userPrompt string, temperature float64, maxTokens int) (string, error) {
+	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, true)
+}
+
+func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature float64, maxTokens int, forceJSON bool) (string, error) {
 	if !s.IsEnabled() {
 		return "", fmt.Errorf("AI 服务未启用")
 	}
@@ -319,9 +330,12 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 	// 低温 JSON/短文本任务进一步收窄 top_p，降低 deepseek-v4-flash 冗长/发散输出概率。
 	if temperature <= 0.1 && maxTokens > 0 && maxTokens <= 1024 {
 		reqBody.TopP = 0.1
-		if maxTokens >= 128 && supportsJSONResponseFormat(cfg.ActiveProvider) {
-			reqBody.ResponseFormat = &ChatCompletionResponseFormat{Type: "json_object"}
-		}
+	}
+	// json_object 输出：forceJSON（意图解析等结构化任务）不受温度/长度门槛限制直接启用；
+	// 普通补全仅在低温短文本任务启用
+	if maxTokens >= 128 && supportsJSONResponseFormat(cfg.ActiveProvider) &&
+		(forceJSON || (temperature <= 0.1 && maxTokens <= 1024)) {
+		reqBody.ResponseFormat = &ChatCompletionResponseFormat{Type: "json_object"}
 	}
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
