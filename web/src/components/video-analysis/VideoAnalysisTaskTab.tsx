@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, ChevronDown, Clock3, RefreshCw, RotateCcw, ScanLine, Search, Trash2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronDown, Clock3, Loader2, RefreshCw, RotateCcw, ScanLine, Search, Trash2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { videoAnalysisApi } from '@/api'
 import { streamApi } from '@/api/stream'
