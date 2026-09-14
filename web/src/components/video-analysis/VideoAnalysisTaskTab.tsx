@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, ChevronDown, Clock3, Loader2, RefreshCw, RotateCcw, ScanLine, Search, Trash2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronDown, Clock3, RefreshCw, RotateCcw, ScanLine, Search, Trash2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { videoAnalysisApi } from '@/api'
 import { streamApi } from '@/api/stream'
 import { Badge } from '@/components/ui/badge'
@@ -25,7 +26,7 @@ const statusFilters: Array<{ value: '' | VideoAnalysisStatus; label: string }> =
 function StatusBadge({ status }: { status: VideoAnalysisStatus }) {
   const meta = videoAnalysisStatusMeta[status]
   return (
-    <Badge variant="outline" className={cn('gap-1', meta.className)}>
+    <Badge key={status} variant="outline" className={cn('gap-1 animate-in zoom-in-125 duration-300', meta.className)}>
       {status === 'running' ? <Loader2 className="h-3 w-3 animate-spin" /> : status === 'succeeded' ? <CheckCircle2 className="h-3 w-3" /> : <Clock3 className="h-3 w-3" />}
       {meta.label}
     </Badge>
@@ -314,7 +315,18 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
         {disabled ? (
           <div className="px-4 py-16 text-center" role="status"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">视频分析未启用</h3><p className="mt-1 text-sm text-muted-foreground">{disabledReason || '需要安装场景检测与视频结构化组件，并在配置中启用。'}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin()) }}>前往系统配置</Button></div></div>
         ) : loading ? (
-          <div className="py-16 text-center" aria-busy="true"><Loader2 className="mx-auto animate-spin text-primary" /><p className="mt-2 text-sm text-muted-foreground">正在加载任务…</p></div>
+          <div className="divide-y divide-border" aria-busy="true" aria-label="正在加载任务">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <Skeleton className="h-14 w-10 shrink-0 rounded-md" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+                <Skeleton className="h-6 w-20 shrink-0 rounded-full" />
+              </div>
+            ))}
+          </div>
         ) : unavailable ? (
           <div className="px-4 py-16 text-center" role="alert"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">无法加载视频分析任务</h3><p className="mt-1 text-sm text-muted-foreground">请检查网络，或确认 video_analysis、Scene 与 Structure 服务已正确配置。</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => load()}>重新检查</Button><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin()) }}>前往系统配置</Button></div></div>
         ) : tasks.length === 0 ? (
@@ -377,9 +389,12 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
                   </div>
                   {/* 展开的历史执行记录（后端按媒体保留最近 5 条） */}
                   {expanded && (
-                    <div className="border-t border-border bg-muted/30 px-4 py-2">
+                    <div className="animate-in fade-in-0 slide-in-from-top-1 duration-200 border-t border-border bg-muted/30 px-4 py-2">
                       {historyLoading ? (
-                        <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />加载历史记录…</div>
+                        <div className="space-y-2 py-2" aria-busy="true" aria-label="正在加载历史记录">
+                          <Skeleton className="h-4 w-2/3" />
+                          <Skeleton className="h-4 w-1/2" />
+                        </div>
                       ) : historyTasks.length === 0 ? (
                         <div className="py-2 text-xs text-muted-foreground">无更早的历史执行记录</div>
                       ) : (
@@ -425,9 +440,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
         </nav>
       )}
 
-      {urlResultTaskId && (
-        <VideoAnalysisResultDrawer task={selectedResultTask} onClose={closeResult} />
-      )}
+      <VideoAnalysisResultDrawer task={selectedResultTask} onClose={closeResult} />
     </section>
   )
 }

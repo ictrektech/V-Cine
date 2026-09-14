@@ -43,7 +43,7 @@ export default function VideoAnalysisSceneGrid({
         </div>
       ) : (
         <>
-          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+          <div key={page} className="animate-in fade-in-0 duration-200 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
           {scenes.map((scene) => {
             const gridState = gridMap[scene.scene_index]
             return (
@@ -56,7 +56,7 @@ export default function VideoAnalysisSceneGrid({
                 <div className="relative aspect-video overflow-hidden rounded-md border bg-muted/30">
                   {scene.grid_available ? (
                     gridState?.url ? (
-                      <img src={gridState.url} alt={`场景 ${scene.scene_index + 1} 九宫格`} className="h-full w-full object-cover" />
+                      <img src={gridState.url} alt={`场景 ${scene.scene_index + 1} 九宫格`} className="animate-in fade-in-0 duration-300 h-full w-full object-cover" />
                     ) : gridState?.loading ? (
                       <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 size={18} className="animate-spin" /></div>
                     ) : (

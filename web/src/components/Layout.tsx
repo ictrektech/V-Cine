@@ -93,7 +93,7 @@ export default function Layout() {
             </h1>
           </div>
 
-          <div className={`px-4 py-6 sm:px-6 lg:px-8 transition-all duration-300 ${
+          <div key={location.pathname} className={`animate-page-enter px-4 py-6 sm:px-6 lg:px-8 ${
             // 需要全宽展示的页面（文件管理、预处理等）不限制最大宽度
             // 注：/preprocess 前缀已涵盖 /preprocess/subtitle，无需单独列出 /subtitle-preprocess
             ['/files', '/preprocess', '/admin', '/collections'].some(p => location.pathname.startsWith(p))
