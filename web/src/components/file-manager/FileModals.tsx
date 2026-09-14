@@ -155,7 +155,7 @@ export function ImportFileModal({ open = true, libraries, onClose, onSuccess }: 
 interface EditFileModalProps {
   media: Media
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (media: Media) => void
 }
 
 export function EditFileModal({ open = true, media, onClose, onSuccess }: EditFileModalProps) {
@@ -168,10 +168,10 @@ export function EditFileModal({ open = true, media, onClose, onSuccess }: EditFi
 
   const handleSave = async () => {
     try {
-      await fileManagerApi.updateFile(media.id, editForm)
+      const res = await fileManagerApi.updateFile(media.id, editForm)
       toast.success('更新成功')
       onClose()
-      onSuccess()
+      onSuccess(res.data.data)
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '更新失败')
     }

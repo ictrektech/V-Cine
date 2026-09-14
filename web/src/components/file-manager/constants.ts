@@ -51,7 +51,7 @@ export function formatFileSize(bytes: number): string {
 export type TabType = 'library' | 'files' | 'scrape' | 'analysis' | 'adult' | 'preprocess'
 
 // 对话框类型
-export type DialogType = 'none' | 'import' | 'batchImport' | 'edit' | 'detail' | 'rename' | 'logs' | 'batchAnalyze'
+export type DialogType = 'none' | 'import' | 'batchImport' | 'detail' | 'rename' | 'logs' | 'batchAnalyze'
 
 // 文件管理器共享状态接口
 export interface FileManagerState {

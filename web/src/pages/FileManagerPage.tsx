@@ -997,7 +997,7 @@ export default function FileManagerPage() {
                     onToggleSelect={toggleSelect}
                     onToggleSelectAll={toggleSelectAll}
                     onViewDetail={(media) => { setDetailMedia(media); setActiveDialog('detail') }}
-                    onEdit={(media) => { setEditMedia(media); setActiveDialog('edit') }}
+                    onEdit={(media) => setEditMedia(media)}
                     onScrape={handleScrapeFile}
                     onDelete={handleDeleteFile}
                     libraries={visibleLibraries}
@@ -1046,16 +1046,6 @@ export default function FileManagerPage() {
           onSuccess={refreshData}
       />
 
-      {editMedia && (
-        <EditFileModal
-          key={editMedia.id}
-          open={activeDialog === 'edit'}
-          media={editMedia}
-          onClose={() => setActiveDialog('none')}
-          onSuccess={() => { fetchFiles() }}
-      />
-      )}
-
       {detailMedia && (
         <FileDetailModal
           key={detailMedia.id}
@@ -1064,7 +1054,7 @@ export default function FileManagerPage() {
           videoAnalysisDescribeEnabled={videoAnalysisDescribeEnabled}
           remoteVideoEnabled={remoteVideoEnabled}
           onClose={() => setActiveDialog('none')}
-          onEdit={() => { setEditMedia(detailMedia); setActiveDialog('edit') }}
+          onEdit={() => setEditMedia(detailMedia)}
           onScrape={() => { handleScrapeFile(detailMedia.id); setActiveDialog('none') }}
           onAnalyze={(force, includeDescriptions) => {
             void handleAnalyzeFile(detailMedia, Boolean(force), Boolean(includeDescriptions))
@@ -1092,6 +1082,20 @@ export default function FileManagerPage() {
             setActiveDialog('none')
           }}
       />
+      )}
+
+      {/* 编辑弹窗叠加在详情弹窗之上（详情保持打开，关闭编辑后回到详情） */}
+      {editMedia && (
+        <EditFileModal
+          key={'edit-' + editMedia.id}
+          media={editMedia}
+          onClose={() => setEditMedia(null)}
+          onSuccess={(updated) => {
+            setEditMedia(null)
+            setDetailMedia(updated)
+            fetchFiles()
+          }}
+        />
       )}
 
       <BatchAnalyzeModal
