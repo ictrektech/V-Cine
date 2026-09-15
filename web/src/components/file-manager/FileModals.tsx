@@ -21,6 +21,7 @@ import { storageTypeFromPath } from '@/lib/storageSchemes'
 
 // ==================== 导入文件对话框 ====================
 interface ImportFileModalProps {
+  open: boolean
   libraries: Library[]
   onClose: () => void
   onSuccess: () => void
@@ -37,7 +38,7 @@ function guessLibraryId(path: string, libraries: Library[]): string {
   return hits[0]?.id || ''
 }
 
-export function ImportFileModal({ open = true, libraries, onClose, onSuccess }: ImportFileModalProps) {
+export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportFileModalProps) {
   const toast = useToast()
   const [importPath, setImportPath] = useState('')
   const [importTitle, setImportTitle] = useState('')
@@ -158,7 +159,7 @@ interface EditFileModalProps {
   onSuccess: (media: Media) => void
 }
 
-export function EditFileModal({ open = true, media, onClose, onSuccess }: EditFileModalProps) {
+export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps) {
   const toast = useToast()
   const [editForm, setEditForm] = useState<Record<string, unknown>>({
     title: media.title, orig_title: media.orig_title, year: media.year,
@@ -178,7 +179,7 @@ export function EditFileModal({ open = true, media, onClose, onSuccess }: EditFi
   }
 
   return (
-    <Modal open={open} onClose={onClose} className="max-w-lg">
+    <Modal open onClose={onClose} className="max-w-lg">
       <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <Edit3 className="inline-block mr-2 mb-0.5" size={20} /> 编辑文件信息
@@ -227,6 +228,7 @@ export function EditFileModal({ open = true, media, onClose, onSuccess }: EditFi
 
 // ==================== 详情对话框 ====================
 interface FileDetailModalProps {
+  open: boolean
   media: Media
   videoAnalysisDescribeEnabled?: boolean
   remoteVideoEnabled?: boolean
@@ -238,7 +240,7 @@ interface FileDetailModalProps {
   onViewAnalysis: (task?: VideoAnalysisTask | null) => void
 }
 
-export function FileDetailModal({ open = true, media, videoAnalysisDescribeEnabled = true, remoteVideoEnabled = false, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
+export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = true, remoteVideoEnabled = false, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
   const toast = useToast()
   const [analysisTask, setAnalysisTask] = useState<VideoAnalysisTask | null>(null)
   const [loadingAnalysis, setLoadingAnalysis] = useState(true)
@@ -430,6 +432,7 @@ export function FileDetailModal({ open = true, media, videoAnalysisDescribeEnabl
 
 // ==================== 重命名对话框 ====================
 interface BatchAnalyzeModalProps {
+  open: boolean
   selectedCount: number
   videoAnalysisEnabled: boolean
   videoAnalysisDescribeEnabled: boolean
@@ -438,7 +441,7 @@ interface BatchAnalyzeModalProps {
   onConfirm: (options: { force: boolean; includeDescriptions: boolean }) => void
 }
 
-export function BatchAnalyzeModal({ open = true, selectedCount, videoAnalysisEnabled, videoAnalysisDescribeEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
+export function BatchAnalyzeModal({ open, selectedCount, videoAnalysisEnabled, videoAnalysisDescribeEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
   const [force, setForce] = useState(false)
   const [includeDescriptions, setIncludeDescriptions] = useState(false)
 
@@ -520,13 +523,14 @@ export function BatchAnalyzeModal({ open = true, selectedCount, videoAnalysisEna
 }
 
 interface RenameModalProps {
+  open: boolean
   selectedCount: number
   selectedIds: Set<string>
   onClose: () => void
   onSuccess: () => void
 }
 
-export function RenameModal({ open = true, selectedCount, selectedIds, onClose, onSuccess }: RenameModalProps) {
+export function RenameModal({ open, selectedCount, selectedIds, onClose, onSuccess }: RenameModalProps) {
   const toast = useToast()
   const [useAIRename, setUseAIRename] = useState(false)
   const [renameTemplate, setRenameTemplate] = useState('{title} ({year}) [{resolution}]')
@@ -727,10 +731,11 @@ export function RenameModal({ open = true, selectedCount, selectedIds, onClose, 
 
 // ==================== 操作日志对话框 ====================
 interface OperationLogsModalProps {
+  open: boolean
   onClose: () => void
 }
 
-export function OperationLogsModal({ open = true, onClose }: OperationLogsModalProps) {
+export function OperationLogsModal({ open, onClose }: OperationLogsModalProps) {
   const [opLogs, setOpLogs] = useState<FileOperationLog[]>([])
 
   useEffect(() => {
