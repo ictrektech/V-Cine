@@ -20,6 +20,7 @@ import (
 type AIAssistantService struct {
 	ai          *AIService
 	fileManager *FileManagerService
+	scanner     *ScannerService
 	mediaRepo   *repository.MediaRepo
 	seriesRepo  *repository.SeriesRepo
 	wsHub       *WSHub
@@ -193,6 +194,7 @@ type ExecuteResponse struct {
 func NewAIAssistantService(
 	ai *AIService,
 	fileManager *FileManagerService,
+	scanner *ScannerService,
 	mediaRepo *repository.MediaRepo,
 	seriesRepo *repository.SeriesRepo,
 	logger *zap.SugaredLogger,
@@ -200,6 +202,7 @@ func NewAIAssistantService(
 	return &AIAssistantService{
 		ai:          ai,
 		fileManager: fileManager,
+		scanner:     scanner,
 		mediaRepo:   mediaRepo,
 		seriesRepo:  seriesRepo,
 		logger:      logger,
@@ -276,9 +279,10 @@ func (s *AIAssistantService) getOrCreateSession(sessionID, userID string) *ChatS
 	defer s.sessionsMu.Unlock()
 
 	if sessionID != "" {
-		if session, ok := s.sessions[sessionID]; ok {
+		if session, ok := s.sessions[sessionID]; ok && session.UserID == userID {
 			return session
 		}
+		// 属主不匹配的会话不复用，落入新建，避免读到他人会话
 	}
 
 	// 创建新会话
@@ -309,6 +313,14 @@ func (s *AIAssistantService) cleanOldSessions() {
 	}
 }
 
+// executableActions 可执行的意图 action（顺序即提示词中的展示顺序），
+// 提示词的 action 白名单由此生成；分发出 ExecuteAction 的 switch 负责，新增时两处同步。
+var executableActions = []string{
+	"rename_template", "rename_ai", "scrape", "batch_tag", "tag", "analyze",
+	"detect_duplicates", "analyze_misclassification", "reclassify",
+	"reclassify_high_confidence", "reclassify_all",
+}
+
 // buildSystemPrompt 构建系统提示词
 func (s *AIAssistantService) buildSystemPrompt() string {
 	return `你是一个影视文件管理AI助手，专门帮助用户管理影视文件库。你的能力包括：
@@ -325,11 +337,11 @@ func (s *AIAssistantService) buildSystemPrompt() string {
 9. **批量重分类**：将误分类的文件批量修正为正确的类型，并自动关联到剧集合集
 
 ## 响应格式
-你必须严格按照以下JSON格式响应（不要输出其他内容）：
+你必须严格按照以下JSON格式响应（不要输出其他内容）。注意：这是标准JSON，所有字符串必须使用双引号（"..."），禁止使用单引号（'...'）、Python字典风格或未转义的换行符：
 {
   "message": "你的回复文本（使用Markdown格式，友好自然的语气）",
   "intent": {
-    "action": "操作类型（rename_template/rename_ai/scrape/batch_tag/tag/analyze/analyze_misclassification/reclassify/reclassify_high_confidence/reclassify_all，不要使用其他类型）",
+    "action": "操作类型（` + strings.Join(executableActions, "/") + `，不要使用其他类型）",
     "sub_action": "子操作类型",
     "targets": "操作目标（all/selected/filtered）",
     "params": {"key": "value"},
@@ -363,7 +375,21 @@ func (s *AIAssistantService) buildSystemPrompt() string {
 - 根据上下文推断用户意图，提供智能建议
 - 如果没有选中文件但用户要求操作，提醒用户先选择文件
 - previews数组最多展示10条预览，如果超过则在message中说明总数
-- 如果无法确定操作意图，将action设为"suggest"并提供建议`
+- 如果无法确定操作意图，将action设为"suggest"并提供建议
+
+## 意图识别规则（必须严格遵守）
+- 用户要求"添加标签/分类/自动分类/打标签/整理分类/归类标签"时：
+  - intent.action 必须为 "batch_tag"，不得使用其他类型
+  - actions 数组必须包含一个可执行的 batch_tag 操作项（id、label 如"🏷️ 自动添加标签并分类"）
+  - 该操作项的 params 必须为 {"genres":"标签1,标签2,..."}（逗号分隔），结合选中文件的当前分类与内容给出合适的标签，不得遗漏 genres 字段
+  - 同时在 previews 数组中列出每个选中文件的 media_id/title 与建议的标签（old_value 为当前分类，new_value 为合并后的分类）
+- 用户要求"重命名"时：intent.action 为 "rename_ai"（智能重命名）或 "rename_template"（模板重命名），actions 包含对应可执行操作
+- 用户要求"智能纠错/修复命名问题"时：intent.action 必须为 "rename_ai"，不得使用 "fix" 等其他类型
+- 用户要求"刮削/获取元数据"时：intent.action 为 "scrape"，actions 包含 scrape 操作
+- 用户要求"分析文件库状态/统计"时：intent.action 为 "analyze"
+- 用户要求"检测误分类/修正类型/改为剧集"时：intent.action 为 "analyze_misclassification" 或 "reclassify*"
+- 用户要求"检测重复文件/查找重复/重复检测"时：intent.action 必须为 "detect_duplicates"，actions 数组必须包含一个可执行的 detect_duplicates 操作项（label 如"🔎 检测重复文件"）
+- intent.action 与 actions 数组中的操作必须一致；可执行意图下 actions 不得为空数组`
 }
 
 // buildUserPrompt 构建用户提示词
@@ -400,10 +426,7 @@ func (s *AIAssistantService) buildContextInfo(session *ChatSession) string {
 		parts = append(parts, fmt.Sprintf("已选中 %d 个文件", len(session.Context.SelectedMediaIDs)))
 
 		// 获取前5个文件的详细信息
-		limit := 5
-		if len(session.Context.SelectedMediaIDs) < limit {
-			limit = len(session.Context.SelectedMediaIDs)
-		}
+		limit := min(5, len(session.Context.SelectedMediaIDs))
 		var fileInfos []string
 		for i := 0; i < limit; i++ {
 			media, err := s.mediaRepo.FindByID(session.Context.SelectedMediaIDs[i])
@@ -472,20 +495,48 @@ func (s *AIAssistantService) parseAIResponse(response string, session *ChatSessi
 	}
 
 	if err := json.Unmarshal([]byte(cleanResponse), &parsed); err != nil {
-		// JSON解析失败，直接使用原始文本
-		s.logger.Debugf("AI响应JSON解析失败，使用原始文本: %v", err)
-		msg.Content = response
-		return msg, nil
+		// 首次解析失败后修复伪 JSON 重试：即使发送 response_format=json_object，
+		// 本地/自建服务端也可能忽略该参数，LLM 退化为自由输出 Python 风格单引号伪 JSON，
+		// json.Unmarshal 必然失败导致整段原始 JSON 直接显示在聊天气泡中。
+		repaired := repairJSON(cleanResponse)
+		if err2 := json.Unmarshal([]byte(repaired), &parsed); err2 != nil {
+			// 修复后仍失败，直接使用原始文本
+			s.logger.Debugf("AI响应JSON解析失败（含修复重试），使用原始文本: %v / %v", err, err2)
+			msg.Content = response
+			return msg, nil
+		}
 	}
 
 	msg.Content = parsed.Message
 	msg.Actions = parsed.Actions
 	msg.Previews = parsed.Previews
 
-	// 如果AI没有生成预览但意图是rename且有选中文件，自动生成预览
-	if parsed.Intent != nil && parsed.Intent.Action == "rename" && len(msg.Previews) == 0 && len(session.Context.SelectedMediaIDs) > 0 {
-		previews := s.generateRenamePreviews(session, parsed.Intent)
-		msg.Previews = previews
+	// 如果AI没有生成预览但意图是重命名且有选中文件，自动生成预览
+	if parsed.Intent != nil && (parsed.Intent.Action == "rename_ai" || parsed.Intent.Action == "rename_template") && len(msg.Previews) == 0 && len(session.Context.SelectedMediaIDs) > 0 {
+		template := parsed.Intent.Params["template"]
+		if template == "" {
+			template = defaultRenameTemplate
+		}
+		records := s.generateRenameRecords(session, template)
+		msg.Previews = records[:min(10, len(records))]
+	}
+
+	// 批量标签：LLM 常只给意图不给操作项，这里用 intent.params 里的标签兜底补一个可点击的操作项，
+	// 保证"自动分类"始终可执行（逐文件的合并结果由执行后的 response.results 回显）
+	if parsed.Intent != nil && parsed.Intent.Action == "batch_tag" {
+		if tags := tagsFromParams(parsed.Intent.Params["genres"], parsed.Intent.Params["tags"]); tags != "" && len(msg.Actions) == 0 {
+			msg.Actions = []SuggestedAction{{
+				Label:       "🏷️ 自动添加标签并分类",
+				Description: "为选中的文件追加标签：" + tags,
+				Action:      "batch_tag",
+				Params:      fmt.Sprintf(`{"genres":%q}`, tags),
+			}}
+		}
+	}
+
+	// 选中文件超过预览上限（10 条）时在消息中说明，避免用户误以为执行仅作用于预览部分
+	if len(msg.Previews) > 0 && len(session.Context.SelectedMediaIDs) > 10 {
+		msg.Content += fmt.Sprintf("\n\n> 💡 预览仅展示部分文件，执行将作用于全部 %d 个选中文件。", len(session.Context.SelectedMediaIDs))
 	}
 
 	// 如果意图是误分类检测，自动添加操作按钮
@@ -493,7 +544,6 @@ func (s *AIAssistantService) parseAIResponse(response string, session *ChatSessi
 		if len(msg.Actions) == 0 {
 			msg.Actions = []SuggestedAction{
 				{
-					ID:          uuid.New().String(),
 					Label:       "🔍 开始分析",
 					Description: "扫描文件库，检测被误标记为电影的剧集文件",
 					Action:      "analyze_misclassification",
@@ -508,14 +558,12 @@ func (s *AIAssistantService) parseAIResponse(response string, session *ChatSessi
 		if len(msg.Actions) == 0 {
 			msg.Actions = []SuggestedAction{
 				{
-					ID:          uuid.New().String(),
 					Label:       "🔴 重分类高置信度文件",
 					Description: "将置信度>80%的误分类文件重新分类为剧集",
 					Action:      "reclassify_high_confidence",
 					Dangerous:   false,
 				},
 				{
-					ID:          uuid.New().String(),
 					Label:       "⚠️ 重分类所有疑似文件",
 					Description: "将所有疑似误分类的文件重新分类为剧集（包含低置信度）",
 					Action:      "reclassify_all",
@@ -525,30 +573,128 @@ func (s *AIAssistantService) parseAIResponse(response string, session *ChatSessi
 		}
 	}
 
+	// action ID 一律由服务端生成：LLM 给的 id 格式不定且可能跨轮重复，
+	// 而 ExecuteAction 在会话历史中按 ID 查找首个匹配，重名会执行到旧消息的操作
+	for i := range msg.Actions {
+		msg.Actions[i].ID = fmt.Sprintf("act_%d_%d", time.Now().UnixMilli(), i)
+	}
+
 	return msg, parsed.Intent
 }
 
-// generateRenamePreviews 生成重命名预览
-func (s *AIAssistantService) generateRenamePreviews(session *ChatSession, intent *Intent) []OperationPreview {
-	var previews []OperationPreview
-	limit := 10
-	if len(session.Context.SelectedMediaIDs) < limit {
-		limit = len(session.Context.SelectedMediaIDs)
+// repairJSON 将 LLM 输出的伪 JSON 修复为合法 JSON（常见于忽略 response_format 的本地/自建推理服务与小模型）：
+//  1. Python 风格单引号字符串 → 双引号（串内双引号转义为 \"，\' 还原为 '）
+//  2. Python 字面量 None/True/False → null/true/false（仅字符串外的完整标识符）
+//  3. 尾逗号：[1, 2, ] / {..., } 去掉逗号
+//
+// 引号内内容不做字面量替换，双引号串里的英文撇号（don't）不受影响；已是合法 JSON 的输入原样返回。
+func repairJSON(src string) string {
+	buf := make([]byte, 0, len(src)+16)
+	inSingle, inDouble := false, false
+	for i := 0; i < len(src); i++ {
+		c := src[i]
+		switch {
+		case inSingle:
+			switch c {
+			case '\\':
+				if i+1 < len(src) && src[i+1] == '\'' {
+					buf = append(buf, '\'') // \' 还原为 '
+					i++
+				} else { // 其余转义原样保留（含 \\、\n）
+					buf = append(buf, c)
+					if i+1 < len(src) {
+						buf = append(buf, src[i+1])
+						i++
+					}
+				}
+			case '\'':
+				inSingle = false
+				buf = append(buf, '"')
+			case '"':
+				buf = append(buf, "\\\""...) // 串内双引号是内容，需转义
+			default:
+				buf = append(buf, c)
+			}
+		case inDouble:
+			buf = append(buf, c)
+			switch {
+			case c == '\\' && i+1 < len(src):
+				i++
+				buf = append(buf, src[i])
+			case c == '"':
+				inDouble = false
+			}
+		default: // 字符串外
+			switch {
+			case c == '\'':
+				inSingle = true
+				buf = append(buf, '"')
+			case c == '"':
+				inDouble = true
+				buf = append(buf, c)
+			case c == ',':
+				// 尾逗号：逗号后（仅空白）紧跟 ] 或 } 时，连逗号带尾部空白一起去掉
+				j := i + 1
+				for j < len(src) && strings.ContainsRune(" \t\r\n", rune(src[j])) {
+					j++
+				}
+				if j < len(src) && (src[j] == ']' || src[j] == '}') {
+					buf = []byte(strings.TrimRight(string(buf), " \t\r\n"))
+					i = j - 1
+				} else {
+					buf = append(buf, c)
+				}
+			default:
+				if lit := pyLiteral(src[i:]); lit != "" {
+					// None/null、True/true、False/false 长度相同，按字面量长度推进即可
+					buf = append(buf, lit...)
+					i += len(lit) - 1
+				} else {
+					buf = append(buf, c)
+				}
+			}
+		}
 	}
+	return string(buf)
+}
 
-	template := "{title} ({year}) [{resolution}]"
-	if t, ok := intent.Params["template"]; ok && t != "" {
-		template = t
+// pyLiteral 匹配 src 开头的 Python 字面量（要求是完整标识符），返回对应 JSON 字面量；不匹配返回 ""
+func pyLiteral(src string) string {
+	for _, l := range [...]struct{ py, js string }{{"None", "null"}, {"True", "true"}, {"False", "false"}} {
+		if rest, ok := strings.CutPrefix(src, l.py); ok && (rest == "" || !isWordByte(rest[0])) {
+			return l.js
+		}
 	}
+	return ""
+}
 
-	for i := 0; i < limit; i++ {
-		media, err := s.mediaRepo.FindByID(session.Context.SelectedMediaIDs[i])
+func isWordByte(c byte) bool {
+	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// defaultRenameTemplate 默认重命名模板
+const defaultRenameTemplate = "{title} ({year}) [{resolution}]"
+
+// tagsFromParams 读取 LLM 给的标签（genres 优先，兼容它用 tags key 的情况）
+func tagsFromParams(genres, tags string) string {
+	if g := strings.TrimSpace(genres); g != "" {
+		return g
+	}
+	return strings.TrimSpace(tags)
+}
+
+// generateRenameRecords 按模板为选中文件生成完整 old→new 记录（不限条数，撤销依据）。
+// 与 ExecuteRename 的重命名逻辑一致：模板生成结果与当前标题相同的文件跳过。
+func (s *AIAssistantService) generateRenameRecords(session *ChatSession, template string) []OperationPreview {
+	var records []OperationPreview
+	for _, id := range session.Context.SelectedMediaIDs {
+		media, err := s.mediaRepo.FindByID(id)
 		if err != nil {
 			continue
 		}
 		newTitle := s.fileManager.generateRenameTitle(media, template)
 		if newTitle != media.Title {
-			previews = append(previews, OperationPreview{
+			records = append(records, OperationPreview{
 				MediaID:    media.ID,
 				Title:      media.Title,
 				OldValue:   media.Title,
@@ -557,7 +703,7 @@ func (s *AIAssistantService) generateRenamePreviews(session *ChatSession, intent
 			})
 		}
 	}
-	return previews
+	return records
 }
 
 // ==================== 操作执行 ====================
@@ -567,7 +713,7 @@ func (s *AIAssistantService) ExecuteAction(req ExecuteRequest, userID string) (*
 	s.sessionsMu.RLock()
 	session, ok := s.sessions[req.SessionID]
 	s.sessionsMu.RUnlock()
-	if !ok {
+	if !ok || session.UserID != userID {
 		return nil, fmt.Errorf("会话不存在或已过期")
 	}
 
@@ -595,6 +741,8 @@ func (s *AIAssistantService) ExecuteAction(req ExecuteRequest, userID string) (*
 		return s.executeScrape(session, targetAction, userID)
 	case "batch_tag", "tag":
 		return s.executeBatchTag(session, targetAction, userID)
+	case "detect_duplicates":
+		return s.executeDetectDuplicates(session, targetAction, userID)
 	case "analyze":
 		return s.executeAnalyze(session, userID)
 	case "analyze_misclassification":
@@ -624,8 +772,12 @@ func (s *AIAssistantService) executeRenameTemplate(session *ChatSession, action 
 		json.Unmarshal([]byte(action.Params), &params)
 	}
 	if params.Template == "" {
-		params.Template = "{title} ({year}) [{resolution}]"
+		params.Template = defaultRenameTemplate
 	}
+
+	// 执行前生成完整 old→new 记录：展示预览截断到 10 条，撤销记录保留全部（与实际重命名范围一致）
+	records := s.generateRenameRecords(session, params.Template)
+	previews := records[:min(10, len(records))]
 
 	// 执行重命名
 	renamed, errors := s.fileManager.ExecuteRename(session.Context.SelectedMediaIDs, params.Template, userID)
@@ -635,6 +787,7 @@ func (s *AIAssistantService) executeRenameTemplate(session *ChatSession, action 
 		ID:         uuid.New().String(),
 		SessionID:  session.ID,
 		Action:     "rename_template",
+		Previews:   records,
 		ExecutedAt: time.Now(),
 		UserID:     userID,
 	}
@@ -643,6 +796,7 @@ func (s *AIAssistantService) executeRenameTemplate(session *ChatSession, action 
 	resp := &ExecuteResponse{
 		Success: true,
 		Message: fmt.Sprintf("成功重命名 %d 个文件", renamed),
+		Results: previews,
 		OpID:    op.ID,
 	}
 	if len(errors) > 0 {
@@ -756,7 +910,26 @@ func (s *AIAssistantService) executeScrape(session *ChatSession, action *Suggest
 	return resp, nil
 }
 
-// executeBatchTag 执行批量标签
+// mergeTags 合并原有分类与新标签：原有分类在前，新标签追加在后，去重。
+// 兼容 LLM 不稳定的分隔符（中英文逗号/分号都会出现），按多种分隔符切分。
+// 返回合并后的字符串；若与原有分类一致则返回原值（无变化）。
+func mergeTags(existing, newTags string) string {
+	seen := map[string]bool{}
+	var result []string
+	for _, t := range strings.FieldsFunc(existing+","+newTags, func(r rune) bool {
+		return r == ',' || r == '，' || r == ';' || r == '；'
+	}) {
+		if t = strings.TrimSpace(t); t == "" || seen[t] {
+			continue
+		}
+		seen[t] = true
+		result = append(result, t)
+	}
+	return strings.Join(result, ",")
+}
+
+// executeBatchTag 执行批量标签（合并模式：保留文件原有分类，仅追加新标签并去重，
+// 避免 LLM 给出的标签整体覆盖导致原有分类丢失，或 params 缺失时分类被清空）
 func (s *AIAssistantService) executeBatchTag(session *ChatSession, action *SuggestedAction, userID string) (*ExecuteResponse, error) {
 	if len(session.Context.SelectedMediaIDs) == 0 {
 		return &ExecuteResponse{Success: false, Message: "没有选中的文件"}, nil
@@ -764,34 +937,49 @@ func (s *AIAssistantService) executeBatchTag(session *ChatSession, action *Sugge
 
 	var params struct {
 		Genres string `json:"genres"`
+		Tags   string `json:"tags"`
 	}
 	if action.Params != "" {
 		json.Unmarshal([]byte(action.Params), &params)
 	}
+	newTags := tagsFromParams(params.Genres, params.Tags)
+	if newTags == "" {
+		return &ExecuteResponse{Success: false, Message: "AI 未给出要添加的标签，已跳过，原有分类保持不变"}, nil
+	}
 
 	successCount := 0
+	unchangedCount := 0
 	var errors []string
-	var opPreviews []OperationPreview
+	var opPreviews []OperationPreview // 撤销依据：只记真正写入的变更
+	var results []OperationPreview    // 前端回显：包含无需更新的文件
 
 	for _, id := range session.Context.SelectedMediaIDs {
 		media, err := s.mediaRepo.FindByID(id)
 		if err != nil {
 			continue
 		}
-		updates := map[string]interface{}{"genres": params.Genres}
-		_, err = s.fileManager.UpdateFileInfo(id, updates, userID)
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("%s: %v", media.Title, err))
-		} else {
-			successCount++
-			opPreviews = append(opPreviews, OperationPreview{
-				MediaID:    id,
-				Title:      media.Title,
-				OldValue:   media.Genres,
-				NewValue:   params.Genres,
-				ChangeType: "tag",
-			})
+		merged := mergeTags(media.Genres, newTags)
+		change := OperationPreview{
+			MediaID:    id,
+			Title:      media.Title,
+			OldValue:   media.Genres,
+			NewValue:   merged,
+			ChangeType: "tag",
 		}
+		if merged == media.Genres {
+			// 标签已存在，无需更新（跳过 DB 写入）：只回显，不计入撤销记录
+			unchangedCount++
+			results = append(results, change)
+			continue
+		}
+		updates := map[string]interface{}{"genres": merged}
+		if _, err = s.fileManager.UpdateFileInfo(id, updates, userID); err != nil {
+			errors = append(errors, fmt.Sprintf("%s: %v", media.Title, err))
+			continue
+		}
+		successCount++
+		opPreviews = append(opPreviews, change)
+		results = append(results, change)
 	}
 
 	op := AssistantOperation{
@@ -804,13 +992,67 @@ func (s *AIAssistantService) executeBatchTag(session *ChatSession, action *Sugge
 	}
 	s.addOperation(op)
 
+	message := fmt.Sprintf("批量标签更新完成，成功 %d 个", successCount)
+	if unchangedCount > 0 {
+		message += fmt.Sprintf("，%d 个已含相同标签无需更新", unchangedCount)
+	}
+
 	return &ExecuteResponse{
 		Success: true,
-		Message: fmt.Sprintf("批量标签更新完成，成功 %d 个", successCount),
-		Results: opPreviews,
+		Message: message,
+		Results: results,
 		Errors:  errors,
 		OpID:    op.ID,
 	}, nil
+}
+
+// executeDetectDuplicates 执行重复文件检测：复用扫描器的重复检测（标题+年份 / TMDb ID 分组，含推荐保留版本），
+// 有选中文件时只保留涉及选中文件的重复组。文件库暂无删除类处理能力，故只报告不自动处理。
+func (s *AIAssistantService) executeDetectDuplicates(session *ChatSession, action *SuggestedAction, userID string) (*ExecuteResponse, error) {
+	groups, err := s.scanner.DetectDuplicates(session.Context.LibraryID)
+	if err != nil {
+		s.logger.Errorf("检测重复文件失败（library=%s）: %v", session.Context.LibraryID, err)
+		return &ExecuteResponse{Success: false, Message: "检测重复文件失败"}, nil
+	}
+
+	if sel := session.Context.SelectedMediaIDs; len(sel) > 0 {
+		picked := make(map[string]bool, len(sel))
+		for _, id := range sel {
+			picked[id] = true
+		}
+		var filtered []DuplicateGroup
+		for _, g := range groups {
+			for _, item := range g.Media {
+				if picked[item.ID] {
+					filtered = append(filtered, g)
+					break
+				}
+			}
+		}
+		groups = filtered
+	}
+
+	if len(groups) == 0 {
+		return &ExecuteResponse{Success: true, Message: "未检测到重复文件（检测范围：电影）"}, nil
+	}
+
+	var report strings.Builder
+	fmt.Fprintf(&report, "## 🔎 重复文件检测报告（检测范围：电影）\n\n发现 **%d 组重复**：\n", len(groups))
+	for i, g := range groups {
+		fmt.Fprintf(&report, "\n### %d. %s（%d 年，共 %d 个文件）\n", i+1, g.Title, g.Year, g.MediaCount)
+		for _, m := range g.Media {
+			mark := ""
+			if m.IsPrimary {
+				mark = " ✅ 建议保留"
+			}
+			fmt.Fprintf(&report, "- %s（%s，%.1f GB）%s\n", m.Title, m.Resolution, float64(m.FileSize)/1024/1024/1024, mark)
+		}
+		if g.Suggestion != "" {
+			fmt.Fprintf(&report, "\n💡 %s\n", g.Suggestion)
+		}
+	}
+
+	return &ExecuteResponse{Success: true, Message: report.String()}, nil
 }
 
 // executeAnalyze 执行文件分析
@@ -866,7 +1108,7 @@ func (s *AIAssistantService) executeAnalyzeMisclassification(session *ChatSessio
 	// 构建分析报告
 	var sb strings.Builder
 	sb.WriteString("## 🔍 剧集误分类分析报告\n\n")
-	sb.WriteString(fmt.Sprintf("| 指标 | 数值 |\n|------|------|\n"))
+	sb.WriteString("| 指标 | 数值 |\n|------|------|\n")
 	sb.WriteString(fmt.Sprintf("| 当前电影总数 | %d |\n", report.TotalMovies))
 	sb.WriteString(fmt.Sprintf("| 疑似剧集数量 | %d |\n", report.SuspectedEpisodes))
 	sb.WriteString(fmt.Sprintf("| 🔴 高置信度 (>80%%) | %d |\n", report.HighConfidence))
@@ -1098,7 +1340,7 @@ func (s *AIAssistantService) UndoOperation(opID, userID string) (*ExecuteRespons
 
 	var targetOp *AssistantOperation
 	for i := range s.opHistory {
-		if s.opHistory[i].ID == opID && !s.opHistory[i].Undone {
+		if s.opHistory[i].ID == opID && !s.opHistory[i].Undone && s.opHistory[i].UserID == userID {
 			targetOp = &s.opHistory[i]
 			break
 		}

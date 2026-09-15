@@ -210,7 +210,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 
 	// 创建AI助手服务
 	aiAssistant := NewAIAssistantService(
-		aiService, fileManager,
+		aiService, fileManager, scanner,
 		repos.Media, repos.Series, logger,
 	)
 	aiAssistant.SetWSHub(wsHub)
