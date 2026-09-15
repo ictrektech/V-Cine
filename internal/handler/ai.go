@@ -399,9 +399,10 @@ func (h *AIHandler) GetUsageBuckets(c *gin.Context) {
 
 // ListProviders 获取所有供应商列表
 func (h *AIHandler) ListProviders(c *gin.Context) {
-	providers := make([]gin.H, 0, len(h.cfg.AI.Providers))
-	for _, p := range h.cfg.AI.Providers {
-		providers = append(providers, p.ViewMap(h.cfg.AI.ActiveProvider))
+	snapshot := h.cfg.AISnapshot()
+	providers := make([]gin.H, 0, len(snapshot.Providers))
+	for _, p := range snapshot.Providers {
+		providers = append(providers, p.ViewMap(snapshot.ActiveProvider))
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"providers": providers}})
 }
@@ -427,7 +428,7 @@ func (h *AIHandler) AddProvider(c *gin.Context) {
 	}
 
 	// 检查 ID 是否已存在
-	for _, p := range h.cfg.AI.Providers {
+	for _, p := range h.cfg.AISnapshot().Providers {
 		if p.ID == id {
 			c.JSON(http.StatusConflict, gin.H{"error": "同名供应商已存在"})
 			return
@@ -598,18 +599,38 @@ func (h *AIHandler) SetActive(c *gin.Context) {
 }
 
 // FetchModels 从 OpenAI 兼容 API 获取模型列表
+// 支持可选 provider_id：编辑已有供应商且 base_url 未变时，api_key 留空自动回退到已存储的密钥（内存中已解密）。
 func (h *AIHandler) FetchModels(c *gin.Context) {
 	var req struct {
-		BaseURL string `json:"base_url" binding:"required"`
-		APIKey  string `json:"api_key"`
+		BaseURL    string `json:"base_url"`
+		APIKey     string `json:"api_key"`
+		ProviderID string `json:"provider_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求体"})
+		return
+	}
+
+	base := strings.TrimRight(req.BaseURL, "/")
+	if base == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 base_url"})
 		return
 	}
 
+	// 回退到已存储的密钥（provider_id 匹配且 base_url 与已存地址一致时才回退，避免把存储密钥发往其他地址）
+	apiKey := req.APIKey
+	if req.ProviderID != "" && apiKey == "" {
+		for _, p := range h.cfg.AISnapshot().Providers {
+			if p.ID == req.ProviderID {
+				if base == strings.TrimRight(p.APIBase, "/") {
+					apiKey = p.APIKey
+				}
+				break
+			}
+		}
+	}
+
 	// 构建请求 URL（如果 base 已包含 /v1 则不再追加）
-	base := strings.TrimRight(req.BaseURL, "/")
 	var url string
 	if strings.HasSuffix(base, "/v1") {
 		url = base + "/models"
@@ -623,8 +644,8 @@ func (h *AIHandler) FetchModels(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 URL"})
 		return
 	}
-	if req.APIKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+req.APIKey)
+	if apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 

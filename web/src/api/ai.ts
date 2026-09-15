@@ -143,8 +143,8 @@ export const aiApi = {
   deleteProvider: (id: string) =>
     api.delete<{ message: string }>(`/admin/ai/providers/${id}`),
 
-  // 获取供应商可用模型列表
-  fetchModels: (data: { base_url: string; api_key?: string }) =>
+  // 获取供应商可用模型列表（provider_id：编辑时 api_key 留空自动回退到已存密钥）
+  fetchModels: (data: { base_url: string; api_key?: string; provider_id?: string }) =>
     api.post<{ data: string[] }>('/admin/ai/providers/fetch-models', data),
 }
 

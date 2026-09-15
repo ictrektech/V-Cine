@@ -105,6 +105,10 @@ export default function AITab() {
   const [editingProvider, setEditingProvider] = useState<ProviderItem | null>(null)
   const [providerForm, setProviderForm] = useState<{ name: string; api_base: string; api_key: string; models: ModelItem[] }>({ name: '', api_base: '', api_key: '', models: [] })
   const [providerSaving, setProviderSaving] = useState(false)
+  const [fetchingModels, setFetchingModels] = useState(false)
+  const [fetchedModels, setFetchedModels] = useState<string[] | null>(null)
+  const [fetchedSelected, setFetchedSelected] = useState<Set<string>>(new Set())
+  const [fetchedSearch, setFetchedSearch] = useState('')
   // 测试连接状态：key = provider id，value = { testing, success, message }
   const [connTests, setConnTests] = useState<Record<string, { testing: boolean; success: boolean; message: string }>>({})
 
@@ -197,13 +201,64 @@ export default function AITab() {
   const openAddProvider = () => {
     setEditingProvider(null)
     setProviderForm({ name: '', api_base: '', api_key: '', models: [] })
+    resetFetchedModels()
     setShowProviderDialog(true)
   }
 
   const openEditProvider = (p: ProviderItem) => {
     setEditingProvider(p)
     setProviderForm({ name: p.name, api_base: p.api_base, api_key: '', models: [...p.models] })
+    resetFetchedModels()
     setShowProviderDialog(true)
+  }
+
+  const resetFetchedModels = () => {
+    setFetchedModels(null)
+    setFetchedSelected(new Set())
+    setFetchedSearch('')
+  }
+
+  const handleFetchModels = async () => {
+    if (!providerForm.api_base.trim()) {
+      toast.error('请先填写 API Base')
+      return
+    }
+    setFetchingModels(true)
+    try {
+      const res = await aiApi.fetchModels({
+        base_url: providerForm.api_base.trim(),
+        api_key: providerForm.api_key.trim() || undefined,
+        provider_id: editingProvider?.id,
+      })
+      const names = (res.data.data || []).filter((n) => n.trim())
+      if (names.length === 0) {
+        toast.error('未获取到模型，请检查 API 地址与密钥')
+        return
+      }
+      const existing = new Set(providerForm.models.map((m) => m.name))
+      setFetchedModels(names)
+      // 默认勾选尚未添加的模型
+      setFetchedSelected(new Set(names.filter((n) => !existing.has(n))))
+      toast.success(`已获取 ${names.length} 个模型，请勾选添加`)
+    } catch (e) {
+      toast.error(extractErrMsg(e) || '获取模型失败，请检查 API 地址与密钥')
+    } finally {
+      setFetchingModels(false)
+    }
+  }
+
+  // 将勾选的模型追加到列表（仅在勾选面板内触发，fetchedModels 必非空）
+  const confirmAddFetchedModels = () => {
+    const picked = fetchedModels!.filter((n) => fetchedSelected.has(n))
+    setProviderForm({
+      ...providerForm,
+      models: [
+        ...providerForm.models,
+        ...picked.map((name, i) => ({ name, is_vision: false, is_default: providerForm.models.length === 0 && i === 0 })),
+      ],
+    })
+    resetFetchedModels()
+    toast.success(`已添加 ${picked.length} 个模型`)
   }
 
   const handleSaveProvider = async () => {
@@ -873,7 +928,19 @@ export default function AITab() {
                 )}
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-theme-secondary">模型列表</label>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="block text-sm font-medium text-theme-secondary">模型列表</label>
+                  <button
+                    type="button"
+                    onClick={handleFetchModels}
+                    disabled={fetchingModels || !providerForm.api_base.trim()}
+                    className="btn-ghost gap-1 px-2 py-0.5 text-xs text-neon hover:text-neon disabled:opacity-50"
+                    title="从 API 地址获取可用模型，勾选后添加"
+                  >
+                    {fetchingModels ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                    {fetchingModels ? '获取中…' : '自动获取'}
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {providerForm.models.map((m, idx) => (
                     <div key={idx} className="flex items-center gap-2">
@@ -950,6 +1017,91 @@ export default function AITab() {
                     <Plus size={12} /> 添加模型
                   </button>
                 </div>
+                {/* 获取到的模型勾选列表 */}
+                {fetchedModels && (
+                  <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
+                    <input
+                      type="text"
+                      value={fetchedSearch}
+                      onChange={(e) => setFetchedSearch(e.target.value)}
+                      className="input w-full text-sm"
+                      placeholder="搜索过滤模型…"
+                    />
+                    <div className="max-h-40 space-y-1 overflow-y-auto">
+                      {(() => {
+                        const kw = fetchedSearch.trim().toLowerCase()
+                        const filtered = fetchedModels.filter((n) => !kw || n.toLowerCase().includes(kw))
+                        if (filtered.length === 0) {
+                          return <p className="py-2 text-center text-xs text-theme-muted">无匹配模型</p>
+                        }
+                        return filtered.map((name) => {
+                          const already = providerForm.models.some((m) => m.name === name)
+                          return (
+                            <label
+                              key={name}
+                              className={clsx(
+                                'flex items-center gap-2 rounded px-2 py-1 text-sm transition-colors',
+                                already ? 'cursor-default opacity-50' : 'cursor-pointer hover:bg-surface-600/40'
+                              )}
+                            >
+                              <Checkbox
+                                checked={already || fetchedSelected.has(name)}
+                                disabled={already}
+                                onCheckedChange={(checked) => {
+                                  setFetchedSelected((prev) => {
+                                    const next = new Set(prev)
+                                    if (checked) next.add(name)
+                                    else next.delete(name)
+                                    return next
+                                  })
+                                }}
+                              />
+                              <span className="min-w-0 flex-1 truncate font-mono text-xs text-theme-primary">{name}</span>
+                              {already && <span className="shrink-0 text-[10px] text-green-400">已添加</span>}
+                            </label>
+                          )
+                        })
+                      })()}
+                    </div>
+                    <div className="flex items-center justify-between border-t pt-2" style={{ borderColor: 'var(--border-subtle)' }}>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const existing = new Set(providerForm.models.map((m) => m.name))
+                            setFetchedSelected(new Set(fetchedModels.filter((n) => !existing.has(n))))
+                          }}
+                          className="text-xs text-theme-secondary hover:text-neon"
+                        >
+                          全选
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFetchedSelected(new Set())}
+                          className="text-xs text-theme-secondary hover:text-neon"
+                        >
+                          清空
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetFetchedModels}
+                          className="text-xs text-theme-secondary hover:text-neon"
+                        >
+                          收起
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={confirmAddFetchedModels}
+                        disabled={fetchedSelected.size === 0}
+                        className="btn-primary gap-1 px-3 py-1 text-xs disabled:opacity-50"
+                      >
+                        <Plus size={12} />
+                        添加所选{fetchedSelected.size > 0 ? `（${fetchedSelected.size}）` : ''}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <p className="mt-1 text-xs text-theme-muted">● 默认模型 · 标记为「视觉」的模型可用于场景描述</p>
               </div>
             </div>
