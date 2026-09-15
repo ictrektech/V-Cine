@@ -44,7 +44,7 @@ var (
 // EnsureMasterKey 加载或生成主密钥，并返回 32 字节 AES-256 密钥。
 //
 // 行为：
-//  1. 优先从环境变量 NOWEN_MASTER_KEY 读取（base64，方便 docker secret 注入）；
+//  1. 优先从环境变量 VCINE_MASTER_KEY 读取（base64，方便 docker secret 注入）；
 //  2. 否则尝试从 ./config/.master.key 加载；
 //  3. 都没有则生成 32 字节随机密钥并写入 ./config/.master.key（0o600 权限）。
 //
@@ -52,14 +52,14 @@ var (
 func EnsureMasterKey() ([]byte, error) {
 	masterKeyOnce.Do(func() {
 		// 1) 环境变量
-		if envKey := strings.TrimSpace(os.Getenv("NOWEN_MASTER_KEY")); envKey != "" {
+		if envKey := strings.TrimSpace(os.Getenv("VCINE_MASTER_KEY")); envKey != "" {
 			raw, err := base64.StdEncoding.DecodeString(envKey)
 			if err != nil {
-				masterKeyErr = fmt.Errorf("环境变量 NOWEN_MASTER_KEY 不是有效 base64: %w", err)
+				masterKeyErr = fmt.Errorf("环境变量 VCINE_MASTER_KEY 不是有效 base64: %w", err)
 				return
 			}
 			if len(raw) != 32 {
-				masterKeyErr = fmt.Errorf("NOWEN_MASTER_KEY 长度必须为 32 字节，实际 %d", len(raw))
+				masterKeyErr = fmt.Errorf("VCINE_MASTER_KEY 长度必须为 32 字节，实际 %d", len(raw))
 				return
 			}
 			masterKey = raw

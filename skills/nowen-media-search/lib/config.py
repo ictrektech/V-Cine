@@ -32,12 +32,12 @@ class Config:
         scfg = raw.get("search", {})
 
         self.url = (
-            os.environ.get("NOWEN_URL") or ncfg.get("url") or DEFAULT_URL
+            os.environ.get("VCINE_URL") or ncfg.get("url") or DEFAULT_URL
         ).rstrip("/")
         self.frontend_url = (
-            os.environ.get("NOWEN_FRONTEND_URL") or ncfg.get("frontend_url", "")
+            os.environ.get("VCINE_FRONTEND_URL") or ncfg.get("frontend_url", "")
         ).rstrip("/")
-        self.api_key = os.environ.get("NOWEN_API_KEY") or ncfg.get("api_key", "")
+        self.api_key = os.environ.get("VCINE_API_KEY") or ncfg.get("api_key", "")
         self.page_size = int(scfg.get("default_page_size", DEFAULT_PAGE_SIZE))
         self.max_page_size = int(scfg.get("max_page_size", MAX_PAGE_SIZE))
         self.language = scfg.get("language", DEFAULT_LANG)
@@ -61,8 +61,8 @@ class Config:
         """Return an error message if config is invalid, or None."""
         if not self.api_key:
             return (
-                "Nowen API key not configured.\n"
-                "  Set $NOWEN_API_KEY env var, or\n"
+                "V-Cine API key not configured.\n"
+                "  Set $VCINE_API_KEY env var, or\n"
                 f"  Create {CONFIG_FILES[0]} with:\n"
                 "    nowen:\n"
                 "      api_key: nk_your_key_here"

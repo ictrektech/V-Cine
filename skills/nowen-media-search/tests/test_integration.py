@@ -1,6 +1,6 @@
 """Integration tests — require a live nowen-video backend.
 
-Skipped unless NOWEN_API_KEY is set.
+Skipped unless VCINE_API_KEY is set.
 """
 
 import os
@@ -12,8 +12,8 @@ from lib.client import NowenAPI
 from lib.modes import REGISTRY
 
 pytestmark = pytest.mark.skipif(
-    not os.environ.get("NOWEN_API_KEY"),
-    reason="requires $NOWEN_API_KEY (config.yaml auto-loaded via conftest)",
+    not os.environ.get("VCINE_API_KEY"),
+    reason="requires $VCINE_API_KEY (config.yaml auto-loaded via conftest)",
 )
 
 

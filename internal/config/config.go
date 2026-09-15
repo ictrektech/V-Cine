@@ -387,7 +387,7 @@ type VOSOIDCConfig struct {
 
 // EmbyConfig Emby/Jellyfin 兼容层配置（供移动端/桌面 Emby/Infuse/Jellyfin 客户端登录与播放）
 type EmbyConfig struct {
-	// 服务器对外显示名称（留空则使用主机名或 "nowen-video"）
+	// 服务器对外显示名称（留空则使用主机名或 "V-Cine"）
 	ServerName string `mapstructure:"server_name"`
 	// 是否启用 UDP 7359 局域网服务器自动发现（Emby / Jellyfin 标准协议）
 	// 开启后同网段的客户端会在"添加服务器"时自动发现本机
@@ -701,7 +701,7 @@ func decryptSecretValue(s string) string {
 //  1. 内置默认值
 //  2. 主配置文件 config.yaml（兼容旧版扁平格式）
 //  3. config/ 目录下的分片配置文件（database.yaml, secrets.yaml 等）
-//  4. 环境变量（NOWEN_ 前缀）
+//  4. 环境变量（VCINE_ 前缀）
 func Load() (*Config, error) {
 	// 设置默认值
 	setDefaults()
@@ -714,7 +714,7 @@ func Load() (*Config, error) {
 	viper.AddConfigPath("/etc/nowen-video")
 
 	// 环境变量
-	viper.SetEnvPrefix("NOWEN")
+	viper.SetEnvPrefix("VCINE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
@@ -745,7 +745,7 @@ func Load() (*Config, error) {
 	// 7. 自动生成 JWT Secret（如果仍为默认值）
 	//    为避免容器/进程每次重启导致已签发 token 全部失效（用户被踢回登录页），
 	//    这里将自动生成的 secret 持久化到 data 目录，后续启动优先读取该文件。
-	if cfg.Secrets.JWTSecret == "nowen-video-secret-change-me" {
+	if cfg.Secrets.JWTSecret == "v-cine-secret-change-me" {
 		cfg.Secrets.JWTSecret = loadOrCreatePersistedSecret(cfg.App.DataDir)
 	}
 
@@ -834,7 +834,7 @@ func setDefaults() {
 	viper.SetDefault("database.port", 5432)
 	viper.SetDefault("database.user", "postgres")
 	viper.SetDefault("database.password", "")
-	viper.SetDefault("database.dbname", "nowen_video")
+	viper.SetDefault("database.dbname", "vcine")
 	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("database.timezone", "Asia/Shanghai")
 	viper.SetDefault("database.max_open_conns", 25)
@@ -844,7 +844,7 @@ func setDefaults() {
 	viper.SetDefault("database.connect_retry_interval", 3)
 
 	// ---- 密钥 ----
-	viper.SetDefault("secrets.jwt_secret", "nowen-video-secret-change-me")
+	viper.SetDefault("secrets.jwt_secret", "v-cine-secret-change-me")
 	viper.SetDefault("secrets.tmdb_api_key", "")
 	viper.SetDefault("secrets.tmdb_api_proxy", "")
 	viper.SetDefault("secrets.tmdb_image_proxy", "")
@@ -957,7 +957,7 @@ func setDefaults() {
 	viper.SetDefault("vos_oidc.enabled", false)
 	viper.SetDefault("vos_oidc.jwks_url", "http://172.17.0.1:8105/v1000/oauth2/jwks")
 	viper.SetDefault("vos_oidc.issuer", "/v1000/oauth2")
-	viper.SetDefault("vos_oidc.client_id", "com.ictrek.nowen-video")
+	viper.SetDefault("vos_oidc.client_id", "com.ictrek.v-cine")
 
 	// ---- Emby 兼容层 ----
 	viper.SetDefault("emby.server_name", "")
@@ -1040,7 +1040,7 @@ func setDefaults() {
 	viper.SetDefault("data_dir", "./data")
 	viper.SetDefault("cache_dir", "./cache")
 	viper.SetDefault("web_dir", "./web/dist")
-	viper.SetDefault("jwt_secret", "nowen-video-secret-change-me")
+	viper.SetDefault("jwt_secret", "v-cine-secret-change-me")
 	viper.SetDefault("ffmpeg_path", "ffmpeg")
 	viper.SetDefault("ffprobe_path", "ffprobe")
 	viper.SetDefault("vaapi_device", "/dev/dri/renderD128")
@@ -1089,7 +1089,7 @@ func mergeConfigDir() error {
 			// 避免 config/secrets.yaml 中的空 tmdb_api_key 覆盖 config.yaml 中用户已保存的值
 			for _, key := range subViper.AllKeys() {
 				fullKey := cf.prefix + "." + key
-				// 环境变量优先：若 NOWEN_<FULL_KEY 大写> 已设置且非空，则跳过 Set，
+				// 环境变量优先：若 VCINE_<FULL_KEY 大写> 已设置且非空，则跳过 Set，
 				// 避免分片文件的 viper.Set 覆盖掉 env（viper.Set 优先级高于 env）。
 				// 空 env 不算覆盖——compose 的 ${VAR:-} 空占位会注入空字符串，不应误伤分片值。
 				if envVarSet(fullKey) {
@@ -1108,13 +1108,13 @@ func mergeConfigDir() error {
 	return nil
 }
 
-// envVarSet 判断某个配置 key 是否已有对应的环境变量（NOWEN_ 前缀）且值非空。
+// envVarSet 判断某个配置 key 是否已有对应的环境变量（VCINE_ 前缀）且值非空。
 // 用于 mergeConfigDir：分片文件的值不应覆盖显式设置的环境变量，
 // 因为 viper.Set 的优先级高于 env，直接 Set 会吞掉 env 的覆盖能力。
 // 注意空字符串不算"已设置"：compose 的 ${VAR:-} 空占位会注入空字符串，
 // 若把空 env 视为覆盖，会误伤 database.yaml / ai.yaml 等分片的真实值。
 func envVarSet(fullKey string) bool {
-	envKey := "NOWEN_" + strings.ToUpper(strings.NewReplacer(".", "_").Replace(fullKey))
+	envKey := "VCINE_" + strings.ToUpper(strings.NewReplacer(".", "_").Replace(fullKey))
 	v, ok := os.LookupEnv(envKey)
 	return ok && v != ""
 }
@@ -1139,11 +1139,11 @@ func isEmptyValue(v interface{}) bool {
 // 规则：如果旧版字段有值且子模块字段为默认值，则使用旧版字段的值
 func (c *Config) migrateFromFlatConfig() {
 	// 密钥
-	if c.JWTSecret != "" && c.JWTSecret != "nowen-video-secret-change-me" {
+	if c.JWTSecret != "" && c.JWTSecret != "v-cine-secret-change-me" {
 		c.Secrets.JWTSecret = c.JWTSecret
 	}
 	if c.Secrets.JWTSecret == "" {
-		c.Secrets.JWTSecret = "nowen-video-secret-change-me"
+		c.Secrets.JWTSecret = "v-cine-secret-change-me"
 	}
 	if c.TMDbAPIKey != "" {
 		c.Secrets.TMDbAPIKey = c.TMDbAPIKey
@@ -1252,7 +1252,7 @@ func (c *Config) IsDefaultJWTSecret() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	// 如果 viper 中原始值仍为默认值，说明用户未显式配置
-	return viper.GetString("secrets.jwt_secret") == "nowen-video-secret-change-me"
+	return viper.GetString("secrets.jwt_secret") == "v-cine-secret-change-me"
 }
 
 // GetTMDbAPIKey 获取 TMDb API Key（线程安全）

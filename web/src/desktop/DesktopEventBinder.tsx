@@ -53,7 +53,7 @@ export default function DesktopEventBinder() {
             })
             break
           case 'menu_about':
-            toast('nowen-video Desktop\nPC 端原画原音观影客户端', { duration: 4000 })
+            toast('V-Cine Desktop\nPC 端原画原音观影客户端', { duration: 4000 })
             break
           default:
             break

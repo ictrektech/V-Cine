@@ -194,7 +194,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
   const removeTask = async (task: VideoAnalysisTask) => {
     const ok = await dialog.confirm({
       title: '删除视频分析任务',
-      message: `确认删除「${task.media_title || '未命名媒体'}」的这条分析任务记录？\n仅删除 Nowen 本地任务与结果 JSON，不会删除视频文件，也不会清理外部九宫格缓存。`,
+      message: `确认删除「${task.media_title || '未命名媒体'}」的这条分析任务记录？\n仅删除 V-Cine 本地任务与结果 JSON，不会删除视频文件，也不会清理外部九宫格缓存。`,
       confirmText: '删除',
       variant: 'danger',
     })

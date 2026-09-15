@@ -36,7 +36,7 @@ function Get-GitTagVersion {
 function Resolve-AppVersion {
     $candidates = @(
         $Version,
-        $env:NOWEN_VERSION,
+        $env:VCINE_VERSION,
         $env:APP_VERSION,
         $env:GITHUB_REF_NAME,
         (Get-GitTagVersion)

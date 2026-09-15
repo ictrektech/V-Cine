@@ -1,4 +1,4 @@
-# nowen-video 番号刮削 Python 微服务
+# V-Cine 番号刮削 Python 微服务
 # 用于处理 Cloudflare 等强反爬场景，作为 Go 原生爬虫的 fallback
 #
 # 部署方式：
@@ -6,7 +6,7 @@
 #   python app.py
 #
 # 默认监听 http://localhost:5000
-# 在 nowen-video 配置中设置：
+# 在 V-Cine 配置中设置：
 #   adult_scraper:
 #     python_service_url: "http://localhost:5000"
 

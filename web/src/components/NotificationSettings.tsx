@@ -15,7 +15,7 @@ export default function NotificationSettings() {
       username: '',
       password: '',
       from_addr: '',
-      from_name: 'Nowen Video',
+      from_name: 'V-Cine',
       recipients: [],
       use_tls: true,
     },

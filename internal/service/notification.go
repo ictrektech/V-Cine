@@ -245,7 +245,7 @@ func (ns *NotificationService) sendWebhook(hook WebhookNotifyConfig, event Notif
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "nowen-video-notification/2.0")
+	req.Header.Set("User-Agent", "v-cine-notification/2.0")
 	req.Header.Set("X-Event-Type", event.Type)
 
 	// 带重试的发送

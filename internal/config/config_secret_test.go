@@ -9,7 +9,7 @@ import (
 
 func TestDecryptSecretValue(t *testing.T) {
 	key := make([]byte, 32)
-	t.Setenv("NOWEN_MASTER_KEY", base64.StdEncoding.EncodeToString(key))
+	t.Setenv("VCINE_MASTER_KEY", base64.StdEncoding.EncodeToString(key))
 
 	plain := "sk-test-secret"
 	enc, err := secretcrypto.Encrypt(plain)

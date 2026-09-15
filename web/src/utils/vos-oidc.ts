@@ -37,9 +37,9 @@ export async function acquireVOSAccessToken(): Promise<string | null> {
   const verifier = random(), state = random(), nonce = random()
   // VOS may be served over HTTP, where WebCrypto digest is unavailable.
   const challenge = b64url(new Uint8Array(sha256.array(verifier)))
-  const authorization = await oauth2.authorize({ client_id: 'com.ictrek.nowen-video', response_type: 'code', scope: 'openid profile email', state, nonce, code_challenge: challenge, code_challenge_method: 'S256' })
+  const authorization = await oauth2.authorize({ client_id: 'com.ictrek.v-cine', response_type: 'code', scope: 'openid profile email', state, nonce, code_challenge: challenge, code_challenge_method: 'S256' })
   if (authorization.state !== state) throw new Error('VOS OIDC state mismatch')
-  const tokens = await oauth2.token({ grant_type: 'authorization_code', code: authorization.code, code_verifier: verifier, client_id: 'com.ictrek.nowen-video' })
+  const tokens = await oauth2.token({ grant_type: 'authorization_code', code: authorization.code, code_verifier: verifier, client_id: 'com.ictrek.v-cine' })
   return tokens.access_token || null
 }
 import { sha256 } from 'js-sha256'

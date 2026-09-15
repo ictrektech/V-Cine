@@ -914,7 +914,7 @@ func (s *ASRService) extractAudioFromRemote(remoteURL string, mediaID string) (s
 		"-ac", "1", // 单声道
 		"-f", "wav", // WAV 格式
 		"-t", "7200", // 最多提取 2 小时（安全限制）
-		"-user_agent", "nowen-video/1.0", // 设置 User-Agent
+		"-user_agent", "v-cine/1.0", // 设置 User-Agent
 		audioPath,
 	)
 

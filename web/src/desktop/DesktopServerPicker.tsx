@@ -130,7 +130,7 @@ export default function DesktopServerPicker() {
         }}
       >
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-          连接到 nowen-video 服务器
+          连接到 V-Cine 服务器
         </h2>
         <p
           style={{
@@ -140,7 +140,7 @@ export default function DesktopServerPicker() {
             marginBottom: 18,
           }}
         >
-          未检测到可用的后端服务。请填写你本机或局域网内运行的 nowen-video
+          未检测到可用的后端服务。请填写你本机或局域网内运行的 V-Cine
           服务器地址（包含协议与端口）。
         </p>
 

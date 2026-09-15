@@ -76,7 +76,7 @@ export default function App() {
     void acquireVOSAccessToken().then(async (accessToken) => {
       if (!accessToken) throw new Error('VOS access token unavailable')
       const response = await authApi.vosOIDC(accessToken)
-      if (!response.data.token || !response.data.user) throw new Error('Nowen session unavailable')
+      if (!response.data.token || !response.data.user) throw new Error('V-Cine session unavailable')
       setAuth(response.data.token, response.data.user)
       const basePath = getBasePath()
       window.location.replace(basePath ? `${basePath}/` : '/')
@@ -86,7 +86,7 @@ export default function App() {
   if (isVOSFrame && !isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-slate-100">
-        <div className="text-lg font-semibold">正在使用 VOS 账户登录 Nowen</div>
+        <div className="text-lg font-semibold">正在使用 VOS 账户登录 V-Cine</div>
         {vosLoginError && <button className="rounded bg-cyan-500 px-4 py-2 text-slate-950" onClick={() => setVOSLoginAttempt((attempt) => attempt + 1)}>重新连接 VOS</button>}
       </div>
     )

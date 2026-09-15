@@ -31,12 +31,6 @@ func Open(cfg *config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error) {
 		},
 	)
 
-	dialector := postgres.Open(fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=%s",
-		cfg.Host, cfg.User, cfg.Password, cfg.DBName,
-		cfg.Port, cfg.SSLMode, cfg.TimeZone,
-	))
-
 	// 启动重试参数来自配置；0/负数按默认值处理（防止零次尝试导致返回 nil db）
 	maxRetries := cfg.ConnectRetries
 	if maxRetries <= 0 {
@@ -50,7 +44,7 @@ func Open(cfg *config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error) {
 	var db *gorm.DB
 	var err error
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		db, err = gorm.Open(dialector, &gorm.Config{Logger: gormLog})
+		db, err = gorm.Open(postgres.Open(dsnOf(cfg)), &gorm.Config{Logger: gormLog})
 		if err == nil {
 			break
 		}
@@ -87,3 +81,13 @@ func Open(cfg *config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error) {
 
 	return db, nil
 }
+
+// dsnOf 拼接 PostgreSQL 连接 DSN。
+func dsnOf(cfg *config.DatabaseConfig) string {
+	return fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=%s",
+		cfg.Host, cfg.User, cfg.Password, cfg.DBName,
+		cfg.Port, cfg.SSLMode, cfg.TimeZone,
+	)
+}
+

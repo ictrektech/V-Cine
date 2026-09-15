@@ -132,8 +132,8 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
       <div className="flex h-16 items-center justify-between px-4">
         {(!collapsed || isMobileOpen) && (
           <h1 className="font-display text-lg font-bold tracking-wider">
-            <span className="text-neon text-neon-glow">N</span>
-            <span style={{ color: 'var(--text-primary)' }}>OWEN</span>
+            <span className="text-neon text-neon-glow">V</span>
+            <span style={{ color: 'var(--text-primary)' }}>-Cine</span>
           </h1>
         )}
         {collapsed && !isMobileOpen && (

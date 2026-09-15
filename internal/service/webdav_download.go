@@ -69,7 +69,7 @@ func downloadWebDAVToLocal(ctx context.Context, httpURL, cacheDir, mediaID strin
 	if err != nil {
 		return "", nil, fmt.Errorf("构造请求失败: %w", err)
 	}
-	req.Header.Set("User-Agent", "nowen-video/1.0")
+	req.Header.Set("User-Agent", "v-cine/1.0")
 
 	client := &http.Client{
 		Timeout: 0, // 大文件，不设总超时；靠 ctx 控制取消

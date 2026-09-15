@@ -182,7 +182,7 @@ func (s *VideoAnalysisService) SetBaseURLs(sceneBaseURL, structureBaseURL string
 }
 
 // 默认媒体源地址：同一 compose 网络内的服务名（DNS 别名），
-// 容器 IP 变化不影响解析；异网/远程拓扑用环境变量 NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL 覆盖。
+// 容器 IP 变化不影响解析；异网/远程拓扑用环境变量 VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL 覆盖。
 const defaultAnalysisMediaBaseURL = "http://nowen-video:8080"
 
 // buildAnalysisSourceURL 生成 detect/structure 可访问的内部媒体源 URL（按 mediaId 寻址）。

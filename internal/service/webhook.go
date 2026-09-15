@@ -156,7 +156,7 @@ func (ws *WebhookService) sendWebhook(hook WebhookConfig, event WebhookEvent) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "nowen-video-webhook/1.0")
+	req.Header.Set("User-Agent", "v-cine-webhook/1.0")
 	req.Header.Set("X-Webhook-Event", event.Type)
 
 	// 带重试的发送（最多重试2次）

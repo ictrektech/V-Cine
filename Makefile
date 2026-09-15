@@ -14,7 +14,7 @@
 
 # 镜像 registry 与仓库路径（与 docker-compose.yml 的 ${IMAGE_URL} 保持一致）
 REGISTRY   ?= swr.cn-southwest-2.myhuaweicloud.com/ictrek
-IMAGE_NAME ?= nowen-video
+IMAGE_NAME ?= v-cine
 IMAGE_URL  ?= $(REGISTRY)/$(IMAGE_NAME)
 
 # 所有 compose 命令导出 IMAGE_URL，build/up/tag 使用同一镜像名
@@ -125,7 +125,7 @@ MIRROR_ARGS := $(if $(ALPINE_MIRROR),--build-arg ALPINE_MIRROR=$(ALPINE_MIRROR))
 build:
 	docker buildx build --platform $(PLATFORM_GOAL) --load \
 		-f docker/Dockerfile -t $(IMAGE_URL):latest \
-		--build-arg NOWEN_VERSION=$(VERSION) \
+		--build-arg VCINE_VERSION=$(VERSION) \
 		$(MIRROR_ARGS) \
 		$(PROXY_ARGS) \
 		. \
@@ -149,11 +149,11 @@ binfmt:
 
 # 本地二进制（快速调试用；CGO_ENABLED=0：无 cgo 依赖，与 Dockerfile 一致）
 build-binary: build-web
-	CGO_ENABLED=0 NOWEN_VERSION=$(VERSION) go build -ldflags "$(GO_LDFLAGS)" -o bin/nowen-video ./cmd/server
+	CGO_ENABLED=0 VCINE_VERSION=$(VERSION) go build -ldflags "$(GO_LDFLAGS)" -o bin/nowen-video ./cmd/server
 
 # 仅后端二进制
 build-server:
-	CGO_ENABLED=0 NOWEN_VERSION=$(VERSION) go build -ldflags "$(GO_LDFLAGS)" -o bin/nowen-video ./cmd/server
+	CGO_ENABLED=0 VCINE_VERSION=$(VERSION) go build -ldflags "$(GO_LDFLAGS)" -o bin/nowen-video ./cmd/server
 
 # 仅前端
 build-web:
@@ -165,7 +165,7 @@ build-web:
 
 # go run 本地启动后端（调试模式，端口 38080）
 dev-go:
-	NOWEN_APP_ENV=development NOWEN_DEBUG=true NOWEN_VERSION=$(VERSION) go run -ldflags "$(GO_LDFLAGS)" ./cmd/server
+	VCINE_APP_ENV=development VCINE_DEBUG=true VCINE_VERSION=$(VERSION) go run -ldflags "$(GO_LDFLAGS)" ./cmd/server
 
 # 前端 dev server（33000 → 38080）
 dev-web:

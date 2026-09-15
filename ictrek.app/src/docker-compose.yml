@@ -1,7 +1,7 @@
 services:
   nowen-video-amd:
     &nowen-video-base
-    image: ${NOWEN_VIDEO_AMD_IMAGE}
+    image: ${VCINE_VIDEO_AMD_IMAGE}
     restart: unless-stopped
     pull_policy: always
     user: "0:0"
@@ -11,48 +11,48 @@ services:
           - nowen-video
     # 不在本 compose 内声明 postgres：复用 VOS 共享 pgv 服务（com.ictrek.pgv），
     # 它在 vos_default 网络里的别名是 pgv，由 pgv app 的 provision 脚本预置
-    # nowen role + nowen_video 库 + vector 扩展。pgv 是独立 app、可能晚于 nowen 启动，
+    # vcine role + vcine 库 + vector 扩展。pgv 是独立 app、可能晚于 vcine 启动，
     # 因此不写 depends_on：应用连不上库会 fatal 退出、restart 自愈，pgv 就绪后即连上。
     environment:
-      NOWEN_APP_PORT: "8080"
-      NOWEN_APP_DATA_DIR: /data
-      NOWEN_APP_WEB_DIR: /app/web/dist
+      VCINE_APP_PORT: "8080"
+      VCINE_APP_DATA_DIR: /data
+      VCINE_APP_WEB_DIR: /app/web/dist
       # VOS 子路径：后端 http.Server 层剥离此前缀；前端前缀由 VITE_BASE 在构建期写入。
-      NOWEN_APP_WEB_BASE_PATH: "${NOWEN_APP_WEB_BASE_PATH:-/app/com.ictrek.nowen-video}"
+      VCINE_APP_WEB_BASE_PATH: "${VCINE_APP_WEB_BASE_PATH:-/app/com.ictrek.v-cine}"
       # ---- PostgreSQL：连共享 pgv（com.ictrek.pgv 在 vos_default 的别名）----
-      NOWEN_DATABASE_HOST: "${NOWEN_DATABASE_HOST:-pgv}"
-      NOWEN_DATABASE_PORT: "${NOWEN_DATABASE_PORT:-5432}"
-      NOWEN_DATABASE_USER: "${NOWEN_DATABASE_USER:-nowen}"
-      NOWEN_DATABASE_PASSWORD: "${NOWEN_DATABASE_PASSWORD:-nowen_password}"
-      NOWEN_DATABASE_DBNAME: "${NOWEN_DATABASE_DBNAME:-nowen_video}"
-      NOWEN_CACHE_CACHE_DIR: /cache
-      NOWEN_LOGGING_LEVEL: "${NOWEN_LOGGING_LEVEL:-info}"
-      NOWEN_ADULT_SCRAPER_ENABLED: "${NOWEN_ADULT_SCRAPER_ENABLED:-false}"
-      NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON: "true"
-      NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE: /usr/bin/python3
-      NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR: /app/scripts/adult-scraper
-      NOWEN_VOS_OIDC_ENABLED: "true"
-      NOWEN_VOS_OIDC_JWKS_URL: http://172.17.0.1:8105/v1000/oauth2/jwks
-      NOWEN_VOS_OIDC_ISSUER: /v1000/oauth2
-      NOWEN_VOS_OIDC_CLIENT_ID: com.ictrek.nowen-video
+      VCINE_DATABASE_HOST: "${VCINE_DATABASE_HOST:-pgv}"
+      VCINE_DATABASE_PORT: "${VCINE_DATABASE_PORT:-5432}"
+      VCINE_DATABASE_USER: "${VCINE_DATABASE_USER:-vcine}"
+      VCINE_DATABASE_PASSWORD: "${VCINE_DATABASE_PASSWORD:-vcine_password}"
+      VCINE_DATABASE_DBNAME: "${VCINE_DATABASE_DBNAME:-vcine}"
+      VCINE_CACHE_CACHE_DIR: /cache
+      VCINE_LOGGING_LEVEL: "${VCINE_LOGGING_LEVEL:-info}"
+      VCINE_ADULT_SCRAPER_ENABLED: "${VCINE_ADULT_SCRAPER_ENABLED:-false}"
+      VCINE_ADULT_SCRAPER_AUTO_START_PYTHON: "true"
+      VCINE_ADULT_SCRAPER_PYTHON_EXECUTABLE: /usr/bin/python3
+      VCINE_ADULT_SCRAPER_PYTHON_SERVICE_DIR: /app/scripts/adult-scraper
+      VCINE_VOS_OIDC_ENABLED: "true"
+      VCINE_VOS_OIDC_JWKS_URL: http://172.17.0.1:8105/v1000/oauth2/jwks
+      VCINE_VOS_OIDC_ISSUER: /v1000/oauth2
+      VCINE_VOS_OIDC_CLIENT_ID: com.ictrek.v-cine
       # ---- Embedding 向量检索（依赖独立部署的 emb_server，默认连宿主 18005）----
-      NOWEN_AI_EMBEDDING_AI_API_BASE: "${NOWEN_AI_EMBEDDING_AI_API_BASE:-http://172.17.0.1:18005}"
+      VCINE_AI_EMBEDDING_AI_API_BASE: "${VCINE_AI_EMBEDDING_AI_API_BASE:-http://172.17.0.1:18005}"
       # ---- 视频分析 Scene / Structure 外部服务地址（安装初始值，运行期可在 Nowen 管理后台修改）----
-      NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL: "${NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL:-http://172.17.0.1:48910}"
-      NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL: "${NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL:-http://172.17.0.1:48911}"
+      VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL: "${VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL:-http://172.17.0.1:48910}"
+      VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL: "${VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL:-http://172.17.0.1:48911}"
       # 媒体源地址（detect/structure 回源拉流访问 nowen-video 的地址）。宿主侧服务经
       # docker0 网关 + 宿主端口回源；代码默认值是 compose 服务名（仅同网络容器化部署适用）。
-      NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL: "${NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL:-http://172.17.0.1:${NOWEN_PORT:-38085}}"
+      VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL: "${VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL:-http://172.17.0.1:${VCINE_PORT:-38085}}"
       TZ: "${TZ:-Asia/Shanghai}"
     # 宿主端口：Traefik file provider 经 docker0 网关 172.17.0.1 转发到该端口
     ports:
-      - "${NOWEN_PORT:-38085}:8080"
+      - "${VCINE_PORT:-38085}:8080"
     volumes:
       # 私有数据（应用私有目录），避免 .jwt_secret 等暴露在公共共享里
       - ${VOS_APP_STORAGE_PATH}/data:/data
       - ${VOS_APP_STORAGE_PATH}/cache:/cache
-      # 主媒体库（安装时必选 NOWEN_MEDIA_PATH）
-      - ${NOWEN_MEDIA_PATH}:/media
+      # 主媒体库（安装时必选 VCINE_MEDIA_PATH）
+      - ${VCINE_MEDIA_PATH}:/media
       # 数据访问授权目录挂载到 /exposed；父挂载 rslave,ro 防止应用写视图结构
       - ${VOS_APP_EXPOSED_PATH:-/nonexistent}:/exposed:rslave,ro
     healthcheck:
@@ -65,14 +65,14 @@ services:
 
   nowen-video-arm:
     <<: *nowen-video-base
-    image: ${NOWEN_VIDEO_ARM_IMAGE}
+    image: ${VCINE_VIDEO_ARM_IMAGE}
     profiles: ["arm"]
 
   # Jetson / L4T：使用 Dockerfile.l4t 构建的 l4t_${VERSION} 镜像，
   # nvmpi 需要 nvidia runtime + privileged。
   nowen-video-l4t:
     <<: *nowen-video-base
-    image: ${NOWEN_VIDEO_L4T_IMAGE}
+    image: ${VCINE_VIDEO_L4T_IMAGE}
     runtime: nvidia
     privileged: true
     profiles: ["l4t"]

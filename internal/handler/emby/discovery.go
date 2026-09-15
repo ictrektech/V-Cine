@@ -48,7 +48,7 @@ func NewDiscoveryService(port int, serverID, serverName string, httpPort int, lo
 		if h, err := os.Hostname(); err == nil && h != "" {
 			serverName = h
 		} else {
-			serverName = "nowen-video"
+			serverName = "V-Cine"
 		}
 	}
 	if port <= 0 {

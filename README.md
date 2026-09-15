@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>🎬 nowen-video</h1>
+<h1>🎬 V-Cine</h1>
 
 <p><b>你的私人家庭影音中心 — 轻量、自托管、为 NAS 而生。</b></p>
 
@@ -54,8 +54,8 @@
 ### 一、Docker 部署（推荐）
 
 ```bash
-git clone https://github.com/your-repo/nowen-video.git
-cd nowen-video
+git clone https://github.com/your-repo/v-cine.git
+cd v-cine
 docker-compose up -d
 ```
 
@@ -75,7 +75,7 @@ services:
     environment:
       - PUID=1000                                    # 通过 `id` 命令查看
       - PGID=1000
-      - NOWEN_SECRETS_JWT_SECRET=change-me-please    # ⚠️ 必须修改
+      - VCINE_SECRETS_JWT_SECRET=change-me-please    # ⚠️ 必须修改
       - TZ=Asia/Shanghai
     volumes:
       - ./data:/data                                 # 数据库与配置
@@ -92,10 +92,10 @@ services:
 |---|---|---|
 | `PUID` / `PGID` | `1000` | 运行用户的 UID/GID（必须匹配宿主机媒体目录权限） |
 | `TZ` | `UTC` | 时区，建议 `Asia/Shanghai` |
-| `NOWEN_APP_PORT` | `8080` | HTTP 端口 |
-| `NOWEN_SECRETS_JWT_SECRET` | *(必填)* | JWT 签名密钥 — **首次部署务必修改** |
-| `NOWEN_APP_DATA_DIR` | `/data` | 数据目录（数据库 + 上传文件） |
-| `NOWEN_LOGGING_LEVEL` | `info` | 日志级别：`debug` / `info` / `warn` / `error` |
+| `VCINE_APP_PORT` | `8080` | HTTP 端口 |
+| `VCINE_SECRETS_JWT_SECRET` | *(必填)* | JWT 签名密钥 — **首次部署务必修改** |
+| `VCINE_APP_DATA_DIR` | `/data` | 数据目录（数据库 + 上传文件） |
+| `VCINE_LOGGING_LEVEL` | `info` | 日志级别：`debug` / `info` / `warn` / `error` |
 | `/dev/dri` 设备 | — | 透传 Intel/AMD GPU 用于硬件转码（NVIDIA 需用 `runtime: nvidia`） |
 
 ### 三、源码构建
@@ -123,7 +123,7 @@ make build
 1. 内置默认值        → 零配置可运行
 2. config.yaml       → 主配置文件（旧版扁平 / 新版嵌套均支持）
 3. config/*.yaml     → 分片配置文件（按模块分类）
-4. NOWEN_* 环境变量  → 例如 NOWEN_APP_PORT=8080
+4. VCINE_* 环境变量  → 例如 VCINE_APP_PORT=8080
 ```
 
 `config/` 目录下常用分片：
@@ -162,7 +162,7 @@ ai: { provider: ollama,   api_base: http://localhost:11434/v1,                  
 
 ## 🤖 Agent Skills
 
-nowen-video 提供面向 AI Agent（Claude Code）的搜索技能，可通过 API Key 认证直接查询媒体库：
+V-Cine 提供面向 AI Agent（Claude Code）的搜索技能，可通过 API Key 认证直接查询媒体库：
 
 | Skill | 路径 | 用途 |
 |-------|------|------|
@@ -170,7 +170,7 @@ nowen-video 提供面向 AI Agent（Claude Code）的搜索技能，可通过 AP
 
 使用方式：
 ```bash
-export NOWEN_API_KEY=nk_xxxx  # 在 Web UI 中创建
+export VCINE_API_KEY=nk_xxxx  # 在 Web UI 中创建
 cd skills/nowen-media-search
 python3 scripts/nowen_media_search config --test
 python3 scripts/nowen_media_search search --keyword "肖申克"

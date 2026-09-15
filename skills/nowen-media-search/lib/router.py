@@ -46,12 +46,12 @@ def main():
         print(output)
     except requests.RequestException as e:
         print(f"Network: {e}", file=sys.stderr)
-        if os.environ.get("NOWEN_DEBUG"):
+        if os.environ.get("VCINE_DEBUG"):
             traceback.print_exc()
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
-        if os.environ.get("NOWEN_DEBUG"):
+        if os.environ.get("VCINE_DEBUG"):
             traceback.print_exc()
         sys.exit(1)
 

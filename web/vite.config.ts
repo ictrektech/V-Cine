@@ -7,7 +7,7 @@ import path from 'path'
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:8080'
 const devPort = Number(process.env.WEB_PORT) || 3000
 
-// VOS 部署时通过 VITE_BASE 注入 Traefik 路径前缀（如 /app/com.ictrek.nowen-video/），
+// VOS 部署时通过 VITE_BASE 注入 Traefik 路径前缀（如 /app/com.ictrek.v-cine/），
 // 与 VAI 其他 app 对齐；根路径/Tauri 构建不设 VITE_BASE，使用根绝对路径，
 // 避免深层路由刷新时相对资源解析到 /play/... 下 404。
 const base = process.env.VITE_BASE || '/'

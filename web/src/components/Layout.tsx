@@ -92,8 +92,8 @@ export default function Layout() {
               <Menu size={22} />
             </button>
             <h1 className="font-display text-base font-bold tracking-wider">
-              <span className="text-neon text-neon-glow">N</span>
-              <span style={{ color: 'var(--text-primary)' }}>OWEN</span>
+              <span className="text-neon text-neon-glow">V</span>
+              <span style={{ color: 'var(--text-primary)' }}>-Cine</span>
             </h1>
           </div>
 

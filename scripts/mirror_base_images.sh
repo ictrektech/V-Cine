@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mirror the nowen-video Dockerfile base images into the ictrek SWR registry as
+# Mirror the V-Cine Dockerfile base images into the ictrek SWR registry as
 # PER-ARCH tags. Huawei SWR rejects OCI multi-arch index pushes (HTTP 400), so
 # each arch is pushed under its own tag: <base>-amd64 / <base>-arm64.
 #

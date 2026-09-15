@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the nowen-video image from source, push it to the ictrek SWR registry
+# Build the v-cine image from source, push it to the ictrek SWR registry
 # under a unique arch tag (<平台>_<日期>_<githash>, e.g. amd_20260909_1a2b3c4),
 # and record that tag in the shared Feishu spreadsheet (read side:
 # ictrek.app/scripts/package.sh pulls the latest tag per profile from Feishu).
@@ -21,9 +21,9 @@ set -euo pipefail
 # ---------------- config ----------------
 REGISTRY="swr.cn-southwest-2.myhuaweicloud.com"
 NAMESPACE="ictrek"
-APP_NAME="nowen-video"
+APP_NAME="v-cine"
 IMAGE_REPO="${REGISTRY}/${NAMESPACE}/${APP_NAME}"
-COMPONENT_NAME="nowen-video"                 # Feishu column header (row 1)
+COMPONENT_NAME="v-cine"                 # Feishu column header (row 1)
 FEISHU_SPREADSHEET_TOKEN="Htotsn3oahO1zxt73YMcaB1zn8e"
 FEISHU_CONFIG_FILE="${FEISHU_CONFIG_FILE:-${HOME}/.feishu.json}"
 # Feishu sheets that record the image tag for each arch (same sets as motrix).
@@ -31,8 +31,8 @@ AMD_SHEETS=("AMD_with_cuda" "AMD_with_mxn100")
 # l4t sheet 只由 --profile l4t 写入（l4t_* tag）；默认 arm 构建写入会覆盖 Jetson 记录
 ARM_SHEETS=("ARM_without_cuda" "ARM_with_cuda")
 
-# VOS 始终挂载在 /app/com.ictrek.nowen-video/，必须让 Vite 构建期写入前缀；
-VITE_BASE="${VITE_BASE:-/app/com.ictrek.nowen-video/}"
+# VOS 始终挂载在 /app/com.ictrek.v-cine/，必须让 Vite 构建期写入前缀；
+VITE_BASE="${VITE_BASE:-/app/com.ictrek.v-cine/}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION_FILE="${ROOT_DIR}/ictrek.app/VERSION"
@@ -94,10 +94,10 @@ contains() {
   return 1
 }
 # Feishu sheets to record on: default = all sheets of this arch (like motrix),
-# overridable via NOWEN_RELEASE_SHEETS env or repeated --sheet.
+# overridable via VCINE_RELEASE_SHEETS env or repeated --sheet.
 TARGET_SHEETS=()
-if [[ -n "${NOWEN_RELEASE_SHEETS:-}" ]]; then
-  IFS=',' read -r -a TARGET_SHEETS <<< "${NOWEN_RELEASE_SHEETS}"
+if [[ -n "${VCINE_RELEASE_SHEETS:-}" ]]; then
+  IFS=',' read -r -a TARGET_SHEETS <<< "${VCINE_RELEASE_SHEETS}"
 fi
 TARGET_SHEETS+=("${SHEETS_OVERRIDE[@]}")
 if [[ ${#TARGET_SHEETS[@]} -eq 0 ]]; then
@@ -189,7 +189,7 @@ build_image() {
   log "building ${IMAGE_URI} (${PLATFORM})"
   docker buildx build --load --provenance=false --sbom=false --pull=false \
     -f "${DOCKERFILE}" \
-    --build-arg NOWEN_VERSION="${VERSION}" \
+    --build-arg VCINE_VERSION="${VERSION}" \
     --build-arg VITE_BASE="${VITE_BASE}" \
     -t "${IMAGE_URI}" \
     "${ROOT_DIR}"

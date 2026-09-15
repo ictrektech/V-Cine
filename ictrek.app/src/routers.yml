@@ -6,7 +6,7 @@ routers:
       en: Nowen Video
     icon: lucide:film
     order: 260
-    iframe-src: /app/com.ictrek.nowen-video/
+    iframe-src: /app/com.ictrek.v-cine/
     keep-alive: true
     entry-point: true
     embed: true

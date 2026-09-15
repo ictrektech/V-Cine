@@ -124,7 +124,7 @@ export default function LoginPage() {
             <Zap size={32} style={{ color: 'var(--text-on-neon)' }} />
           </motion.div>
           <h1 className="font-display text-3xl font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>
-            <span className="text-neon text-neon-glow">N</span>OWEN
+            <span className="text-neon text-neon-glow">V</span>-Cine
           </h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {t('auth.slogan')}

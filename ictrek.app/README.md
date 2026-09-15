@@ -1,8 +1,8 @@
-# Nowen Video VOS 应用打包说明
+# V-Cine VOS 应用打包说明
 
-本目录包含 VOS app `com.ictrek.nowen-video` 的安装包模板。
+本目录包含 VOS app `com.ictrek.v-cine` 的安装包模板。
 
-VOS OIDC 登录会以已验签的 VOS `sub` 绑定 Nowen 账号；同名的既有本地账号会在首次 VOS 登录时自动绑定，并按 VOS 管理员身份同步为 Nowen 管理员。
+VOS OIDC 登录会以已验签的 VOS `sub` 绑定 V-Cine 账号；同名的既有本地账号会在首次 VOS 登录时自动绑定，并按 VOS 管理员身份同步为 V-Cine 管理员。
 发布流程以 `update_version` 推送 tag 触发的 GitHub Actions 为准；镜像构建与发布解耦（先构建后发布）。
 
 ## 镜像准备（发布前必做）
@@ -11,12 +11,12 @@ VOS OIDC 登录会以已验签的 VOS `sub` 绑定 Nowen 账号；同名的既�
 - 通用平台用 `docker/Dockerfile`（AMD64 / 通用 ARM64）；
 - Jetson / L4T 用 `docker/Dockerfile.l4t`（arm64 + nvmpi）。
 
-镜像构建完成后写入飞书发布表。`package.sh` 从飞书 `nowen-video` 列读取各 profile 的最新镜像 tag；目标 sheet 缺少记录或 tag 前缀与架构不符时直接停止打包。
+镜像构建完成后写入飞书发布表。`package.sh` 从飞书 `v-cine` 列读取各 profile 的最新镜像 tag；目标 sheet 缺少记录或 tag 前缀与架构不符时直接停止打包。
 
 ```text
-amd  -> AMD_with_cuda   -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:amd_*
-arm  -> ARM_without_cuda -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:arm_*
-l4t  -> l4t             -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:l4t_*
+amd  -> AMD_with_cuda   -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/v-cine:amd_*
+arm  -> ARM_without_cuda -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/v-cine:arm_*
+l4t  -> l4t             -> swr.cn-southwest-2.myhuaweicloud.com/ictrek/v-cine:l4t_*
 ```
 
 **一次性 / 基镜像版本变动时**：把基镜像（`oven/bun:1-alpine` / `golang:1.25-alpine` / `nvidia/cuda:12.8.1-runtime-ubuntu22.04` / `ubuntu:22.04`）同步到 SWR。华为 SWR 不接受 OCI 多架构索引，所以**按架构各跑一次**，产出 `<base>-amd64` / `<base>-arm64` 分架构 tag（基镜像不进飞书）：
@@ -33,7 +33,7 @@ cd apps/nowen-video
 # ① 构建机上原生构建（基镜像从 SWR 拉，构建走 --pull=false），推 SWR + 写飞书
 #    default profile：飞书记录写入该架构的全部 sheet（与 motrix 同一套：
 #    amd → AMD_with_cuda、AMD_with_mxn100；
-#    arm → ARM_without_cuda、ARM_with_cuda、thor_spark（l4t 只由 --profile l4t 写入，避免同名覆盖），组件列头 nowen-video
+#    arm → ARM_without_cuda、ARM_with_cuda、thor_spark（l4t 只由 --profile l4t 写入，避免同名覆盖），组件列头 v-cine
 ssh tc232  'cd nowen-video && git pull && ./build_image.sh'                    # AMD64: amd_<日期>_<sha> + 推送 + 写飞书
 ssh tc192  'cd nowen-video && git pull && ./build_image.sh'                    # ARM64: arm_<日期>_<sha> + 推送 + 写飞书
 ssh <jetson>'cd nowen-video && git pull && ./build_image.sh --profile l4t'     # Jetson/L4T: l4t_<日期>_<sha> + 推送 + 只写 l4t sheet
@@ -47,7 +47,7 @@ ssh <jetson>'cd nowen-video && git pull && ./build_image.sh --profile l4t'     #
 
 ## 打包
 
-发布入口是 `update_version`（薄壳委托 `ictrek.app/scripts/update_version.sh`）：bump `VERSION`、提交 release commit、推分支并推送 `vos-nowen-video-v${VERSION}` tag；GitHub Actions 收到 tag 后生成 pull 包并更新 GitHub release / VOS App Store。**前置**：所有 profile 镜像已构建、推送并登记飞书。
+发布入口是 `update_version`（薄壳委托 `ictrek.app/scripts/update_version.sh`）：bump `VERSION`、提交 release commit、推分支并推送 `vos-v-cine-v${VERSION}` tag；GitHub Actions 收到 tag 后生成 pull 包并更新 GitHub release / VOS App Store。**前置**：所有 profile 镜像已构建、推送并登记飞书。
 
 本地 `package.sh` 只用于调试或手动验证，不会递增或写回 `VERSION`：
 

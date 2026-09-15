@@ -57,7 +57,7 @@ const enUS: Record<string, string> = {
   'auth.username': 'Username',
   'auth.password': 'Password',
   'auth.loginTitle': 'Welcome Back',
-  'auth.loginSubtitle': 'Sign in to Nowen Video',
+  'auth.loginSubtitle': 'Sign in to V-Cine',
   'auth.registerTitle': 'Create Account',
   'auth.noAccount': "Don't have an account?",
   'auth.hasAccount': 'Already have an account?',

@@ -2,7 +2,7 @@ name: VOS Pull Package Release
 
 on:
   push:
-    tags: ["vos-nowen-video-v*"]
+    tags: ["vos-v-cine-v*"]
 
 permissions:
   contents: write
@@ -32,23 +32,23 @@ jobs:
           FEISHU_SPREADSHEET_TOKEN: ${{ secrets.FEISHU_SPREADSHEET_TOKEN }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
+          VERSION="${GITHUB_REF_NAME#vos-v-cine-v}"
           PACKAGE_VERSION="$VERSION" ./ictrek.app/scripts/package.sh
-          test -f "ictrek.app/dist/nowen-video_${VERSION}_pull.tar"
+          test -f "ictrek.app/dist/v-cine_${VERSION}_pull.tar"
 
       - name: Create release notes
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_PREFIX: vos-nowen-video-v
+          TAG_PREFIX: vos-v-cine-v
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
+          VERSION="${GITHUB_REF_NAME#vos-v-cine-v}"
           CURRENT="${GITHUB_REF_NAME}"
           PUBLIC_TAG="v${VERSION}"
           export PUBLIC_TAG
           PREVIOUS="$(gh release list --limit 100 --json tagName,publishedAt --jq '[.[] | select(.tagName != env.PUBLIC_TAG) | select((.tagName | startswith("v")) or (.tagName | startswith(env.TAG_PREFIX)))] | sort_by(.publishedAt) | reverse | .[0].tagName // ""')"
           {
-            echo "Pull-mode VOS app package for com.ictrek.nowen-video."
+            echo "Pull-mode VOS app package for com.ictrek.v-cine."
             echo
             if [[ -n "$PREVIOUS" ]]; then
               echo "Changes since ${PREVIOUS}:"
@@ -64,13 +64,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
+          VERSION="${GITHUB_REF_NAME#vos-v-cine-v}"
           PUBLIC_TAG="v${VERSION}"
           if ! git ls-remote --exit-code --tags origin "refs/tags/${PUBLIC_TAG}" >/dev/null 2>&1; then
             git tag "$PUBLIC_TAG" "$GITHUB_SHA"
             git push origin "$PUBLIC_TAG"
           fi
-          gh release create "$PUBLIC_TAG" "ictrek.app/dist/nowen-video_${VERSION}_pull.tar" \
+          gh release create "$PUBLIC_TAG" "ictrek.app/dist/v-cine_${VERSION}_pull.tar" \
             --verify-tag --latest --title "v${VERSION}" --notes-file release-notes.md
 
       - name: Publish package to VOS App Store
@@ -82,8 +82,8 @@ jobs:
           test -n "${APPSTORE_IP:-}" || { echo "APPSTORE_IP is not configured." >&2; exit 1; }
           test -n "${APPSTORE_TOKEN:-}" || { echo "APPSTORE_TOKEN is not configured." >&2; exit 1; }
 
-          VERSION="${GITHUB_REF_NAME#vos-nowen-video-v}"
-          PACKAGE="ictrek.app/dist/nowen-video_${VERSION}_pull.tar"
+          VERSION="${GITHUB_REF_NAME#vos-v-cine-v}"
+          PACKAGE="ictrek.app/dist/v-cine_${VERSION}_pull.tar"
           mkdir -p "$HOME/.ssh"
           chmod 700 "$HOME/.ssh"
           ssh-keyscan -H -p 32222 "$APPSTORE_IP" >> "$HOME/.ssh/known_hosts"

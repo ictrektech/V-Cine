@@ -3,7 +3,7 @@ setlocal EnableDelayedExpansion
 chcp 65001 >nul
 
 REM ============================================================
-REM  nowen-video 本地开发一键交互脚本
+REM  V-Cine 本地开发一键交互脚本
 REM
 REM  功能：
 REM    1) 选择要启动的服务（后端 / 前端 / 全部）
@@ -21,7 +21,7 @@ set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 cls
 echo.
 echo ============================================================
-echo            nowen-video local dev launcher
+echo            V-Cine local dev launcher
 echo ============================================================
 echo.
 echo   [1] Start Backend  (Go server)
@@ -54,7 +54,7 @@ call :ask_server_port
 echo.
 echo 即将启动后端，端口: %SERVER_PORT%
 echo.
-start "nowen-video-server port %SERVER_PORT%" cmd /k "set SERVER_PORT=%SERVER_PORT% & set NOWEN_APP_PORT=%SERVER_PORT% & call "%SCRIPT_DIR%\run-server.bat""
+start "v-cine-server port %SERVER_PORT%" cmd /k "set SERVER_PORT=%SERVER_PORT% & set VCINE_APP_PORT=%SERVER_PORT% & call "%SCRIPT_DIR%\run-server.bat""
 goto end
 
 
@@ -69,7 +69,7 @@ call :ask_server_port_for_proxy
 echo.
 echo 即将启动前端，端口: %WEB_PORT%, 代理后端: http://localhost:%SERVER_PORT%
 echo.
-start "nowen-video-web port %WEB_PORT%" cmd /k "set WEB_PORT=%WEB_PORT% & set SERVER_PORT=%SERVER_PORT% & call "%SCRIPT_DIR%\run-web.bat""
+start "v-cine-web port %WEB_PORT%" cmd /k "set WEB_PORT=%WEB_PORT% & set SERVER_PORT=%SERVER_PORT% & call "%SCRIPT_DIR%\run-web.bat""
 goto end
 
 
@@ -88,13 +88,13 @@ echo   前端端口: %WEB_PORT%
 echo.
 
 echo [1/2] 启动后端服务窗口 ...
-start "nowen-video-server port %SERVER_PORT%" cmd /k "set SERVER_PORT=%SERVER_PORT% & set NOWEN_APP_PORT=%SERVER_PORT% & call "%SCRIPT_DIR%\run-server.bat""
+start "v-cine-server port %SERVER_PORT%" cmd /k "set SERVER_PORT=%SERVER_PORT% & set VCINE_APP_PORT=%SERVER_PORT% & call "%SCRIPT_DIR%\run-server.bat""
 
 echo 等待后端初始化 2 秒 ...
 timeout /t 2 /nobreak >nul
 
 echo [2/2] 启动前端 Vite 窗口 ...
-start "nowen-video-web port %WEB_PORT%" cmd /k "set WEB_PORT=%WEB_PORT% & set SERVER_PORT=%SERVER_PORT% & call "%SCRIPT_DIR%\run-web.bat""
+start "v-cine-web port %WEB_PORT%" cmd /k "set WEB_PORT=%WEB_PORT% & set SERVER_PORT=%SERVER_PORT% & call "%SCRIPT_DIR%\run-web.bat""
 
 echo.
 echo 已分别启动后端和前端窗口，关闭对应窗口即可停止服务。

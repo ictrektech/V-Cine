@@ -1,10 +1,10 @@
-# ==================== nowen-video 配置文件 ====================
+# ==================== V-Cine 配置文件 ====================
 #
 # 配置加载优先级（从低到高）：
 #   1. 内置默认值
 #   2. 本文件（config.yaml）—— 支持旧版扁平格式和新版嵌套格式
 #   3. config/ 目录下的分片配置文件（database.yaml, secrets.yaml 等）
-#   4. 环境变量（NOWEN_ 前缀，如 NOWEN_APP_PORT=8080）
+#   4. 环境变量（VCINE_ 前缀，如 VCINE_APP_PORT=8080）
 #
 # 推荐方式：使用 config/ 目录下的分片配置文件，便于分类管理和安全隔离。
 # 也可以继续使用本文件的扁平格式，系统会自动向后兼容。
@@ -24,7 +24,7 @@ database:
   # port: 5432
   # user: postgres
   # password: your_password_here
-  # dbname: nowen_video
+  # dbname: vcine
   # sslmode: disable
   # timezone: Asia/Shanghai
   # 通用连接池
@@ -97,12 +97,12 @@ video_analysis:
   structure_base_url: http://localhost:8911
   # detect/structure 回源拉流的媒体源地址不在配置文件中设置：
   # 默认 http://nowen-video:8080（compose 网络别名，自托管同网络部署自动解析）；
-  # vos 部署由 compose 自动注入 NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL，异机/异网拓扑改该 env 后重启
+  # vos 部署由 compose 自动注入 VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL，异机/异网拓扑改该 env 后重启
   # 可选内部媒体源令牌；留空表示仅依赖内网隔离
   source_token: ""
   # 远程视频（webdav/alist/s3）结构化分析：默认关闭，开启后会消耗带宽且较慢
   remote_video_enabled: false
-  # Nowen 自己的结构化产物数据目录（默认跟随 cache_dir/structure，一般无需配置）
+  # V-Cine 自己的结构化产物数据目录（默认跟随 cache_dir/structure，一般无需配置）
   max_concurrent: 2
   poll_interval_seconds: 2
   job_timeout_minutes: 120

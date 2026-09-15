@@ -27,20 +27,20 @@ class TestConfigFromEnv:
     """Config loaded from environment variables."""
 
     def test_url_from_env(self, monkeypatch):
-        monkeypatch.setenv("NOWEN_URL", "http://example.com:9090")
+        monkeypatch.setenv("VCINE_URL", "http://example.com:9090")
         assert Config().url == "http://example.com:9090"
 
     def test_api_key_from_env(self, monkeypatch):
-        monkeypatch.setenv("NOWEN_API_KEY", "nk_mysecret123")
+        monkeypatch.setenv("VCINE_API_KEY", "nk_mysecret123")
         assert Config().api_key == "nk_mysecret123"
 
     def test_frontend_url_from_env(self, monkeypatch):
-        monkeypatch.setenv("NOWEN_FRONTEND_URL", "http://frontend.example.com")
+        monkeypatch.setenv("VCINE_FRONTEND_URL", "http://frontend.example.com")
         assert Config().frontend_url == "http://frontend.example.com"
 
     def test_env_takes_priority(self, monkeypatch):
         """Env var should override default url."""
-        monkeypatch.setenv("NOWEN_URL", "http://custom:1234")
+        monkeypatch.setenv("VCINE_URL", "http://custom:1234")
         assert Config().url == "http://custom:1234"
 
 

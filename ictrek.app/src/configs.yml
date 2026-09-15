@@ -1,21 +1,21 @@
 configs:
-  # Nowen 的私有数据目录统一使用平台注入的 VOS_APP_STORAGE_PATH（应用私有目录），
+  # V-Cine 的私有数据目录统一使用平台注入的 VOS_APP_STORAGE_PATH（应用私有目录），
   # 避免被指向公共目录导致 .jwt_secret / 缓存等私有数据暴露在公共共享里。
   #
   # 媒体目录三层设计：
-  #   1. 主媒体库：NOWEN_MEDIA_PATH（type: path，安装时必选）→ /media
+  #   1. 主媒体库：VCINE_MEDIA_PATH（type: path，安装时必选）→ /media
   #   2. 运行期补充：数据访问授权目录挂到 /exposed（VOS_APP_EXPOSED_PATH，rslave,ro）
   #   3. 私有数据：VOS_APP_STORAGE_PATH（/data、/cache），永不暴露
 
-  # NOWEN_APP_WEB_BASE_PATH 不暴露为 VOS 可配置项：VOS 下挂载前缀由
-  # traefik.yml / manifest.yml / routers.yml 三重锁死为 /app/com.ictrek.nowen-video，
-  # 用户改动必与路由失配导致白屏；compose 内 ${NOWEN_APP_WEB_BASE_PATH:-...} 默认值兜底，
+  # VCINE_APP_WEB_BASE_PATH 不暴露为 VOS 可配置项：VOS 下挂载前缀由
+  # traefik.yml / manifest.yml / routers.yml 三重锁死为 /app/com.ictrek.v-cine，
+  # 用户改动必与路由失配导致白屏；compose 内 ${VCINE_APP_WEB_BASE_PATH:-...} 默认值兜底，
   # 独立部署走 config.yaml 的 web_base_path。
 
   # ---- 媒体库目录（主媒体库，安装时必选公共目录/宿主机路径）----
   # 平台渲染为「公共目录下拉 + 推荐 + 宿主机路径输入」控件（type: path）。
   # 不设 default：安装/升级时必须显式选择来源，避免 /media 双语义。
-  - name: NOWEN_MEDIA_PATH
+  - name: VCINE_MEDIA_PATH
     type: path
     title:
       zh-CN: 媒体库目录
@@ -24,7 +24,7 @@ configs:
       zh-CN: "宿主机上存放影视、音乐等媒体文件的目录。该目录将映射到容器内的 /media，作为媒体库来源。"
       en: "Directory on the host holding movies, music and other media files. It will be mapped to /media inside the container as the media library source."
 
-  - name: NOWEN_PORT
+  - name: VCINE_PORT
     type: integer
     title:
       zh-CN: 应用宿主端口
@@ -39,7 +39,7 @@ configs:
   # ---- PostgreSQL（应用为 PostgreSQL-only，连接 VOS 共享 PGV）----
   # 默认连接 PGV（vos_default 网络别名 pgv:5432），库/用户/扩展已由 PGV provision 预置；
   # 填写任意一项即覆盖对应值（指向其他库时需自备 pgvector 扩展）。
-  - name: NOWEN_DATABASE_HOST
+  - name: VCINE_DATABASE_HOST
     type: string
     title:
       zh-CN: 数据库主机
@@ -49,7 +49,7 @@ configs:
       en: PostgreSQL host. Default 'pgv' points to the shared PGV service; fill in for a standalone DB.
     default: pgv
 
-  - name: NOWEN_DATABASE_PORT
+  - name: VCINE_DATABASE_PORT
     type: integer
     title:
       zh-CN: 数据库端口
@@ -61,51 +61,51 @@ configs:
     minimum: 1
     maximum: 65535
 
-  - name: NOWEN_DATABASE_USER
+  - name: VCINE_DATABASE_USER
     type: string
     title:
       zh-CN: 数据库用户
       en: Database User
     description:
-      zh-CN: PostgreSQL 用户（PGV 预置为 nowen）。
-      en: PostgreSQL user (provisioned by PGV as 'nowen').
-    default: nowen
+      zh-CN: PostgreSQL 用户（PGV 预置为 vcine）。
+      en: PostgreSQL user (provisioned by PGV as 'vcine').
+    default: vcine
 
-  - name: NOWEN_DATABASE_PASSWORD
+  - name: VCINE_DATABASE_PASSWORD
     type: string
     title:
       zh-CN: 数据库密码
       en: Database Password
     description:
-      zh-CN: PostgreSQL 密码（PGV 预置为 nowen_password）。
-      en: PostgreSQL password (provisioned by PGV as 'nowen_password').
-    default: nowen_password
+      zh-CN: PostgreSQL 密码（PGV 预置为 vcine_password）。
+      en: PostgreSQL password (provisioned by PGV as 'vcine_password').
+    default: vcine_password
 
-  - name: NOWEN_DATABASE_DBNAME
+  - name: VCINE_DATABASE_DBNAME
     type: string
     title:
       zh-CN: 数据库名
       en: Database Name
     description:
-      zh-CN: PostgreSQL 数据库名（PGV 预置为 nowen_video，含 pgvector 扩展）。
-      en: PostgreSQL database name (provisioned by PGV as 'nowen_video', with pgvector extension).
-    default: nowen_video
+      zh-CN: PostgreSQL 数据库名（PGV 预置为 vcine_video，含 pgvector 扩展）。
+      en: PostgreSQL database name (provisioned by PGV as 'vcine', with pgvector extension).
+    default: vcine
 
-  - name: NOWEN_LOGGING_LEVEL
+  - name: VCINE_LOGGING_LEVEL
     type: string
     title:
       zh-CN: 日志级别
       en: Log Level
     description:
-      zh-CN: Nowen Video 服务日志级别。
-      en: Log level for the Nowen Video service.
+      zh-CN: V-Cine 服务日志级别。
+      en: Log level for the V-Cine service.
     default: info
     enum: [debug, info, warn, error]
 
   # ---- Embedding 向量检索（依赖独立部署的 emb_server）----
   # 地址即开关：默认连宿主 emb_server（http://172.17.0.1:18005），改地址即改
   # 连接目标；留空则禁用（视频分析不受影响，只是不计算场景向量）。
-  - name: NOWEN_AI_EMBEDDING_AI_API_BASE
+  - name: VCINE_AI_EMBEDDING_AI_API_BASE
     type: string
     title:
       zh-CN: Embedding 服务地址
@@ -116,26 +116,26 @@ configs:
     default: http://172.17.0.1:18005
 
   # ---- 视频分析 Scene（detect）/ Structure 外部服务地址 ----
-  # 仅作为安装初始值；运行期修改请到 Nowen 管理后台「视频分析设置」。
-  - name: NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL
+  # 仅作为安装初始值；运行期修改请到 V-Cine 管理后台「视频分析设置」。
+  - name: VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL
     type: string
     title:
       zh-CN: 视频分析 Scene 服务地址
       en: Scene Detection Service URL
     description:
-      zh-CN: 场景检测（detect）服务地址。默认 http://172.17.0.1:48910（VOS 主机同机部署）；仅作为安装初始值，运行期请到 Nowen 管理后台「视频分析设置」修改。
-      en: Scene detection service base URL. Default http://172.17.0.1:48910 (same-host deployment); initial value only, change it at runtime in Nowen video-analysis settings.
+      zh-CN: 场景检测（detect）服务地址。默认 http://172.17.0.1:48910（VOS 主机同机部署）；仅作为安装初始值，运行期请到 V-Cine 管理后台「视频分析设置」修改。
+      en: Scene detection service base URL. Default http://172.17.0.1:48910 (same-host deployment); initial value only, change it at runtime in V-Cine video-analysis settings.
     default: http://172.17.0.1:48910
 
-  - name: NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL
+  - name: VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL
     type: string
     title:
       zh-CN: 视频分析 Structure 服务地址
       en: Video Structure Service URL
     description:
-      zh-CN: 视频结构化（structure）服务地址。默认 http://172.17.0.1:48911（VOS 主机同机部署）；仅作为安装初始值，运行期请到 Nowen 管理后台「视频分析设置」修改。
-      en: Video structure service base URL. Default http://172.17.0.1:48911 (same-host deployment); initial value only, change it at runtime in Nowen video-analysis settings.
+      zh-CN: 视频结构化（structure）服务地址。默认 http://172.17.0.1:48911（VOS 主机同机部署）；仅作为安装初始值，运行期请到 V-Cine 管理后台「视频分析设置」修改。
+      en: Video structure service base URL. Default http://172.17.0.1:48911 (same-host deployment); initial value only, change it at runtime in V-Cine video-analysis settings.
     default: http://172.17.0.1:48911
 
-  # NOWEN_ADULT_SCRAPER_ENABLED（番号刮削）不作为 VOS 可配置项暴露给普通用户：
+  # VCINE_ADULT_SCRAPER_ENABLED（番号刮削）不作为 VOS 可配置项暴露给普通用户：
   # compose 内默认 false，开发/运维可通过注入环境变量开启；对用户开放时再在此登记。

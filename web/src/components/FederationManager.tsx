@@ -267,7 +267,7 @@ export default function FederationManager() {
         <div className="text-center py-16 text-surface-500">
           <Network className="h-16 w-16 mx-auto mb-4 opacity-20" />
           <p className="text-lg">暂无联邦节点</p>
-          <p className="text-sm mt-1">添加其他 Nowen Video 服务器以共享媒体资源</p>
+          <p className="text-sm mt-1">添加其他 V-Cine 服务器以共享媒体资源</p>
         </div>
       )}
 

@@ -57,7 +57,7 @@ const jaJP: Record<string, string> = {
   'auth.username': 'ユーザー名',
   'auth.password': 'パスワード',
   'auth.loginTitle': 'おかえりなさい',
-  'auth.loginSubtitle': 'Nowen Video にログイン',
+  'auth.loginSubtitle': 'V-Cine にログイン',
   'auth.registerTitle': 'アカウント作成',
   'auth.noAccount': 'アカウントをお持ちでない方',
   'auth.hasAccount': 'すでにアカウントをお持ちの方',

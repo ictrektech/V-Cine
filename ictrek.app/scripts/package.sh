@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="nowen-video"
-IMAGE_REPO="swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video"
+APP_NAME="v-cine"
+IMAGE_REPO="swr.cn-southwest-2.myhuaweicloud.com/ictrek/v-cine"
 SPREADSHEET_TOKEN="${FEISHU_SPREADSHEET_TOKEN:-Htotsn3oahO1zxt73YMcaB1zn8e}"
 FEISHU_CONFIG_FILE="${FEISHU_CONFIG_FILE:-${HOME}/.feishu.components.json}"
 FEISHU_FALLBACK_CONFIG_FILE="${FEISHU_FALLBACK_CONFIG_FILE:-${HOME}/.feishu.json}"
 # PostgreSQL 由 VOS 共享 pgv 服务（com.ictrek.pgv）提供，nowen 不再自带 postgres
-# 容器或镜像：NOWEN_DATABASE_HOST 默认指向 pgv 在 vos_default 网络的别名。
+# 容器或镜像：VCINE_DATABASE_HOST 默认指向 pgv 在 vos_default 网络的别名。
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="${ROOT_DIR}/src"
 DIST_DIR="${ROOT_DIR}/dist"
@@ -112,10 +112,10 @@ def column_name(number):
     return result
 
 for index, value in enumerate(row, start=1):
-    if text(value) == "nowen-video":
+    if text(value) == "v-cine":
         print(column_name(index))
         raise SystemExit(0)
-raise SystemExit("component column not found: nowen-video")
+raise SystemExit("component column not found: v-cine")
 PY
 }
 
@@ -131,7 +131,7 @@ for row in data.get("data", {}).get("valueRange", {}).get("values", []):
     if row and row[0] is not None and str(row[0]).strip():
         print(str(row[0]).strip())
         raise SystemExit(0)
-raise SystemExit("latest nowen-video tag not found")
+raise SystemExit("latest v-cine tag not found")
 PY
 }
 
@@ -158,26 +158,26 @@ latest_image_for_sheet() {
   column="$(find_component_column "$FEISHU_TOKEN" "$sheet_id")"
   tag="$(find_latest_tag "$FEISHU_TOKEN" "$sheet_id" "$column")"
   [[ "$tag" == "${expected_prefix}"* ]] || \
-    die "unexpected nowen-video tag in ${sheet_title}: ${tag} (expected prefix ${expected_prefix})"
+    die "unexpected v-cine tag in ${sheet_title}: ${tag} (expected prefix ${expected_prefix})"
   log "${sheet_title}: ${IMAGE_REPO}:${tag}" >&2
   printf '%s:%s\n' "$IMAGE_REPO" "$tag"
 }
 
 load_feishu_auth
-NOWEN_VIDEO_AMD_IMAGE="$(latest_image_for_sheet AMD_with_cuda amd_)"
-NOWEN_VIDEO_ARM_IMAGE="$(latest_image_for_sheet ARM_without_cuda arm_)"
-NOWEN_VIDEO_L4T_IMAGE="$(latest_image_for_sheet l4t l4t_)"
+VCINE_VIDEO_AMD_IMAGE="$(latest_image_for_sheet AMD_with_cuda amd_)"
+VCINE_VIDEO_ARM_IMAGE="$(latest_image_for_sheet ARM_without_cuda arm_)"
+VCINE_VIDEO_L4T_IMAGE="$(latest_image_for_sheet l4t l4t_)"
 
 rm -rf "${STAGE_DIR}" "${PACKAGE_ROOT}"
 mkdir -p "${STAGE_DIR}" "${PACKAGE_ROOT}"
 trap 'rm -rf "${STAGE_DIR}" "${PACKAGE_ROOT}"' EXIT
 
-# Per-profile image refs come from the latest nowen-video entries in Feishu.
+# Per-profile image refs come from the latest v-cine entries in Feishu.
 # build_image.sh pushes each image before recording its tag in the sheet.
 cat > "${STAGE_DIR}/.env" <<EOF
-NOWEN_VIDEO_AMD_IMAGE=${NOWEN_VIDEO_AMD_IMAGE}
-NOWEN_VIDEO_ARM_IMAGE=${NOWEN_VIDEO_ARM_IMAGE}
-NOWEN_VIDEO_L4T_IMAGE=${NOWEN_VIDEO_L4T_IMAGE}
+VCINE_VIDEO_AMD_IMAGE=${VCINE_VIDEO_AMD_IMAGE}
+VCINE_VIDEO_ARM_IMAGE=${VCINE_VIDEO_ARM_IMAGE}
+VCINE_VIDEO_L4T_IMAGE=${VCINE_VIDEO_L4T_IMAGE}
 EOF
 
 python3 - "${SRC_DIR}" "${STAGE_DIR}" "${APP_VERSION}" <<'PY'
@@ -198,7 +198,7 @@ if (src / "icon.png").exists():
 PY
 
 python3 - "${STAGE_DIR}" "${APP_VERSION}" \
-  "${NOWEN_VIDEO_AMD_IMAGE}" "${NOWEN_VIDEO_ARM_IMAGE}" "${NOWEN_VIDEO_L4T_IMAGE}" <<'PY'
+  "${VCINE_VIDEO_AMD_IMAGE}" "${VCINE_VIDEO_ARM_IMAGE}" "${VCINE_VIDEO_L4T_IMAGE}" <<'PY'
 import re
 import sys
 from pathlib import Path
@@ -213,22 +213,22 @@ for name in ("manifest.yml", "configs.yml", "routers.yml", "traefik.yml", "docke
     text_parts.append((stage / name).read_text())
 assert not re.search(r"__[A-Z0-9_]+__", "\n".join(text_parts)), "unrendered placeholder"
 compose = (stage / "docker-compose.yml").read_text()
-assert "${NOWEN_VIDEO_AMD_IMAGE}" not in compose, "unrendered amd image variable"
-assert "${NOWEN_VIDEO_ARM_IMAGE}" not in compose, "unrendered arm image variable"
-assert "${NOWEN_VIDEO_L4T_IMAGE}" not in compose, "unrendered l4t image variable"
+assert "${VCINE_VIDEO_AMD_IMAGE}" not in compose, "unrendered amd image variable"
+assert "${VCINE_VIDEO_ARM_IMAGE}" not in compose, "unrendered arm image variable"
+assert "${VCINE_VIDEO_L4T_IMAGE}" not in compose, "unrendered l4t image variable"
 for image in expected_images:
     assert image in compose, f"missing Feishu image: {image}"
 assert "runtime: nvidia" in compose, "missing nvidia runtime for l4t"
 assert "privileged: true" in compose, "missing privileged for l4t"
-assert "NOWEN_APP_WEB_BASE_PATH" in compose, "missing VOS web base path env"
-assert "NOWEN_DATABASE_HOST" in compose and "pgv" in compose, "missing pgv database host"
+assert "VCINE_APP_WEB_BASE_PATH" in compose, "missing VOS web base path env"
+assert "VCINE_DATABASE_HOST" in compose and "pgv" in compose, "missing pgv database host"
 assert "38085" in compose, "missing host port mapping"
 assert "vos_default" in compose and "external: true" in compose, "missing VOS network"
 routers = (stage / "routers.yml").read_text()
-for expected in ("kind: page", "iframe-src: /app/com.ictrek.nowen-video/", "entry-point: true", "embed: true"):
+for expected in ("kind: page", "iframe-src: /app/com.ictrek.v-cine/", "entry-point: true", "embed: true"):
     assert expected in routers, f"missing router field {expected}"
 traefik = (stage / "traefik.yml").read_text()
-for expected in ("/app/com.ictrek.nowen-video", "nowen-video-web", "172.17.0.1:38085", "stripPrefix"):
+for expected in ("/app/com.ictrek.v-cine", "v-cine-web", "172.17.0.1:38085", "stripPrefix"):
     assert expected in traefik, f"missing traefik field {expected}"
 assert (stage / "icon.png").exists(), "missing icon.png referenced by manifest"
 PY

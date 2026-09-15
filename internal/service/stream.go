@@ -1068,7 +1068,7 @@ func (s *StreamService) defaultUA() string {
 	if s.cfg != nil && s.cfg.STRM.DefaultUserAgent != "" {
 		return s.cfg.STRM.DefaultUserAgent
 	}
-	return "nowen-video/1.0"
+	return "v-cine/1.0"
 }
 
 // buildSTRMRequestHeader 构造统一的请求头

@@ -222,7 +222,7 @@ func (a *AlistFS) callAPI(ctx context.Context, apiPath string, body interface{},
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "nowen-video/1.0")
+	req.Header.Set("User-Agent", "v-cine/1.0")
 
 	if needAuth {
 		token, err := a.getToken(ctx)
@@ -554,7 +554,7 @@ func (f *alistFile) openRangeReader(off, length int64) (io.ReadCloser, error) {
 	} else if off > 0 {
 		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", off))
 	}
-	req.Header.Set("User-Agent", "nowen-video/1.0")
+	req.Header.Set("User-Agent", "v-cine/1.0")
 
 	// 使用更长超时的 client 专用于流读取
 	client := &http.Client{

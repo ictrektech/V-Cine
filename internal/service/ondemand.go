@@ -294,7 +294,7 @@ func (s *StreamService) GetAudioTracks(mediaID string) []AudioTrackInfo {
 // buildAudioMediaEntries 为 Master Playlist 构造 #EXT-X-MEDIA:TYPE=AUDIO 行。
 // 当且仅当返回 GROUP-ID="audio" 引用了实际轨道时才应该被注入到 EXT-X-STREAM-INF。
 //
-// basePath 为接入 VOS 子路径时的前缀（如 /app/com.ictrek.nowen-video）；
+// basePath 为接入 VOS 子路径时的前缀（如 /app/com.ictrek.v-cine）；
 // 音轨 playlist 的 URI 是 path-absolute（/api/audio-track/...），不受 <base> 与
 // 前端 withBasePath() 控制，必须在此补前缀才能经 Traefik 命中应用路由。
 // 根路径部署时 basePath 为空，输出与旧行为完全一致。

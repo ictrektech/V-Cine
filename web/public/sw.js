@@ -9,7 +9,7 @@ const STATIC_CACHE = `nowen-static-${CACHE_VERSION}`
 const DYNAMIC_CACHE = `nowen-dynamic-${CACHE_VERSION}`
 const IMAGE_CACHE = `nowen-images-${CACHE_VERSION}`
 
-// scope 的 pathname，如 /app/com.ictrek.nowen-video/ ；去掉尾斜杠作为前缀基准
+// scope 的 pathname，如 /app/com.ictrek.v-cine/ ；去掉尾斜杠作为前缀基准
 const scopePath = new URL(self.registration.scope).pathname
 const BASE = scopePath.length > 1 ? scopePath.replace(/\/+$/, '') : ''
 const base = (path) => (BASE ? `${BASE}${path.startsWith('/') ? path : `/${path}`}` : path)

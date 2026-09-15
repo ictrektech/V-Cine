@@ -2,17 +2,17 @@
 set -euo pipefail
 
 # =========================
-# push_feishu.sh — 推送 nowen-video 镜像 tag 到飞书发布表
+# push_feishu.sh — 推送 v-cine 镜像 tag 到飞书发布表
 #
 # 发布表约定（与 model_hub / vector-rag 一致）：
-#   第 1 行  表头，组件名所在列（如 "nowen-video"）
+#   第 1 行  表头，组件名所在列（如 "v-cine"）
 #   第 4 行起 版本登记区，按日期分块；每天一行，一个组件一行一版
 #   （同一天重复写入同列会覆盖旧值，即"每天每组件一个最新 tag"）
 #
 # 用法:
 #   交互式:            ./push_feishu.sh
-#   命令行指定:        ./push_feishu.sh --sheet "Nowen Video" --val "amd64_20260812_f7c2c7b"
-#   从本地 docker 选:  ./push_feishu.sh --col nowen-video --from-docker
+#   命令行指定:        ./push_feishu.sh --sheet "V-Cine" --val "amd64_20260812_f7c2c7b"
+#   从本地 docker 选:  ./push_feishu.sh --col v-cine --from-docker
 #
 # 鉴权:
 #   - FEISHU_SPREADSHEET_TOKEN：表 token，缺省读 ~/.feishu.components.json 的
@@ -23,8 +23,8 @@ set -euo pipefail
 
 # ---- 默认值 ----
 DEFAULT_SHEET="ARM_with_cuda"          # 需与 ictrek.app/scripts/package.sh 的 SHEET_TITLE 一致
-DEFAULT_COL="nowen-video"            # 发布表第 1 行组件列名（与 package.sh 的 COMPONENT 一致）
-DEFAULT_DK="nowen-video"             # 本地 docker 镜像搜索关键词
+DEFAULT_COL="v-cine"            # 发布表第 1 行组件列名（与 package.sh 的 COMPONENT 一致）
+DEFAULT_DK="v-cine"             # 本地 docker 镜像搜索关键词
 HEADER_ROW=1                         # 表头行号
 DATA_START_ROW=4                     # 版本登记起始行（与 package.sh 的 find_latest_tag 一致）
 

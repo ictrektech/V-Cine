@@ -18,10 +18,10 @@ COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY web/ .
 
-# NOWEN_VERSION 只用于 VITE_APP_VERSION；VITE_BASE 用于 VOS 子路径前缀（默认根路径/Tauri）
-ARG NOWEN_VERSION=0.1.0
+# VCINE_VERSION 只用于 VITE_APP_VERSION；VITE_BASE 用于 VOS 子路径前缀（默认根路径/Tauri）
+ARG VCINE_VERSION=0.1.0
 ARG VITE_BASE=/
-ENV VITE_APP_VERSION=${NOWEN_VERSION}
+ENV VITE_APP_VERSION=${VCINE_VERSION}
 ENV VITE_BASE=${VITE_BASE}
 RUN bun run build
 
@@ -36,12 +36,12 @@ RUN go mod download
 COPY . .
 COPY --from=frontend /app/web/dist ./web/dist
 
-# ARG 移到 go build 前：避免 TARGETOS/TARGETARCH/NOWEN_VERSION 使 go mod download 缓存失效
+# ARG 移到 go build 前：避免 TARGETOS/TARGETARCH/VCINE_VERSION 使 go mod download 缓存失效
 ARG TARGETOS
 ARG TARGETARCH
-ARG NOWEN_VERSION=0.1.0
+ARG VCINE_VERSION=0.1.0
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${NOWEN_VERSION}" -o nowen-video ./cmd/server
+    go build -trimpath -ldflags="-s -w -X github.com/nowen-video/nowen-video/internal/version.Version=${VCINE_VERSION}" -o nowen-video ./cmd/server
 
 # =============================================
 # 阶段3: 运行镜像（Ubuntu + Jellyfin FFmpeg；NVIDIA 驱动库由容器运行时注入）
@@ -150,18 +150,18 @@ RUN mkdir -p /data /cache /media /data/config \
     && ln -sfn /data/config /app/config \
     && chown -R nowen:nowen /data /cache /media /data/config /app/scripts
 
-ENV NOWEN_APP_PORT=8080
-ENV NOWEN_APP_DATA_DIR=/data
-ENV NOWEN_APP_WEB_DIR=/app/web/dist
-ENV NOWEN_CACHE_CACHE_DIR=/cache
-ENV NOWEN_LOGGING_LEVEL=info
+ENV VCINE_APP_PORT=8080
+ENV VCINE_APP_DATA_DIR=/data
+ENV VCINE_APP_WEB_DIR=/app/web/dist
+ENV VCINE_CACHE_CACHE_DIR=/cache
+ENV VCINE_LOGGING_LEVEL=info
 # 版本号只在这里被使用；声明放在依赖安装之后，避免版本变更导致 apt 层缓存失效
-ARG NOWEN_VERSION=0.1.0
-ENV NOWEN_VERSION=${NOWEN_VERSION}
-ENV NOWEN_ADULT_SCRAPER_ENABLED=false
-ENV NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON=true
-ENV NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
-ENV NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
+ARG VCINE_VERSION=0.1.0
+ENV VCINE_VERSION=${VCINE_VERSION}
+ENV VCINE_ADULT_SCRAPER_ENABLED=false
+ENV VCINE_ADULT_SCRAPER_AUTO_START_PYTHON=true
+ENV VCINE_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
+ENV VCINE_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
 ENV TZ=Asia/Shanghai
 
 EXPOSE 8080

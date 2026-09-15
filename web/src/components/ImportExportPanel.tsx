@@ -81,7 +81,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `nowen-video-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = `v-cine-export-${new Date().toISOString().slice(0, 10)}.json`
       a.click()
       URL.revokeObjectURL(url)
       setMessage({ type: 'success', text: '导出成功！' })

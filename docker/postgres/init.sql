@@ -3,7 +3,7 @@
 -- 挂载到 /docker-entrypoint-initdb.d/，仅在数据库卷首次初始化时执行一次。
 --
 -- 作用：
---   1. 为 nowen_video 库启用 pgvector 扩展。
+--   1. 为 vcine 库启用 pgvector 扩展。
 --   2. 为 media.collection_id 安装兜底 trigger：把空字符串 '' 改写为 NULL。
 --
 -- 说明：

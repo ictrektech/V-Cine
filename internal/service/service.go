@@ -407,7 +407,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	svcs.LazyIngest.SetWSHub(wsHub)
 
 	// 外部场景检测与视频结构化。默认关闭；配置无效时仅禁用该功能，
-	// 不影响 Nowen 的现有扫描、刮削和播放流程。
+	// 不影响 V-Cine 的现有扫描、刮削和播放流程。
 	if cfg.VideoAnalysis.Enabled {
 		analysisClient, clientErr := NewVideoAnalysisClient(
 			cfg.VideoAnalysis.SceneBaseURL,

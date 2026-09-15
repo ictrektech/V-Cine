@@ -1,7 +1,7 @@
-id: com.ictrek.nowen-video
+id: com.ictrek.v-cine
 name:
-  zh-CN: Nowen Video
-  en: Nowen Video
+  zh-CN: V-Cine
+  en: V-Cine
 description:
   zh-CN: 面向家庭媒体库的自托管影音中心。
   en: A self-hosted home media center.
@@ -13,14 +13,14 @@ icon: icon.png
 
 frontend:
   enabled: true
-  basePath: /app/com.ictrek.nowen-video
+  basePath: /app/com.ictrek.v-cine
 
 platform:
   version: ">=3.0.0"
 
 oauth2:
   client:
-    id: com.ictrek.nowen-video
+    id: com.ictrek.v-cine
     client_type: public
     grant_types: [authorization_code, refresh_token]
     response_types: [code]

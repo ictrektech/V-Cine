@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# nowen-video 发布脚本
+# v-cine 发布脚本
 #
 # 功能：
 #   1. 交互式输入版本号（带校验 + 自动建议下一版本）
@@ -23,12 +23,12 @@
 set -euo pipefail
 
 # -------------------- 配置 --------------------
-IMAGE_NAME="cropflre/nowen-video"
+IMAGE_NAME="cropflre/v-cine"
 DEFAULT_BRANCH="main"
 # 多架构平台：覆盖 x86_64 服务器 + ARM64 设备（OES / A311D / OECT / RK3566 等）
 DEFAULT_PLATFORMS="linux/amd64,linux/arm64"
 # buildx builder 名称（自动创建）
-BUILDX_BUILDER="nowen-video-builder"
+BUILDX_BUILDER="v-cine-builder"
 
 # -------------------- 彩色输出 --------------------
 if [ -t 1 ] && command -v tput >/dev/null 2>&1 && [ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]; then
@@ -377,9 +377,9 @@ OCI_LABELS=(
     --label "org.opencontainers.image.version=${VERSION_TAG}"
     --label "org.opencontainers.image.revision=${GIT_SHA}"
     --label "org.opencontainers.image.created=${BUILD_DATE}"
-    --label "org.opencontainers.image.source=https://github.com/cropflre/nowen-video"
-    --label "org.opencontainers.image.title=nowen-video"
-    --label "org.opencontainers.image.description=nowen-video release image (multi-arch: ${PLATFORMS})"
+    --label "org.opencontainers.image.source=https://github.com/cropflre/v-cine"
+    --label "org.opencontainers.image.title=v-cine"
+    --label "org.opencontainers.image.description=v-cine release image (multi-arch: ${PLATFORMS})"
 )
 
 # Docker Hub 登录预检：避免最后 push 阶段才失败
@@ -417,7 +417,7 @@ if [ "$MULTIARCH" = "1" ]; then
         docker buildx build
         --platform "$PLATFORMS"
         -f "$REPO_ROOT/Dockerfile"
-        --build-arg "NOWEN_VERSION=$VERSION"
+        --build-arg "VCINE_VERSION=$VERSION"
         "${BUILD_TAGS[@]}"
         "${OCI_LABELS[@]}"
         --push
@@ -448,7 +448,7 @@ else
     step "开始构建（单架构）"
     # 明确 -f Dockerfile 与上下文路径 "$REPO_ROOT"，避免个别环境下 docker build 被
     # 劫持为 buildx bake 模式时无法正确定位 Dockerfile
-    BUILD_CMD=( docker build -f "$REPO_ROOT/Dockerfile" --build-arg "NOWEN_VERSION=$VERSION" "${BUILD_TAGS[@]}" "${OCI_LABELS[@]}" "$REPO_ROOT" )
+    BUILD_CMD=( docker build -f "$REPO_ROOT/Dockerfile" --build-arg "VCINE_VERSION=$VERSION" "${BUILD_TAGS[@]}" "${OCI_LABELS[@]}" "$REPO_ROOT" )
     echo "  ${BUILD_CMD[*]}"
 
     BUILD_START=$(date +%s)

@@ -1,7 +1,7 @@
 /**
  * VOS 子路径（basePath）辅助模块。
  *
- * VOS 构建时通过 VITE_BASE 注入前缀（如 /app/com.ictrek.nowen-video/），
+ * VOS 构建时通过 VITE_BASE 注入前缀（如 /app/com.ictrek.v-cine/），
  * Vite 会把它作为 BASE_URL；根路径/Tauri 构建不设 VITE_BASE，BASE_URL 为
  * '/' 或 './'，此时 basePath 为空串。
  *

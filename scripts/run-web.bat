@@ -3,7 +3,7 @@ setlocal EnableDelayedExpansion
 chcp 65001 >nul
 
 REM ============================================================
-REM  nowen-video 前端 Vite 本地开发启动脚本
+REM  V-Cine 前端 Vite 本地开发启动脚本
 REM
 REM  使用方法：
 REM    1) 根据需要修改下方 [用户配置] 区域的端口
@@ -35,7 +35,7 @@ set "VITE_API_PROXY_TARGET=http://localhost:%SERVER_PORT%"
 
 echo.
 echo ============================================================
-echo  启动 nowen-video 前端 (Vite Dev Server)
+echo  启动 V-Cine 前端 (Vite Dev Server)
 echo  前端端口   : %WEB_PORT%
 echo  应用版本   : %VITE_APP_VERSION%
 echo  后端代理至 : %VITE_API_PROXY_TARGET%

@@ -5,12 +5,12 @@
 # （平台安装时复制到 dynamic-conf/<app_id>.yml）。
 #
 # 服务地址走 Docker 默认网桥网关（docker0，172.17.0.1）+ 宿主端口映射：
-#   - nowen-video 容器 8080 映射到宿主 ${NOWEN_PORT:-38085}
+#   - nowen-video 容器 8080 映射到宿主 ${VCINE_PORT:-38085}
 # 注意：Traefik file provider 不支持 ${VAR} 环境变量插值。
-# 若安装时将 NOWEN_PORT 改为非默认值，需同步修改下方 servers.url 端口。
+# 若安装时将 VCINE_PORT 改为非默认值，需同步修改下方 servers.url 端口。
 #
 # 流量路径：
-#   /app/com.ictrek.nowen-video/... -> strip /app/... -> 容器根路径
+#   /app/com.ictrek.v-cine/... -> strip /app/... -> 容器根路径
 #   前端构建期通过 VITE_BASE 写入前缀，资源/API 再带前缀请求，Traefik 剥回
 # ============================================================
 
@@ -18,16 +18,16 @@ http:
   routers:
     # ---- 前端 + API 主路由（剥前缀后转发到容器根路径）----
     nowen-video-web:
-      rule: "PathPrefix(`/app/com.ictrek.nowen-video`)"
+      rule: "PathPrefix(`/app/com.ictrek.v-cine`)"
       service: nowen-video-web
       middlewares:
         - nowen-video-web-slash
         - nowen-video-web-strip
 
-    # ---- 顶层打开兜底：浏览器地址栏直接访问 /app/com.ictrek.nowen-video
+    # ---- 顶层打开兜底：浏览器地址栏直接访问 /app/com.ictrek.v-cine
     #      重定向到平台 hash 路由（平台前端 iframe 打开应用）----
     nowen-video-top-open:
-      rule: "PathPrefix(`/app/com.ictrek.nowen-video`) && HeadersRegexp(`Sec-Fetch-Dest`, `document`)"
+      rule: "PathPrefix(`/app/com.ictrek.v-cine`) && HeadersRegexp(`Sec-Fetch-Dest`, `document`)"
       priority: 1000
       service: nowen-video-web
       middlewares:
@@ -42,17 +42,17 @@ http:
   middlewares:
     nowen-video-top-open-redirect:
       redirectRegex:
-        regex: '^(https?://[^/]+)/app/com\.ictrek\.nowen-video/?(?:\?.*)?$'
-        replacement: '${1}/#/app/com.ictrek.nowen-video/nowen-video'
+        regex: '^(https?://[^/]+)/app/com\.ictrek\.v-cine/?(?:\?.*)?$'
+        replacement: '${1}/#/app/com.ictrek.v-cine/nowen-video'
         permanent: false
 
     nowen-video-web-slash:
       redirectRegex:
-        regex: '^(.*)/app/com\.ictrek\.nowen-video$'
-        replacement: '${1}/app/com.ictrek.nowen-video/'
+        regex: '^(.*)/app/com\.ictrek\.v-cine$'
+        replacement: '${1}/app/com.ictrek.v-cine/'
         permanent: true
 
     nowen-video-web-strip:
       stripPrefix:
         prefixes:
-          - /app/com.ictrek.nowen-video
+          - /app/com.ictrek.v-cine

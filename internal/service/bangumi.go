@@ -420,7 +420,7 @@ func (s *BangumiService) GetSubjectDetail(subjectID int) (*BangumiSubject, error
 // setHeaders 设置 Bangumi API 请求头
 func (s *BangumiService) setHeaders(req *http.Request) {
 	// Bangumi API 强制要求 User-Agent，使用项目标识 + 真实浏览器 UA 混合
-	req.Header.Set("User-Agent", "nowen-video/1.0 (https://github.com/nowen-video)")
+	req.Header.Set("User-Agent", "v-cine/1.0 (https://github.com/v-cine)")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	req.Header.Set("Connection", "keep-alive")
@@ -444,7 +444,7 @@ func (s *BangumiService) downloadBangumiCover(media *model.Media, coverURL strin
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "nowen-video/1.0 (https://github.com/nowen-video)")
+	req.Header.Set("User-Agent", "v-cine/1.0 (https://github.com/v-cine)")
 	req.Header.Set("Referer", "https://bgm.tv/")
 
 	resp, err := s.client.Do(req)
@@ -503,7 +503,7 @@ func (s *BangumiService) DownloadBangumiCoverForSeries(series *model.Series, cov
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "nowen-video/1.0 (https://github.com/nowen-video)")
+	req.Header.Set("User-Agent", "v-cine/1.0 (https://github.com/v-cine)")
 	req.Header.Set("Referer", "https://bgm.tv/")
 
 	resp, err := s.client.Do(req)

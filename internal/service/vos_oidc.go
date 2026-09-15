@@ -88,7 +88,7 @@ func (s *AuthService) LoginWithVOSOIDC(token, ip, ua string) (*TokenResponse, er
 		updates["role"] = role
 	}
 	// VOS is the credential authority for this session.  Legacy local-password
-	// onboarding must never force a VOS user to set or know a Nowen password.
+	// onboarding must never force a VOS user to set or know a V-Cine password.
 	if user.MustChangePwd {
 		updates["must_change_pwd"] = false
 	}

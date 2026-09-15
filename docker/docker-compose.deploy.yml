@@ -8,7 +8,7 @@
 #
 # 飞牛 OS 图形界面用户：
 #   - 打开 Docker → Compose → 上传本文件
-#   - 或在「镜像」里直接拉 cropflre/nowen-video:latest 后用 GUI 创建容器
+#   - 或在「镜像」里直接拉 cropflre/v-cine:latest 后用 GUI 创建容器
 #
 # 不要在飞牛 OS 上构建镜像（仓库未带完整构建上下文会报
 # "failed to read dockerfile"），直接拉预构建镜像即可。
@@ -24,9 +24,9 @@ version: '3.8'
 services:
   nowen-video:
     # 直接使用 Docker Hub 预构建镜像（manifest list 自动选 amd64/arm64/armv7）
-    image: cropflre/nowen-video:latest
+    image: cropflre/v-cine:latest
     # 如需锁定版本：
-    # image: cropflre/nowen-video:v1.2.0
+    # image: cropflre/v-cine:v1.2.0
     # 如需在混合架构主机强制指定，取消注释：
     # platform: linux/arm64
     container_name: nowen-video
@@ -84,30 +84,30 @@ services:
       # - /dev/video10:/dev/video10   # H.264 编码
       # - /dev/video11:/dev/video11   # H.264 解码
     environment:
-      - NOWEN_APP_PORT=8080
-      - NOWEN_APP_DATA_DIR=/data
-      - NOWEN_APP_WEB_DIR=/app/web/dist
+      - VCINE_APP_PORT=8080
+      - VCINE_APP_DATA_DIR=/data
+      - VCINE_APP_WEB_DIR=/app/web/dist
       # ---- 容器进程用户（配合 user: "0:0"）----
       - PUID=0
       - PGID=0
       - UMASK=000
       # ⚠️ 必改：换成你自己的随机字符串（至少 32 位）
-      - NOWEN_SECRETS_JWT_SECRET=please-change-this-secret-key
-      - NOWEN_CACHE_CACHE_DIR=/cache
-      - NOWEN_LOGGING_LEVEL=info
+      - VCINE_SECRETS_JWT_SECRET=please-change-this-secret-key
+      - VCINE_CACHE_CACHE_DIR=/cache
+      - VCINE_LOGGING_LEVEL=info
       # ---- 视频结构化分析（可选，默认关闭；详见 docs/video-analysis-deployment.md）----
-      # - NOWEN_VIDEO_ANALYSIS_ENABLED=true
-      # - NOWEN_VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
-      # - NOWEN_VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://video-structure:8911
-      # asset_dir 默认跟随 NOWEN_CACHE_CACHE_DIR 下的 structure，无需单独设置
+      # - VCINE_VIDEO_ANALYSIS_ENABLED=true
+      # - VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
+      # - VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://video-structure:8911
+      # asset_dir 默认跟随 VCINE_CACHE_CACHE_DIR 下的 structure，无需单独设置
       # ---- 番号刮削（默认关闭）----
       # 改为 true 后 Go 后端会自动拉起 /app/scripts/adult-scraper/app.py 子进程
       # 依赖已全部预装（python3 + flask + bs4 + lxml + requests），开箱即用
-      - NOWEN_ADULT_SCRAPER_ENABLED=false
-      - NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON=true
-      - NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
-      - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
-      # - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_API_KEY=your-random-key
+      - VCINE_ADULT_SCRAPER_ENABLED=false
+      - VCINE_ADULT_SCRAPER_AUTO_START_PYTHON=true
+      - VCINE_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
+      - VCINE_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
+      # - VCINE_ADULT_SCRAPER_PYTHON_SERVICE_API_KEY=your-random-key
       # ---- NVIDIA（安装 NVIDIA Container Toolkit 后生效）----
       - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
       - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-compute,video,utility}
@@ -133,16 +133,16 @@ services:
 #    后续再开放/关闭注册和邀请码（管理后台 → 用户 / 注册）。
 #
 # 2) 把现有普通用户提权为 admin：
-#    docker exec -it nowen-postgres psql -U postgres -d nowen_video \
+#    docker exec -it vcine-postgres psql -U postgres -d vcine \
 #      "UPDATE users SET role='admin' WHERE username='yourname';"
-#    PostgreSQL 模式：docker exec -it nowen-postgres psql -U postgres -d nowen_video \
+#    PostgreSQL 模式：docker exec -it vcine-postgres psql -U postgres -d vcine \
 #      -c "UPDATE users SET role='admin' WHERE username='yourname';"
 #    然后让该用户重新登录即可。
 #
 # 3) 忘记 admin 密码时重置：
-#    docker exec -it nowen-postgres psql -U postgres -d nowen_video \
+#    docker exec -it vcine-postgres psql -U postgres -d vcine \
 #      "UPDATE users SET must_change_pwd=1 WHERE role='admin';"
-#    PostgreSQL 模式：docker exec -it nowen-postgres psql -U postgres -d nowen_video \
+#    PostgreSQL 模式：docker exec -it vcine-postgres psql -U postgres -d vcine \
 #      -c "UPDATE users SET must_change_pwd=1 WHERE role='admin';"
 #    再用任意 admin 账号登录触发改密流程。
 # =============================================================
@@ -157,10 +157,10 @@ services:
 #    docker buildx build \
 #      --platform linux/amd64,linux/arm64 \
 #      --build-arg UBUNTU_MIRROR=https://mirrors.aliyun.com/ubuntu \
-#      -t cropflre/nowen-video:latest \
-#      -t cropflre/nowen-video:v1.2.0 \
+#      -t cropflre/v-cine:latest \
+#      -t cropflre/v-cine:v1.2.0 \
 #      --push .
 #
 # 3. 验证 manifest：
-#    docker buildx imagetools inspect cropflre/nowen-video:latest
+#    docker buildx imagetools inspect cropflre/v-cine:latest
 # =============================================================

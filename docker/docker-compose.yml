@@ -25,9 +25,9 @@ services:
       #   - linux/arm64
     # 构建产物镜像名（带 registry URL，make build 后打 BUILD_TAG 版本 tag，见 Makefile）
     # 如需本地纯镜像名，把 IMAGE_URL 改成 nowen-video（Makefile 里同步）
-    image: ${IMAGE_URL:-nowen-video}:latest
+    image: ${IMAGE_URL:-v-cine}:latest
     # 或直接拉远程镜像（生产拉取）：
-    # image: swr.cn-southwest-2.myhuaweicloud.com/ictrek/nowen-video:latest
+    # image: swr.cn-southwest-2.myhuaweicloud.com/ictrek/v-cine:latest
     container_name: nowen-video
 
     # NAS 上以 root 运行，规避挂载目录权限问题
@@ -42,10 +42,10 @@ services:
       - apparmor:unconfined
       - seccomp:unconfined
 
-    # 容器内 nowen 监听 8080（Dockerfile NOWEN_APP_PORT=8080），
-    # 宿主侧暴露端口由 NOWEN_PORT 控制（默认 38080）；dev 覆盖为 ${NOWEN_PORT}:38080。
+    # 容器内 nowen 监听 8080（Dockerfile VCINE_APP_PORT=8080），
+    # 宿主侧暴露端口由 VCINE_PORT 控制（默认 38080）；dev 覆盖为 ${VCINE_PORT}:38080。
     ports:
-      - "${NOWEN_PORT:-38080}:8080"
+      - "${VCINE_PORT:-38080}:8080"
 
     volumes:
       # 应用数据 / 转码缓存（对应 data_dir=./data、cache_dir=./cache，即 /app 下）
@@ -77,20 +77,20 @@ services:
       - UMASK=000
       - TZ=Asia/Shanghai
       # Debug 开关 → 日志级别：false=info（默认/生产），true=debug（开发）
-      # .env.dev 设 NOWEN_DEBUG=true，.env.prod 不设（走默认 false=info）
-      - NOWEN_DEBUG=${NOWEN_DEBUG:-false}
+      # .env.dev 设 VCINE_DEBUG=true，.env.prod 不设（走默认 false=info）
+      - VCINE_DEBUG=${VCINE_DEBUG:-false}
       # 番号刮削（config.yaml 已含，这里仅兜底；enabled 可用 env 切）
-      - NOWEN_ADULT_SCRAPER_ENABLED=${NOWEN_ADULT_SCRAPER_ENABLED:-false}
-      - NOWEN_ADULT_SCRAPER_AUTO_START_PYTHON=true
-      - NOWEN_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
-      - NOWEN_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
+      - VCINE_ADULT_SCRAPER_ENABLED=${VCINE_ADULT_SCRAPER_ENABLED:-false}
+      - VCINE_ADULT_SCRAPER_AUTO_START_PYTHON=true
+      - VCINE_ADULT_SCRAPER_PYTHON_EXECUTABLE=/usr/bin/python3
+      - VCINE_ADULT_SCRAPER_PYTHON_SERVICE_DIR=/app/scripts/adult-scraper
       # 视频分析开关（config.yaml 已 enabled=true，可经 env 关）
-      - NOWEN_VIDEO_ANALYSIS_ENABLED=${NOWEN_VIDEO_ANALYSIS_ENABLED:-true}
+      - VCINE_VIDEO_ANALYSIS_ENABLED=${VCINE_VIDEO_ANALYSIS_ENABLED:-true}
       # 媒体源地址：scene/structure 跑在宿主侧，经 docker0 网关 + 宿主端口回源
-      # （端口与上方 ports 映射共用 NOWEN_PORT）；代码默认 http://nowen-video:8080 仅同网络容器可解析
-      - NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL=${NOWEN_VIDEO_ANALYSIS_MEDIA_BASE_URL:-http://172.17.0.1:${NOWEN_PORT:-38080}}
+      # （端口与上方 ports 映射共用 VCINE_PORT）；代码默认 http://nowen-video:8080 仅同网络容器可解析
+      - VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL=${VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL:-http://172.17.0.1:${VCINE_PORT:-38080}}
       # JWT Secret 留空则自动生成并持久化到 /app/data/.jwt_secret（重启不失效）
-      - NOWEN_SECRETS_JWT_SECRET=${NOWEN_SECRETS_JWT_SECRET:-}
+      - VCINE_SECRETS_JWT_SECRET=${VCINE_SECRETS_JWT_SECRET:-}
 
     restart: unless-stopped
     healthcheck:
@@ -112,16 +112,16 @@ services:
 
 # ================= 内置 PostgreSQL（可选）=================
 # 默认连外部库（见 config/database.yaml，当前 10.144.144.232:35432），无需本服务。
-# 自包含部署时取消注释，并打开 nowen-video 的 NOWEN_DATABASE_* 指向内置库。
+# 自包含部署时取消注释，并打开 nowen-video 的 VCINE_DATABASE_* 指向内置库。
 # 注意：场景搜索需要 pgvector，必须用 pgvector/pgvector 镜像，不能用官方 alpine。
 # ----------------------------------------------------------
   # postgres:
   #   image: pgvector/pgvector:pg16
-  #   container_name: nowen-postgres
+  #   container_name: vcine-postgres
   #   environment:
   #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: ${PG_PASSWORD:-nowen_password}
-  #     POSTGRES_DB: nowen_video
+  #     POSTGRES_PASSWORD: ${PG_PASSWORD:-vcine_password}
+  #     POSTGRES_DB: vcine
   #     TZ: Asia/Shanghai
   #   volumes:
   #     - pgdata:/var/lib/postgresql/data

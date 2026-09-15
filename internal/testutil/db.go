@@ -22,15 +22,15 @@ var mu sync.Mutex
 var initializedSchemas sync.Map
 
 func getTestDSN() string {
-	if dsn := os.Getenv("NOWEN_TEST_DATABASE_DSN"); dsn != "" {
+	if dsn := os.Getenv("VCINE_TEST_DATABASE_DSN"); dsn != "" {
 		return dsn
 	}
-	host := envOr("NOWEN_TEST_DATABASE_HOST", "10.144.144.232")
-	port := envOr("NOWEN_TEST_DATABASE_PORT", "35432")
-	user := envOr("NOWEN_TEST_DATABASE_USER", "postgres")
-	password := envOr("NOWEN_TEST_DATABASE_PASSWORD", "postgres")
-	dbname := envOr("NOWEN_TEST_DATABASE_DBNAME", "nowen_test")
-	sslmode := envOr("NOWEN_TEST_DATABASE_SSLMODE", "disable")
+	host := envOr("VCINE_TEST_DATABASE_HOST", "10.144.144.232")
+	port := envOr("VCINE_TEST_DATABASE_PORT", "35432")
+	user := envOr("VCINE_TEST_DATABASE_USER", "postgres")
+	password := envOr("VCINE_TEST_DATABASE_PASSWORD", "postgres")
+	dbname := envOr("VCINE_TEST_DATABASE_DBNAME", "vcine_test")
+	sslmode := envOr("VCINE_TEST_DATABASE_SSLMODE", "disable")
 	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Shanghai",
 		host, user, password, dbname, port, sslmode)
 }
@@ -62,7 +62,7 @@ func ensureTestDB() error {
 	}
 
 	host, port, user, password, _, sslmode := dsnConfig()
-	dbname := envOr("NOWEN_TEST_DATABASE_DBNAME", "nowen_test")
+	dbname := envOr("VCINE_TEST_DATABASE_DBNAME", "vcine_test")
 	adminConn := fmt.Sprintf("host=%s user=%s password=%s dbname=postgres port=%s sslmode=%s",
 		host, user, password, port, sslmode)
 	adminDB, adminErr := gorm.Open(postgres.Open(adminConn), &gorm.Config{})
@@ -135,12 +135,12 @@ func repairOrphanedVector() error {
 }
 
 func dsnConfig() (host, port, user, password, dbname, sslmode string) {
-	host = envOr("NOWEN_TEST_DATABASE_HOST", "10.144.144.232")
-	port = envOr("NOWEN_TEST_DATABASE_PORT", "35432")
-	user = envOr("NOWEN_TEST_DATABASE_USER", "postgres")
-	password = envOr("NOWEN_TEST_DATABASE_PASSWORD", "postgres")
-	dbname = envOr("NOWEN_TEST_DATABASE_DBNAME", "nowen_test")
-	sslmode = envOr("NOWEN_TEST_DATABASE_SSLMODE", "disable")
+	host = envOr("VCINE_TEST_DATABASE_HOST", "10.144.144.232")
+	port = envOr("VCINE_TEST_DATABASE_PORT", "35432")
+	user = envOr("VCINE_TEST_DATABASE_USER", "postgres")
+	password = envOr("VCINE_TEST_DATABASE_PASSWORD", "postgres")
+	dbname = envOr("VCINE_TEST_DATABASE_DBNAME", "vcine_test")
+	sslmode = envOr("VCINE_TEST_DATABASE_SSLMODE", "disable")
 	return
 }
 

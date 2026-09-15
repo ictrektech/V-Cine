@@ -108,9 +108,9 @@ GET /api/media/<id>/video-analysis/scenes/<sceneIndex>/grid?task_id=<task_id>   
 
 | 变量 | 用途 | 默认值 |
 |------|------|--------|
-| `$NOWEN_API_KEY` | API 密钥（必需） | — |
-| `$NOWEN_URL` | nowen-video 服务器地址 | `http://localhost:38080` |
-| `$NOWEN_FRONTEND_URL` | nowen-video 前端地址 | 同 `$NOWEN_URL`（需手动设置） |
+| `$VCINE_API_KEY` | API 密钥（必需） | — |
+| `$VCINE_URL` | nowen-video 服务器地址 | `http://localhost:38080` |
+| `$VCINE_FRONTEND_URL` | nowen-video 前端地址 | 同 `$VCINE_URL`（需手动设置） |
 
 或参考 `config.yaml.sample` 创建 `config.yaml`。
 

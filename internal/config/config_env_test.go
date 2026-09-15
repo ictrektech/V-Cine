@@ -32,7 +32,7 @@ host: 10.0.0.1
 port: 5432
 user: postgres
 password: shard-password
-dbname: nowen_video
+dbname: vcine
 sslmode: disable
 timezone: Asia/Shanghai
 `
@@ -50,8 +50,8 @@ timezone: Asia/Shanghai
 	t.Cleanup(func() { _ = os.Chdir(oldWorkingDir) })
 
 	// 设置非空环境变量：password/host 用 env，其余走分片文件
-	t.Setenv("NOWEN_DATABASE_PASSWORD", "env-password")
-	t.Setenv("NOWEN_DATABASE_HOST", "192.168.1.100")
+	t.Setenv("VCINE_DATABASE_PASSWORD", "env-password")
+	t.Setenv("VCINE_DATABASE_HOST", "192.168.1.100")
 
 	cfg, err := Load()
 	if err != nil {
@@ -67,8 +67,8 @@ timezone: Asia/Shanghai
 	if cfg.Database.Port != 5432 {
 		t.Fatalf("分片 port 被误改: got %d, want %d", cfg.Database.Port, 5432)
 	}
-	if cfg.Database.DBName != "nowen_video" {
-		t.Fatalf("分片 dbname 被误改: got %q, want %q", cfg.Database.DBName, "nowen_video")
+	if cfg.Database.DBName != "vcine" {
+		t.Fatalf("分片 dbname 被误改: got %q, want %q", cfg.Database.DBName, "vcine")
 	}
 }
 
@@ -96,7 +96,7 @@ host: 10.0.0.1
 port: 5432
 user: postgres
 password: shard-password
-dbname: nowen_video
+dbname: vcine
 sslmode: disable
 timezone: Asia/Shanghai
 `
@@ -113,9 +113,9 @@ timezone: Asia/Shanghai
 	}
 	t.Cleanup(func() { _ = os.Chdir(oldWorkingDir) })
 
-	// 空字符串 env：模拟 compose 的 ${NOWEN_DATABASE_PASSWORD:-} 空占位
-	t.Setenv("NOWEN_DATABASE_PASSWORD", "")
-	t.Setenv("NOWEN_DATABASE_HOST", "")
+	// 空字符串 env：模拟 compose 的 ${VCINE_DATABASE_PASSWORD:-} 空占位
+	t.Setenv("VCINE_DATABASE_PASSWORD", "")
+	t.Setenv("VCINE_DATABASE_HOST", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -153,7 +153,7 @@ host: 10.0.0.1
 port: 5433
 user: postgres
 password: shard-password
-dbname: nowen_video
+dbname: vcine
 sslmode: disable
 timezone: Asia/Shanghai
 `

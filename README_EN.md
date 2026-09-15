@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>🎬 nowen-video</h1>
+<h1>🎬 V-Cine</h1>
 
 <p><b>Your personal home media center — lightweight, self-hosted, NAS-friendly.</b></p>
 
@@ -59,8 +59,8 @@ A lightweight home media server built with **Go + React**, similar to Jellyfin /
 ### 1. Docker (recommended)
 
 ```bash
-git clone https://github.com/your-repo/nowen-video.git
-cd nowen-video
+git clone https://github.com/your-repo/v-cine.git
+cd v-cine
 docker-compose up -d
 ```
 
@@ -80,7 +80,7 @@ services:
     environment:
       - PUID=1000                                    # match your host user
       - PGID=1000
-      - NOWEN_SECRETS_JWT_SECRET=change-me-please    # IMPORTANT
+      - VCINE_SECRETS_JWT_SECRET=change-me-please    # IMPORTANT
       - TZ=Asia/Shanghai
     volumes:
       - ./data:/data                                 # database & config
@@ -95,10 +95,10 @@ services:
 |---|---|---|
 | `PUID` / `PGID` | `1000` | Run as this UID/GID (must match your media folder permissions) |
 | `TZ` | `UTC` | Timezone |
-| `NOWEN_APP_PORT` | `8080` | HTTP port |
-| `NOWEN_SECRETS_JWT_SECRET` | *(required)* | JWT signing secret — **must be changed** |
-| `NOWEN_APP_DATA_DIR` | `/data` | Data dir (DB + uploads) |
-| `NOWEN_LOGGING_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
+| `VCINE_APP_PORT` | `8080` | HTTP port |
+| `VCINE_SECRETS_JWT_SECRET` | *(required)* | JWT signing secret — **must be changed** |
+| `VCINE_APP_DATA_DIR` | `/data` | Data dir (DB + uploads) |
+| `VCINE_LOGGING_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 | `/dev/dri` device | — | Pass through Intel/AMD GPU for hardware transcoding |
 
 ### 3. Build from source
@@ -126,7 +126,7 @@ Configuration is loaded in this order (later overrides earlier):
 1. Built-in defaults     → run with zero config
 2. config.yaml           → main file (legacy flat or new nested)
 3. config/*.yaml         → per-module split files
-4. NOWEN_* env vars      → e.g. NOWEN_APP_PORT=8080
+4. VCINE_* env vars      → e.g. VCINE_APP_PORT=8080
 ```
 
 Common split files under `config/`:

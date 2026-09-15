@@ -2,7 +2,7 @@
 
 interface Window {
   /**
-   * VOS 平台注入的 iframe 子路径前缀（如 /app/com.ictrek.nowen-video），
+   * VOS 平台注入的 iframe 子路径前缀（如 /app/com.ictrek.v-cine），
    * 独立部署时不存在。
    */
   __NOWEN_BASE_PATH__?: string

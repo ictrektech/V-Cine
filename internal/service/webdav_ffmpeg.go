@@ -81,7 +81,7 @@ func BuildFFmpegInputArgs(inputURL string) []string {
 		"-reconnect_streamed", "1",
 		"-reconnect_delay_max", "5",
 		"-rw_timeout", "30000000", // 30s in microseconds
-		"-user_agent", "nowen-video/1.0",
+		"-user_agent", "v-cine/1.0",
 	}
 }
 

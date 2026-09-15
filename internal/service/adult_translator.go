@@ -106,7 +106,7 @@ func (s *AdultScraperService) translateByGoogle(text, sourceLang, targetLang str
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; nowen-video/1.0)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; v-cine/1.0)")
 
 	resp, err := s.httpClientForTranslate().Do(req)
 	if err != nil {

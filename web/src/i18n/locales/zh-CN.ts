@@ -55,7 +55,7 @@ const zhCN: Record<string, string> = {
   'auth.username': '用户名',
   'auth.password': '密码',
   'auth.loginTitle': '欢迎回来',
-  'auth.loginSubtitle': '登录到 Nowen Video',
+  'auth.loginSubtitle': '登录到 V-Cine',
   'auth.registerTitle': '创建账号',
   'auth.noAccount': '没有账号？',
   'auth.hasAccount': '已有账号？',

@@ -25,7 +25,7 @@ from lib.formatters import encode as toon_encode
 
 def _load_local_config():
     """Read api_key from config.yaml if no env var set."""
-    if "NOWEN_API_KEY" in os.environ:
+    if "VCINE_API_KEY" in os.environ:
         return
     config_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.yaml"
@@ -36,7 +36,7 @@ def _load_local_config():
         content = f.read()
     m = re.search(r'api_key:\s*"([^"]+)"', content)
     if m:
-        os.environ.setdefault("NOWEN_API_KEY", m.group(1))
+        os.environ.setdefault("VCINE_API_KEY", m.group(1))
 
 
 # ── Fixtures ──
@@ -48,7 +48,7 @@ def config():
     c = Config()
     # Override to avoid loading real config.yaml during unit tests
     c.url = "http://localhost:38080"
-    c.api_key = os.environ.get("NOWEN_API_KEY", "nk_test_key_for_unit")
+    c.api_key = os.environ.get("VCINE_API_KEY", "nk_test_key_for_unit")
     c.frontend_url = ""
     c.page_size = 20
     c.max_page_size = 100

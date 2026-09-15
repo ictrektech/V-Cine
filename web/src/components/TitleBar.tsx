@@ -95,9 +95,9 @@ function TitleBarImpl() {
         }}
       >
         <span className="text-neon text-neon-glow" style={{ fontSize: 13 }}>
-          N
+          V
         </span>
-        <span style={{ color: 'var(--text-secondary)' }}>OWEN · VIDEO</span>
+        <span style={{ color: 'var(--text-secondary)' }}>-Cine</span>
       </div>
 
       {/* 中间搜索条（Hills 的核心视觉之一） */}

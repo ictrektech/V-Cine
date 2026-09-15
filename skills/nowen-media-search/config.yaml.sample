@@ -1,14 +1,14 @@
 # nowen-media-search 配置模板
 #
 # 配置加载优先级（从高到低）：
-#   1. 环境变量（NOWEN_URL, NOWEN_API_KEY, NOWEN_FRONTEND_URL）
+#   1. 环境变量（VCINE_URL, VCINE_API_KEY, VCINE_FRONTEND_URL）
 #   2. 本文件（config.yaml）
 
 nowen:
   # 服务器地址（默认 http://localhost:38080）
   url: http://localhost:38080
   # API Key（必填，在 nowen-video 前端管理面板中创建）
-  # 也可以设置环境变量 NOWEN_API_KEY
+  # 也可以设置环境变量 VCINE_API_KEY
   api_key: ""
   # 前端地址（可选，用于生成可点击的 view_url）
   frontend_url: ""
