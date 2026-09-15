@@ -3,13 +3,15 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { mediaApi, streamApi, seriesApi } from '@/api'
 import type { Media, MediaPlayInfo } from '@/types'
 import { routes } from '@/lib/routes'
+import { storageTypeFromPath } from '@/lib/storageSchemes'
+import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
 import VideoPlayer from '@/components/VideoPlayer'
 import WebCodecsPlayerShell from '@/components/WebCodecsPlayerShell'
 import PlayerScenePanel from '@/components/player/PlayerScenePanel'
 import STRMDiagnostics from '@/components/player/STRMDiagnostics'
 import { useToast } from '@/components/Toast'
 import { usePlayerStore } from '@/stores/player'
-import { Zap, Loader2, Cpu, ArrowLeft } from 'lucide-react'
+import { Zap, Loader2, Cpu, ArrowLeft, WifiOff } from 'lucide-react'
 import { detectWebCodecs, canUseWebCodecs, type WebCodecsCapability } from '@/utils/webcodecs'
 import {
   DesktopPlayerBadge,
@@ -44,6 +46,11 @@ export default function PlayerPage() {
   const [loading, setLoading] = useState(true)
   const [nextEpisode, setNextEpisode] = useState<Media | null>(null)
 
+  // 媒体所在远程存储已断连：不加载播放器，显示不可播放（派生值，无需单独 state）
+  const offlineTypes = useOfflineRemoteTypes()
+  const sourceOffline =
+    (!!media && offlineTypes.has(storageTypeFromPath(media.file_path || ''))) || !!playInfo?.source_unavailable
+
   // WebCodecs 能力（异步检测）
   const [webcodecsCap, setWebcodecsCap] = useState<WebCodecsCapability | null>(null)
 
@@ -69,15 +76,25 @@ export default function PlayerPage() {
     setLoading(true)
     setNextEpisode(null)
 
-    // 并行获取媒体详情和播放信息
-    Promise.all([
-      mediaApi.detail(id),
-      streamApi.getPlayInfo(id),
-    ])
-      .then(([mediaRes, playInfoRes]) => {
+    // 先取媒体详情（纯 DB，快），媒体存储已断连时跳过播放信息加载
+    mediaApi
+      .detail(id)
+      .then((mediaRes) => {
         const mediaData = mediaRes.data.data
         setMedia(mediaData)
-        setPlayInfo(playInfoRes.data.data)
+
+        if (offlineTypes.has(storageTypeFromPath(mediaData.file_path || ''))) return
+
+        streamApi.getPlayInfo(id)
+          .then((playInfoRes) => {
+            // 始终写入 playInfo：后端实时探测 source_unavailable（轮询间隙/竞态兜底）
+            // 由派生的 sourceOffline 呈现离线态
+            setPlayInfo(playInfoRes.data.data)
+          })
+          .catch(() => {
+            toast.error('加载播放信息失败')
+            navigate('/')
+          })
 
         // 如果是剧集，获取下一集信息
         if (mediaData.media_type === 'episode' && mediaData.series_id) {
@@ -98,7 +115,7 @@ export default function PlayerPage() {
       .finally(() => {
         setLoading(false)
       })
-  }, [id, navigate, toast])
+  }, [id, navigate, toast, offlineTypes])
 
   // 下一集回调
   const handleNext = useCallback(() => {
@@ -163,6 +180,31 @@ export default function PlayerPage() {
       }
     : null
   const { engine: desktopEngine } = usePlayerEngine(profileForEngine)
+
+  // 源离线：不加载播放器，显示不可播放（兕底拦截所有播放入口）
+  if (sourceOffline) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-black">
+        <div
+          className="flex h-16 w-16 items-center justify-center rounded-2xl"
+          style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' }}
+        >
+          <WifiOff size={28} style={{ color: 'rgb(251, 191, 36)' }} />
+        </div>
+        <div className="text-lg font-semibold text-white">源离线，无法播放</div>
+        <p className="text-sm text-surface-500">媒体所在远程存储连接不上，恢复后即可正常播放</p>
+        {hasHistoryOnMountRef.current && (
+          <button
+            onClick={() => navigate(-1)}
+            className="mt-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all hover:bg-[var(--nav-hover-bg)]"
+            style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
+          >
+            返回
+          </button>
+        )}
+      </div>
+    )
+  }
 
   if (loading || !media || !playInfo || !id) {
     return (

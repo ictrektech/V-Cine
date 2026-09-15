@@ -5,6 +5,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/components/Toast'
 import type { Media, MediaPlayInfo, Playlist, RecommendedMedia, MediaPerson, WatchHistory, TechSpecs, FileDetail, LibraryInfo, PlaybackStatsInfo } from '@/types'
 import { HeroSection, MediaInfoSection, MediaTechSpecs, RecommendationCarousel, TrailerModal, CastGrid, CollectionCarousel } from '@/components/media'
+import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
+import { storageTypeFromPath } from '@/lib/storageSchemes'
 import CommentSection from '@/components/CommentSection'
 import EditMetadataModal from '@/components/EditMetadataModal'
 import SubtitleManager from '@/components/SubtitleManager'
@@ -28,6 +30,9 @@ export default function MediaDetailPage() {
   const [media, setMedia] = useState<Media | null>(null)
   const [playInfo, setPlayInfo] = useState<MediaPlayInfo | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // 远程存储离线状态（管理员可见；状态未知时不跳过播放信息请求）
+  const offlineTypes = useOfflineRemoteTypes()
 
   // 用户相关
   const [isFavorited, setIsFavorited] = useState(false)
@@ -79,15 +84,21 @@ export default function MediaDetailPage() {
 
     Promise.all([
       mediaApi.detail(id),
-      streamApi.getPlayInfo(id),
       playlistApi.list(),
     ])
-      .then(([mediaRes, playInfoRes, playlistRes]) => {
+      .then(([mediaRes, playlistRes]) => {
         if (abortController.signal.aborted) return
         const mediaData = mediaRes.data.data
         setMedia(mediaData)
-        setPlayInfo(playInfoRes.data.data)
         setPlaylists(playlistRes.data.data || [])
+
+        // 播放信息单独加载（不阻塞首屏）：后端返回前会嗅探远程文件头，
+        // 远程挂载不可达时会阻塞到存储超时；媒体存储已断连时直接跳过
+        if (!offlineTypes.has(storageTypeFromPath(mediaData.file_path || ''))) {
+          streamApi.getPlayInfo(mediaData.id)
+            .then((res) => { if (!abortController.signal.aborted) setPlayInfo(res.data.data) })
+            .catch(() => {})
+        }
 
         // 非首屏请求：收藏状态、相关推荐、演职人员、观看进度
         userApi.checkFavorite(mediaData.id)
@@ -125,7 +136,7 @@ export default function MediaDetailPage() {
       .finally(() => { if (!abortController.signal.aborted) setLoading(false) })
 
     return () => abortController.abort()
-  }, [id, navigate])
+  }, [id, navigate, toast, offlineTypes])
 
   // ==================== 事件处理 ====================
   const handleFavorite = async () => {

@@ -23,15 +23,8 @@ import {
   Info,
 } from 'lucide-react'
 import FileBrowser from './FileBrowser'
-import { type StorageType, storageTypeFromPath, joinRemotePath, pathPlaceholder } from '@/lib/storageSchemes'
+import { storageTypeFromPath, joinRemotePath, pathPlaceholder, STORAGE_TYPE_LABELS } from '@/lib/storageSchemes'
 import { Modal } from '@/components/ui/modal'
-
-const STORAGE_TYPE_LABELS: Record<StorageType, string> = {
-  local: '本地路径',
-  webdav: 'WebDAV',
-  alist: 'Alist',
-  s3: 'S3',
-}
 
 // 内容类型配置
 const LIBRARY_TYPES = [

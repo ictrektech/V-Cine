@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom'
 import { adminApi, libraryApi } from '@/api'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useScanProgress } from '@/hooks/useScanProgress'
-import { StorageStatusesProvider } from '@/hooks/useStorageStatuses'
 import type { SystemInfo, Library, User, TMDbConfigStatus, DoubanConfigStatus, SystemSettings } from '@/types'
 import {
   Wifi,
@@ -122,7 +121,6 @@ export default function AdminPage() {
   }
 
   return (
-    <StorageStatusesProvider>
     <div className="space-y-0">
       {/* ==================== 顶部标题栏 ==================== */}
       <div className="mb-6">
@@ -250,6 +248,5 @@ export default function AdminPage() {
         realtimeMessages={realtimeMessages}
       />
     </div>
-    </StorageStatusesProvider>
   )
 }

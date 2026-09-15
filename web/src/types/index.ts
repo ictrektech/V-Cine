@@ -547,6 +547,7 @@ export interface MediaPlayInfo {
   sprite_url?: string // 进度条雪碧图地址（预处理完成后可用）
   sprite_vtt_url?: string // 进度条雪碧图 WebVTT 索引地址
   can_remux?: boolean // 是否支持 remux（容器不兼容但编码兼容）
+  source_unavailable?: boolean // 远程存储不可达（挂载断连），媒体不可播放
   remux_url?: string // Remux 播放地址（零转码，仅转封装）
 }
 

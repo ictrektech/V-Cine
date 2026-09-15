@@ -13,6 +13,9 @@ import { invalidateMediaListCaches } from '@/utils/invalidateMediaCaches'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
 import type { Series, SeasonInfo, Media, Playlist, WatchHistory, MediaPerson } from '@/types'
 import { routes } from '@/lib/routes'
+import { storageTypeFromPath } from '@/lib/storageSchemes'
+import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
+import OfflinePlayButton from '@/components/OfflinePlayButton'
 import {
   Play,
   Star,
@@ -144,6 +147,10 @@ export default function SeriesDetailPage() {
   const firstEpisode = seasons.length > 0 && seasons[0].episodes?.length > 0
     ? seasons[0].episodes[0]
     : null
+
+  // 第一集所在远程存储是否断连（本地媒体永远不在离线集合中）
+  const offlineTypes = useOfflineRemoteTypes()
+  const firstEpisodeOffline = !!(firstEpisode && offlineTypes.has(storageTypeFromPath(firstEpisode.file_path)))
 
   const handleFavorite = async () => {
     if (!firstEpisode) return
@@ -478,8 +485,10 @@ export default function SeriesDetailPage() {
 
               {/* 操作按钮区 */}
               <div className="mb-4 flex flex-wrap items-center gap-3">
-                {/* 播放按钮 */}
-                {firstEpisode && (
+                {/* 播放按钮：源离线时禁用并说明 */}
+                {firstEpisode && (firstEpisodeOffline ? (
+                  <OfflinePlayButton />
+                ) : (
                   <Link
                     to={routes.player(firstEpisode.id)}
                     className="group relative inline-flex items-center gap-2.5 rounded-2xl px-8 py-3.5 text-base font-bold transition-all duration-300 hover:-translate-y-0.5"
@@ -491,7 +500,7 @@ export default function SeriesDetailPage() {
                     <Play size={22} fill="currentColor" />
                     播放
                   </Link>
-                )}
+                ))}
 
                 {/* 收藏 */}
                 <button
