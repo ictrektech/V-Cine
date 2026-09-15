@@ -54,6 +54,8 @@ profiles:
       en: Jetson / L4T platform, uses nvidia runtime and hardware codec.
     conflicts: [amd, arm]
 
+require-profiles: true
+
 storage:
   directories:
     - path: data
