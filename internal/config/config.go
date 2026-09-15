@@ -40,6 +40,8 @@ type DatabaseConfig struct {
 	ConnectRetries int `mapstructure:"connect_retries"`
 	// 连接重试间隔（秒，默认 3）
 	ConnectRetryInterval int `mapstructure:"connect_retry_interval"`
+	// 启动时若库不存在则自动创建（连接用户需 CREATEDB 权限；默认 true）
+	AutoCreate bool `mapstructure:"auto_create"`
 }
 
 // SecretsConfig 敏感信息/第三方服务 API 密钥
@@ -835,6 +837,7 @@ func setDefaults() {
 	viper.SetDefault("database.user", "postgres")
 	viper.SetDefault("database.password", "")
 	viper.SetDefault("database.dbname", "vcine")
+	viper.SetDefault("database.auto_create", true)
 	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("database.timezone", "Asia/Shanghai")
 	viper.SetDefault("database.max_open_conns", 25)
