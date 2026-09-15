@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -12,6 +13,7 @@ import {
   User,
   ChevronDown,
   ChevronUp,
+  Check,
   Play,
   Undo2,
   AlertTriangle,
@@ -77,22 +79,22 @@ function MarkdownContent({ content }: { content: string }) {
         components={{
           // 解构掉 node（react-markdown passNode 默认开启，会把 hast 节点对象传入组件），
           // 避免对象值展开到 DOM 元素上触发 React 告警
-          h1: ({ node, ...p }) => <h1 className="text-sm font-bold mt-2 mb-1 first:mt-0" {...p} />,
-          h2: ({ node, ...p }) => <h2 className="text-sm font-bold mt-2 mb-1 first:mt-0" {...p} />,
-          h3: ({ node, ...p }) => <h3 className="text-xs font-bold mt-2 mb-1 first:mt-0" {...p} />,
-          p: ({ node, ...p }) => <p className="whitespace-pre-wrap" {...p} />,
-          ul: ({ node, ...p }) => <ul className="list-disc pl-4 space-y-0.5 my-1" {...p} />,
-          ol: ({ node, ...p }) => <ol className="list-decimal pl-4 space-y-0.5 my-1" {...p} />,
-          table: ({ node, ...p }) => (
+          h1: ({ node: _node, ...p }) => <h1 className="text-sm font-bold mt-2 mb-1 first:mt-0" {...p} />,
+          h2: ({ node: _node, ...p }) => <h2 className="text-sm font-bold mt-2 mb-1 first:mt-0" {...p} />,
+          h3: ({ node: _node, ...p }) => <h3 className="text-xs font-bold mt-2 mb-1 first:mt-0" {...p} />,
+          p: ({ node: _node, ...p }) => <p className="whitespace-pre-wrap" {...p} />,
+          ul: ({ node: _node, ...p }) => <ul className="list-disc pl-4 space-y-0.5 my-1" {...p} />,
+          ol: ({ node: _node, ...p }) => <ol className="list-decimal pl-4 space-y-0.5 my-1" {...p} />,
+          table: ({ node: _node, ...p }) => (
             <div className="my-1 overflow-x-auto rounded-md border" style={{ borderColor: 'var(--border-default)' }}>
               <table className="w-full text-xs" {...p} />
             </div>
           ),
-          th: ({ node, ...p }) => <th className="border-b px-2 py-1 text-left font-medium bg-muted/50" {...p} />,
-          td: ({ node, ...p }) => <td className="border-b px-2 py-1" {...p} />,
-          code: ({ node, ...p }) => <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded" {...p} />,
-          a: ({ node, ...p }) => <a className="text-neon underline" target="_blank" rel="noreferrer" {...p} />,
-          blockquote: ({ node, ...p }) => <blockquote className="border-l-2 pl-2 text-muted-foreground" {...p} />,
+          th: ({ node: _node, ...p }) => <th className="border-b px-2 py-1 text-left font-medium bg-muted/50" {...p} />,
+          td: ({ node: _node, ...p }) => <td className="border-b px-2 py-1" {...p} />,
+          code: ({ node: _node, ...p }) => <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded" {...p} />,
+          a: ({ node: _node, ...p }) => <a className="text-neon underline" target="_blank" rel="noreferrer" {...p} />,
+          blockquote: ({ node: _node, ...p }) => <blockquote className="border-l-2 pl-2 text-muted-foreground" {...p} />,
           hr: () => <hr className="my-2 border-border" />,
         }}
       >
@@ -100,6 +102,28 @@ function MarkdownContent({ content }: { content: string }) {
       </ReactMarkdown>
     </div>
   )
+}
+
+/** 刮削进度账本：msgIndex < 0 表示进度气泡尚未插入消息列表，事件先记账 */
+interface ScrapeTrack {
+  msgIndex: number
+  status: Record<string, string>
+  titles: Record<string, string>
+}
+
+/** 刮削进度文案（WS 事件与初始气泡共用，保证两处展示一致） */
+function scrapeProgressText(track: ScrapeTrack): string {
+  const entries = Object.entries(track.status)
+  if (entries.length === 0) return '🔄 正在启动刮削任务...'
+  const done = entries.filter(([, st]) => st === 'done' || st === 'failed').length
+  const lines = entries.map(([mediaId, st]) => {
+    const mark = st === 'done' ? '✅' : st === 'failed' ? '❌' : '🔄'
+    return `- ${mark} ${track.titles[mediaId] || mediaId}`
+  })
+  const head = done === entries.length
+    ? `✅ 刮削完成（${done}/${entries.length}）`
+    : `🔄 刮削进行中（${done}/${entries.length} 完成）...`
+  return `${head}\n${lines.join('\n')}`
 }
 
 export default function AIAssistant({ selectedMediaIds, libraryId, onOperationComplete, isOpen, onToggle }: AIAssistantProps) {
@@ -110,6 +134,12 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [executing, setExecuting] = useState<string | null>(null)
+  // 已成功执行的操作：按钮置灰避免重复执行
+  const [executedIds, setExecutedIds] = useState<Set<string>>(new Set())
+  // AI 触发的刮削任务进度跟踪：WS 事件实时更新到 chat 消息
+  const scrapeTrackRef = useRef<{ msgIndex: number; status: Record<string, string>; titles: Record<string, string> } | null>(null)
+  const lastChatMediaIdsRef = useRef<string[]>([])
+  const { on: onWsEvent, off: offWsEvent } = useWebSocket()
   const [showHistory, setShowHistory] = useState(false)
   const [opHistory, setOpHistory] = useState<AssistantOperation[]>([])
   const [expandedPreviews, setExpandedPreviews] = useState<Set<number>>(new Set())
@@ -149,6 +179,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
     setLoading(true)
 
     try {
+      lastChatMediaIdsRef.current = selectedMediaIds
       const res = await aiAssistantApi.chat({
         session_id: sessionId || undefined,
         message: userMessage,
@@ -171,11 +202,42 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
     }
   }
 
+  // 订阅刮削进度事件：AI 触发的刮削任务进度实时更新到 chat 消息（面板关闭时也在后台累积）
+  useEffect(() => {
+    const handler = (data: { media_id: string; title: string; status: string; message: string }) => {
+      const track = scrapeTrackRef.current
+      if (!track || !(data.media_id in track.status)) return
+      track.status[data.media_id] = data.status
+      track.titles[data.media_id] = data.title
+      // 气泡还没插入消息列表（响应未返回）时先记账，避免丢掉这段窗口内的事件
+      if (track.msgIndex >= 0) {
+        const content = scrapeProgressText(track)
+        setMessages(prev => prev.map((m, idx) => (idx === track.msgIndex ? { ...m, content } : m)))
+      }
+      if (Object.values(track.status).every(st => st === 'done' || st === 'failed')) {
+        scrapeTrackRef.current = null
+      }
+    }
+    onWsEvent(WS_EVENTS.FILE_SCRAPE_PROGRESS, handler)
+    return () => offWsEvent(WS_EVENTS.FILE_SCRAPE_PROGRESS, handler)
+  }, [onWsEvent, offWsEvent])
+
   // 执行操作
   const handleExecuteAction = async (action: SuggestedAction) => {
     if (!sessionId || executing) return
 
     setExecuting(action.id)
+    // 刮削账本必须在发请求前登记：后端起任务与 HTTP 响应返回之间就会广播 file_scrape_progress，
+    // 等响应回来再建账本会丢掉这段窗口内的事件（含快速失败文件的终态）
+    const scrapeTrack: ScrapeTrack | null = action.action === 'scrape'
+      ? {
+          msgIndex: -1,
+          status: Object.fromEntries(lastChatMediaIdsRef.current.map(id => [id, 'pending'])),
+          titles: {},
+        }
+      : null
+    if (scrapeTrack) scrapeTrackRef.current = scrapeTrack
+
     try {
       const res = await aiAssistantApi.executeAction({
         session_id: sessionId,
@@ -193,11 +255,26 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
       }
       setMessages(prev => [...prev, resultMsg])
 
+      // 刮削任务：追加一条实时进度消息，WS 事件（file_scrape_progress）会就地更新它。
+      // 初始文案直接由账本生成，早到的事件不会丢
+      if (scrapeTrack && data.success) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: scrapeProgressText(scrapeTrack),
+          timestamp: new Date().toISOString(),
+        }])
+        scrapeTrack.msgIndex = messages.length + 1
+      } else if (scrapeTrackRef.current === scrapeTrack) {
+        scrapeTrackRef.current = null // 执行失败，撤销账本
+      }
+
       if (data.success) {
+        setExecutedIds(prev => new Set(prev).add(action.id))
         toast.success(data.message)
         onOperationComplete?.()
       }
     } catch (err: any) {
+      if (scrapeTrackRef.current === scrapeTrack) scrapeTrackRef.current = null
       toast.error(err?.response?.data?.error || '操作执行失败')
     } finally {
       setExecuting(null)
@@ -306,18 +383,21 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
           <button
             key={action.id}
             onClick={() => handleExecuteAction(action)}
-            disabled={!!executing}
+            disabled={!!executing || executedIds.has(action.id)}
             className={clsx(
               'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all',
               action.dangerous
                 ? 'border border-red-500/30 text-red-400 hover:bg-red-500/10'
                 : 'border border-neon/30 text-neon hover:bg-neon-blue/10',
-              executing === action.id && 'opacity-50'
+              executing === action.id && 'opacity-50',
+              executedIds.has(action.id) && 'opacity-60'
             )}
             title={action.description}
           >
             {executing === action.id ? (
               <Loader2 size={12} className="animate-spin" />
+            ) : executedIds.has(action.id) ? (
+              <Check size={12} />
             ) : action.dangerous ? (
               <AlertTriangle size={12} />
             ) : (
@@ -334,7 +414,8 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
   if (!isOpen) return null
 
   return (
-    <div className="flex flex-col h-full">
+    // 收起时不设高（自适应为标题栏高度），面板依旧由底部锚定向上生长
+    <div className={clsx('flex flex-col', !isMinimized && 'h-[calc(100vh-160px)]')}>
       <div className="flex flex-col h-full bg-card border border-border rounded-xl shadow-lg overflow-hidden">
         {/* 标题栏 */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
@@ -361,7 +442,8 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
               <Trash2 size={14} />
             </button>
             <button onClick={() => setIsMinimized(!isMinimized)}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title={isMinimized ? '展开面板' : '收起面板'}>
               {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
             </button>
             <button onClick={onToggle}
@@ -529,7 +611,8 @@ export function AIAssistantPanel({ isOpen, children }: { isOpen: boolean; childr
         isOpen ? 'visible opacity-100 translate-y-0' : 'invisible pointer-events-none opacity-0 translate-y-4'
       )}
     >
-      <div className="h-[calc(100vh-160px)] w-full">
+      {/* 高度由内部面板自行决定，收起时才不会残留空白 */}
+      <div className="w-full">
         {children}
       </div>
     </div>
