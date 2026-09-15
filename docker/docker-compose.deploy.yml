@@ -133,16 +133,16 @@ services:
 #    后续再开放/关闭注册和邀请码（管理后台 → 用户 / 注册）。
 #
 # 2) 把现有普通用户提权为 admin：
-#    docker exec -it vcine-postgres psql -U postgres -d vcine \
+#    docker exec -it vcine-postgres psql -U postgres -d nowen_video \
 #      "UPDATE users SET role='admin' WHERE username='yourname';"
-#    PostgreSQL 模式：docker exec -it vcine-postgres psql -U postgres -d vcine \
+#    PostgreSQL 模式：docker exec -it vcine-postgres psql -U postgres -d nowen_video \
 #      -c "UPDATE users SET role='admin' WHERE username='yourname';"
 #    然后让该用户重新登录即可。
 #
 # 3) 忘记 admin 密码时重置：
-#    docker exec -it vcine-postgres psql -U postgres -d vcine \
+#    docker exec -it vcine-postgres psql -U postgres -d nowen_video \
 #      "UPDATE users SET must_change_pwd=1 WHERE role='admin';"
-#    PostgreSQL 模式：docker exec -it vcine-postgres psql -U postgres -d vcine \
+#    PostgreSQL 模式：docker exec -it vcine-postgres psql -U postgres -d nowen_video \
 #      -c "UPDATE users SET must_change_pwd=1 WHERE role='admin';"
 #    再用任意 admin 账号登录触发改密流程。
 # =============================================================

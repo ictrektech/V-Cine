@@ -29,7 +29,7 @@ func getTestDSN() string {
 	port := envOr("VCINE_TEST_DATABASE_PORT", "35432")
 	user := envOr("VCINE_TEST_DATABASE_USER", "postgres")
 	password := envOr("VCINE_TEST_DATABASE_PASSWORD", "postgres")
-	dbname := envOr("VCINE_TEST_DATABASE_DBNAME", "vcine_test")
+	dbname := envOr("VCINE_TEST_DATABASE_DBNAME", "nowen_test")
 	sslmode := envOr("VCINE_TEST_DATABASE_SSLMODE", "disable")
 	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Shanghai",
 		host, user, password, dbname, port, sslmode)
@@ -62,7 +62,7 @@ func ensureTestDB() error {
 	}
 
 	host, port, user, password, _, sslmode := dsnConfig()
-	dbname := envOr("VCINE_TEST_DATABASE_DBNAME", "vcine_test")
+	dbname := envOr("VCINE_TEST_DATABASE_DBNAME", "nowen_test")
 	adminConn := fmt.Sprintf("host=%s user=%s password=%s dbname=postgres port=%s sslmode=%s",
 		host, user, password, port, sslmode)
 	adminDB, adminErr := gorm.Open(postgres.Open(adminConn), &gorm.Config{})
@@ -139,7 +139,7 @@ func dsnConfig() (host, port, user, password, dbname, sslmode string) {
 	port = envOr("VCINE_TEST_DATABASE_PORT", "35432")
 	user = envOr("VCINE_TEST_DATABASE_USER", "postgres")
 	password = envOr("VCINE_TEST_DATABASE_PASSWORD", "postgres")
-	dbname = envOr("VCINE_TEST_DATABASE_DBNAME", "vcine_test")
+	dbname = envOr("VCINE_TEST_DATABASE_DBNAME", "nowen_test")
 	sslmode = envOr("VCINE_TEST_DATABASE_SSLMODE", "disable")
 	return
 }

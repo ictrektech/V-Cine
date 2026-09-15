@@ -32,7 +32,7 @@ host: 10.0.0.1
 port: 5432
 user: postgres
 password: shard-password
-dbname: vcine
+dbname: nowen_video
 sslmode: disable
 timezone: Asia/Shanghai
 `
@@ -67,8 +67,8 @@ timezone: Asia/Shanghai
 	if cfg.Database.Port != 5432 {
 		t.Fatalf("分片 port 被误改: got %d, want %d", cfg.Database.Port, 5432)
 	}
-	if cfg.Database.DBName != "vcine" {
-		t.Fatalf("分片 dbname 被误改: got %q, want %q", cfg.Database.DBName, "vcine")
+	if cfg.Database.DBName != "nowen_video" {
+		t.Fatalf("分片 dbname 被误改: got %q, want %q", cfg.Database.DBName, "nowen_video")
 	}
 }
 
@@ -96,7 +96,7 @@ host: 10.0.0.1
 port: 5432
 user: postgres
 password: shard-password
-dbname: vcine
+dbname: nowen_video
 sslmode: disable
 timezone: Asia/Shanghai
 `
@@ -153,7 +153,7 @@ host: 10.0.0.1
 port: 5433
 user: postgres
 password: shard-password
-dbname: vcine
+dbname: nowen_video
 sslmode: disable
 timezone: Asia/Shanghai
 `

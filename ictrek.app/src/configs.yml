@@ -67,9 +67,9 @@ configs:
       zh-CN: 数据库用户
       en: Database User
     description:
-      zh-CN: PostgreSQL 用户（PGV 预置为 vcine）。
-      en: PostgreSQL user (provisioned by PGV as 'vcine').
-    default: vcine
+      zh-CN: PostgreSQL 用户（PGV 预置为 nowen）。
+      en: PostgreSQL user (provisioned by PGV as 'nowen').
+    default: nowen
 
   - name: VCINE_DATABASE_PASSWORD
     type: string
@@ -77,9 +77,9 @@ configs:
       zh-CN: 数据库密码
       en: Database Password
     description:
-      zh-CN: PostgreSQL 密码（PGV 预置为 vcine_password）。
-      en: PostgreSQL password (provisioned by PGV as 'vcine_password').
-    default: vcine_password
+      zh-CN: PostgreSQL 密码（PGV 预置为 nowen_password）。
+      en: PostgreSQL password (provisioned by PGV as 'nowen_password').
+    default: nowen_password
 
   - name: VCINE_DATABASE_DBNAME
     type: string
@@ -87,9 +87,9 @@ configs:
       zh-CN: 数据库名
       en: Database Name
     description:
-      zh-CN: PostgreSQL 数据库名（PGV 预置为 vcine_video，含 pgvector 扩展）。
-      en: PostgreSQL database name (provisioned by PGV as 'vcine', with pgvector extension).
-    default: vcine
+      zh-CN: PostgreSQL 数据库名（PGV 预置为 nowen_video，含 pgvector 扩展）。
+      en: PostgreSQL database name (provisioned by PGV as 'nowen_video', with pgvector extension).
+    default: nowen_video
 
   - name: VCINE_LOGGING_LEVEL
     type: string

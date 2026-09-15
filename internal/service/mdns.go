@@ -1,6 +1,6 @@
 package service
 
-// mdns.go 实现 NowenVideo 的 mDNS/DNS-SD 局域网服务器自动发现广播。
+// mdns.go 实现 V-Cine 的 mDNS/DNS-SD 局域网服务器自动发现广播。
 //
 // 工作原理：
 //   使用标准 mDNS 协议（RFC 6762 + RFC 6763），在局域网内广播服务信息。
@@ -27,7 +27,7 @@ const (
 	mdnsIPv4Addr = "224.0.0.251"
 	mdnsPort     = 5353
 
-	// NowenVideo 服务类型
+	// V-Cine 服务类型
 	mdnsServiceType = "_nowen-video._tcp"
 	mdnsDomain      = "local"
 
@@ -45,7 +45,7 @@ const (
 	defaultTTL = 120
 )
 
-// MdnsService 负责在局域网内通过 mDNS 广播 NowenVideo 服务器信息。
+// MdnsService 负责在局域网内通过 mDNS 广播 V-Cine 服务器信息。
 type MdnsService struct {
 	instanceName string
 	serviceType  string
@@ -67,7 +67,7 @@ func NewMdnsService(serverName string, httpPort int, version string, logger *zap
 		if h, err := os.Hostname(); err == nil && h != "" {
 			serverName = h
 		} else {
-			serverName = "NowenVideo"
+			serverName = "V-Cine"
 		}
 	}
 
@@ -119,7 +119,7 @@ func (m *MdnsService) Start() error {
 	m.sendAnnouncement()
 
 	if m.logger != nil {
-		m.logger.Infof("[mdns] NowenVideo 服务发现已启动 (mDNS :%d, 服务类型: %s)", mdnsPort, m.serviceType)
+		m.logger.Infof("[mdns] V-Cine 服务发现已启动 (mDNS :%d, 服务类型: %s)", mdnsPort, m.serviceType)
 	}
 	return nil
 }
@@ -135,7 +135,7 @@ func (m *MdnsService) Stop() {
 	}
 	m.wg.Wait()
 	if m.logger != nil {
-		m.logger.Info("[mdns] NowenVideo 服务发现已停止")
+		m.logger.Info("[mdns] V-Cine 服务发现已停止")
 	}
 }
 
@@ -276,8 +276,8 @@ func (m *MdnsService) buildResponsePacket() []byte {
 
 	// 完整服务名
 	serviceFQDN := m.serviceType + "." + mdnsDomain                             // _nowen-video._tcp.local
-	instanceFQDN := m.instanceName + "." + serviceFQDN                          // NowenVideo._nowen-video._tcp.local
-	hostFQDN := strings.ReplaceAll(m.instanceName, " ", "-") + "." + mdnsDomain // NowenVideo.local
+	instanceFQDN := m.instanceName + "." + serviceFQDN                          // V-Cine._nowen-video._tcp.local
+	hostFQDN := strings.ReplaceAll(m.instanceName, " ", "-") + "." + mdnsDomain // V-Cine.local
 
 	var buf []byte
 

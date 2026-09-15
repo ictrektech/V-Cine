@@ -2,8 +2,8 @@ routers:
   - id: nowen-video
     kind: page
     title:
-      zh-CN: Nowen Video
-      en: Nowen Video
+      zh-CN: V-Cine
+      en: V-Cine
     icon: lucide:film
     order: 260
     iframe-src: /app/com.ictrek.v-cine/

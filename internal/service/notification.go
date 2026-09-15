@@ -280,11 +280,11 @@ func (ns *NotificationService) sendEmail(cfg EmailConfig, event NotificationEven
 
 	fromName := cfg.FromName
 	if fromName == "" {
-		fromName = "Nowen Video"
+		fromName = "V-Cine"
 	}
 
 	// 构建邮件内容
-	subject := fmt.Sprintf("[Nowen Video] %s", event.Title)
+	subject := fmt.Sprintf("[V-Cine] %s", event.Title)
 	body := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
@@ -375,7 +375,7 @@ func (ns *NotificationService) sendTelegram(cfg TelegramConfig, event Notificati
 func (ns *NotificationService) TestNotification(channel string) error {
 	event := NotificationEvent{
 		Type:      "test",
-		Title:     "Nowen Video 通知测试",
+		Title:     "V-Cine 通知测试",
 		Message:   "如果您收到此消息，说明通知配置正确！",
 		Timestamp: time.Now(),
 	}

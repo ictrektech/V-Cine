@@ -836,7 +836,7 @@ func setDefaults() {
 	viper.SetDefault("database.port", 5432)
 	viper.SetDefault("database.user", "postgres")
 	viper.SetDefault("database.password", "")
-	viper.SetDefault("database.dbname", "vcine")
+	viper.SetDefault("database.dbname", "nowen_video")
 	viper.SetDefault("database.auto_create", true)
 	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("database.timezone", "Asia/Shanghai")
