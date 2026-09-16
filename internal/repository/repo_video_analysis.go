@@ -349,12 +349,3 @@ func (r *VideoAnalysisTaskRepo) CleanupOldTasks(keepRecent int) (int64, error) {
 	result := r.db.Exec(sql, args...)
 	return result.RowsAffected, result.Error
 }
-
-// CleanupOrphanedByMediaID 清理媒体不存在的孤儿任务
-func (r *VideoAnalysisTaskRepo) CleanupOrphanedByMediaID(existingMediaIDs []string) (int64, error) {
-	if len(existingMediaIDs) == 0 {
-		return 0, nil
-	}
-	result := r.db.Where("media_id NOT IN ?", existingMediaIDs).Delete(&model.VideoAnalysisTask{})
-	return result.RowsAffected, result.Error
-}

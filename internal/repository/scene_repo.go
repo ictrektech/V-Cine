@@ -71,17 +71,6 @@ func (r *SceneRepo) GetByTaskID(taskID string) ([]model.Scene, error) {
 	return scenes, err
 }
 
-// GetByTaskIDWithMedia 获取场景并关联 Media 信息
-func (r *SceneRepo) GetByTaskIDWithMedia(taskID string) ([]model.Scene, error) {
-	var scenes []model.Scene
-	err := r.db.
-		Preload("VideoAnalysisTask.Media").
-		Where("video_analysis_task_id = ?", taskID).
-		Order("scene_index ASC").
-		Find(&scenes).Error
-	return scenes, err
-}
-
 // DeleteByTaskID 删除某次分析的所有场景
 func (r *SceneRepo) DeleteByTaskID(taskID string) error {
 	return r.db.Where("video_analysis_task_id = ?", taskID).Delete(&model.Scene{}).Error
@@ -164,15 +153,6 @@ func (r *SceneRepo) SearchByImage(embedding []float32, limit int) ([]SceneSearch
 	return results, err
 }
 
-// CountByTaskID 统计某次分析的场景数
-func (r *SceneRepo) CountByTaskID(taskID string) (int64, error) {
-	var count int64
-	err := r.db.Model(&model.Scene{}).
-		Where("video_analysis_task_id = ?", taskID).
-		Count(&count).Error
-	return count, err
-}
-
 // SceneDescriptionUpdate 描述更新参数
 type SceneDescriptionUpdate struct {
 	SceneIndex           int
@@ -192,11 +172,6 @@ type SceneSearchResult struct {
 	Distance            float64 `json:"distance"`
 	MediaID             string  `json:"media_id"`
 	MediaTitle          string  `json:"media_title"`
-}
-
-// EnsureVectorExtension 确保 pgvector 扩展已安装
-func (r *SceneRepo) EnsureVectorExtension() error {
-	return r.db.Exec("CREATE EXTENSION IF NOT EXISTS vector").Error
 }
 
 // EnsureHNSWIndexes 确保 HNSW 索引存在
