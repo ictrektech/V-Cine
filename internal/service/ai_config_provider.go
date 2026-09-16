@@ -74,10 +74,12 @@ func (p *AIConfigProvider) APIKey() string {
 	return ""
 }
 
-// IsEnabled 检查 AI 服务是否可用（有激活 provider 且配了 APIKey + APIBase）。
+// IsEnabled 检查 AI 服务是否可用。
+// 常规 provider 需配 APIKey + APIBase；免 key provider（vrouter / ollama）只需 APIBase。
 func (p *AIConfigProvider) IsEnabled() bool {
 	cfg := p.snapshot()
-	if ap := cfg.ActiveProfile(); ap == nil || ap.APIKey == "" || ap.APIBase == "" {
+	if ap := cfg.ActiveProfile(); ap == nil || ap.APIBase == "" ||
+		(ap.APIKey == "" && !config.IsKeyFreeProvider(cfg.ActiveProvider, ap.APIBase)) {
 		return false
 	}
 	if cfg.AutoPilot {

@@ -491,14 +491,17 @@ func (h *AIHandler) UpdateProvider(c *gin.Context) {
 			if pr.ID != id {
 				continue
 			}
+			// 内置 vrouter 条目的连接信息由系统内置（免 key、默认网关地址），
+			// APIBase/APIKey 不接受修改；名称、模型、启停仍可更新。
+			isBuiltIn := pr.ID == "vrouter"
 			if req.Name != "" {
 				cfg.Providers[i].Name = req.Name
 			}
-			if req.APIBase != "" {
+			if req.APIBase != "" && !isBuiltIn {
 				cfg.Providers[i].APIBase = req.APIBase
 			}
 			// api_key 留空时保留原值
-			if req.APIKey != "" {
+			if req.APIKey != "" && !isBuiltIn {
 				cfg.Providers[i].APIKey = req.APIKey
 			}
 			if req.Models != nil {
@@ -531,6 +534,13 @@ func (h *AIHandler) DeleteProvider(c *gin.Context) {
 		return
 	}
 
+	// 内置 vrouter 条目不可删除：它是新装默认 provider（启动种子），删除会失去零配置能力。
+	// 手动添加的 V-Router 条目（custom_ 前缀等）不受限。
+	if id == "vrouter" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "内置 V-Router 供应商不可删除"})
+		return
+	}
+
 	found := false
 	if err := h.cfg.UpdateAIConfig(func(cfg *config.AIConfig) {
 		newProviders := make([]config.AIProviderEntry, 0, len(cfg.Providers))
@@ -546,9 +556,9 @@ func (h *AIHandler) DeleteProvider(c *gin.Context) {
 		}
 		cfg.Providers = newProviders
 
-		// 如果删除的是当前激活的供应商，清空激活字段
+		// 如果删除的是当前激活的供应商，激活字段回退到内置 vrouter（默认选中）
 		if cfg.ActiveProvider == id {
-			cfg.ActiveProvider = ""
+			cfg.ActiveProvider = "vrouter"
 			cfg.ActiveModel = ""
 		}
 	}); err != nil {

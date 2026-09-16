@@ -218,6 +218,17 @@ export default function AITab() {
     setFetchedSearch('')
   }
 
+  // vrouter 网关判定：与后端 config.IsKeyFreeProvider 对齐（id 含 vrouter，
+  // 或 APIBase 指向网关服务名 / 宿主机端口）。命中即免 key（与命名无关）。
+  const isVRouter = (id: string, base: string): boolean => {
+    const i = (id || '').toLowerCase()
+    const b = (base || '').toLowerCase()
+    return i.includes('vrouter') || i.includes('v-router') ||
+      b.includes('://v-router:') || b.includes(':22888')
+  }
+  const isBuiltInVRouter = editingProvider?.id === 'vrouter'
+  const isVRouterForm = (): boolean => isVRouter(editingProvider?.id ?? '', providerForm.api_base)
+
   const handleFetchModels = async () => {
     if (!providerForm.api_base.trim()) {
       toast.error('请先填写 API Base')
@@ -537,8 +548,13 @@ export default function AITab() {
               status?.enabled && status?.api_configured ? 'text-green-400' : 'text-surface-500'
             )}
           >
-            {status?.enabled ? (status?.api_configured ? '已启用' : '未配置密钥') : '未启用'}
+            {status?.enabled ? (status?.api_configured ? '已启用' : '未配置') : '未启用'}
           </p>
+          {status?.enabled && status?.api_configured && !status?.active_model && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-yellow-400">
+              <AlertTriangle size={12} /> 未选择模型，请到下方供应商设置中拉取
+            </p> 
+          )}
         </div>
 
         {/* 本月调用 */}
@@ -634,10 +650,16 @@ export default function AITab() {
           {!status?.api_configured && (
             <div className="mt-3 flex items-center gap-2 text-xs text-yellow-400">
               <AlertTriangle size={14} />
-              请先在下方填写并保存 API Key，托管模式才能生效
+              请先在下方完成供应商配置并启用，托管模式才能生效
             </div>
           )}
-          {status?.auto_pilot && status?.api_configured && (
+          {status?.auto_pilot && status?.api_configured && !status?.active_model && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-yellow-400">
+              <AlertTriangle size={14} />
+              未选择模型，托管任务将无法调用 AI，请到下方供应商设置中拉取模型
+            </div>
+          )}
+          {status?.auto_pilot && status?.api_configured && status?.active_model && (
             <div className="mt-3 flex items-center gap-2 text-xs text-green-400">
               <Check size={14} />
               托管模式已生效：后续扫描入库的文件将自动调用 {status.active_provider} / {status.active_model}
@@ -791,6 +813,12 @@ export default function AITab() {
                           激活中
                         </span>
                       )}
+                      {p.id === 'vrouter' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-neon"
+                          style={{ background: 'var(--nav-hover-bg)' }}>
+                          内置
+                        </span>
+                      )}
                       {!p.enabled && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-surface-500"
                           style={{ background: 'var(--nav-hover-bg)' }}>
@@ -801,9 +829,11 @@ export default function AITab() {
                     <p className="text-xs text-theme-muted truncate mt-0.5">
                       {p.models.length > 0
                         ? p.models.map(m => `${m.name}${m.is_default ? '(默认)' : ''}${m.is_vision ? '👁' : ''}`).join(', ')
-                        : '未配置模型'}
+                        : '未配置模型，请点击「设置」拉取模型'}
                       {' · '}{p.api_base || '默认 API'}
-                      {!p.api_key_configured && ' · ⚠️ 未配置密钥'}
+                      {isVRouter(p.id, p.api_base)
+                        ? ' · 内网免鉴权'
+                        : !p.api_key_configured ? ' · ⚠️ 未配置密钥' : ''}
                     </p>
                     {connTests[p.id] && !connTests[p.id].testing && (
                       <p className={`text-xs mt-0.5 ${connTests[p.id].success ? 'text-green-400' : 'text-red-400'}`}>
@@ -842,7 +872,9 @@ export default function AITab() {
                   </button>
                   <button
                     onClick={() => handleDeleteProvider(p)}
-                    className="btn-ghost gap-1 px-2.5 py-1 text-xs text-red-400 hover:text-red-300"
+                    disabled={p.id === 'vrouter'}
+                    title={p.id === 'vrouter' ? '内置 V-Router 供应商不可删除' : undefined}
+                    className="btn-ghost gap-1 px-2.5 py-1 text-xs text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Trash2 size={12} />
                     删除
@@ -904,29 +936,45 @@ export default function AITab() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-theme-secondary">API Base</label>
-                <input
-                  type="text"
-                  value={providerForm.api_base}
-                  onChange={(e) => setProviderForm({ ...providerForm, api_base: e.target.value })}
-                  className="input w-full font-mono text-sm"
-                  placeholder="https://api.deepseek.com/v1"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-theme-secondary">API Key</label>
-                <input
-                  type="password"
-                  value={providerForm.api_key}
-                  onChange={(e) => setProviderForm({ ...providerForm, api_key: e.target.value })}
-                  className="input w-full font-mono text-sm"
-                  placeholder={editingProvider?.api_key_configured ? '已配置（留空不改）' : 'sk-...'}
-                />
-                {editingProvider?.api_key_configured && !providerForm.api_key && (
-                  <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
-                    <Check size={12} /> 密钥已配置（留空不会清除）
+                {isBuiltInVRouter ? (
+                  <p className="input w-full font-mono text-sm bg-surface-700/50 text-theme-muted cursor-not-allowed truncate">
+                    {providerForm.api_base || 'http://v-router:8080/v1'}
                   </p>
+                ) : (
+                  <input
+                    type="text"
+                    value={providerForm.api_base}
+                    onChange={(e) => setProviderForm({ ...providerForm, api_base: e.target.value })}
+                    className="input w-full font-mono text-sm"
+                    placeholder="https://api.deepseek.com/v1"
+                  />
                 )}
               </div>
+              {isBuiltInVRouter ? (
+                <p className="flex items-center gap-1 text-xs text-green-400">
+                  <Check size={12} /> V-Router 内网免鉴权，无需 API Key，地址由系统内置
+                </p>
+              ) : (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-theme-secondary">API Key</label>
+                  <input
+                    type="password"
+                    value={providerForm.api_key}
+                    onChange={(e) => setProviderForm({ ...providerForm, api_key: e.target.value })}
+                    className="input w-full font-mono text-sm"
+                    placeholder={isVRouterForm() ? '无需 API Key（内网免鉴权）' : editingProvider?.api_key_configured ? '已配置（留空不改）' : 'sk-...'}
+                  />
+                  {isVRouterForm() && !providerForm.api_key ? (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
+                      <Check size={12} /> V-Router 内网免鉴权，留空即可
+                    </p>
+                  ) : editingProvider?.api_key_configured && !providerForm.api_key && (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
+                      <Check size={12} /> 密钥已配置（留空不会清除）
+                    </p>
+                  )}
+                </div>
+              )}
               <div>
                 <div className="mb-1 flex items-center justify-between">
                   <label className="block text-sm font-medium text-theme-secondary">模型列表</label>

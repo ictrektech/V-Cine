@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -22,7 +23,37 @@ import (
 type vosClaims struct {
 	Subject, Username string
 	Admin             bool
+	ExpiresAt         time.Time
 }
+
+// VOS accessToken 内存存留：AI 调 V-Router 时转发做用量归属（Bearer <vos-token>）。
+// 仅内存不落盘；全局单例存最近一次登录者的 token（多用户下用量归集到该用户）。
+var (
+	vosTokenMu      sync.Mutex
+	lastVOSToken    string
+	lastVOSTokenExp time.Time
+)
+
+// StoreVOSAccessToken 在 VOS OIDC 登录成功后记录 accessToken（仅内存）。
+// exp 为 VOS token 的真实过期时间（从 JWT claims 提取）。
+func StoreVOSAccessToken(token string, exp time.Time) {
+	vosTokenMu.Lock()
+	defer vosTokenMu.Unlock()
+	lastVOSToken = token
+	lastVOSTokenExp = exp
+}
+
+// LatestVOSAccessToken 返回最近一次 VOS 登录的 accessToken（空表示不可用）。
+// 已过 VOS exp 时返回空——网关会拒绝过期 token。
+func LatestVOSAccessToken() string {
+	vosTokenMu.Lock()
+	defer vosTokenMu.Unlock()
+	if lastVOSToken == "" || time.Now().After(lastVOSTokenExp) {
+		return ""
+	}
+	return lastVOSToken
+}
+
 type vosJWKSet struct {
 	Keys []struct {
 		KID string `json:"kid"`
@@ -105,6 +136,8 @@ func (s *AuthService) LoginWithVOSOIDC(token, ip, ua string) (*TokenResponse, er
 	}
 	_ = s.userRepo.UpdateLastLogin(user.ID, ip)
 	s.recordLogin(user.ID, user.Username, ip, ua, "vos_oidc", true)
+	// 登录成功后保留 accessToken（仅内存），供 AI 调 V-Router 时转发用量归属
+	StoreVOSAccessToken(token, claims.ExpiresAt)
 	return s.generateToken(user)
 }
 
@@ -166,7 +199,11 @@ func (s *AuthService) parseVOSJWT(raw string, keys map[string]*rsa.PublicKey) (*
 			}
 		}
 	}
-	return &vosClaims{Subject: sub, Username: username, Admin: admin}, nil
+	var expiresAt time.Time
+	if exp, ok := claims["exp"].(float64); ok {
+		expiresAt = time.Unix(int64(exp), 0)
+	}
+	return &vosClaims{Subject: sub, Username: username, Admin: admin, ExpiresAt: expiresAt}, nil
 }
 
 func (s *AuthService) fetchVOSJWKS(force bool) (map[string]*rsa.PublicKey, error) {

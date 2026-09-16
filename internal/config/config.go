@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -737,6 +738,9 @@ func Load() (*Config, error) {
 	// 4. 向后兼容：将旧版扁平字段合并到子模块
 	cfg.migrateFromFlatConfig()
 
+	// 4.5 全新安装时种子 vrouter 免 key 条目（默认 provider）
+	cfg.ensureDefaultProvider()
+
 	// 5. 确保目录存在
 	for _, dir := range []string{cfg.App.DataDir, cfg.Cache.CacheDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -898,7 +902,6 @@ func setDefaults() {
 	viper.SetDefault("ai.auto_pilot", false)
 	// 默认允许本地 AI（ollama 等），由用户自行选择；需要强制云端时再设置 block_local_ai: true
 	viper.SetDefault("ai.block_local_ai", false)
-	viper.SetDefault("ai.provider", "deepseek")
 	viper.SetDefault("ai.timeout", 30)
 	viper.SetDefault("ai.enable_smart_search", true)
 	viper.SetDefault("ai.enable_recommend_reason", true)
@@ -1135,6 +1138,26 @@ func isEmptyValue(v interface{}) bool {
 		return len(val) == 0
 	default:
 		return false
+	}
+}
+
+// ensureDefaultProvider 保证内置 vrouter 条目存在并作为默认 provider
+// （缺失时自动补齐；仅内存生效，幂等）。
+func (c *Config) ensureDefaultProvider() {
+	hasVRouter := slices.ContainsFunc(c.AI.Providers, func(p AIProviderEntry) bool { return p.ID == "vrouter" })
+	if !hasVRouter {
+		c.AI.Providers = append(c.AI.Providers, AIProviderEntry{
+			ID:      "vrouter",
+			Name:    "V-Router · VOS 账户模型",
+			APIBase: "http://v-router:8080/v1",
+			Enabled: true,
+		})
+	}
+	// 默认选中：ActiveProvider 为空（从未选择）时回退内置 vrouter。
+	// ActiveProvider 指向不存在的条目（如用户配置了旧版 ai.provider: deepseek 但
+	// Providers 迁移后无此条目）时，尊重用户已写下的意图，不强制切到 vrouter。
+	if c.AI.ActiveProvider == "" {
+		c.AI.ActiveProvider = "vrouter"
 	}
 }
 
