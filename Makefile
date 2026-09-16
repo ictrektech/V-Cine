@@ -4,9 +4,11 @@
 #
 # 用法:
 #   make dev          启动开发环境（docker compose + .env.dev）
+#   make vos-dev      在 VOS 平台内联调（dev 容器顶替已安装应用，免 git push/推镜像）
 #   make prod         启动生产环境（.env.prod，用现有镜像，不重新构建）
 #   make prod-build   仅重新构建生产镜像（改代码后需执行）
 #   make dev-down     停止开发环境
+#   make vos-dev-down 退出 VOS 联调（撤临时路由 + 停 dev 容器）
 #   make prod-down    停止生产环境
 #   make dev OPTS=-d  后台运行；默认前台（看日志）
 #
@@ -53,6 +55,13 @@ help:
 	@echo ""
 	@echo "  make dev          启动开发环境（.env.dev，前台；OPTS=-d 后台）"
 	@echo "  make dev-down     停止开发环境"
+	@echo "  make vos-dev      VOS 平台内联调：一条命令起后端(air)+前端(vite)，两端热加载，Ctrl-C 退出"
+	@echo "                    VOS_DEV_WEB=0 make vos-dev → 保真模式（前端用 web/dist-vos 产物）"
+	@echo "  make vos-dev-down 退出 VOS 联调（撤临时路由 + 停 dev 容器）"
+	@echo "  make vos-dev-route-on   只装临时路由（切回 dev，dist 产物模式，供 route-off 后用）"
+	@echo "  make vos-dev-route-off  只撤临时路由（流量切回平台已安装应用）"
+	@echo "  make vos-dev-status  查看 dev 容器与临时 Traefik 路由状态"
+	@echo "  make vos-dev-web-watch  只重建前端产物到 web/dist-vos（保真模式下配合使用）"
 	@echo "  make prod         启动生产环境（.env.prod，前台；OPTS=-d 后台）"
 	@echo "  make prod-build   仅重新构建生产镜像（改代码后执行）"
 	@echo "  make prod-down    停止生产环境"
@@ -82,6 +91,27 @@ dev-ps:    ## [Dev] 查看开发环境状态
 	$(DEV_CMD) ps
 dev-build: ## [Dev] 重新构建 dev 镜像（改 docker/Dockerfile.dev 后执行）
 	$(DEV_CMD) build nowen-video
+
+# ==================== VOS 联调（免 git push / 免推镜像）====================
+# 起本机两端（容器内 air + 宿主 vite）顶替平台上已安装的 v-cine，Ctrl-C 即收尾。
+# VOS_DEV_WEB=0 改用 web/dist-vos 产物（保真）。详见 docs/vos-local-dev.md
+
+.PHONY: vos-dev vos-dev-down vos-dev-route-on vos-dev-route-off vos-dev-status vos-dev-logs vos-dev-web-watch
+
+vos-dev:           ## [VOS] dev 容器顶替平台已安装应用（免 git push / 免推镜像）
+	./scripts/vos-dev.sh up
+vos-dev-down:      ## [VOS] 撤临时路由 + 停 dev 容器
+	./scripts/vos-dev.sh down
+vos-dev-route-on:  ## [VOS] 只装临时路由（dev 容器就绪后，把流量切到 dev）
+	./scripts/vos-dev.sh route-on
+vos-dev-route-off: ## [VOS] 只撤临时路由（流量切回平台已安装应用）
+	./scripts/vos-dev.sh route-off
+vos-dev-status:    ## [VOS] 查看 dev 容器与临时 Traefik 路由状态
+	./scripts/vos-dev.sh status
+vos-dev-logs:      ## [VOS] 跟踪 dev 容器日志
+	./scripts/vos-dev.sh logs
+vos-dev-web-watch: ## [VOS] 只重建前端产物到 web/dist-vos（保真模式下配合使用）
+	./scripts/vos-dev.sh web-watch
 
 # ==================== Prod ====================
 

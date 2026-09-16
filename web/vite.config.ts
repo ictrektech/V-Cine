@@ -28,6 +28,9 @@ if (basePath) {
   }
 }
 
+// VITE_ALLOWED_HOSTS=true 放行任意 Host；不设置则用 vite 默认（只放行 localhost/IP，域名会 403）
+const allowedHosts = process.env.VITE_ALLOWED_HOSTS === 'true' || undefined
+
 export default defineConfig({
   plugins: [react()],
   base,
@@ -39,6 +42,8 @@ export default defineConfig({
   server: {
     port: devPort,
     host: true, // 监听所有网络接口
+    // 未设置 VITE_ALLOWED_HOSTS 时不写该字段，等价于 vite 默认行为
+    ...(allowedHosts === undefined ? {} : { allowedHosts }),
     proxy,
   },
   build: {

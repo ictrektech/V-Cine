@@ -1,0 +1,47 @@
+# VOS 联调临时路由模板（scripts/vos-dev.sh 渲染后写入平台 Traefik 的
+# file provider 目录 /data/vos/traefik/dynamic-conf/com.ictrek.v-cine.dev.yml）
+#
+# 不放 stripPrefix：vite 的 base 就是该前缀，请求必须原样带前缀进来；
+# 而 dist 模式下后端自己会剥（VCINE_APP_WEB_BASE_PATH，见 cmd/server/main.go），
+# 所以前缀一律原样送达上游。删掉本文件即回退到平台上已安装的应用。
+#
+# 上游由脚本按模式渲染：
+#   dist → Docker 网关:38086（dev 容器里的 web/dist-vos）
+#   vite → Docker 网关:38087（宿主 vite dev server，/api 由它反代给上面的 38086）
+# 标记头 X-VCine-Dev 用来分辨当前走哪条路：dist 渲染成 1，vite 渲染成 vite。
+http:
+  routers:
+    v-cine-dev-top-open:
+      rule: PathPrefix(`/app/com.ictrek.v-cine`) && HeaderRegexp(`Sec-Fetch-Dest`, `document`)
+      priority: 3000
+      service: v-cine-dev
+      middlewares:
+        - v-cine-dev-top-open-redirect
+        - v-cine-dev-marker
+    v-cine-dev-web:
+      rule: PathPrefix(`/app/com.ictrek.v-cine`)
+      priority: 2000
+      service: v-cine-dev
+      middlewares:
+        - v-cine-dev-slash
+        - v-cine-dev-marker
+  services:
+    v-cine-dev:
+      loadBalancer:
+        servers:
+          - url: http://__UPSTREAM__
+  middlewares:
+    v-cine-dev-slash:
+      redirectRegex:
+        regex: '^(.*)/app/com\.ictrek\.v-cine$'
+        replacement: '${1}/app/com.ictrek.v-cine/'
+        permanent: true
+    v-cine-dev-marker:
+      headers:
+        customResponseHeaders:
+          X-VCine-Dev: "__MARKER__"
+    v-cine-dev-top-open-redirect:
+      redirectRegex:
+        regex: '^(https?://[^/]+)/app/com\.ictrek\.v-cine/?(?:\?.*)?$'
+        replacement: '${1}/#/app/com.ictrek.v-cine/nowen-video'
+        permanent: false

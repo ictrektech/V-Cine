@@ -1,0 +1,64 @@
+# ============================================================
+# VOS 联调覆盖（叠加在 docker-compose.yml + docker-compose.dev.yml 之上）
+#
+# 目的：让本地 dev 容器（源码挂载 + air 热重载）"顶替" VOS 平台上已安装的
+# v-cine，在平台同域 iframe 内直接调试 OIDC 免登、/app/com.ictrek.v-cine
+# 子路径与完整业务链路，**无需 git push / 构建镜像 / 推送 SWR / 重装应用**。
+#
+# 用法：make vos-dev（详见 scripts/vos-dev.sh 与 docs/vos-local-dev.md）
+#
+# 与平台上已安装应用的关系（刻意不打扰它）：
+#   - 已安装应用继续占宿主 38085；dev 容器占 38086（VOS_DEV_PORT 可改）
+#   - Traefik 路由由脚本写入临时文件（priority 更高）指向 38086
+#   - 平台每 60s 会 reconcile 已安装应用（compose up），因此**不要** stop 它，
+#     本方案只改路由文件，不动平台容器
+# ============================================================
+services:
+  nowen-video:
+    # 容器名改成 -dev：这样它加入平台网络时不会抢 `nowen-video` 这个名字
+    # （脚本用 docker network connect --alias nowen-video-dev 入网，
+    #   vos_default 上只会出现 nowen-video-dev，与平台已安装应用互不干扰）
+    container_name: nowen-video-dev
+    # 宿主端口改为独立端口，避免与平台上已安装的 v-cine（38085）抢端口；
+    # 容器内端口对齐平台的 8080（VCINE_APP_PORT），这样其他应用按别名直连调试时
+    # 端口与生产一致：nowen-video-dev:8080
+    ports: !override
+      - "${VOS_DEV_PORT:-38086}:8080"
+    # 挂载整体接管（!override）：VOS 联调时只保留源码 + Go 缓存 + 平台媒体库/授权目录，
+    # 与平台上已安装应用的挂载对齐（媒体路径由 scripts/vos-dev.sh 从已安装容器读取注入，
+    # VOS share uid 会变，不硬编码）；同时避免与 docker-compose.dev.yml 里的挂载点重复。
+    volumes: !override
+      - ..:/app
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+      - ${VOS_DEV_MEDIA_PATH:-/data/vos_workspace/public/media_video}:/media
+      - ${VOS_DEV_EXPOSED_PATH:-/nonexistent}:/exposed:rslave,ro
+    # 容器内监听 8080（与平台安装一致），健康检查随之覆盖 dev.yml 的 38080
+    healthcheck: !override
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    environment:
+      - VCINE_APP_PORT=8080
+      # ---- VOS 子路径：前端构建期用 VITE_BASE 写入，后端在 http.Server 层剥离 ----
+      - VCINE_APP_WEB_BASE_PATH=/app/com.ictrek.v-cine
+      # 前端产物用 VOS 子路径版本（scripts/vos-dev.sh 构建），不污染普通 dev 的 web/dist
+      - VCINE_APP_WEB_DIR=/app/web/dist-vos
+      # ---- 连平台共享 PGV（与已安装应用同库 → 账号/媒体库记录一致）----
+      # 默认走宿主端口（PGV 监听 25432）；加入 vos_default 后可用别名：
+      #   VOS_DEV_DB_HOST=pgv make vos-dev
+      # VOS_DEV_DB_NAME 可切到独立库调试迁移
+      - VCINE_DATABASE_HOST=${VOS_DEV_DB_HOST:-${VOS_HOST_GW_IP:-172.17.0.1}}
+      - VCINE_DATABASE_PORT=${VOS_PGV_PORT:-25432}
+      - VCINE_DATABASE_USER=nowen
+      - VCINE_DATABASE_PASSWORD=nowen_password
+      - VCINE_DATABASE_DBNAME=${VOS_DEV_DB_NAME:-nowen_video}
+      # ---- VOS OIDC Fastpath：直接验平台 JWKS（取值与已安装应用完全一致）----
+      - VCINE_VOS_OIDC_ENABLED=true
+      - VCINE_VOS_OIDC_JWKS_URL=http://${VOS_HOST_GW_IP:-172.17.0.1}:8105/v1000/oauth2/jwks
+      - VCINE_VOS_OIDC_ISSUER=/v1000/oauth2
+      - VCINE_VOS_OIDC_CLIENT_ID=com.ictrek.v-cine
+      # 宿主侧视频分析服务回源拉流的地址（代码默认的服务名只适用于容器内）
+      - VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL=http://${VOS_HOST_GW_IP:-172.17.0.1}:${VOS_DEV_PORT:-38086}

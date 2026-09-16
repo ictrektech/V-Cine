@@ -1,6 +1,8 @@
 # nowen-video 构建产物
 bin/
 dist/
+# VOS 子路径前端产物（scripts/vos-dev.sh 构建）
+web/dist-vos/
 
 # TypeScript 增量编译缓存
 *.tsbuildinfo
