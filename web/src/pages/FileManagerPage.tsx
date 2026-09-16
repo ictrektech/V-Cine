@@ -514,18 +514,8 @@ export default function FileManagerPage() {
       if (!h.structure || h.structure.status !== 'ok') {
         return `Structure 结构化服务不可用${h.structure_base_url ? `（${h.structure_base_url}）` : ''}，请检查服务地址或确认服务已启动`
       }
-      if (includeDescriptions) {
-        if (!h.describe_enabled) {
-          return '场景描述未开启，请到「视频分析」设置中开启'
-        }
-        try {
-          const sc = (await aiApi.getStatus()).data.data.scene_describe_ai
-          if (!sc?.provider_id || !sc?.model) {
-            return '未配置场景描述模型，请到 AI 服务中选择视觉模型'
-          }
-        } catch {
-          return '无法读取 AI 模型配置，请稍后重试'
-        }
+      if (includeDescriptions && !h.describe_enabled) {
+        return '场景描述未开启，请到「视频分析」设置中开启'
       }
       return null
     } catch (e) {

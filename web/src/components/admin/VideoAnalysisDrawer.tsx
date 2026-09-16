@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
@@ -42,6 +43,9 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
   const [describeProviderID, setDescribeProviderID] = useState('')
   const [describeModel, setDescribeModel] = useState('')
+  // 场景描述自定义模型开关：开启 = 注入 base_url/api_key/model_name，用自选视觉模型；
+  // 关闭（默认）= 请求不带模型参数，结构化服务用自己的默认模型直接调上游（成本更低）。
+  const [useCustomModel, setUseCustomModel] = useState(false)
 
   const load = useCallback(async () => {
     setError('')
@@ -74,6 +78,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
       const sc = res.data.data.scene_describe_ai
       setDescribeProviderID(sc?.provider_id || '')
       setDescribeModel(sc?.model || '')
+      setUseCustomModel(!!sc?.provider_id && !!sc?.model)
     } catch {
       // AI 服务不可用时模型选择保持为空
     }
@@ -99,11 +104,16 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
     setError('')
     try {
       await videoAnalysisApi.updateSettings(settings)
-      if (describeProviderID && describeModel) {
+      // 开启且选了模型才写入；关闭时清空 —— 后端 ensureDescribeJob 按
+      // scene_describe_ai.model 非空注入模型，不清空则关闭不生效。
+      if (useCustomModel && describeProviderID && describeModel) {
         await aiApi.updateConfig({ scene_describe_ai: { provider_id: describeProviderID, model: describeModel } })
+      } else if (!useCustomModel) {
+        await aiApi.updateConfig({ scene_describe_ai: { provider_id: '', model: '' } })
       }
       setSaved(true)
       await load()
+      await loadAIModels()
     } catch (e) {
       setError(extractErrMsg(e) || '保存配置失败')
     } finally {
@@ -185,8 +195,19 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                 </div>
                 {settings.describe_enabled && (
                   <div className="space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground">场景描述模型</div>
-                    {visionModels.length === 0 ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-medium text-muted-foreground">自定义场景描述 VLM 视觉模型</div>
+                        <p className="text-xs text-surface-500">不选择默认用结构化服务的默认模型（推荐）</p>
+                      </div>
+                      {/* shadcn/ui Checkbox：小号，区别于上层 section 级 Switch，视觉上表达从属关系 */}
+                      <Checkbox
+                        checked={useCustomModel}
+                        onCheckedChange={(v) => setUseCustomModel(v === true)}
+                        disabled={gated}
+                      />
+                    </div>
+                    {!useCustomModel ? null : visionModels.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
                         当前没有可用的视觉模型，
                         <button type="button" onClick={onNavigateToAI} className="underline-offset-2 hover:text-neon hover:underline">
