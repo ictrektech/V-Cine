@@ -30,6 +30,9 @@ var ErrVideoAnalysisTaskActive = repository.ErrVideoAnalysisTaskActive
 // CLAIM_STAGING_FAILED 错误码。
 var errClaimStagingFailed = errors.New("claim staging dir failed")
 
+// EnsureServicesFn 惰性创建视频分析服务与其 worker；返回 nil 表示配置未启用或无效。
+type EnsureServicesFn func() (*VideoAnalysisService, *VideoAnalysisWorker)
+
 type videoAnalysisExternalClient interface {
 	SubmitDetectJob(context.Context, DetectJobRequest) (*ExternalJobRef, error)
 	GetDetectJob(context.Context, string) (*ExternalJob, error)

@@ -98,6 +98,8 @@ type Services struct {
 	AICost *AICostService
 	// V7: AI 智能路由器（故障转移 / 用量监控 / 阈值预警）
 	AIRouter *AIRouter
+	// 视频分析延迟创建入口；幂等，返回 nil 表示配置未启用或无效。
+	EnsureVideoAnalysis EnsureServicesFn
 }
 
 func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap.SugaredLogger) *Services {
@@ -408,7 +410,14 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 
 	// 外部场景检测与视频结构化。默认关闭；配置无效时仅禁用该功能，
 	// 不影响 V-Cine 的现有扫描、刮削和播放流程。
-	if cfg.VideoAnalysis.Enabled {
+	// ensureVideoAnalysis 幂等，可在运行期再次调用以动态拉起服务。
+	ensureVideoAnalysis := func() (*VideoAnalysisService, *VideoAnalysisWorker) {
+		if svcs.VideoAnalysis != nil {
+			return svcs.VideoAnalysis, svcs.VideoAnalysisWorker
+		}
+		if !cfg.VideoAnalysis.Enabled {
+			return nil, nil
+		}
 		analysisClient, clientErr := NewVideoAnalysisClient(
 			cfg.VideoAnalysis.SceneBaseURL,
 			cfg.VideoAnalysis.StructureBaseURL,
@@ -416,37 +425,50 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 		)
 		if clientErr != nil {
 			logger.Errorf("视频分析配置无效，功能未启动: client=%v", clientErr)
-		} else {
-			// 创建 embedding 客户端（可选，配置了 embedding_ai 才启用）
-			var embeddingClient *EmbeddingClient
-			if cfg.AI.EmbeddingAI.APIBase != "" {
-				if ec, ecErr := NewEmbeddingClient(cfg.AI.EmbeddingAI.APIBase, cfg.AI.EmbeddingAI.Model); ecErr == nil {
-					ec.DesensitizeImage = func(v string) string {
-						return aiService.DesensitizeImageForScope(v, config.DesensitizeImageScopeEmbedding)
-					}
-					embeddingClient = ec
-				} else {
-					logger.Warnf("创建 embedding 客户端失败（不影响视频分析）: %v", ecErr)
-				}
-			}
-			svcs.VideoAnalysis = NewVideoAnalysisService(
-				repos.VideoAnalysis, repos.Media, analysisClient, repos.Scene, embeddingClient,
-				cfg.VideoAnalysis.AssetDir,
-				cfg.VideoAnalysis.DescribeEnabled, wsHub, logger,
-				time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,
-				time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,
-				cfg,
-			)
-			// 注入 VFS：远程 webdav/alist/s3 媒体也能提交视频分析（URL 模式统一拉流）。
-			svcs.VideoAnalysis.SetVFSManager(vfsManager)
-			// 注入 describe_enabled 动态更新回调
-			aiService.SetDescribeEnabledCallback(svcs.VideoAnalysis.SetDescribeEnabled)
-
-			svcs.VideoAnalysisWorker = NewVideoAnalysisWorker(
-				svcs.VideoAnalysis, repos.VideoAnalysis, logger, cfg.VideoAnalysis.MaxConcurrent,
-			)
-			svcs.VideoAnalysisWorker.Start()
+			return nil, nil
 		}
+		// 创建 embedding 客户端（可选，配置了 embedding_ai 才启用）
+		var embeddingClient *EmbeddingClient
+		if cfg.AI.EmbeddingAI.APIBase != "" {
+			if ec, ecErr := NewEmbeddingClient(cfg.AI.EmbeddingAI.APIBase, cfg.AI.EmbeddingAI.Model); ecErr == nil {
+				ec.DesensitizeImage = func(v string) string {
+					return aiService.DesensitizeImageForScope(v, config.DesensitizeImageScopeEmbedding)
+				}
+				embeddingClient = ec
+			} else {
+				logger.Warnf("创建 embedding 客户端失败（不影响视频分析）: %v", ecErr)
+			}
+		}
+		svcs.VideoAnalysis = NewVideoAnalysisService(
+			repos.VideoAnalysis, repos.Media, analysisClient, repos.Scene, embeddingClient,
+			cfg.VideoAnalysis.AssetDir,
+			cfg.VideoAnalysis.DescribeEnabled, wsHub, logger,
+			time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,
+			time.Duration(cfg.VideoAnalysis.JobTimeoutMinutes)*time.Minute,
+			cfg,
+		)
+		// 注入 VFS：远程 webdav/alist/s3 媒体也能提交视频分析（URL 模式统一拉流）。
+		svcs.VideoAnalysis.SetVFSManager(vfsManager)
+		// 注入 describe_enabled 动态更新回调
+		aiService.SetDescribeEnabledCallback(svcs.VideoAnalysis.SetDescribeEnabled)
+
+		svcs.VideoAnalysisWorker = NewVideoAnalysisWorker(
+			svcs.VideoAnalysis, repos.VideoAnalysis, logger, cfg.VideoAnalysis.MaxConcurrent,
+		)
+		svcs.VideoAnalysisWorker.Start()
+
+		// 补齐延迟注入：扫描结束自动入队 / 删除后回收 structure 孤儿产物
+		svcs.Library.SetVideoAnalysis(svcs.VideoAnalysis, svcs.VideoAnalysisWorker)
+		fileWatcher.SetVideoAnalysis(svcs.VideoAnalysis, svcs.VideoAnalysisWorker)
+		if svcs.FileManager != nil {
+			svcs.FileManager.SetVideoAnalysisService(svcs.VideoAnalysis)
+		}
+		return svcs.VideoAnalysis, svcs.VideoAnalysisWorker
+	}
+	svcs.EnsureVideoAnalysis = ensureVideoAnalysis
+
+	if cfg.VideoAnalysis.Enabled {
+		ensureVideoAnalysis()
 	}
 
 	// AI 成本估算服务（无状态，仅依赖 AIService 取累计 token）

@@ -173,5 +173,8 @@ func NewHandlers(services *service.Services, repos *repository.Repositories, cfg
 	// 自定义文件夹扫描 / 批量刮削（参考 mdcx）
 	h.AdultScraper.SetFolderBatchService(services.AdultFolderBatch)
 
+	// 视频分析延迟创建入口。
+	h.VideoAnalysis.SetEnsureServices(services.EnsureVideoAnalysis)
+
 	return h
 }

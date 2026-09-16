@@ -18,10 +18,17 @@ type VideoAnalysisHandler struct {
 	service *service.VideoAnalysisService
 	worker  *service.VideoAnalysisWorker
 	cfg     *config.Config
+	// ensureServices 惰性创建视频分析服务；可为 nil（测试场景）。
+	ensureServices service.EnsureServicesFn
 }
 
 func NewVideoAnalysisHandler(service *service.VideoAnalysisService, worker *service.VideoAnalysisWorker, cfg *config.Config) *VideoAnalysisHandler {
 	return &VideoAnalysisHandler{service: service, worker: worker, cfg: cfg}
+}
+
+// SetEnsureServices 注入视频分析服务延迟创建入口。
+func (h *VideoAnalysisHandler) SetEnsureServices(fn service.EnsureServicesFn) {
+	h.ensureServices = fn
 }
 
 func (h *VideoAnalysisHandler) SubmitMedia(c *gin.Context) {
@@ -303,6 +310,12 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
 		return
+	}
+	// 首次经 UI 启用时动态拉起服务。
+	if h.service == nil && updated.Enabled && h.ensureServices != nil {
+		if svc, worker := h.ensureServices(); svc != nil {
+			h.service, h.worker = svc, worker
+		}
 	}
 	// scene_base_url / structure_base_url 支持热更新，保存后立即生效
 	if h.service != nil {
