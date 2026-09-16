@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -236,13 +237,40 @@ func (r *VideoAnalysisTaskRepo) CountByStatus() (map[string]int64, error) {
 }
 
 // ListVideoHashes 返回所有任务中已使用过的 video_hash（用于识别 structure 孤儿目录）。
+// 与展示路径同源：独立列 + result_json 内嵌的 video_hash（列可能漏写，
+// 展示找文件用的是 JSON 里的值，清理必须同样可见，否则目录会被误删）。
 func (r *VideoAnalysisTaskRepo) ListVideoHashes() ([]string, error) {
 	var hashes []string
 	err := r.db.Model(&model.VideoAnalysisTask{}).
 		Where("video_hash <> ''").
 		Distinct().
 		Pluck("video_hash", &hashes).Error
-	return hashes, err
+	if err != nil {
+		return nil, err
+	}
+
+	// 补充列漏写、但 result_json 内嵌 video_hash 的行（量小），解析失败/无值忽略。
+	var blobs []string
+	err = r.db.Model(&model.VideoAnalysisTask{}).
+		Where("video_hash = '' AND result_json LIKE ?", `%"video_hash"%`).
+		Pluck("result_json", &blobs).Error
+	if err != nil {
+		// 补充查询失败必须中止清理：残缺名单会漏掉 JSON 引用的目录，
+		// 继续删除可能误删仍被展示引用的产物。宁可不删，不可误删。
+		return nil, err
+	}
+	for _, raw := range blobs {
+		var header struct {
+			VideoHash string `json:"video_hash"`
+		}
+		if err := json.Unmarshal([]byte(raw), &header); err != nil {
+			continue
+		}
+		if h := strings.TrimSpace(header.VideoHash); h != "" {
+			hashes = append(hashes, h)
+		}
+	}
+	return hashes, nil
 }
 
 // DeleteByID 删除指定任务。运行中的任务不可删除，避免与 worker 抢状态。

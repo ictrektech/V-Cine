@@ -12,17 +12,28 @@ import (
 )
 
 // claimArtifactForTask 通过 HTTP 下载 structure 产物（v2 Pull 交付）到 asset_dir/<hash>。
-// 下载在 cleanupMu 外进行，只在最终落盘（persist + rename）时加锁。
+// 下载在 cleanupMu 外进行；video_hash 落库、幂等检查与最终落盘加锁。
 // 幂等：目标目录已存在且含 manifest.json 则跳过。release=true 时下载完成后调用
 // DELETE 释放服务端 staging；release=false 时保留 staging，供服务端增量重试。
 func (s *VideoAnalysisService) claimArtifactForTask(task *model.VideoAnalysisTask, videoHash string, artifact *VideoAnalysisArtifact, release bool) error {
 	dst := filepath.Join(s.assetDir, videoHash)
+
+	// video_hash 落库 + 幂等检查必须在 cleanupMu 内，与 CleanOrphanStructure 的
+	// 「查名单 → 删除」串行化：video_hash 列是孤儿清理保护目录的唯一依据，
+	// 锁外执行时清理可能读到旧名单，在本任务判定「跳过下载」后误删目录。
+	s.cleanupMu.Lock()
+	if err := s.persistVideoHash(task, videoHash); err != nil {
+		s.cleanupMu.Unlock()
+		return fmt.Errorf("persist video_hash before claim: %w", err)
+	}
 	if dirExists(dst) && fileExists(filepath.Join(dst, "manifest.json")) {
+		s.cleanupMu.Unlock()
 		if release {
 			s.releaseStructureJob(task)
 		}
 		return nil
 	}
+	s.cleanupMu.Unlock()
 	if strings.TrimSpace(task.StructureJobID) == "" {
 		return fmt.Errorf("%w: artifact claim requires structure_job_id", errClaimStagingFailed)
 	}
@@ -79,11 +90,7 @@ func (s *VideoAnalysisService) finalizeArtifactClaimLocked(task *model.VideoAnal
 			return fmt.Errorf("%w: clean incomplete dst: %v", errClaimStagingFailed, err)
 		}
 	}
-	task.VideoHash = strings.TrimSpace(videoHash)
-	if err := s.persist(task); err != nil {
-		_ = os.RemoveAll(tmp)
-		return fmt.Errorf("persist task before claim: %w", err)
-	}
+	// video_hash 已在 claimArtifactForTask 入口处落库，这里直接 rename。
 	if err := os.Rename(tmp, dst); err != nil {
 		_ = os.RemoveAll(tmp)
 		return fmt.Errorf("%w: rename downloaded artifact: %v", errClaimStagingFailed, err)
@@ -115,6 +122,21 @@ func (s *VideoAnalysisService) downloadStructureArtifact(jobID string, artifact 
 		return "", errors.New("downloaded artifact missing manifest.json")
 	}
 	return tmp, nil
+}
+
+// persistVideoHash 将 video_hash 落库（幂等：相同值跳过），供 claim 各路径统一调用；
+// 任务行存活期间其引用的产物目录持续受孤儿清理保护。
+func (s *VideoAnalysisService) persistVideoHash(task *model.VideoAnalysisTask, videoHash string) error {
+	videoHash = strings.TrimSpace(videoHash)
+	if task == nil || videoHash == "" || task.VideoHash == videoHash {
+		return nil
+	}
+	task.VideoHash = videoHash
+	if err := s.persist(task); err != nil {
+		task.VideoHash = ""
+		return err
+	}
+	return nil
 }
 
 func dirExists(p string) bool {

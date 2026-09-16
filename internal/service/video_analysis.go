@@ -1363,8 +1363,15 @@ func (s *VideoAnalysisService) claimArtifactsForTask(task *model.VideoAnalysisTa
 	if err := json.Unmarshal([]byte(task.ResultJSON), &result); err != nil {
 		return fmt.Errorf("decode structure result for claim: %w", err)
 	}
-	if strings.TrimSpace(result.VideoHash) == "" || result.Artifact == nil || len(result.Artifact.Files) == 0 {
-		// 无结果或无可下载产物，无需 claim。
+	if strings.TrimSpace(result.VideoHash) == "" {
+		return nil
+	}
+	// 无可下载产物时也要落库 video_hash：结果 JSON 引用的九宫格目录可能由
+	// 其他任务 claim，不落库则该目录在本任务存活期间不受孤儿清理保护。
+	if result.Artifact == nil || len(result.Artifact.Files) == 0 {
+		if err := s.persistVideoHash(task, result.VideoHash); err != nil {
+			return fmt.Errorf("persist video_hash for artifact-less result: %w", err)
+		}
 		return nil
 	}
 	return s.claimArtifactForTask(task, result.VideoHash, result.Artifact, release)
@@ -1414,6 +1421,10 @@ func (s *VideoAnalysisService) CleanOrphanStructure() error {
 					"hash", hash, "error", err)
 			}
 			continue
+		}
+		if s.logger != nil {
+			s.logger.Infow("Video analysis orphan structure removed",
+				"hash", hash)
 		}
 	}
 	return nil

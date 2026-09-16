@@ -71,3 +71,36 @@ func TestVideoAnalysisServiceCleanOrphanStructureRejectsUnsafeAssetDir(t *testin
 		t.Fatalf("missing asset dir should be a no-op, got %v", err)
 	}
 }
+
+// 回归测试：video_hash 列为空、但 result_json 内嵌 video_hash 的任务，
+// 其引用的产物目录同样受孤儿清理保护（保护名单与展示路径同源）。
+func TestCleanOrphanStructureProtectsJSONReferencedHash(t *testing.T) {
+	service, tasks, _ := setupVideoAnalysisService(t, &fakeVideoAnalysisClient{})
+	assetDir := service.assetDir
+
+	// 目录存在（此前由别的任务 claim 创建），但唯一引用它的任务列漏写了 video_hash，
+	// 只有 result_json 内嵌 video_hash。
+	if err := os.MkdirAll(filepath.Join(assetDir, "hash-1", "grids"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	task := &model.VideoAnalysisTask{
+		MediaID:    "media-1",
+		LibraryID:  "library-1",
+		MediaTitle: "movie",
+		VideoPath:  "/media/movie.mp4",
+		Trigger:    model.VideoAnalysisTriggerManual,
+		Status:     model.VideoAnalysisStatusPartial,
+		Stage:      model.VideoAnalysisStageStructure,
+		ResultJSON: `{"video_hash":"hash-1","scenes":[{"scene_index":0,"grid_image":"scene_000.jpg"}]}`,
+	}
+	if err := tasks.CreateIfNoActive(task); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.CleanOrphanStructure(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(assetDir, "hash-1", "grids", "scene_000.jpg")); os.IsNotExist(err) {
+		t.Fatal("hash-1 should be protected via result_json video_hash, got removed")
+	}
+}
