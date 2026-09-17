@@ -214,7 +214,7 @@ func TestChatCompletionJSONSchemaLayeredFallback(t *testing.T) {
 	}}
 	svc := keyfreeTestService(app)
 
-	resp, err := svc.ChatCompletionJSONSchema("sys", "user", 0.3, 1000, `{"type":"object"}`)
+	resp, err := svc.ChatCompletionJSONSchema("sys", "user", 0.3, 1000, `{"type":"object"}`, "none")
 	if err != nil {
 		t.Fatalf("两级降级后应成功，实际报错: %v", err)
 	}
@@ -224,5 +224,46 @@ func TestChatCompletionJSONSchemaLayeredFallback(t *testing.T) {
 	want := []string{"json_schema", "json_object", "plain"}
 	if !reflect.DeepEqual(formats, want) {
 		t.Fatalf("应依次发出 %v 三种请求，实际 %v", want, formats)
+	}
+}
+
+// TestChatCompletionReasoningEffortRejectedStripped 验证：后端 400 拒绝 reasoning_effort
+//（错误体提及该字段）时剥离 reasoning_effort 重试，重试请求保留的其余字段不受影响
+
+func TestChatCompletionReasoningEffortRejectedStripped(t *testing.T) {
+	var sawReasoningEffort, retryClean bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), `"reasoning_effort"`) {
+			sawReasoningEffort = true
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"message":"reasoning_effort not supported"}}`))
+			return
+		}
+		retryClean = !strings.Contains(string(body), `"reasoning_effort"`)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	app := &config.Config{AI: config.AIConfig{
+		Enabled:        true,
+		ActiveProvider: "vrouter",
+		Providers: []config.AIProviderEntry{{
+			ID:      "vrouter",
+			APIBase: srv.URL,
+			Models:  []config.AIModelEntry{{Name: "test-model"}},
+		}},
+	}}
+	svc := keyfreeTestService(app)
+
+	if _, err := svc.ChatCompletionJSONSchema("sys", "user", 0.3, 1000, `{"type":"object"}`, "none"); err != nil {
+		t.Fatalf("剥离 reasoning_effort 后应成功，实际报错: %v", err)
+	}
+	if !sawReasoningEffort {
+		t.Error("禁思考时应发送 reasoning_effort 字段")
+	}
+	if !retryClean {
+		t.Error("重试请求不应再携带 reasoning_effort")
 	}
 }

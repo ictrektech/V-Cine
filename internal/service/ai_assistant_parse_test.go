@@ -73,59 +73,6 @@ func TestParseAIResponseToleratesObjectParams(t *testing.T) {
 	}
 }
 
-// 用户实际遇到的响应：忽略 response_format 的本地模型输出 Python 风格单引号伪 JSON，
-// 且 message 内容包含未转义的双引号、含 None 字面量与尾逗号
-const singleQuotedTestResponse = `{'message': '🎬 关于"同一部剧但年份不同"的处理建议：\n\n1. **重制版**：原片年份是 2016 年。\n2. 年份标注错误。', 'intent': {'action': 'suggest', 'targets': 'selected', 'params': {'years': '2016,2018'}, 'confidence': None, 'reasoning': '两个文件年份不同，可能是同一部剧的不同版本'}, 'actions': [], }`
-
-func TestParseAIResponseRepairsSingleQuotedJSON(t *testing.T) {
-	s := &AIAssistantService{}
-	msg, intent := s.parseAIResponse(singleQuotedTestResponse, &ChatSession{})
-
-	if !strings.HasPrefix(msg.Content, "🎬 关于") {
-		t.Fatalf("content 应为修复解析后的 markdown，实际: %.60s", msg.Content)
-	}
-	if strings.Contains(msg.Content, "'intent'") {
-		t.Fatalf("content 不应再包含原始伪 JSON，实际: %.120s", msg.Content)
-	}
-	if !strings.Contains(msg.Content, `关于"同一部剧但年份不同"的处理建议`) {
-		t.Fatalf("串内双引号应原样保留在内容中，实际: %.80s", msg.Content)
-	}
-	if intent == nil {
-		t.Fatal("intent 不应为 nil")
-	}
-	if intent.Action != "suggest" {
-		t.Fatalf("action 应为 suggest，实际: %q", intent.Action)
-	}
-	if intent.Params["years"] != "2016,2018" {
-		t.Fatalf("years 参数应为 2016,2018，实际: %v", intent.Params)
-	}
-	if intent.Confidence != 0 {
-		t.Fatalf("None 字面量应解析为零值 Confidence，实际: %v", intent.Confidence)
-	}
-}
-
-func TestRepairJSON(t *testing.T) {
-	cases := []struct {
-		name string
-		src  string
-		want string
-	}{
-		{"单引号字符串转双引号", `{'a': 'b'}`, `{"a": "b"}`},
-		{"串内双引号转义", `{'a': '说"引号"了'}`, `{"a": "说\"引号\"了"}`},
-		{"串内转义的单引号还原", `{'a': 'It\'s ok'}`, `{"a": "It's ok"}`},
-		{"串内转义序列原样保留", `{'a': 'line\nbreak'}`, `{"a": "line\nbreak"}`},
-		{"None/True/False 转换", `{"a": None, "b": True, "c": False}`, `{"a": null, "b": true, "c": false}`},
-		{"尾逗号去除", `{"a": [1, 2, ], "b": "x", }`, `{"a": [1, 2], "b": "x"}`},
-		{"双引号串内的单引号不受影响", `{"a": "don't stop"}`, `{"a": "don't stop"}`},
-		{"合法 JSON 原样返回", `{"a": "b", "n": 0.95}`, `{"a": "b", "n": 0.95}`},
-	}
-	for _, c := range cases {
-		if got := repairJSON(c.src); got != c.want {
-			t.Errorf("%s: repairJSON(%q) = %q, want %q", c.name, c.src, got, c.want)
-		}
-	}
-}
-
 // TestMergeTags 验证批量标签的合并行为：保留原有分类、追加去重、空输入不清空
 func TestMergeTags(t *testing.T) {
 	cases := []struct {

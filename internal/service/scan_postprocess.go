@@ -933,28 +933,42 @@ media_type规则: standalone film/movie collection/sequel=movie; TV/anime episod
 return {"title":"","title_alt":"","year":0,"tmdb_id":0,"imdb_id":"","media_type":"movie|episode|unknown","season":0,"episode":0,"confidence":0.0}`,
 		srcName, parentDir, hint.Title, hint.TitleAlt, hint.Year, hint.MediaType, hint.Season, hint.Episode)
 
-	// JSON 模式：提示词保持短，但 token 预算给足，避免 deepseek-v4-flash 在文件名较长时截断。
-	raw, err := s.ai.ChatCompletion(sysPrompt, userPrompt, 0.0, 768)
+	// json_schema 结构化输出：解码层语法约束（字段形状 + media_type enum），
+	// 768 的 max_tokens 会把 JSON 掐断，预算给足到 4000
+	raw, err := s.ai.ChatCompletionJSONSchema(sysPrompt, userPrompt, 0.0, 4000, scanIdentifySchema, "none")
 	if err != nil {
 		return nil, "", err
 	}
 	out, parseErr := parseSmartRenameAIResult(raw)
+	// 语法约束下不应发生；若后端降级为 json_object 后形状漂移，错误携带原始响应供排查
 	if parseErr != nil {
-		// 解析失败时再用更强约束重试一次，使用更高 max_tokens 防止 JSON 半截被截断。
-		retryPrompt := fmt.Sprintf(`只输出一个JSON对象，不要Markdown，不要解释，不要<think>。
-file=%q
-dir=%q
-media_type规则: standalone film/movie collection/sequel=movie; TV/anime episode=episode; unsure=unknown
-schema={"title":"","title_alt":"","year":0,"tmdb_id":0,"imdb_id":"","media_type":"movie|episode|unknown","season":0,"episode":0,"confidence":0.0}`, srcName, parentDir)
-		if retryRaw, retryErr := s.ai.ChatCompletion("只输出合法JSON对象。", retryPrompt, 0.0, 1024); retryErr == nil {
-			if retryOut, retryParseErr := parseSmartRenameAIResult(retryRaw); retryParseErr == nil {
-				return retryOut, retryRaw, nil
-			}
-		}
-		return nil, raw, fmt.Errorf("AI 返回 JSON 解析失败: %w", parseErr)
+		return nil, raw, fmt.Errorf("AI 返回 JSON 解析失败: %w（原始响应: %s）", parseErr, truncateForLog(raw, 200))
 	}
 	return out, raw, nil
 }
+
+// scanIdentifySchema 文件名识别的结构化输出 schema（json_schema + strict），
+// 字段与 SmartRenameAIResult 一一对应；media_type 用 enum 约束，防止电影/剧集漂移。
+var scanIdentifySchema = `{
+  "name": "scan_identify",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "title": {"type": "string"},
+      "title_alt": {"type": "string"},
+      "year": {"type": "integer"},
+      "tmdb_id": {"type": "integer"},
+      "imdb_id": {"type": "string"},
+      "media_type": {"type": "string", "enum": ["movie", "episode", "unknown"]},
+      "season": {"type": "integer"},
+      "episode": {"type": "integer"},
+      "confidence": {"type": "number"}
+    },
+    "required": ["title", "title_alt", "year", "tmdb_id", "imdb_id", "media_type", "season", "episode", "confidence"],
+    "additionalProperties": false
+  }
+}`
 
 func parseSmartRenameAIResult(raw string) (*SmartRenameAIResult, error) {
 	cleaned := stripJSONFence(raw) // 复用 smart_rename.go 中的同包函数
@@ -1107,11 +1121,12 @@ func (s *ScanPostProcessService) syncParsedToMedia(media *model.Media, parsed sc
 		}
 	}
 	// 电影 ID 稳定性较高；剧集单集 AI ID 易抖动，不在这里回写。
+	// IMDb ID 仅接受 tt 前缀的合法格式：小模型会编造 "tmdb-12345" 之类的假 ID。
 	if parsed.MediaType != "episode" {
 		if parsed.TMDbID > 0 && parsed.TMDbID != media.TMDbID {
 			fields["tmdb_id"] = parsed.TMDbID
 		}
-		if parsed.IMDbID != "" && parsed.IMDbID != media.IMDbID {
+		if parsed.IMDbID != "" && parsed.IMDbID != media.IMDbID && strings.HasPrefix(parsed.IMDbID, "tt") {
 			fields["imdb_id"] = parsed.IMDbID
 		}
 	}

@@ -35,6 +35,11 @@ type ChatCompletionRequest struct {
 	TopP           float64                       `json:"top_p,omitempty"`
 	MaxTokens      int                           `json:"max_tokens,omitempty"`
 	ResponseFormat *ChatCompletionResponseFormat `json:"response_format,omitempty"`
+	// ReasoningEffort 是 OpenAI 标准思考控制字段（none/low/medium/high），
+	// Ollama OpenAI 兼容端点、vLLM 与 vrouter 均识别（vLLM 映射为 enable_thinking）。
+	// reasoning 模型的思维链会烧穿 max_tokens 导致 content 为空，禁用思考时发 "none"；
+	// 后端不识别时静默忽略或由 400 兜底剥离。
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 }
 
 type ChatCompletionResponseFormat struct {
@@ -266,22 +271,25 @@ func (s *AIService) snapshotCfg() config.AIConfig {
 //   - 优先读取响应头中的 `Retry-After`（秒）作为退避时长
 //   - 4xx（除 429 外）直接返回，不重试，避免无效请求消耗配额
 //   - 整体最长等待 ≈ 15s，超过后返回最后一次错误
+//
 func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature float64, maxTokens int) (string, error) {
-	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, nil)
+	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, "", nil)
 }
 
 // ChatCompletionJSONSchema 结构化输出补全（response_format=json_schema + strict），
 // 用于意图解析等结构化任务。后端在解码层做语法约束，即使小模型也强制遵循 schema。
 // 不支持的后端由 400 兜底降级为 json_object 再降级为纯 prompt。
-func (s *AIService) ChatCompletionJSONSchema(systemPrompt, userPrompt string, temperature float64, maxTokens int, schema string) (string, error) {
-	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, &ChatCompletionJSONSchema{
+// reasoningEffort 思考控制（OpenAI 标准，Ollama/vLLM/vrouter 均识别）：
+// "" 不发字段（保留后端默认思考）；"none" 禁用思考；"low"/"medium"/"high" 指定思考强度。
+func (s *AIService) ChatCompletionJSONSchema(systemPrompt, userPrompt string, temperature float64, maxTokens int, schema string, reasoningEffort string) (string, error) {
+	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, reasoningEffort, &ChatCompletionJSONSchema{
 		Name:   "assistant_response",
 		Strict: true,
 		Schema: json.RawMessage(schema),
 	})
 }
 
-func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature float64, maxTokens int, forceJSON bool, schema *ChatCompletionJSONSchema) (string, error) {
+func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature float64, maxTokens int, forceJSON bool, reasoningEffort string, schema *ChatCompletionJSONSchema) (string, error) {
 	if !s.IsEnabled() {
 		return "", fmt.Errorf("AI 服务未启用")
 	}
@@ -358,6 +366,9 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 		}
 	case maxTokens >= 128 && (forceJSON || (temperature <= 0.1 && maxTokens <= 1024)):
 		reqBody.ResponseFormat = &ChatCompletionResponseFormat{Type: "json_object"}
+	}
+	if reasoningEffort != "" {
+		reqBody.ReasoningEffort = reasoningEffort
 	}
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
@@ -461,28 +472,42 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 		errMsg := fmt.Errorf("AI API 返回 HTTP %d", resp.StatusCode)
 		lastErr = errMsg
 
-		// HTTP 400 兜底：少数严格的 OpenAI 兼容后端会不识别/拒绝 response_format。
+		// HTTP 400 兜底：少数严格的 OpenAI 兼容后端会不识别/拒绝 response_format 或 reasoning_effort 字段。
 		// 分层降级：json_schema → json_object → 纯 prompt（每次 400 只降级一级），
 		// 结构化任务退化为纯 prompt 时由上层解析容错。
-		// 仅当 400 与 response_format 相关（响应体提及该字段，或响应体为空无法判断）时降级；
+		// 仅当 400 与 response_format / reasoning_effort 相关（响应体提及对应字段，或响应体为空无法判断）时降级；
 		// 无关的 400（缺 model 等）直接走错误路径，避免多耗往返。
-		if resp.StatusCode == http.StatusBadRequest && reqBody.ResponseFormat != nil &&
-			(strings.Contains(strings.ToLower(string(respBody)), "response_format") ||
-				strings.TrimSpace(string(respBody)) == "") {
-			s.logger.Warnf("AI API HTTP 400，疑似后端不支持 response_format=%s，降级重试 (provider=%s, credential=%s): %s",
-				reqBody.ResponseFormat.Type, cfg.ActiveProvider, credential, truncateForLog(string(respBody), 200))
-			if reqBody.ResponseFormat.Type == "json_schema" {
-				// json_schema 不被支持：降级为 json_object 再试
-				reqBody.ResponseFormat = &ChatCompletionResponseFormat{Type: "json_object"}
-			} else {
-				// json_object 也不被支持：去掉该字段纯 prompt 重试
-				reqBody.ResponseFormat = nil
+		if resp.StatusCode == http.StatusBadRequest {
+			bodyLower := strings.ToLower(string(respBody))
+			bodyEmpty := strings.TrimSpace(string(respBody)) == ""
+			formatProblem := reqBody.ResponseFormat != nil &&
+				(strings.Contains(bodyLower, "response_format") || bodyEmpty)
+			// 仅后端拒绝已发送字段时才降级
+			reasoningProblem := reqBody.ReasoningEffort != "" &&
+				(strings.Contains(bodyLower, "reasoning_effort") || bodyEmpty)
+			if formatProblem || reasoningProblem {
+				s.logger.Warnf("AI API HTTP 400，疑似后端不支持 response_format/reasoning_effort 字段，降级重试 (provider=%s, credential=%s): %s",
+					cfg.ActiveProvider, credential, truncateForLog(string(respBody), 200))
+				if formatProblem {
+					if reqBody.ResponseFormat.Type == "json_schema" {
+						// json_schema 不被支持：降级为 json_object 再试
+						reqBody.ResponseFormat = &ChatCompletionResponseFormat{Type: "json_object"}
+					} else {
+						// json_object 也不被支持：去掉该字段纯 prompt 重试
+						reqBody.ResponseFormat = nil
+					}
+				}
+				// reasoning_effort 被拒（如旧 o 系不认 none）时剥离重试，
+				// 上层解析容错兜底思考开启导致的形状漂移
+				if reasoningProblem {
+					reqBody.ReasoningEffort = ""
+				}
+				bodyBytes, err = json.Marshal(reqBody)
+				if err != nil {
+					return "", fmt.Errorf("序列化请求失败: %w", err)
+				}
+				continue
 			}
-			bodyBytes, err = json.Marshal(reqBody)
-			if err != nil {
-				return "", fmt.Errorf("序列化请求失败: %w", err)
-			}
-			continue
 		}
 
 		retryable := resp.StatusCode == http.StatusTooManyRequests ||
