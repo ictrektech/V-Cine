@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -72,59 +73,6 @@ func TestParseAIResponseToleratesObjectParams(t *testing.T) {
 	}
 }
 
-// 用户实际遇到的响应：忽略 response_format 的本地模型输出 Python 风格单引号伪 JSON，
-// 且 message 内容包含未转义的双引号、含 None 字面量与尾逗号
-const singleQuotedTestResponse = `{'message': '🎬 关于"同一部剧但年份不同"的处理建议：\n\n1. **重制版**：原片年份是 2016 年。\n2. 年份标注错误。', 'intent': {'action': 'suggest', 'targets': 'selected', 'params': {'years': '2016,2018'}, 'confidence': None, 'reasoning': '两个文件年份不同，可能是同一部剧的不同版本'}, 'actions': [], }`
-
-func TestParseAIResponseRepairsSingleQuotedJSON(t *testing.T) {
-	s := &AIAssistantService{}
-	msg, intent := s.parseAIResponse(singleQuotedTestResponse, &ChatSession{})
-
-	if !strings.HasPrefix(msg.Content, "🎬 关于") {
-		t.Fatalf("content 应为修复解析后的 markdown，实际: %.60s", msg.Content)
-	}
-	if strings.Contains(msg.Content, "'intent'") {
-		t.Fatalf("content 不应再包含原始伪 JSON，实际: %.120s", msg.Content)
-	}
-	if !strings.Contains(msg.Content, `关于"同一部剧但年份不同"的处理建议`) {
-		t.Fatalf("串内双引号应原样保留在内容中，实际: %.80s", msg.Content)
-	}
-	if intent == nil {
-		t.Fatal("intent 不应为 nil")
-	}
-	if intent.Action != "suggest" {
-		t.Fatalf("action 应为 suggest，实际: %q", intent.Action)
-	}
-	if intent.Params["years"] != "2016,2018" {
-		t.Fatalf("years 参数应为 2016,2018，实际: %v", intent.Params)
-	}
-	if intent.Confidence != 0 {
-		t.Fatalf("None 字面量应解析为零值 Confidence，实际: %v", intent.Confidence)
-	}
-}
-
-func TestRepairJSON(t *testing.T) {
-	cases := []struct {
-		name string
-		src  string
-		want string
-	}{
-		{"单引号字符串转双引号", `{'a': 'b'}`, `{"a": "b"}`},
-		{"串内双引号转义", `{'a': '说"引号"了'}`, `{"a": "说\"引号\"了"}`},
-		{"串内转义的单引号还原", `{'a': 'It\'s ok'}`, `{"a": "It's ok"}`},
-		{"串内转义序列原样保留", `{'a': 'line\nbreak'}`, `{"a": "line\nbreak"}`},
-		{"None/True/False 转换", `{"a": None, "b": True, "c": False}`, `{"a": null, "b": true, "c": false}`},
-		{"尾逗号去除", `{"a": [1, 2, ], "b": "x", }`, `{"a": [1, 2], "b": "x"}`},
-		{"双引号串内的单引号不受影响", `{"a": "don't stop"}`, `{"a": "don't stop"}`},
-		{"合法 JSON 原样返回", `{"a": "b", "n": 0.95}`, `{"a": "b", "n": 0.95}`},
-	}
-	for _, c := range cases {
-		if got := repairJSON(c.src); got != c.want {
-			t.Errorf("%s: repairJSON(%q) = %q, want %q", c.name, c.src, got, c.want)
-		}
-	}
-}
-
 // TestMergeTags 验证批量标签的合并行为：保留原有分类、追加去重、空输入不清空
 func TestMergeTags(t *testing.T) {
 	cases := []struct {
@@ -146,5 +94,140 @@ func TestMergeTags(t *testing.T) {
 		if got := mergeTags(c.existing, c.newTags); got != c.want {
 			t.Errorf("%s: mergeTags(%q, %q) = %q, want %q", c.name, c.existing, c.newTags, got, c.want)
 		}
+	}
+}
+
+// 模型可能输出非标准 params 键（如 remove_fields/add_fields），
+// 后端 executeBatchTag 只认 {"genres":"..."}；previews 里给出了逐文件建议
+const batchTagDriftResponse = `{
+  "message": "当前已选中 2 个文件，以下是分类优化的建议。",
+  "intent": {
+    "action": "batch_tag",
+    "sub_action": "update_categories",
+    "params": {"file_ids": ["id-1", "id-2"]},
+    "confidence": 0.9
+  },
+  "actions": [
+    {
+      "id": "tag_update_001",
+      "label": "批量更新标签",
+      "description": "为选中文件移除冗余标签",
+      "action": "batch_tag",
+      "params": "{\"remove_fields\":[\"rating\",\"director\"],\"add_fields\":{\"from_file_1\":[\"爱情\",\"剧情\"]}}",
+      "dangerous": false
+    },
+    {
+      "id": "tag_update_002",
+      "label": "补充评分",
+      "description": "批量刮取真实评分数据",
+      "action": "scrape",
+      "params": "{\"source\":\"files\"}",
+      "dangerous": false
+    }
+  ],
+  "previews": [
+    {"media_id": "id-1", "title": "从你的全世界路过 (2016)", "old_value": "爱情,剧情,rating", "new_value": "爱情,剧情,动作", "change_type": "标签移除+替换"},
+    {"media_id": "id-2", "title": "肖申克的救赎 (1994)", "old_value": "剧情,犯罪,悬疑,rating", "new_value": "剧情,犯罪,悬疑", "change_type": "标签移除+替换"}
+  ]
+}`
+
+func TestParseAIResponseNormalizesBatchTagParams(t *testing.T) {
+	s := &AIAssistantService{}
+	msg, intent := s.parseAIResponse(batchTagDriftResponse, &ChatSession{})
+
+	if intent == nil || intent.Action != "batch_tag" {
+		t.Fatal("intent.Action 应为 batch_tag")
+	}
+
+	var batchTagActions []SuggestedAction
+	for _, a := range msg.Actions {
+		if a.Action == "batch_tag" {
+			batchTagActions = append(batchTagActions, a)
+		}
+	}
+	if len(batchTagActions) != 1 {
+		t.Fatalf("应有 1 个 batch_tag 操作项，实际 %d 个", len(batchTagActions))
+	}
+
+	// params 缺 genres/tags 时应从 previews 的 new_value 合并重写（去重、保序）
+	want := `{"genres":"爱情,剧情,动作,犯罪,悬疑"}`
+	if batchTagActions[0].Params != want {
+		t.Errorf("params 应规范化为 %s，实际: %s", want, batchTagActions[0].Params)
+	}
+
+	// 非 batch_tag 的操作项 params 不应被改写
+	for _, a := range msg.Actions {
+		if a.Action == "scrape" && a.Params != `{"source":"files"}` {
+			t.Errorf("scrape 操作项 params 不应被改写，实际: %s", a.Params)
+		}
+	}
+}
+
+// TestAssistantResponseSchemaCoversExecuteActions 双向守护 schema 的 intent.action
+// enum 与 ExecuteAction switch 的同步：任一侧漂移（漏 case 或拼写错误）即失败。
+func TestAssistantResponseSchemaCoversExecuteActions(t *testing.T) {
+	// ExecuteAction switch 支持的操作类型（新增 case 时更新此表与 schema enum）
+	handled := map[string]bool{
+		"batch_tag": true, "tag": true, "detect_duplicates": true, "analyze": true,
+		"analyze_misclassification": true, "reclassify": true, "reclassify_high_confidence": true,
+		"reclassify_all": true, "rename_template": true, "rename_ai": true, "scrape": true,
+	}
+
+	var parsed struct {
+		Schema struct {
+			Properties struct {
+				Intent struct {
+					Properties struct {
+						Action struct {
+							Enum []string `json:"enum"`
+						} `json:"action"`
+					} `json:"properties"`
+				} `json:"intent"`
+			} `json:"properties"`
+		} `json:"schema"`
+	}
+	if err := json.Unmarshal([]byte(assistantResponseSchema), &parsed); err != nil {
+		t.Fatalf("assistantResponseSchema 应为合法 JSON: %v", err)
+	}
+	enum := parsed.Schema.Properties.Intent.Properties.Action.Enum
+	if len(enum) == 0 {
+		t.Fatal("schema 的 intent.action 应有非空 enum")
+	}
+
+	for _, a := range enum {
+		if a == "none" { // none 表示无操作，不经 ExecuteAction
+			continue
+		}
+		if !handled[a] {
+			t.Errorf("schema enum 中的 %q 未被 ExecuteAction 支持（拼写漂移或缺少 case）", a)
+		}
+	}
+	for a := range handled {
+		found := false
+		for _, e := range enum {
+			if e == a {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("ExecuteAction 支持的 %q 不在 schema enum 中，意图解析将永远无法触发该操作", a)
+		}
+	}
+}
+
+// 模型输出 schema 之外的 JSON（解析成功但内容全空）：应回退为友好提示，
+// 避免前端空气泡与垃圾内容进入会话历史
+const emptyResultResponse = `{"name":"Qwen 3.5","version":"3.5","description":"An AI assistant.","identity":"I am a model."}`
+
+func TestParseAIResponseEmptyResultFallsBack(t *testing.T) {
+	s := &AIAssistantService{logger: testLogger()}
+	msg, intent := s.parseAIResponse(emptyResultResponse, &ChatSession{})
+
+	if intent != nil {
+		t.Fatal("intent 应为 nil")
+	}
+	if !strings.Contains(msg.Content, "无法解析") {
+		t.Errorf("content 应为友好提示，实际: %.80s", msg.Content)
 	}
 }

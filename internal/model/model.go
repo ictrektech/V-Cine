@@ -220,8 +220,8 @@ type Series struct {
 	SeasonCount  int     `json:"season_count"`                                      // 季数
 	EpisodeCount int     `json:"episode_count"`                                     // 总集数
 	// V2 扩展字段
-	TMDbID    int    `json:"tmdb_id" gorm:"index"`
-	IMDbID    string `json:"imdb_id" gorm:"index;type:text"` // IMDB ID (tt开头)
+	TMDbID    int    `json:"tmdb_id" gorm:"column:tmdb_id;index"`
+	IMDbID    string `json:"imdb_id" gorm:"column:imdb_id;index;type:text"` // IMDB ID (tt开头)
 	DoubanID  string `json:"douban_id" gorm:"type:text"`
 	BangumiID int    `json:"bangumi_id" gorm:"index"` // Bangumi 条目 ID
 	Country   string `json:"country" gorm:"type:text"`
@@ -302,16 +302,16 @@ type Media struct {
 	StreamHeaders    string `json:"stream_headers" gorm:"type:text"`     // 额外自定义 Header，JSON: {"X-K":"V"}
 	StreamRefreshURL string `json:"stream_refresh_url" gorm:"type:text"` // 刷新直链的上游 API（预留，留空表示不刷新）
 	// V2 扩展字段
-	TMDbID     int    `json:"tmdb_id" gorm:"index"`           // TMDb 唯一 ID
-	IMDbID     string `json:"imdb_id" gorm:"index;type:text"` // IMDB ID (tt开头)
-	DoubanID   string `json:"douban_id" gorm:"type:text"`     // 豆瓣 ID
-	BangumiID  int    `json:"bangumi_id" gorm:"index"`        // Bangumi 条目 ID
-	Premiered  string `json:"premiered" gorm:"type:text"`     // 首映日期（NFO YYYY-MM-DD）
-	Country    string `json:"country" gorm:"type:text"`       // 制片国家
-	Language   string `json:"language" gorm:"type:text"`      // 语言
-	Tagline    string `json:"tagline" gorm:"type:text"`       // 标语/宣传语
-	Studio     string `json:"studio" gorm:"type:text"`        // 出品公司
-	TrailerURL string `json:"trailer_url" gorm:"type:text"`   // 预告片链接（YouTube）
+	TMDbID     int    `json:"tmdb_id" gorm:"column:tmdb_id;index"`           // TMDb 唯一 ID
+	IMDbID     string `json:"imdb_id" gorm:"column:imdb_id;index;type:text"` // IMDB ID (tt开头)
+	DoubanID   string `json:"douban_id" gorm:"type:text"`                    // 豆瓣 ID
+	BangumiID  int    `json:"bangumi_id" gorm:"index"`                       // Bangumi 条目 ID
+	Premiered  string `json:"premiered" gorm:"type:text"`                    // 首映日期（NFO YYYY-MM-DD）
+	Country    string `json:"country" gorm:"type:text"`                      // 制片国家
+	Language   string `json:"language" gorm:"type:text"`                     // 语言
+	Tagline    string `json:"tagline" gorm:"type:text"`                      // 标语/宣传语
+	Studio     string `json:"studio" gorm:"type:text"`                       // 出品公司
+	TrailerURL string `json:"trailer_url" gorm:"type:text"`                  // 预告片链接（YouTube）
 	// NFO 扩展字段（方案 B 完整建模，用于番号/成人内容等精细展示）
 	Num          string `json:"num" gorm:"index;type:text"`       // 番号（如 MIDD-835），取自 NFO <num>
 	SortTitle    string `json:"sort_title" gorm:"type:text"`      // 排序用标题，取自 NFO <sorttitle>
@@ -394,7 +394,7 @@ type Person struct {
 	Name       string `json:"name" gorm:"index;type:text;not null"`
 	OrigName   string `json:"orig_name" gorm:"type:text"`
 	ProfileURL string `json:"profile_url" gorm:"type:text"` // 头像路径
-	TMDbID     int    `json:"tmdb_id" gorm:"index"`
+	TMDbID     int    `json:"tmdb_id" gorm:"column:tmdb_id;index"`
 	// 时间戳
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -844,8 +844,50 @@ func (l *FileOperationLog) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+// legacyIDColumns 旧版 GORM 默认命名生成的列名（TMDbID→tm_db_id、IMDbID→im_db_id），
+// 与显式 column:tmdb_id / column:imdb_id 标签及 raw SQL（batch_metadata、repo_person）不一致。
+var legacyIDColumns = []struct{ table, legacy, current string }{
+	{"series", "tm_db_id", "tmdb_id"},
+	{"series", "im_db_id", "imdb_id"},
+	{"media", "tm_db_id", "tmdb_id"},
+	{"media", "im_db_id", "imdb_id"},
+	{"person", "tm_db_id", "tmdb_id"},
+}
+
+// renameLegacyIDColumns 把旧默认命名的 tm_db_id / im_db_id 列改名为 tmdb_id / imdb_id，保留存量数据。
+// 必须在 AutoMigrate 之前执行：改名后 AutoMigrate 命中新列，不会另建空列。
+// 若新列已存在（新列被提前建出/人工干预），则把旧列数据回填进新列的空值后删除旧列。
+func renameLegacyIDColumns(db *gorm.DB) error {
+	m := db.Migrator()
+	for _, c := range legacyIDColumns {
+		if !m.HasTable(c.table) || !m.HasColumn(c.table, c.legacy) {
+			continue
+		}
+		if m.HasColumn(c.table, c.current) {
+			// 新列数据优先：仅回填新列中的空值，不覆盖已有新数据
+			if err := db.Exec(fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s IS NOT NULL AND %s IS NULL",
+				c.table, c.current, c.legacy, c.legacy, c.current)).Error; err != nil {
+				return err
+			}
+			// 原生 DROP COLUMN（SQLite 3.35+/PostgreSQL 均支持），避开部分驱动 DropColumn 的建表重建路径
+			if err := db.Exec(fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", c.table, c.legacy)).Error; err != nil {
+				return err
+			}
+			continue
+		}
+		if err := m.RenameColumn(c.table, c.legacy, c.current); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AutoMigrate 自动迁移所有模型
 func AutoMigrate(db *gorm.DB) error {
+	// 先改列名再 AutoMigrate，避免新标签导致另建空列、旧列数据成孤儿
+	if err := renameLegacyIDColumns(db); err != nil {
+		return fmt.Errorf("迁移旧版 ID 列名失败: %w", err)
+	}
 	if err := db.AutoMigrate(
 		&User{},
 		&LoginLog{},
