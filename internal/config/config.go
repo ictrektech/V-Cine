@@ -782,6 +782,14 @@ func Load() (*Config, error) {
 	cfg.AdultScraper.TranslateAPISecret = decryptSecretValue(cfg.AdultScraper.TranslateAPISecret)
 	cfg.AdultScraper.PythonServiceAPIKey = decryptSecretValue(cfg.AdultScraper.PythonServiceAPIKey)
 
+	// 8.3 解密 Secrets 敏感字段（secrets.yaml 分片中以 ENC: 密文存储，
+	//     兼容明文与未加密残留；代理地址非敏感，无需解密）
+	cfg.Secrets.TMDbAPIKey = decryptSecretValue(cfg.Secrets.TMDbAPIKey)
+	cfg.Secrets.BangumiAccessToken = decryptSecretValue(cfg.Secrets.BangumiAccessToken)
+	cfg.Secrets.TheTVDBAPIKey = decryptSecretValue(cfg.Secrets.TheTVDBAPIKey)
+	cfg.Secrets.FanartTVAPIKey = decryptSecretValue(cfg.Secrets.FanartTVAPIKey)
+	cfg.Secrets.DoubanCookie = decryptSecretValue(cfg.Secrets.DoubanCookie)
+
 	// 9. AI 用量预算默认值兜底
 	if cfg.AI.WarningThresholdPct <= 0 || cfg.AI.WarningThresholdPct > 100 {
 		cfg.AI.WarningThresholdPct = 80
@@ -1302,7 +1310,9 @@ func (c *Config) GetTMDbAPIKeyMasked() string {
 	return key[:4] + strings.Repeat("*", len(key)-8) + key[len(key)-4:]
 }
 
-// SetTMDbAPIKey 设置 TMDb API Key 并持久化到配置文件
+// SetTMDbAPIKey 设置 TMDb API Key 并持久化到 secrets.yaml 分片。
+// 不再回写主 config.yaml：主配置文件可能位于只读/属主不匹配的挂载上
+// （如 VOS 共享存储），回写会报 permission denied 且导致整个保存失败。
 func (c *Config) SetTMDbAPIKey(key string) error {
 	c.mu.Lock()
 	c.Secrets.TMDbAPIKey = key
@@ -1310,10 +1320,7 @@ func (c *Config) SetTMDbAPIKey(key string) error {
 
 	viper.Set("secrets.tmdb_api_key", key)
 
-	// 同时更新分片配置文件（如果存在），确保重启后不会被旧的空值覆盖
-	c.updateSecretsFile("tmdb_api_key", key)
-
-	return c.saveConfig()
+	return SaveSecretsShard(c)
 }
 
 // ClearTMDbAPIKey 清除 TMDb API Key 并持久化
@@ -1328,16 +1335,16 @@ func (c *Config) GetTMDbAPIProxy() string {
 	return c.Secrets.TMDbAPIProxy
 }
 
-// SetTMDbAPIProxy 设置 TMDb API 代理地址并持久化
+// SetTMDbAPIProxy 设置 TMDb API 代理地址并持久化到 secrets.yaml 分片
+// （与 SetTMDbAPIKey 相同的原因：不依赖回写主 config.yaml）。
 func (c *Config) SetTMDbAPIProxy(proxy string) error {
 	c.mu.Lock()
 	c.Secrets.TMDbAPIProxy = proxy
 	c.mu.Unlock()
 
 	viper.Set("secrets.tmdb_api_proxy", proxy)
-	c.updateSecretsFile("tmdb_api_proxy", proxy)
 
-	return c.saveConfig()
+	return SaveSecretsShard(c)
 }
 
 // GetTMDbImageProxy 获取 TMDb 图片代理地址（线程安全）
@@ -1347,16 +1354,15 @@ func (c *Config) GetTMDbImageProxy() string {
 	return c.Secrets.TMDbImageProxy
 }
 
-// SetTMDbImageProxy 设置 TMDb 图片代理地址并持久化
+// SetTMDbImageProxy 设置 TMDb 图片代理地址并持久化到 secrets.yaml 分片。
 func (c *Config) SetTMDbImageProxy(proxy string) error {
 	c.mu.Lock()
 	c.Secrets.TMDbImageProxy = proxy
 	c.mu.Unlock()
 
 	viper.Set("secrets.tmdb_image_proxy", proxy)
-	c.updateSecretsFile("tmdb_image_proxy", proxy)
 
-	return c.saveConfig()
+	return SaveSecretsShard(c)
 }
 
 // GetTMDbNetworkProxy 获取 TMDb HTTP/SOCKS 网络出口代理。
@@ -1366,14 +1372,13 @@ func (c *Config) GetTMDbNetworkProxy() string {
 	return c.Secrets.TMDbNetworkProxy
 }
 
-// SetTMDbNetworkProxy 设置网络出口代理并持久化。
+// SetTMDbNetworkProxy 设置网络出口代理并持久化到 secrets.yaml 分片。
 func (c *Config) SetTMDbNetworkProxy(proxy string) error {
 	c.mu.Lock()
 	c.Secrets.TMDbNetworkProxy = proxy
 	c.mu.Unlock()
 	viper.Set("secrets.tmdb_network_proxy", proxy)
-	c.updateSecretsFile("tmdb_network_proxy", proxy)
-	return c.saveConfig()
+	return SaveSecretsShard(c)
 }
 
 // ==================== 豆瓣 Cookie 管理 ====================
@@ -1400,7 +1405,8 @@ func (c *Config) GetDoubanCookieMasked() string {
 	return cookie[:8] + strings.Repeat("*", 12) + cookie[len(cookie)-8:]
 }
 
-// SetDoubanCookie 设置豆瓣 Cookie 并持久化到配置文件
+// SetDoubanCookie 设置豆瓣 Cookie 并持久化到 secrets.yaml 分片
+// （与 SetTMDbAPIKey 相同的原因：不依赖回写主 config.yaml）。
 func (c *Config) SetDoubanCookie(cookie string) error {
 	c.mu.Lock()
 	c.Secrets.DoubanCookie = cookie
@@ -1408,10 +1414,7 @@ func (c *Config) SetDoubanCookie(cookie string) error {
 
 	viper.Set("secrets.douban_cookie", cookie)
 
-	// 同时更新分片配置文件（如果存在），避免重启后被旧的空值覆盖
-	c.updateSecretsFile("douban_cookie", cookie)
-
-	return c.saveConfig()
+	return SaveSecretsShard(c)
 }
 
 // ClearDoubanCookie 清除豆瓣 Cookie 并持久化
@@ -1556,26 +1559,6 @@ func (c *Config) saveConfig() error {
 		configFile = "config.yaml"
 	}
 	return viper.WriteConfigAs(configFile)
-}
-
-// updateSecretsFile 更新 config/secrets.yaml 分片文件中的指定字段
-// 避免分片文件中的旧值在重启时覆盖用户通过 API 保存的新值
-func (c *Config) updateSecretsFile(key, value string) {
-	secretsDirs := []string{"./config", "./data/config", "/etc/nowen-video/config"}
-	for _, dir := range secretsDirs {
-		filePath := filepath.Join(dir, "secrets.yaml")
-		if _, err := os.Stat(filePath); err != nil {
-			continue
-		}
-		subViper := viper.New()
-		subViper.SetConfigFile(filePath)
-		if err := subViper.ReadInConfig(); err != nil {
-			continue
-		}
-		subViper.Set(key, value)
-		_ = subViper.WriteConfigAs(filePath)
-		return // 只更新第一个找到的文件
-	}
 }
 
 // generateRandomSecret 生成随机密钥字符串

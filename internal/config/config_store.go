@@ -93,6 +93,101 @@ func findSectionFile(fileName string) string {
 	return filepath.Join("./config", fileName)
 }
 
+// secretsEncryptPaths secrets.yaml 分片中需要加密的敏感字段。
+// 代理地址（tmdb_api_proxy 等）非敏感，仅随分片持久化，不加密。
+var secretsEncryptPaths = []string{
+	"tmdb_api_key", "bangumi_access_token", "thetvdb_api_key",
+	"fanart_tv_api_key", "douban_cookie",
+}
+
+// SaveSecretsShard 将 Secrets 子配置持久化到 secrets.yaml 分片文件。
+//
+// 根治主配置回写失败问题：主配置 config.yaml 可能位于只读/属主不匹配的挂载上
+// （如 VOS 共享存储 uid 漂移），直接回写会报 "open config.yaml: permission denied"。
+// 本方法与 SaveSection 分片机制一致，只写 secrets.yaml 分片，
+// 并优先选择"已存在且可写"的目录，确保运行期修改的密钥重启不丢。
+//
+// 分片为全量快照（覆盖写）：Secrets 中除 jwt_secret（由 data/.jwt_secret 单独管理）
+// 外的所有运行期可改字段都包含在内，覆盖不会丢失旧分片中的任何字段。
+func SaveSecretsShard(c *Config) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	m := map[string]interface{}{
+		"tmdb_api_key":         c.Secrets.TMDbAPIKey,
+		"tmdb_api_proxy":       c.Secrets.TMDbAPIProxy,
+		"tmdb_image_proxy":     c.Secrets.TMDbImageProxy,
+		"tmdb_network_proxy":   c.Secrets.TMDbNetworkProxy,
+		"bangumi_access_token": c.Secrets.BangumiAccessToken,
+		"thetvdb_api_key":      c.Secrets.TheTVDBAPIKey,
+		"fanart_tv_api_key":    c.Secrets.FanartTVAPIKey,
+		"douban_cookie":        c.Secrets.DoubanCookie,
+	}
+
+	data, err := yaml.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("序列化配置 secrets 失败: %w", err)
+	}
+	if data, err = encryptFieldsInYAML(data, secretsEncryptPaths); err != nil {
+		return fmt.Errorf("加密配置 secrets 字段失败: %w", err)
+	}
+
+	targetFile := findWritableSectionFile("secrets.yaml")
+	if err := os.MkdirAll(filepath.Dir(targetFile), 0o755); err != nil {
+		return fmt.Errorf("创建配置目录 %q 失败: %w", filepath.Dir(targetFile), err)
+	}
+	if err := os.WriteFile(targetFile, data, 0o600); err != nil {
+		return fmt.Errorf("写入配置文件 %q 失败: %w", targetFile, err)
+	}
+	return nil
+}
+
+// findWritableSectionFile 查找适合写入分片文件的路径，优先保证可写：
+//  1. 已存在且可写的分片文件 → 沿用（保持与旧数据同位置）
+//  2. 第一个可写的分片目录 → 在其中创建新文件
+//  3. 兜底返回默认路径 ./config/fileName（保持旧行为，由调用方报出原始错误）
+//
+// 权限位不可靠（跨挂载 uid 漂移时 owner 位无意义），故以实际打开探测为准。
+func findWritableSectionFile(fileName string) string {
+	for _, dir := range sectionDirs {
+		p := filepath.Join(dir, fileName)
+		if _, err := os.Stat(p); err == nil {
+			if writablePath(p) {
+				return p
+			}
+			continue
+		}
+	}
+	for _, dir := range sectionDirs {
+		if err := os.MkdirAll(dir, 0o755); err == nil && dirWritable(dir) {
+			return filepath.Join(dir, fileName)
+		}
+	}
+	return filepath.Join("./config", fileName)
+}
+
+// writablePath 探测现有文件是否可写。
+func writablePath(path string) bool {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	return true
+}
+
+// dirWritable 通过创建/删除探测文件判断目录是否可写。
+func dirWritable(dir string) bool {
+	probe := filepath.Join(dir, ".write_probe")
+	f, err := os.OpenFile(probe, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	_ = os.Remove(probe)
+	return true
+}
+
 // encryptFieldsInYAML 在序列化后的 YAML 字节中加密指定路径的字段。
 //
 // paths 格式如 "api_key" 或 "scene_describe_ai.api_key"（点分隔的嵌套路径）。
