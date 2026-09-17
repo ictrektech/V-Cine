@@ -1,8 +1,10 @@
 package service
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -175,5 +177,52 @@ func TestBlockLocalAIExemptsVRouter(t *testing.T) {
 	svc := keyfreeTestService(app)
 	if _, err := svc.ChatCompletion("sys", "user", 0.1, 10); err != nil {
 		t.Fatalf("BlockLocalAI=true 时 vrouter 不应被拦截，实际报错: %v", err)
+	}
+}
+
+// TestChatCompletionJSONSchemaLayeredFallback 验证：json_schema 被后端 400 拒绝时
+// 分层降级为 json_object 再试；json_object 也被拒绝时降级为纯 prompt（plain）。
+func TestChatCompletionJSONSchemaLayeredFallback(t *testing.T) {
+	var formats []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		switch {
+		case strings.Contains(string(body), `"json_schema"`):
+			formats = append(formats, "json_schema")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"message":"response_format: json_schema unsupported"}}`))
+		case strings.Contains(string(body), `"json_object"`):
+			formats = append(formats, "json_object")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"message":"response_format: json_object unsupported"}}`))
+		default:
+			formats = append(formats, "plain")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	app := &config.Config{AI: config.AIConfig{
+		Enabled:        true,
+		ActiveProvider: "vrouter",
+		Providers: []config.AIProviderEntry{{
+			ID:      "vrouter",
+			APIBase: srv.URL,
+			Models:  []config.AIModelEntry{{Name: "test-model"}},
+		}},
+	}}
+	svc := keyfreeTestService(app)
+
+	resp, err := svc.ChatCompletionJSONSchema("sys", "user", 0.3, 1000, `{"type":"object"}`)
+	if err != nil {
+		t.Fatalf("两级降级后应成功，实际报错: %v", err)
+	}
+	if resp != "OK" {
+		t.Errorf("resp = %q, 期望 OK", resp)
+	}
+	want := []string{"json_schema", "json_object", "plain"}
+	if !reflect.DeepEqual(formats, want) {
+		t.Fatalf("应依次发出 %v 三种请求，实际 %v", want, formats)
 	}
 }

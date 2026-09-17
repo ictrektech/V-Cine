@@ -249,7 +249,7 @@ func (s *AIAssistantService) Chat(req ChatRequest, userID string) (*ChatResponse
 	systemPrompt := s.buildSystemPrompt()
 	userPrompt := s.buildUserPrompt(req.Message, contextInfo, session)
 
-	response, err := s.ai.ChatCompletionJSON(systemPrompt, userPrompt, 0.3, 10000)
+	response, err := s.ai.ChatCompletionJSONSchema(systemPrompt, userPrompt, 0.3, 10000, assistantResponseSchema)
 	if err != nil {
 		return nil, fmt.Errorf("AI处理失败: %w", err)
 	}
@@ -465,6 +465,64 @@ func (s *AIAssistantService) buildContextInfo(session *ChatSession) string {
 	return strings.Join(parts, "\n")
 }
 
+// assistantResponseSchema 意图解析的结构化输出 schema（json_schema + strict）。
+// 解码层语法约束使模型无法输出 schema 之外的结构（XML/伪 JSON/发明非标准键），与模型能力无关。字段说明：
+//   - intent.action 用 enum 约定为系统支持的意图类型；enum 必须与 ExecuteAction
+//     的 switch 保持同步（由 TestAssistantResponseSchemaCoversExecuteActions 双向守护）
+//   - intent.params 限定为字符串值的平面对象，禁止嵌套结构（如 add_fields）
+//   - actions[].params 保持字符串类型，与 SuggestedAction.Params 的后端约定一致
+const assistantResponseSchema = `{
+  "name": "assistant_response",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "message": {"type": "string"},
+      "intent": {
+        "type": "object",
+        "properties": {
+          "action": {"type": "string", "enum": ["none", "batch_tag", "tag", "rename_ai", "rename_template", "scrape", "analyze", "analyze_misclassification", "reclassify", "reclassify_high_confidence", "reclassify_all", "detect_duplicates"]},
+          "params": {"type": "object", "additionalProperties": {"type": "string"}}
+        },
+        "required": ["action", "params"],
+        "additionalProperties": false
+      },
+      "actions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "label": {"type": "string"},
+            "description": {"type": "string"},
+            "action": {"type": "string"},
+            "params": {"type": "string"},
+            "dangerous": {"type": "boolean"}
+          },
+          "required": ["label", "action"],
+          "additionalProperties": false
+        }
+      },
+      "previews": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "media_id": {"type": "string"},
+            "title": {"type": "string"},
+            "old_value": {"type": "string"},
+            "new_value": {"type": "string"},
+            "change_type": {"type": "string"}
+          },
+          "required": ["media_id", "title", "new_value"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["message", "intent", "actions", "previews"],
+    "additionalProperties": false
+  }
+}`
+
 // parseAIResponse 解析AI响应
 func (s *AIAssistantService) parseAIResponse(response string, session *ChatSession) (ChatMsg, *Intent) {
 	// 尝试解析JSON
@@ -500,11 +558,21 @@ func (s *AIAssistantService) parseAIResponse(response string, session *ChatSessi
 		// json.Unmarshal 必然失败导致整段原始 JSON 直接显示在聊天气泡中。
 		repaired := repairJSON(cleanResponse)
 		if err2 := json.Unmarshal([]byte(repaired), &parsed); err2 != nil {
-			// 修复后仍失败，直接使用原始文本
-			s.logger.Debugf("AI响应JSON解析失败（含修复重试），使用原始文本: %v / %v", err, err2)
+			// 修复后仍失败，直接使用原始文本；debug 日志输出截断后的原始响应，
+			// 便于排查格式漂移（XML 函数调用 / 截断 / 伪 JSON 等）
+			s.logger.Debugf("AI响应JSON解析失败（含修复重试），使用原始文本: %v / %v, 原始响应: %s",
+				err, err2, truncateForLog(response, 500))
 			msg.Content = response
 			return msg, nil
 		}
+	}
+
+	// 解析成功但内容全空（模型输出了 schema 之外的内容）时视为解析失败：
+	// 回退为友好提示并存入历史，避免前端空气泡，也避免垃圾内容进入后续轮次的对话历史
+	if parsed.Message == "" && parsed.Intent == nil && len(parsed.Actions) == 0 && len(parsed.Previews) == 0 {
+		s.logger.Debugf("AI响应解析成功但内容为空，使用友好提示，原始响应: %s", truncateForLog(response, 500))
+		msg.Content = "⚠️ AI 返回了无法解析的内容，已忽略本次回复。请重试，或在 AI 设置中更换更强的模型。"
+		return msg, nil
 	}
 
 	msg.Content = parsed.Message
@@ -521,8 +589,9 @@ func (s *AIAssistantService) parseAIResponse(response string, session *ChatSessi
 		msg.Previews = records[:min(10, len(records))]
 	}
 
-	// 批量标签：LLM 常只给意图不给操作项，这里用 intent.params 里的标签兜底补一个可点击的操作项，
-	// 保证"自动分类"始终可执行（逐文件的合并结果由执行后的 response.results 回显）
+	// 批量标签：LLM 常只给意图不给操作项（用 intent.params 兜底补一个可点击的操作项），
+	// 或发明 remove_fields/add_fields 等非标准 params 键（规范化为后端只认的 {"genres":"..."}，
+	// 缺标签时从 previews 的 new_value 合并恢复），保证操作项始终真正可执行。
 	if parsed.Intent != nil && parsed.Intent.Action == "batch_tag" {
 		if tags := tagsFromParams(parsed.Intent.Params["genres"], parsed.Intent.Params["tags"]); tags != "" && len(msg.Actions) == 0 {
 			msg.Actions = []SuggestedAction{{
@@ -531,6 +600,26 @@ func (s *AIAssistantService) parseAIResponse(response string, session *ChatSessi
 				Action:      "batch_tag",
 				Params:      fmt.Sprintf(`{"genres":%q}`, tags),
 			}}
+		}
+		for i := range msg.Actions {
+			if msg.Actions[i].Action != "batch_tag" {
+				continue
+			}
+			var p struct {
+				Genres string `json:"genres"`
+				Tags   string `json:"tags"`
+			}
+			if msg.Actions[i].Params != "" {
+				_ = json.Unmarshal([]byte(msg.Actions[i].Params), &p)
+			}
+			if tags := tagsFromParams(p.Genres, p.Tags); tags != "" {
+				msg.Actions[i].Params = fmt.Sprintf(`{"genres":%q}`, tags)
+				continue
+			}
+			if merged := mergeTagValues(msg.Previews); merged != "" {
+				msg.Actions[i].Params = fmt.Sprintf(`{"genres":%q}`, merged)
+				msg.Actions[i].Description = "为选中的文件追加标签：" + merged
+			}
 		}
 	}
 
@@ -683,6 +772,24 @@ func tagsFromParams(genres, tags string) string {
 	return strings.TrimSpace(tags)
 }
 
+// mergeTagValues 合并预览中所有建议的新分类（去重、保序），用于 batch_tag params
+// 缺失时从 LLM 给的逐文件建议里恢复可执行的标签集合。
+func mergeTagValues(previews []OperationPreview) string {
+	seen := map[string]bool{}
+	var merged []string
+	for _, pv := range previews {
+		for _, t := range strings.Split(pv.NewValue, ",") {
+			t = strings.TrimSpace(t)
+			if t == "" || seen[t] {
+				continue
+			}
+			seen[t] = true
+			merged = append(merged, t)
+		}
+	}
+	return strings.Join(merged, ",")
+}
+
 // generateRenameRecords 按模板为选中文件生成完整 old→new 记录（不限条数，撤销依据）。
 // 与 ExecuteRename 的重命名逻辑一致：模板生成结果与当前标题相同的文件跳过。
 func (s *AIAssistantService) generateRenameRecords(session *ChatSession, template string) []OperationPreview {
@@ -740,6 +847,8 @@ func (s *AIAssistantService) ExecuteAction(req ExecuteRequest, userID string) (*
 	case "scrape":
 		return s.executeScrape(session, targetAction, userID)
 	case "batch_tag", "tag":
+		// 注意：ExecuteAction 支持的操作类型必须与 assistantResponseSchema 的
+		// intent.action enum 保持同步（新增 case 时两处一起改）
 		return s.executeBatchTag(session, targetAction, userID)
 	case "detect_duplicates":
 		return s.executeDetectDuplicates(session, targetAction, userID)
