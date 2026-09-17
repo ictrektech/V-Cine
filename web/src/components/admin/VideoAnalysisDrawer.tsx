@@ -162,7 +162,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                       <span className="text-xs font-medium text-muted-foreground">Structure 结构分析地址</span>
                       <ServiceBadge ok={structureOk} />
                     </div>
-                    <Input value={settings.structure_base_url} onChange={(e) => setSettings({ ...settings, structure_base_url: e.target.value })} disabled={gated} placeholder="http://video-structure:8911" />
+                    <Input value={settings.structure_base_url} onChange={(e) => setSettings({ ...settings, structure_base_url: e.target.value })} disabled={gated} placeholder="http://structure:8911" />
                   </div>
                   {health?.scene_error && (
                     <p className="break-all text-xs text-red-400">Scene：{health.scene_error}</p>

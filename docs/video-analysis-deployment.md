@@ -15,8 +15,8 @@
 ```yaml
 video_analysis:
   enabled: true
-  scene_base_url: "http://localhost:8910"
-  structure_base_url: "http://localhost:8911"
+  scene_base_url: "http://scene-detection:8910"
+  structure_base_url: "http://structure:8911"
   # asset_dir: ""   # 默认 <cache_dir>/structure，一般无需配置
   max_concurrent: 2
   poll_interval_seconds: 2
@@ -108,7 +108,7 @@ services:
     environment:
       - VIDEO_ANALYSIS_ENABLED=true
       - VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
-      - VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://video-structure:8911
+      - VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://structure:8911
 
   scene-detection:
     image: scene-detection:latest
@@ -136,7 +136,7 @@ volumes:
 video_analysis:
   enabled: true
   scene_base_url: "http://scene-detection:8910"
-  structure_base_url: "http://video-structure:8911"
+  structure_base_url: "http://structure:8911"
   path_mappings:
     - source: "/media"
       target: "/photos"

@@ -885,8 +885,8 @@ func setDefaults() {
 
 	// ---- 视频分析（默认关闭，避免升级后自动消耗计算资源） ----
 	viper.SetDefault("video_analysis.enabled", false)
-	viper.SetDefault("video_analysis.scene_base_url", "http://localhost:8910")
-	viper.SetDefault("video_analysis.structure_base_url", "http://localhost:8911")
+	viper.SetDefault("video_analysis.scene_base_url", "http://scene-detection:8910")
+	viper.SetDefault("video_analysis.structure_base_url", "http://structure:8911")
 	viper.SetDefault("video_analysis.media_base_url", "")
 	viper.SetDefault("video_analysis.source_token", "")
 	viper.SetDefault("video_analysis.remote_video_enabled", false)

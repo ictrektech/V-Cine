@@ -98,7 +98,7 @@ services:
       # ---- 视频结构化分析（可选，默认关闭；详见 docs/video-analysis-deployment.md）----
       # - VCINE_VIDEO_ANALYSIS_ENABLED=true
       # - VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL=http://scene-detection:8910
-      # - VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://video-structure:8911
+      # - VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL=http://structure:8911
       # asset_dir 默认跟随 VCINE_CACHE_CACHE_DIR 下的 structure，无需单独设置
       # ---- 番号刮削（默认关闭）----
       # 改为 true 后 Go 后端会自动拉起 /app/scripts/adult-scraper/app.py 子进程
