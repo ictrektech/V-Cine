@@ -229,6 +229,7 @@ type Series struct {
 	Studio    string `json:"studio" gorm:"type:text"`
 	// 刮削状态：pending / scraped / partial / failed / manual（C 方案新增）
 	ScrapeStatus string     `json:"scrape_status" gorm:"type:text;default:pending;index"`
+	ScrapeSource string     `json:"scrape_source"` // 刮削来源（链路上第一个成功的主数据源，如 TMDb/豆瓣）
 	LastScrapeAt *time.Time `json:"last_scrape_at,omitempty"`
 	// 时间戳
 	CreatedAt time.Time      `json:"created_at" gorm:"index"`
@@ -332,6 +333,7 @@ type Media struct {
 	VersionGroup string `json:"version_group" gorm:"index;type:text"` // 同一内容的不同版本共享此 ID
 	// 刮削状态追踪（P3）
 	ScrapeStatus   string     `json:"scrape_status" gorm:"type:text;default:pending"` // pending / scraped / failed / manual
+	ScrapeSource   string     `json:"scrape_source" gorm:"type:text"`                 // 刮削来源（链路上第一个成功的主数据源）
 	ScrapeAttempts int        `json:"scrape_attempts"`                                // 刮削尝试次数
 	LastScrapeAt   *time.Time `json:"last_scrape_at"`                                 // 最后一次刮削时间
 	// 电影系列合集

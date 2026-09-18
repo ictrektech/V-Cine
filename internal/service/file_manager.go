@@ -738,29 +738,76 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		searchTitle = media.OrigTitle
 	}
 
-	switch source {
-	case "tmdb", "":
-		// 默认使用TMDb
-		scrapeErr = s.scrapeFromTMDb(media, searchTitle)
-	case "bangumi":
-		scrapeErr = s.scrapeFromBangumi(media, searchTitle)
-	case "ai":
-		scrapeErr = s.scrapeWithAIEnhance(media, searchTitle)
-	default:
-		scrapeErr = s.scrapeFromTMDb(media, searchTitle)
+	// 自动模式（auto/空）走完整多源降级链：Adult → TMDb → 豆瓣 → TheTVDB/Bangumi → Fanart → AI；
+	// 显式指定数据源时保持"单源 + AI 兜底"的旧行为。
+	isAutoMode := source == "" || source == "auto"
+	hasProviderChain := s.metadata != nil && s.metadata.providerChain != nil
+	useChain := isAutoMode && hasProviderChain
+	var chainPlan []ScrapePlanStep
+	if useChain {
+		chainPlan = s.metadata.providerChain.buildPlanFor(media.MediaType, IsAnimeContent(media),
+			media.MediaType == "episode" || media.SeriesID != "", IsAdultContent(media))
 	}
 
-	if scrapeErr != nil {
-		// 如果主数据源失败，尝试AI增强
-		if s.ai != nil && s.ai.IsEnabled() && source != "ai" {
-			s.broadcastEvent("file_scrape_progress", ScrapeProgress{
-				MediaID:  media.ID,
-				Title:    media.Title,
-				Status:   "scraping",
-				Progress: 60,
-				Message:  "主数据源失败，尝试AI增强...",
-			})
+	// 链路追踪：记录每步状态，实时广播 scrape_chain 事件（前端浮层展示用）
+	recorder := newChainRecorder(func(data ScrapeChainData) {
+		s.broadcastEvent("scrape_chain", data)
+	}, media.ID, media.Title, chainPlan)
+	addChainStep := func(provider, status, errMsg string) {
+		recorder.steps = append(recorder.steps, ScrapeStepData{Provider: provider, Status: status, Error: errMsg})
+	}
+	chainTry := func(provider string) {
+		recorder.onStep(ScrapeChainStep{Provider: provider, Status: "trying"})
+	}
+
+	if useChain {
+		// 完整降级链：每个数据源的 trying/success/source/failed/skipped 都实时上报
+		scrapeErr = s.metadata.providerChain.ScrapeMedia(media, searchTitle, media.Year, recorder.onStep)
+	} else {
+		// 主源显示名（按用户选择）
+		sourceName := map[string]string{"bangumi": "Bangumi", "ai": "AI"}[source]
+		if sourceName == "" {
+			sourceName = "TMDb"
+		}
+
+		// 主数据源按用户选择执行，每步广播链路
+		chainTry(sourceName)
+		switch source {
+		case "bangumi":
+			scrapeErr = s.scrapeFromBangumi(media, searchTitle)
+		case "ai":
 			scrapeErr = s.scrapeWithAIEnhance(media, searchTitle)
+		default:
+			scrapeErr = s.scrapeFromTMDb(media, searchTitle)
+		}
+
+		// 主源结果：成功记 source，失败记 failed
+		if scrapeErr == nil {
+			recorder.source = sourceName
+			addChainStep(sourceName, "source", "")
+		} else {
+			addChainStep(sourceName, "failed", scrapeErr.Error())
+		}
+
+		if scrapeErr != nil {
+			// 如果主数据源失败，尝试AI增强
+			if s.ai != nil && s.ai.IsEnabled() && source != "ai" {
+				s.broadcastEvent("file_scrape_progress", ScrapeProgress{
+					MediaID:  media.ID,
+					Title:    media.Title,
+					Status:   "scraping",
+					Progress: 60,
+					Message:  "主数据源失败，尝试AI增强...",
+				})
+				chainTry("AI")
+				scrapeErr = s.scrapeWithAIEnhance(media, searchTitle)
+				if scrapeErr == nil {
+					recorder.source = "AI"
+					addChainStep("AI", "source", "")
+				} else {
+					addChainStep("AI", "failed", scrapeErr.Error())
+				}
+			}
 		}
 	}
 
@@ -784,6 +831,8 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 			Progress: 0,
 			Message:  scrapeErr.Error(),
 		})
+		// 广播链路完成（失败态，含每步状态）
+		recorder.broadcastFinal("failed", scrapeErr.Error())
 		// 也广播全局 scrape_completed（失败态），让前端统计卡片刷新
 		s.broadcastEvent(EventScrapeCompleted, map[string]interface{}{
 			"media_id": media.ID,
@@ -803,7 +852,10 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		media.ScrapeStatus = "partial"
 	}
 
-	// 保存更新
+	// 保存更新（含刮削来源）
+	if recorder.source != "" {
+		media.ScrapeSource = recorder.source
+	}
 	if err := s.mediaRepo.Update(media); err != nil {
 		s.logger.Errorf("保存刮削结果失败: %v", err)
 		return
@@ -820,6 +872,8 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		Progress: 100,
 		Message:  "刮削完成",
 	})
+	// 广播链路完成（成功态，含来源与每步状态）
+	recorder.broadcastFinal(media.ScrapeStatus, "刮削完成")
 	// 广播全局 scrape_completed 事件，触发前端统计卡片及列表刷新
 	s.broadcastEvent(EventScrapeCompleted, map[string]interface{}{
 		"media_id":      media.ID,

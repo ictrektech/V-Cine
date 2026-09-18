@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -8,6 +9,24 @@ import (
 	"github.com/nowen-video/nowen-video/internal/model"
 	"go.uber.org/zap"
 )
+
+// ==================== 数据源"跳过"（非失败） ====================
+
+// providerSkippedError 数据源主动跳过：内容不适用、缺少前置 ID、媒体库未开启等。
+// ProviderChain 会把它记为 skipped（而不是 failed），前端展示为灰色"跳过"，
+// 也不计入失败源统计。
+type providerSkippedError struct{ reason string }
+
+func (e *providerSkippedError) Error() string { return e.reason }
+
+// SkipProvider 构造"跳过"错误，供 Provider 在自身不适用时返回
+func SkipProvider(reason string) error { return &providerSkippedError{reason: reason} }
+
+// IsProviderSkipped 判断错误是否为"主动跳过"
+func IsProviderSkipped(err error) bool {
+	var skipped *providerSkippedError
+	return errors.As(err, &skipped)
+}
 
 // ==================== 统一 MetadataProvider 接口 ====================
 
@@ -153,6 +172,14 @@ func IsAnimeContentFromSeries(series *model.Series) bool {
 
 // ==================== ProviderChain 数据源调度器 ====================
 
+// ScrapeChainStep 链路单步回调参数（每尝试一个数据源上报一次）
+// Status: trying（开始尝试）/ success（成功）/ failed（失败）/ source（确定为主数据源）
+type ScrapeChainStep struct {
+	Provider string
+	Status   string
+	Error    error
+}
+
 // ProviderChain 多数据源调度链
 // 按优先级依次调用各数据源，实现 Fallback 和补充逻辑
 type ProviderChain struct {
@@ -185,9 +212,18 @@ func (c *ProviderChain) Register(provider MetadataProvider) {
 //  3. 如果是动画内容，Bangumi 补充动画专项信息
 //  4. Fanart.tv 补充高质量图片
 //  5. 如果所有数据源都失败，AI 兜底
-func (c *ProviderChain) ScrapeMedia(media *model.Media, searchTitle string, year int) error {
+func (c *ProviderChain) ScrapeMedia(media *model.Media, searchTitle string, year int, onStep func(ScrapeChainStep)) error {
 	isAnime := IsAnimeContent(media)
 	isTVShow := media.MediaType == "episode" || media.SeriesID != ""
+	// 非成人内容不调用番号源（也不在链路上展示），避免普通影视的链路被"成人·跳过"污染
+	isAdult := IsAdultContent(media)
+
+	// notify 安全上报链路步骤（回调为 nil 时忽略）
+	notify := func(step ScrapeChainStep) {
+		if onStep != nil {
+			onStep(step)
+		}
+	}
 
 	var primaryErr error
 	primaryDone := false
@@ -199,7 +235,7 @@ func (c *ProviderChain) ScrapeMedia(media *model.Media, searchTitle string, year
 		}
 
 		// 检查数据源是否支持当前媒体类型
-		if !c.isProviderApplicable(provider, media.MediaType, isAnime, isTVShow) {
+		if !c.isProviderApplicable(provider, media.MediaType, isAnime, isTVShow, isAdult) {
 			continue
 		}
 
@@ -215,9 +251,17 @@ func (c *ProviderChain) ScrapeMedia(media *model.Media, searchTitle string, year
 		}
 
 		c.logger.Debugf("调用数据源 [%s] (mode=%s) 刮削: %s", provider.Name(), mode, searchTitle)
+		notify(ScrapeChainStep{Provider: provider.Name(), Status: "trying"})
 
 		if err := provider.ScrapeMedia(media, searchTitle, year, mode); err != nil {
+			// 数据源主动跳过（不适用）：记为 skipped，不算失败，也不影响主数据源判定
+			if IsProviderSkipped(err) {
+				c.logger.Debugf("数据源 [%s] 跳过: %v", provider.Name(), err)
+				notify(ScrapeChainStep{Provider: provider.Name(), Status: "skipped", Error: err})
+				continue
+			}
 			c.logger.Debugf("数据源 [%s] 刮削失败: %v", provider.Name(), err)
+			notify(ScrapeChainStep{Provider: provider.Name(), Status: "failed", Error: err})
 			if !primaryDone {
 				primaryErr = err
 			}
@@ -227,6 +271,10 @@ func (c *ProviderChain) ScrapeMedia(media *model.Media, searchTitle string, year
 		if !primaryDone {
 			primaryDone = true
 			primaryErr = nil
+			notify(ScrapeChainStep{Provider: provider.Name(), Status: "source"})
+		} else {
+			// 补充源成功：上报成功状态，保证链路完整
+			notify(ScrapeChainStep{Provider: provider.Name(), Status: "success"})
 		}
 
 		c.logger.Debugf("数据源 [%s] 刮削成功: %s", provider.Name(), searchTitle)
@@ -245,8 +293,15 @@ func (c *ProviderChain) ScrapeMedia(media *model.Media, searchTitle string, year
 }
 
 // ScrapeSeries 按优先级链式刮削剧集合集元数据
-func (c *ProviderChain) ScrapeSeries(series *model.Series, searchTitle string, year int) error {
+func (c *ProviderChain) ScrapeSeries(series *model.Series, searchTitle string, year int, onStep func(ScrapeChainStep)) error {
 	isAnime := IsAnimeContentFromSeries(series)
+
+	// notify 安全上报链路步骤（回调为 nil 时忽略）
+	notify := func(step ScrapeChainStep) {
+		if onStep != nil {
+			onStep(step)
+		}
+	}
 
 	var primaryErr error
 	primaryDone := false
@@ -257,8 +312,8 @@ func (c *ProviderChain) ScrapeSeries(series *model.Series, searchTitle string, y
 			continue
 		}
 
-		// 检查数据源是否支持剧集类型
-		if !c.isProviderApplicable(provider, "tvshow", isAnime, true) {
+		// 检查数据源是否支持剧集类型（剧集不走番号源）
+		if !c.isProviderApplicable(provider, "tvshow", isAnime, true, false) {
 			continue
 		}
 
@@ -274,9 +329,16 @@ func (c *ProviderChain) ScrapeSeries(series *model.Series, searchTitle string, y
 		}
 
 		c.logger.Debugf("调用数据源 [%s] (mode=%s) 刮削剧集: %s", provider.Name(), mode, searchTitle)
+		notify(ScrapeChainStep{Provider: provider.Name(), Status: "trying"})
 
 		if err := provider.ScrapeSeries(series, searchTitle, year, mode); err != nil {
+			if IsProviderSkipped(err) {
+				c.logger.Debugf("数据源 [%s] 剧集跳过: %v", provider.Name(), err)
+				notify(ScrapeChainStep{Provider: provider.Name(), Status: "skipped", Error: err})
+				continue
+			}
 			c.logger.Debugf("数据源 [%s] 剧集刮削失败: %v", provider.Name(), err)
+			notify(ScrapeChainStep{Provider: provider.Name(), Status: "failed", Error: err})
 			if !primaryDone {
 				primaryErr = err
 			}
@@ -286,6 +348,10 @@ func (c *ProviderChain) ScrapeSeries(series *model.Series, searchTitle string, y
 		if !primaryDone {
 			primaryDone = true
 			primaryErr = nil
+			notify(ScrapeChainStep{Provider: provider.Name(), Status: "source"})
+		} else {
+			// 补充源成功：上报成功状态，保证链路完整
+			notify(ScrapeChainStep{Provider: provider.Name(), Status: "success"})
 		}
 
 		c.logger.Debugf("数据源 [%s] 剧集刮削成功: %s", provider.Name(), searchTitle)
@@ -303,7 +369,7 @@ func (c *ProviderChain) ScrapeSeries(series *model.Series, searchTitle string, y
 }
 
 // isProviderApplicable 检查数据源是否适用于当前媒体类型
-func (c *ProviderChain) isProviderApplicable(provider MetadataProvider, mediaType string, isAnime, isTVShow bool) bool {
+func (c *ProviderChain) isProviderApplicable(provider MetadataProvider, mediaType string, isAnime, isTVShow, isAdult bool) bool {
 	supported := provider.SupportedTypes()
 
 	for _, t := range supported {
@@ -326,12 +392,20 @@ func (c *ProviderChain) isProviderApplicable(provider MetadataProvider, mediaTyp
 			// 图片增强源，始终适用
 			return true
 		case "adult":
-			// 成人内容源，始终适用（Provider 内部会自行判断是否为成人内容）
-			return true
+			// 番号（成人）源：仅成人内容适用
+			if isAdult {
+				return true
+			}
 		}
 	}
 
 	return false
+}
+
+// isAdultOnlyProvider 判断数据源是否只服务成人（番号）内容
+func isAdultOnlyProvider(provider MetadataProvider) bool {
+	types := provider.SupportedTypes()
+	return len(types) == 1 && types[0] == "adult"
 }
 
 // isMetadataComplete 检查媒体元数据是否足够完整
@@ -381,6 +455,32 @@ func (c *ProviderChain) isSeriesMetadataComplete(series *model.Series) bool {
 		score += 10
 	}
 	return score >= 80
+}
+
+// ==================== 调度计划（完整链路展示用） ====================
+
+// buildPlanFor 生成完整的"数据源调度计划"（按优先级顺序，标注本次不会执行的数据源及原因）。
+// 前端据此展示"完整链路"：计划内未执行到的显示为待执行/未执行，被标 skipped 的显示为跳过。
+// 注意：番号（成人）源默认不进入计划，只有成人内容才展示，避免普通影视链路出现"成人·跳过"噪声。
+func (c *ProviderChain) buildPlanFor(mediaType string, isAnime, isTVShow, isAdult bool) []ScrapePlanStep {
+	plan := make([]ScrapePlanStep, 0, len(c.providers))
+	for _, provider := range c.providers {
+		// 非成人内容：番号源不展示（既不执行也不占位）
+		if !isAdult && isAdultOnlyProvider(provider) {
+			continue
+		}
+		item := ScrapePlanStep{Provider: provider.Name(), State: "planned"}
+		switch {
+		case !provider.IsEnabled():
+			item.State = "skipped"
+			item.Reason = "未启用"
+		case !c.isProviderApplicable(provider, mediaType, isAnime, isTVShow, isAdult):
+			item.State = "skipped"
+			item.Reason = "类型不适用"
+		}
+		plan = append(plan, item)
+	}
+	return plan
 }
 
 // GetProviders 获取所有已注册的数据源（用于状态展示）

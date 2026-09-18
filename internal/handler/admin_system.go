@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/model"
+	"github.com/nowen-video/nowen-video/internal/service"
 )
 
 // ==================== 批量操作 ====================
@@ -57,23 +58,39 @@ func (h *AdminHandler) BatchScrape(c *gin.Context) {
 		return
 	}
 
-	// 异步执行批量刮削
+	// 异步执行批量刮削（单个媒体的链路由 ScrapeMedia 内部广播 scrape_chain）
 	go func() {
 		success := 0
 		failed := 0
-		for _, id := range req.MediaIDs {
+		total := len(req.MediaIDs)
+		for i, id := range req.MediaIDs {
 			if err := h.metadataService.ScrapeMedia(id); err != nil {
 				failed++
 			} else {
 				success++
 			}
+			// 广播批量汇总进度（前端浮层展示"到哪一部、失败几部"）
+			h.broadcastBatch(total, i+1, success, failed, "running", "批量刮削进度")
 		}
 		h.logger.Infof("批量刮削完成: 成功 %d, 失败 %d", success, failed)
+		h.broadcastBatch(total, total, success, failed, "completed", "批量刮削完成")
 	}()
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "批量刮削已启动",
 		"total":   len(req.MediaIDs),
+	})
+}
+
+// broadcastBatch 广播批量刮削汇总进度
+func (h *AdminHandler) broadcastBatch(total, current, success, failed int, status, message string) {
+	h.metadataService.BroadcastScrapeChain(service.ScrapeChainData{
+		Current: current,
+		Total:   total,
+		Success: success,
+		Failed:  failed,
+		Status:  status,
+		Message: message,
 	})
 }
 

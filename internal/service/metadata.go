@@ -558,9 +558,16 @@ func (s *MetadataService) ScrapeMedia(mediaID string) error {
 
 	// 如果已配置 ProviderChain，使用新的多数据源调度链
 	if s.providerChain != nil {
-		err := s.providerChain.ScrapeMedia(media, searchTitle, year)
+		// 完整调度计划：前端据此渲染"完整链路 + 未执行/跳过"状态
+		plan := s.providerChain.buildPlanFor(media.MediaType, IsAnimeContent(media),
+			media.MediaType == "episode" || media.SeriesID != "", IsAdultContent(media))
+		// 链路追踪：维护每步状态并实时广播 scrape_chain 事件（前端浮层展示用）
+		recorder := newChainRecorder(s.BroadcastScrapeChain, media.ID, media.Title, plan)
+
+		err := s.providerChain.ScrapeMedia(media, searchTitle, year, recorder.onStep)
 		if err != nil {
 			s.logger.Debugf("多数据源调度链刮削失败: %s - %v", media.Title, err)
+			recorder.broadcastFinal("failed", err.Error())
 			return err
 		}
 		// 保存更新
@@ -574,9 +581,17 @@ func (s *MetadataService) ScrapeMedia(mediaID string) error {
 			finalStatus = "partial"
 		}
 		media.ScrapeStatus = finalStatus
-		s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{"scrape_status": finalStatus})
+		// 持久化刮削来源（链路上第一个成功的主数据源）
+		if recorder.source != "" {
+			media.ScrapeSource = recorder.source
+			s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{"scrape_status": finalStatus, "scrape_source": recorder.source})
+		} else {
+			s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{"scrape_status": finalStatus})
+		}
 		s.writeNFOAfterScrape(media.ID, finalStatus)
-		s.logger.Infof("元数据刮削完成 (多数据源, status=%s): %s", finalStatus, media.Title)
+		// 广播链路完成（status: scraped/partial）
+		recorder.broadcastFinal(finalStatus, "元数据刮削完成")
+		s.logger.Infof("元数据刮削完成 (多数据源, status=%s, source=%s): %s", finalStatus, recorder.source, media.Title)
 		randomDelay(1500, 3000) // 单次刮削完成后等待 1.5-3 秒，防止限流
 		return nil
 	}
@@ -813,6 +828,80 @@ func (s *MetadataService) broadcastScrapeEvent(eventType string, data *ScrapePro
 	if s.wsHub != nil {
 		s.wsHub.BroadcastEvent(eventType, data)
 	}
+}
+
+// broadcastScrapeChain 广播刮削链路追踪事件（前端浮层实时展示链路用）
+func (s *MetadataService) BroadcastScrapeChain(data ScrapeChainData) {
+	if s.wsHub != nil {
+		s.wsHub.BroadcastEvent("scrape_chain", data)
+	}
+}
+
+// chainRecorder 刮削链路记录器：维护每步状态并实时广播 scrape_chain 事件。
+// ScrapeMedia / ScrapeSeries / file_manager 共用；broadcast 由调用方注入
+//（内部走 wsHub，文件管理页走 FileManagerService.broadcastEvent）。
+type chainRecorder struct {
+	broadcast func(data ScrapeChainData)
+	mediaID   string
+	title     string
+	plan      []ScrapePlanStep
+	steps     []ScrapeStepData
+	source    string
+}
+
+func newChainRecorder(broadcast func(data ScrapeChainData), mediaID, title string, plan []ScrapePlanStep) *chainRecorder {
+	return &chainRecorder{
+		broadcast: broadcast,
+		mediaID:   mediaID,
+		title:     title,
+		plan:      plan,
+		steps:     []ScrapeStepData{},
+	}
+}
+
+// onStep 作为 ProviderChain 的回调：记录单步并广播 running 状态
+func (r *chainRecorder) onStep(step ScrapeChainStep) {
+	if step.Status == "source" {
+		r.source = step.Provider
+	}
+	errMsg := ""
+	if step.Error != nil {
+		errMsg = step.Error.Error()
+	}
+	r.steps = append(r.steps, ScrapeStepData{
+		Provider: step.Provider,
+		Status:   step.Status,
+		Error:    errMsg,
+	})
+	msg := "正在刮削..."
+	switch step.Status {
+	case "trying":
+		msg = "正在通过 " + step.Provider + " 刮削..."
+	case "skipped":
+		msg = "已跳过 " + step.Provider
+	}
+	r.broadcast(ScrapeChainData{
+		MediaID: r.mediaID,
+		Title:   r.title,
+		Status:  "running",
+		Source:  r.source,
+		Steps:   r.steps,
+		Plan:    r.plan,
+		Message: msg,
+	})
+}
+
+// broadcast 广播链路终态（success/failed/partial 等）
+func (r *chainRecorder) broadcastFinal(status, message string) {
+	r.broadcast(ScrapeChainData{
+		MediaID: r.mediaID,
+		Title:   r.title,
+		Status:  status,
+		Source:  r.source,
+		Steps:   r.steps,
+		Plan:    r.plan,
+		Message: message,
+	})
 }
 
 func (s *MetadataService) writeNFOAfterScrape(mediaID, status string) {
@@ -2084,16 +2173,24 @@ func (s *MetadataService) ScrapeSeries(seriesID string) error {
 
 	// 如果已配置 ProviderChain，使用新的多数据源调度链
 	if s.providerChain != nil {
-		err := s.providerChain.ScrapeSeries(series, searchTitle, year)
+		// 完整调度计划：前端据此渲染"完整链路 + 未执行/跳过"状态
+		plan := s.providerChain.buildPlanFor("tvshow", IsAnimeContentFromSeries(series), true, false)
+		// 链路追踪：维护每步状态并实时广播 scrape_chain 事件
+		recorder := newChainRecorder(s.BroadcastScrapeChain, series.ID, series.Title, plan)
+
+		err := s.providerChain.ScrapeSeries(series, searchTitle, year, recorder.onStep)
 		if err != nil {
 			s.logger.Debugf("多数据源调度链剧集刮削失败: %s - %v", series.Title, err)
 			// 不直接返回错误，继续尝试保存已有数据
+			recorder.broadcastFinal("failed", err.Error())
 		}
 
 		// [C 方案] 根据实际元数据结果记录刷削状态
 		now := time.Now()
 		series.LastScrapeAt = &now
 		series.ScrapeStatus = evaluateSeriesScrapeStatus(series, err)
+		// 持久化刮削来源
+		series.ScrapeSource = recorder.source
 
 		// 保存合集元数据
 		if saveErr := s.seriesRepo.Update(series); saveErr != nil {

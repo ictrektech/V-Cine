@@ -85,6 +85,36 @@ type ScrapeProgressData struct {
 	Message     string `json:"message"`
 }
 
+// ScrapeStepData 刮削链路单步数据（ProviderChain 每次调用一个数据源的状态）
+type ScrapeStepData struct {
+	Provider string `json:"provider"`        // 数据源名称（TMDb/豆瓣/...）
+	Status   string `json:"status"`          // trying / success / failed / source
+	Error    string `json:"error,omitempty"` // 失败原因
+}
+
+// ScrapeChainData 刮削链路追踪数据（单条媒体的实时链路，前端浮层展示用）
+type ScrapeChainData struct {
+	MediaID string           `json:"media_id"`
+	Title   string           `json:"title"`
+	Status  string           `json:"status"`            // running / success / failed / partial
+	Source  string           `json:"source,omitempty"`  // 最终主数据来源
+	Steps   []ScrapeStepData `json:"steps"`             // 链路各步状态
+	Plan    []ScrapePlanStep `json:"plan,omitempty"`    // 完整调度计划（含本次未执行/被跳过的数据源）
+	Current int              `json:"current,omitempty"` // 批量时当前第几个（0=单条）
+	Total   int              `json:"total,omitempty"`   // 批量总数（0=单条）
+	Success int              `json:"success,omitempty"` // 批量成功数
+	Failed  int              `json:"failed,omitempty"`  // 批量失败数
+	Message string           `json:"message,omitempty"`
+}
+
+// ScrapePlanStep 数据源调度计划中的一项（前端展示"完整链路 + 运行到哪一步"用）
+// State: planned（计划内，可能尚未执行到）/ skipped（本次不会执行，Reason 说明原因）
+type ScrapePlanStep struct {
+	Provider string `json:"provider"`
+	State    string `json:"state"`
+	Reason   string `json:"reason,omitempty"`
+}
+
 // LibraryChangedData 媒体库变更事件数据
 type LibraryChangedData struct {
 	LibraryID   string `json:"library_id"`
