@@ -85,12 +85,12 @@ export default function MediaCard({ media, series }: MediaCardProps) {
   const year = series ? series.year : media!.year
   const rating = series ? series.rating : media!.rating
   // 订阅全局海报版本戳：刮削完成/元数据替换后自动刷新图片缓存
-  const posterVersion = usePosterVersion()
+  usePosterVersion()
   const posterUrl = series
-    ? streamApi.getSeriesPosterUrl(series.id, posterVersion)
+    ? streamApi.getSeriesPosterUrl(series.id)
     : media!.series_id
-      ? streamApi.getSeriesPosterUrl(media!.series_id, posterVersion)
-      : streamApi.getPosterUrl(media!.id, posterVersion)
+      ? streamApi.getSeriesPosterUrl(media!.series_id)
+      : streamApi.getPosterUrl(media!.id)
 
   // 检查是否有真实海报（poster_path 非空）
   // 对于 episode 或未加载 series 关联的场景，我们也允许尝试加载：

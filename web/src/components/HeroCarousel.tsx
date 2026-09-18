@@ -26,6 +26,7 @@ import {
 } from 'framer-motion'
 import { Play, Star, ChevronLeft, ChevronRight, Info, Pause } from 'lucide-react'
 import { streamApi } from '@/api'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import { useTranslation } from '@/i18n'
 import type { RecommendedMedia, MixedItem, Media } from '@/types'
 import { easeSmooth, easeExit, springDefault } from '@/lib/motion'
@@ -188,6 +189,9 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
 
   // ---- 拖拽 Motion Value ----
   const dragX = useMotionValue(0)
+
+  // ---- 订阅海报版本戳：刮削/替换海报后自动绕过浏览器缓存 ----
+  usePosterVersion()
 
   // ---- 海报 URL 缓存 ----
   const posterUrls = useMemo(() => {

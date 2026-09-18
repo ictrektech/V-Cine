@@ -3,8 +3,11 @@ import { statsApi, streamApi } from '@/api'
 import { useTranslation } from '@/i18n'
 import type { UserStatsOverview } from '@/types'
 import { Clock, Film, BarChart3, Heart } from 'lucide-react'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 
 export default function StatsPage() {
+  // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
+  usePosterVersion()
   const [stats, setStats] = useState<UserStatsOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const { t } = useTranslation()

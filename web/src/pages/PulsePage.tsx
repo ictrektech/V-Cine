@@ -28,6 +28,7 @@ import {
   Calendar,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 
 // 格式化存储大小
 function formatBytes(bytes: number): string {
@@ -48,6 +49,8 @@ function formatMinutes(minutes: number): string {
 type TabKey = 'dashboard' | 'analytics'
 
 export default function PulsePage() {
+  // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
+  usePosterVersion()
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const { t } = useTranslation()

@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { streamApi } from '@/api'
 import { collectionApi } from '@/api'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import type { CollectionWithMedia, CollectionMediaItem } from '@/types'
 import { groupByMovie, versionLabel } from '@/utils/collectionGroup'
 import { Film, Play, ChevronLeft, ChevronRight, Layers, Star, Clock, ChevronDown, ChevronUp, Copy } from 'lucide-react'
@@ -182,6 +183,8 @@ function CollectionCard({ item, versionCount, isCurrent, onClick }: {
   onClick: () => void
 }) {
   const hasMultipleVersions = versionCount > 1
+  // 订阅海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   return (
     <div
       onClick={onClick}
@@ -277,6 +280,8 @@ function CollectionListItem({ group, index, isCurrent }: {
   const item = group.primary
   const hasMultipleVersions = group.versions.length > 1
   const [showVersions, setShowVersions] = useState(false)
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
 
   return (
     <div

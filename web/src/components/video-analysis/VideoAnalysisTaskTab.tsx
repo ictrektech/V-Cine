@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, ChevronDown, Clock3, Loader2, RefreshCw, Rot
 import { Skeleton } from '@/components/ui/skeleton'
 import { videoAnalysisApi } from '@/api'
 import { streamApi } from '@/api/stream'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -78,6 +79,8 @@ interface VideoAnalysisTaskTabProps {
 
 export default function VideoAnalysisTaskTab({ disabled = false, disabledReason = '' }: VideoAnalysisTaskTabProps) {
   const toast = useToast()
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   const dialog = useDialog()
   const { on, off } = useWebSocket()
   const [searchParams, setSearchParams] = useSearchParams()

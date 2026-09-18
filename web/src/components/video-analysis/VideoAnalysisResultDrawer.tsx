@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { streamApi } from '@/api/stream'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import { openAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 import type { VideoAnalysisTask } from '@/types/videoAnalysis'
@@ -20,6 +21,8 @@ export default function VideoAnalysisResultDrawer({ task, onClose }: VideoAnalys
   // 常驻挂载 + open 受控：关闭时 Radix 先播放退出动画（下滑/模糊淡出）再卸载；
   // visibleTask 保留最后一条任务，供关闭动画期间渲染面板内容
   const [visibleTask, setVisibleTask] = useState(task)
+  // 订阅海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   useEffect(() => {
     if (task) setVisibleTask(task)
   }, [task])

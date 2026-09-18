@@ -18,6 +18,7 @@ import FileBrowser from '@/components/FileBrowser'
 import { formatFileSize, LANGUAGE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from './constants'
 import { streamApi } from '@/api/stream'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 
 // ==================== 导入文件对话框 ====================
 interface ImportFileModalProps {
@@ -242,6 +243,8 @@ interface FileDetailModalProps {
 
 export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = true, remoteVideoEnabled = false, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
   const toast = useToast()
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   const [analysisTask, setAnalysisTask] = useState<VideoAnalysisTask | null>(null)
   const [loadingAnalysis, setLoadingAnalysis] = useState(true)
   const [analysisUnavailable, setAnalysisUnavailable] = useState(false)

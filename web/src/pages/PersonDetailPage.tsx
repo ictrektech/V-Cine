@@ -7,9 +7,12 @@ import { useTranslation } from '@/i18n'
 import { motion, AnimatePresence } from 'framer-motion'
 import { easeSmooth, durations } from '@/lib/motion'
 import { usePagination } from '@/hooks/usePagination'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import Pagination from '@/components/Pagination'
 
 export default function PersonDetailPage() {
+  // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
+  usePosterVersion()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()

@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/stores/auth'
+import { useMediaRefreshStore } from '@/stores/mediaRefresh'
 import type {
   MediaPlayInfo,
 } from '@/types'
@@ -16,6 +17,14 @@ function withBaseAndToken(url: string): string {
   if (!token) return prefixed
   const sep = prefixed.includes('?') ? '&' : '?'
   return `${prefixed}${sep}token=${encodeURIComponent(token)}`
+}
+
+// 图片类 URL 统一附加缓存破坏参数 ?v=<海报版本戳>：
+//  - 版本戳平时稳定，URL 不变，浏览器缓存照常命中；
+//  - 刮削完成/替换海报时 bumpPosterVersion() 使 URL 变化，强制重新拉取。
+function withPosterVersion(url: string, version?: number): string {
+  const v = version ?? useMediaRefreshStore.getState().posterVersion
+  return withBaseAndToken(`${url}?v=${v}`)
 }
 
 export const streamApi = {
@@ -91,22 +100,21 @@ export const streamApi = {
       }
     }>(`/stream/${mediaId}/strm-check`),
 
-  // version 可选：用于缓存破坏（cache-busting）。
-  // 当元数据/海报被替换后，传入一个新的数字即可触发浏览器重新请求图片。
+  // version 可选：显式指定缓存破坏版本号（不传则自动使用全局海报版本戳）。
   getPosterUrl: (mediaId: string, version?: number) =>
-    withBaseAndToken(`/api/media/${mediaId}/poster${version ? `?v=${version}` : ''}`),
+    withPosterVersion(`/api/media/${mediaId}/poster`, version),
 
   getSeriesPosterUrl: (seriesId: string, version?: number) =>
-    withBaseAndToken(`/api/series/${seriesId}/poster${version ? `?v=${version}` : ''}`),
+    withPosterVersion(`/api/series/${seriesId}/poster`, version),
 
   getSeriesBackdropUrl: (seriesId: string, version?: number) =>
-    withBaseAndToken(`/api/series/${seriesId}/backdrop${version ? `?v=${version}` : ''}`),
+    withPosterVersion(`/api/series/${seriesId}/backdrop`, version),
 
   getCollectionPosterUrl: (collectionId: string, version?: number) =>
-    withBaseAndToken(`/api/collections/${collectionId}/poster${version ? `?v=${version}` : ''}`),
+    withPosterVersion(`/api/collections/${collectionId}/poster`, version),
 
   getPersonProfileUrl: (personId: string, version?: number) =>
-    withBaseAndToken(`/api/persons/${personId}/profile${version ? `?v=${version}` : ''}`),
+    withPosterVersion(`/api/persons/${personId}/profile`, version),
 
   // 为任意 URL 添加认证 token
   withTokenUrl: (url: string) => withBaseAndToken(url),

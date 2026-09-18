@@ -13,6 +13,7 @@ import { streamApi } from '@/api'
 import { motion } from 'framer-motion'
 import { staggerContainerVariants, staggerItemVariants } from '@/lib/motion'
 import { routes } from '@/lib/routes'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import HeroCarousel from '@/components/HeroCarousel'
 
 interface HomeData {
@@ -25,6 +26,8 @@ interface HomeData {
 export default function HomePage() {
   const { on, off } = useWebSocket()
   const toast = useToast()
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   const { t } = useTranslation()
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -287,6 +290,8 @@ function ContinueWatchingRow({
   title: string
   watchedLabel: (percent: number) => string
 }) {
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
@@ -474,6 +479,8 @@ function GenreRows({ items }: { items: MixedItem[] }) {
 
 // ===================== 单个分类横向滚动行 =====================
 function GenreRow({ genre, items }: { genre: string; items: MixedItem[] }) {
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)

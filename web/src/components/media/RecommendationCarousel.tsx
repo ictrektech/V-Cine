@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { streamApi } from '@/api'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import type { RecommendedMedia } from '@/types'
 import { Film, Play, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -10,6 +11,8 @@ interface RecommendationCarouselProps {
 
 export default function RecommendationCarousel({ recommendations }: RecommendationCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 订阅全局海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
 
   const scroll = (direction: 'left' | 'right') => {
     const el = scrollRef.current

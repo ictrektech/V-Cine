@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { streamApi } from '@/api/stream'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import Pagination from '@/components/Pagination'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
@@ -76,6 +77,8 @@ export default function FileListView({
   onPlayFile, onCopyFilePath,
   onCreateSubFolder, onRenameSubFolder, onDeleteSubFolder, onRefreshSubFolder, onCopyFolderPath,
 }: FileListViewProps) {
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   // 右键菜单状态
   const [ctxMenu, setCtxMenu] = useState<{
     visible: boolean; x: number; y: number;

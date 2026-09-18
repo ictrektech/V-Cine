@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { mediaApi, seriesApi, streamApi } from '@/api'
 import { useToast } from '@/components/Toast'
@@ -43,6 +44,8 @@ function parseLibraryViewMode(value: string | null): LibraryViewMode | null {
 }
 
 export default function LibraryPage() {
+  // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
+  usePosterVersion()
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const [mixedItems, setMixedItems] = useState<MixedItem[]>([])

@@ -5,6 +5,7 @@ import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import { useTranslation } from '@/i18n'
 import { usePagination } from '@/hooks/usePagination'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import Pagination from '@/components/Pagination'
 import type { Playlist } from '@/types'
 import { routes } from '@/lib/routes'
@@ -19,6 +20,8 @@ import {
 } from 'lucide-react'
 
 export default function PlaylistsPage() {
+  // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
+  usePosterVersion()
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)

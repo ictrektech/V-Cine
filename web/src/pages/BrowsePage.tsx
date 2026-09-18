@@ -4,6 +4,7 @@ import { mediaApi, seriesApi, libraryApi, streamApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { usePageCache, invalidatePageCachePrefix } from '@/hooks/usePageCache'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import type { Series, MixedItem, Library } from '@/types'
 import { getLibraryPaths } from '@/types'
 import MediaCard from '@/components/MediaCard'
@@ -1048,6 +1049,8 @@ export default function BrowsePage() {
 
 // ==================== 列表视图项 ====================
 function BrowseListItem({ item }: { item: MixedItem }) {
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   const [tagsExpanded, setTagsExpanded] = useState(false)
   const isSeries = item.type === 'series'
   const media = isSeries ? undefined : item.media
@@ -1193,6 +1196,8 @@ function BrowseListItem({ item }: { item: MixedItem }) {
 
 // ==================== 海报墙视图项 ====================
 function PosterWallItem({ item }: { item: MixedItem }) {
+  // 订阅海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  usePosterVersion()
   const isSeries = item.type === 'series'
   const media = isSeries ? undefined : item.media
   const series = isSeries ? item.series : undefined

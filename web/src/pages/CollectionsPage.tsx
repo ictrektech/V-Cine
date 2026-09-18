@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { collectionApi } from '@/api'
 import { streamApi } from '@/api'
@@ -30,6 +31,8 @@ interface CollectionsData {
 }
 
 export default function CollectionsPage() {
+  // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
+  usePosterVersion()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const sortRef = useRef<HTMLDivElement>(null)

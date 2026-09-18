@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { collectionApi } from '@/api'
 import { streamApi } from '@/api'
@@ -34,6 +35,8 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ]
 
 export default function CollectionDetailPage() {
+  // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
+  usePosterVersion()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()

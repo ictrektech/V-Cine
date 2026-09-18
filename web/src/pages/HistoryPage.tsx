@@ -10,6 +10,7 @@ import type { WatchHistory } from '@/types'
 import { routes } from '@/lib/routes'
 import Pagination from '@/components/Pagination'
 import { Clock, Play, Trash2, X } from 'lucide-react'
+import { usePosterVersion } from '@/stores/mediaRefresh'
 
 interface HistoryData {
   list: WatchHistory[]
@@ -17,6 +18,8 @@ interface HistoryData {
 }
 
 export default function HistoryPage() {
+  // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
+  usePosterVersion()
   const { page, size, setPage, setSize, totalPages } = usePagination({
     initialSize: 20,
     syncToUrl: true,
