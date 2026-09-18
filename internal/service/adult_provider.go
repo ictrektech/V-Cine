@@ -1,8 +1,6 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"go.uber.org/zap"
@@ -46,13 +44,13 @@ func (p *AdultProvider) SupportedTypes() []string { return []string{"adult"} }
 
 // ScrapeMedia 为单个媒体刮削元数据
 func (p *AdultProvider) ScrapeMedia(media *model.Media, searchTitle string, year int, mode string) error {
-	// 仅处理成人内容；返回 error 表示“不适用”，避免 ProviderChain 把跳过误判为主数据源成功。
+	// 仅处理成人内容；返回"跳过"让 ProviderChain 记为 skipped（不算失败源）
 	if !IsAdultContent(media) {
-		return fmt.Errorf("非成人内容，跳过 AdultProvider")
+		return SkipProvider("非成人内容")
 	}
 	if p.libraryRepo != nil && media.LibraryID != "" {
 		if lib, err := p.libraryRepo.FindByID(media.LibraryID); err == nil && lib != nil && !lib.AllowAdultContent {
-			return fmt.Errorf("媒体库未启用成人内容，跳过 AdultProvider")
+			return SkipProvider("媒体库未开启成人内容")
 		}
 	}
 
@@ -71,7 +69,7 @@ func (p *AdultProvider) ScrapeMedia(media *model.Media, searchTitle string, year
 		code, codeType = ParseCode(media.Title)
 	}
 	if code == "" {
-		return fmt.Errorf("未识别到番号，跳过 AdultProvider")
+		return SkipProvider("未识别到番号")
 	}
 
 	p.logger.Infof("识别到番号 [%s] (类型: %s)，开始刮削: %s", code, codeType, media.FilePath)

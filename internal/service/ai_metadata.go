@@ -37,6 +37,51 @@ const metadataEnhanceSystemPrompt = `你是一个电影/电视剧元数据专家
 5. tagline 简短有力的宣传语，不确定则留空
 6. 如果你完全不认识这部作品，仍然要根据标题中的线索（如关键词、语言等）做出合理推测`
 
+// metadataEnhanceSchema AIMetadataResult 的结构化输出 schema（json_schema + strict）。
+// 与 scan_postprocess 的做法一致：用解码层语法约束保证 JSON 形状，避免模型
+// 输出围栏/Markdown/思考文本导致解析失败；后端不支持时由 400 兜底降级。
+var metadataEnhanceSchema = `{
+  "name": "ai_metadata",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "overview": {"type": "string"},
+      "genres": {"type": "string"},
+      "year": {"type": "integer"},
+      "country": {"type": "string"},
+      "tagline": {"type": "string"}
+    },
+    "required": ["overview", "genres", "year", "country", "tagline"],
+    "additionalProperties": false
+  }
+}`
+
+// chatMetadata 调用结构化输出并解析结果（EnrichMetadata / EnrichSeriesMetadata 共用）。
+// errPrefix 用于错误信息，如 "AI 元数据" → "AI 元数据生成失败" / "AI 元数据 JSON 解析失败"。
+func (s *AIService) chatMetadata(userPrompt, errPrefix string) (*AIMetadataResult, error) {
+	// 结构化输出 + 禁用思考 + 给足预算。
+	// 思考模型（GLM/DeepSeek 系）在 500 tokens 下会把预算全烧在思维链上导致 content 为空，
+	// 上层只能拿到 "unexpected end of JSON input"；因此显式关思考并把预算提到 1500。
+	result, err := s.ChatCompletionJSONSchema(
+		metadataEnhanceSystemPrompt,
+		userPrompt,
+		0.0,
+		1500,
+		metadataEnhanceSchema,
+		"none",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%s生成失败: %w", errPrefix, err)
+	}
+
+	var metadata AIMetadataResult
+	if err := json.Unmarshal([]byte(cleanJSONResponse(result)), &metadata); err != nil {
+		return nil, fmt.Errorf("%s JSON 解析失败: %w", errPrefix, err)
+	}
+	return &metadata, nil
+}
+
 // EnrichMetadata 使用 AI 为媒体生成/补充元数据
 // 作为 TMDb → 豆瓣 → Bangumi 之后的第四层 Fallback
 func (s *AIService) EnrichMetadata(media *model.Media, searchTitle string) error {
@@ -68,27 +113,13 @@ func (s *AIService) EnrichMetadata(media *model.Media, searchTitle string) error
 		userPrompt += fmt.Sprintf("\n分辨率: %s", media.Resolution)
 	}
 
-	// 调用 LLM
-	result, err := s.ChatCompletion(
-		metadataEnhanceSystemPrompt,
-		userPrompt,
-		0.3, // 适中温度，允许一定创造性
-		500,
-	)
+	metadata, err := s.chatMetadata(userPrompt, "AI 元数据")
 	if err != nil {
-		return fmt.Errorf("AI 元数据生成失败: %w", err)
-	}
-
-	// 解析 JSON
-	result = cleanJSONResponse(result)
-
-	var metadata AIMetadataResult
-	if err := json.Unmarshal([]byte(result), &metadata); err != nil {
-		return fmt.Errorf("AI 元数据 JSON 解析失败: %w", err)
+		return err
 	}
 
 	// 应用到媒体
-	s.applyAIMetadata(media, &metadata)
+	s.applyAIMetadata(media, metadata)
 
 	// 写入缓存
 	if cacheBytes, err := json.Marshal(metadata); err == nil {
@@ -145,24 +176,12 @@ func (s *AIService) EnrichSeriesMetadata(series *model.Series, searchTitle strin
 		userPrompt += fmt.Sprintf("\n季数: %d", series.SeasonCount)
 	}
 
-	result, err := s.ChatCompletion(
-		metadataEnhanceSystemPrompt,
-		userPrompt,
-		0.3,
-		500,
-	)
+	metadata, err := s.chatMetadata(userPrompt, "AI 剧集元数据")
 	if err != nil {
-		return fmt.Errorf("AI 剧集元数据生成失败: %w", err)
+		return err
 	}
 
-	result = cleanJSONResponse(result)
-
-	var metadata AIMetadataResult
-	if err := json.Unmarshal([]byte(result), &metadata); err != nil {
-		return fmt.Errorf("AI 剧集元数据 JSON 解析失败: %w", err)
-	}
-
-	s.applyAISeriesMetadata(series, &metadata)
+	s.applyAISeriesMetadata(series, metadata)
 
 	if cacheBytes, err := json.Marshal(metadata); err == nil {
 		s.SetCache(cacheKey, string(cacheBytes))

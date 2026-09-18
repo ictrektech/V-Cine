@@ -375,9 +375,9 @@ func (p *FanartProvider) Priority() int            { return 50 } // 在所有元
 func (p *FanartProvider) SupportedTypes() []string { return []string{"image"} }
 
 func (p *FanartProvider) ScrapeMedia(media *model.Media, searchTitle string, year int, mode string) error {
-	// Fanart.tv 需要 TMDb ID，如果没有则跳过
+	// Fanart.tv 需要 TMDb ID，如果没有则跳过（记为 skipped，不算失败源）
 	if media.TMDbID == 0 {
-		return fmt.Errorf("缺少 TMDb ID，跳过 Fanart.tv 图片增强")
+		return SkipProvider("缺少 TMDb ID")
 	}
 	return p.fanart.EnhanceMovieImages(media)
 }
@@ -386,7 +386,7 @@ func (p *FanartProvider) ScrapeSeries(series *model.Series, searchTitle string, 
 	// Fanart.tv 剧集图片需要 TVDB ID
 	// 如果没有 TVDB ID，尝试使用 TMDb ID（Fanart.tv 也支持部分 TMDb ID 查询）
 	if series.TMDbID == 0 {
-		return fmt.Errorf("缺少 TMDb/TVDB ID，跳过 Fanart.tv 图片增强")
+		return SkipProvider("缺少 TMDb/TVDB ID")
 	}
 	return p.fanart.EnhanceTVImages(series, series.TMDbID)
 }

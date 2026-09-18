@@ -25,6 +25,19 @@ import (
 type ChatMessage struct {
 	Role    string `json:"role"` // system / user / assistant
 	Content string `json:"content"`
+	// 思考模型的思维链（响应侧字段，只读）。不同后端字段名不一致：
+	// vLLM / DeepSeek 系用 reasoning_content，部分网关（如本项目的 custom 网关与 GLM 系）用 reasoning，
+	// 两者都解析才能判断"content 为空"是思维链烧穿预算还是答案被放进了思考字段。
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+	Reasoning        string `json:"reasoning,omitempty"`
+}
+
+// reasoningText 返回实际存在的思考内容（兼容两种字段名）
+func (m ChatMessage) reasoningText() string {
+	if strings.TrimSpace(m.ReasoningContent) != "" {
+		return strings.TrimSpace(m.ReasoningContent)
+	}
+	return strings.TrimSpace(m.Reasoning)
 }
 
 // ChatCompletionRequest OpenAI 聊天补全请求
@@ -61,6 +74,8 @@ type ChatCompletionResponse struct {
 	ID      string `json:"id"`
 	Choices []struct {
 		Message ChatMessage `json:"message"`
+		// FinishReason: stop（正常结束）/ length（被 max_tokens 截断）/ tool_calls 等
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Usage struct {
 		PromptTokens     int `json:"prompt_tokens"`
@@ -453,16 +468,36 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 			s.totalCompletionTokens += chatResp.Usage.CompletionTokens
 			s.tokenMu.Unlock()
 			result := strings.TrimSpace(chatResp.Choices[0].Message.Content)
+			reasoning := chatResp.Choices[0].Message.reasoningText()
+			finishReason := chatResp.Choices[0].FinishReason
 			// 原始响应随成功日志一并输出（同一行单次写入，减少并发交错），
-			// 便于 debug 时观察模型格式漂移（XML 函数调用 / 截断 / 伪 JSON 等）
-			s.logger.Debugf("AI 调用成功 (provider=%s, model=%s, credential=%s, tokens: %d+%d=%d, attempt=%d) 原始响应: %s",
+			// 便于 debug 时观察模型格式漂移（XML 函数调用 / 截断 / 伪 JSON 等）。
+			// 同时输出 finish_reason 与思考内容长度：content 为空时这两项才能定位原因。
+			s.logger.Debugf("AI 调用成功 (provider=%s, model=%s, credential=%s, tokens: %d+%d=%d, attempt=%d, finish=%s, reasoning_len=%d) 原始响应: %s",
 				cfg.ActiveProvider, model, credential,
 				chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, chatResp.Usage.TotalTokens, attempt,
-				truncateForLog(result, 500))
+				finishReason, len(reasoning), truncateForLog(result, 500))
 			// V7：通知路由器记录用量
 			if s.router != nil {
 				s.router.MarkSuccess(cfg.ActiveProvider, model,
 					chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, 0, "chat_completion")
+			}
+			// 空 content 提前拦下：直接报"空内容"而不是把空串交给上层做 JSON 解析
+			// （否则上层只会得到 "unexpected end of JSON input" 这种看不出原因的报错）
+			if result == "" {
+				s.logger.Warnf("AI 返回空内容 (provider=%s, model=%s, finish_reason=%s, completion_tokens=%d/%d, reasoning_len=%d, reasoning: %s, raw: %s)",
+					cfg.ActiveProvider, model, finishReason,
+					chatResp.Usage.CompletionTokens, maxTokens, len(reasoning),
+					truncateForLog(reasoning, 300), truncateForLog(string(respBody), 600))
+				hint := "输出为空"
+				switch {
+				case finishReason == "length":
+					hint = "输出被 max_tokens 截断（思考模型把预算全用在思维链上，正文未产出）；请为该调用关闭思考或提高 max_tokens"
+				case len(reasoning) > 0:
+					hint = "content 为空但存在思考内容（后端把思考放在了 reasoning/reasoning_content，正文未产出）"
+				}
+				return "", fmt.Errorf("AI 返回空内容：%s（finish_reason=%s, completion_tokens=%d/%d）",
+					hint, finishReason, chatResp.Usage.CompletionTokens, maxTokens)
 			}
 			return result, nil
 		}
