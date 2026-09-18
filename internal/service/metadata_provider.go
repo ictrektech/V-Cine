@@ -460,7 +460,7 @@ func (c *ProviderChain) isSeriesMetadataComplete(series *model.Series) bool {
 // ==================== 调度计划（完整链路展示用） ====================
 
 // buildPlanFor 生成完整的"数据源调度计划"（按优先级顺序，标注本次不会执行的数据源及原因）。
-// 前端据此展示"完整链路"：计划内未执行到的显示为待执行/未执行，被标 skipped 的显示为跳过。
+// 前端据此展示"完整链路"：计划内未执行到的显示为待执行/未执行，disabled 显示为未启用，skipped 显示为跳过。
 // 注意：番号（成人）源默认不进入计划，只有成人内容才展示，避免普通影视链路出现"成人·跳过"噪声。
 func (c *ProviderChain) buildPlanFor(mediaType string, isAnime, isTVShow, isAdult bool) []ScrapePlanStep {
 	plan := make([]ScrapePlanStep, 0, len(c.providers))
@@ -472,7 +472,8 @@ func (c *ProviderChain) buildPlanFor(mediaType string, isAnime, isTVShow, isAdul
 		item := ScrapePlanStep{Provider: provider.Name(), State: "planned"}
 		switch {
 		case !provider.IsEnabled():
-			item.State = "skipped"
+			// 未配置/未开启：前端显示为黄色"未启用"（区别于类型不适用的灰色"跳过"）
+			item.State = "disabled"
 			item.Reason = "未启用"
 		case !c.isProviderApplicable(provider, mediaType, isAnime, isTVShow, isAdult):
 			item.State = "skipped"

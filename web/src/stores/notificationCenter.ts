@@ -21,17 +21,27 @@ export type NotificationStatus =
   | 'partial'  // 部分成功（未读）
   | 'info'     // 一般信息（未读）
 
+export type NotificationStepStatus =
+  | 'trying'   // 执行中
+  | 'success'  // 成功
+  | 'failed'   // 失败
+  | 'source'   // 成功且为最终来源
+  | 'disabled' // 数据源未启用（来自调度计划）
+  | 'skipped'  // 本次跳过（来自调度计划）
+  | 'pending'  // 计划内未执行到
+
 export interface NotificationStep {
   provider: string
-  status: string // trying / success / failed / source / skipped / pending
+  status: NotificationStepStatus
   error?: string
 }
 
 /** 数据源调度计划项：用于在通知里展示"完整链路"（未执行到/被跳过也显示） */
+export type NotificationPlanState = 'planned' | 'disabled' | 'skipped'
+
 export interface NotificationPlanStep {
   provider: string
-  /** planned：计划内（可能尚未执行到）；skipped：本次不会执行（见 reason） */
-  state: string
+  state: NotificationPlanState
   reason?: string
 }
 

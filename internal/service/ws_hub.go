@@ -108,7 +108,8 @@ type ScrapeChainData struct {
 }
 
 // ScrapePlanStep 数据源调度计划中的一项（前端展示"完整链路 + 运行到哪一步"用）
-// State: planned（计划内，可能尚未执行到）/ skipped（本次不会执行，Reason 说明原因）
+// State: planned（计划内，可能尚未执行到）/ disabled（数据源未启用，Reason=未启用）/
+// skipped（本次不会执行，Reason 说明原因）
 type ScrapePlanStep struct {
 	Provider string `json:"provider"`
 	State    string `json:"state"`

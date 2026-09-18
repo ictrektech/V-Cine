@@ -9,7 +9,7 @@ import {
   XCircle,
   Minus,
 } from 'lucide-react'
-import { useNotificationCenterStore, selectUnreadCount, selectHasRunning, TYPE_ICONS, STATUS_META, type NotificationItem, type NotificationStep } from '@/stores/notificationCenter'
+import { useNotificationCenterStore, selectUnreadCount, selectHasRunning, TYPE_ICONS, STATUS_META, type NotificationItem, type NotificationStep, type NotificationPlanStep } from '@/stores/notificationCenter'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -18,6 +18,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { cn } from '@/lib/utils'
 
 // ==================== 类型与状态定义 ====================
+
+/** 计划状态 → 链路步骤状态（与后端 ScrapePlanStep.State 对应，新增状态需同步更新此表） */
+const PLAN_STATE_STATUS: Record<NotificationPlanStep['state'], NotificationStep['status']> = {
+  planned: 'pending',
+  disabled: 'disabled',
+  skipped: 'skipped',
+}
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts
@@ -30,22 +37,24 @@ function timeAgo(ts: number): string {
 }
 
 /**
- * 链路步骤徽标：
+ * 链路步骤徽标（颜色语义）：
  * trying 转圈（黄）/ failed 红叉（红）/ success·source 绿勾（来源带标记）/
+ * disabled 黄色实心（该项未启用，带"未启用"字样）/
  * skipped 灰色实心（本次跳过，带"跳过"字样，原因见 tooltip）/ pending 灰色虚线（未执行到）
  */
 function StepBadge({ step }: { step: NotificationStep }) {
   const isSource = step.status === 'source'
+  const isDisabled = step.status === 'disabled'
   const isSkipped = step.status === 'skipped'
   const isPending = step.status === 'pending'
-  // skipped / pending 时 error 里放的是原因说明（来自调度计划）
+  // disabled / skipped / pending 时 error 里放的是原因说明（来自调度计划）
   const title = step.error || undefined
   return (
     <Badge
       variant="outline"
       className={cn(
         'gap-1 px-1.5 py-0.5 text-[10px] font-medium',
-        step.status === 'trying' && 'border-amber-500/30 bg-amber-500/10 text-amber-500',
+        (step.status === 'trying' || isDisabled) && 'border-amber-500/30 bg-amber-500/10 text-amber-500',
         step.status === 'failed' && 'border-red-500/30 bg-red-500/10 text-red-500',
         (step.status === 'success' || isSource) && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
         isSkipped && 'border-border bg-muted/40 text-muted-foreground',
@@ -57,13 +66,14 @@ function StepBadge({ step }: { step: NotificationStep }) {
         <Loader2 size={9} className="animate-spin" />
       ) : step.status === 'failed' ? (
         <XCircle size={9} />
-      ) : isSkipped ? (
+      ) : isDisabled || isSkipped ? (
         <Minus size={9} />
       ) : isPending ? null : (
         <Check size={9} />
       )}
       {step.provider}
       {isSource && <span className="rounded bg-emerald-500/20 px-1 text-[9px]">来源</span>}
+      {isDisabled && <span className="text-[9px] opacity-70">未启用</span>}
       {isSkipped && <span className="text-[9px] opacity-70">跳过</span>}
     </Badge>
   )
@@ -84,7 +94,8 @@ function aggregateSteps(steps: NotificationStep[]): NotificationStep[] {
 /**
  * 合并"调度计划 + 实际执行结果"得到完整链路：
  * - 计划内且已执行 → 用实际状态（成功/失败/进行中）
- * - 计划内但未执行 → 计划要求跳过则显示 skipped（灰），否则显示 pending（灰虚线，未执行到）
+ * - 计划内但未执行 → 未启用显示 disabled（黄），计划要求跳过显示 skipped（灰），
+ *   其余显示 pending（灰虚线，未执行到）
  * - 计划外的实际步骤（无计划的链路）→ 原样追加
  */
 function buildChain(item: NotificationItem): NotificationStep[] {
@@ -100,11 +111,16 @@ function buildChain(item: NotificationItem): NotificationStep[] {
       chain.push(step)
       continue
     }
-    const skipped = p.state === 'skipped'
+    const isDisabled = p.state === 'disabled'
+    const isSkipped = p.state === 'skipped'
     chain.push({
       provider: p.provider,
-      status: skipped ? 'skipped' : 'pending',
-      error: skipped ? p.reason || '本次跳过' : item.status === 'running' ? '待执行' : '未执行（前序数据源已满足）',
+      status: PLAN_STATE_STATUS[p.state],
+      error: isDisabled || isSkipped
+        ? p.reason || (isDisabled ? '未启用' : '本次跳过')
+        : item.status === 'running'
+          ? '待执行'
+          : '未执行（前序数据源已满足）',
     })
   }
 
