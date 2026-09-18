@@ -222,13 +222,13 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
     }
   }
 
+  const resultTaskInList = useMemo(
+    () => (urlResultTaskId ? tasks.some((task) => task.id === urlResultTaskId) : false),
+    [tasks, urlResultTaskId],
+  )
+
   useEffect(() => {
-    if (!urlResultTaskId) {
-      setResultTaskOverride(null)
-      return
-    }
-    const existing = tasks.find((task) => task.id === urlResultTaskId)
-    if (existing) {
+    if (!urlResultTaskId || resultTaskInList) {
       setResultTaskOverride(null)
       return
     }
@@ -243,7 +243,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
     return () => {
       cancelled = true
     }
-  }, [tasks, urlResultTaskId])
+  }, [urlResultTaskId, resultTaskInList])
 
   const selectedResultTask = useMemo(() => {
     if (!urlResultTaskId) return null

@@ -25,6 +25,10 @@ export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPa
   const requestedGridScenesRef = useRef<Set<number>>(new Set())
   const gridFetchGenerationRef = useRef(0)
 
+  const taskId = task?.id
+  const mediaId = task?.media_id
+  const taskStatus = task?.status
+
   useEffect(() => {
     setPage(1)
     setResult(null)
@@ -37,14 +41,14 @@ export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPa
       })
       return {}
     })
-    if (!task) {
+    if (!taskId || !mediaId) {
       setLoading(false)
       return
     }
     let cancelled = false
     const generation = gridFetchGenerationRef.current
     setLoading(true)
-    videoAnalysisApi.getResult(task.media_id, task.id)
+    videoAnalysisApi.getResult(mediaId, taskId)
       .then((res) => {
         if (cancelled || generation !== gridFetchGenerationRef.current) return
         setResult(res.data.data)
@@ -61,7 +65,7 @@ export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPa
     return () => {
       cancelled = true
     }
-  }, [task])
+  }, [taskId, mediaId, taskStatus])
 
   const totalPages = useMemo(() => {
     const count = result?.scenes.length || 0
@@ -75,10 +79,8 @@ export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPa
   }, [page, result])
 
   useEffect(() => {
-    if (!task || !result) return
+    if (!taskId || !mediaId || !result) return
     const generation = gridFetchGenerationRef.current
-    const mediaId = task.media_id
-    const taskId = task.id
 
     visibleScenes.forEach((scene) => {
       if (!scene.grid_available) return
@@ -102,7 +104,7 @@ export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPa
           setGridMap((prev) => ({ ...prev, [scene.scene_index]: { loading: false, error: '加载图片失败' } }))
         })
     })
-  }, [result, task, visibleScenes])
+  }, [result, mediaId, taskId, visibleScenes])
 
   if (!task) {
     return (
