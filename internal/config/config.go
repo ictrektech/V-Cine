@@ -1084,6 +1084,8 @@ func mergeConfigDir() error {
 			{name: "video_analysis", prefix: "video_analysis"},
 			{name: "ai", prefix: "ai"},
 			{name: "storage", prefix: "storage"},
+			{name: "strm", prefix: "strm"},
+			{name: "adult_scraper", prefix: "adult_scraper"},
 		}
 
 		for _, cf := range configFiles {
