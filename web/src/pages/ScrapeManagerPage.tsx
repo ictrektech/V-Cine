@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { ScrapeTask, ScrapeStatistics, ScrapeHistory } from '@/types'
 import { scrapeApi } from '@/api'
 import { useToast } from '@/components/Toast'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useDialog } from '@/components/Dialog'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { usePagination } from '@/hooks/usePagination'
@@ -211,7 +212,16 @@ export default function ScrapeManagerPage({ embedded = false }: ScrapeManagerPag
   const handleStartScrape = async (id: string) => {
     try {
       await scrapeApi.startScrape(id)
-      toast.success('刮削已启动')
+      // 立即写入通知中心（WS 任务事件到达后原地更新）
+      // restart: 用户主动发起，属新一轮任务，即使旧通知仍是终态也要重新弹窗
+      useNotificationCenterStore.getState().push({
+        id: `task:${id}`,
+        type: 'scrape',
+        title: '刮削任务',
+        message: '刮削已启动，正在刮削...',
+        status: 'running',
+      }, { restart: true })
+      // 通知中心弹窗（富卡片）已展示启动状态
       setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'scraping' as const } : t))
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '启动失败')
@@ -223,9 +233,19 @@ export default function ScrapeManagerPage({ embedded = false }: ScrapeManagerPag
       toast.error('请先选择任务')
       return
     }
+    // 乐观推送：每个任务一条进行中通知（与 WS scrape_task_update 同 id，事件到达后原地更新）
+    Array.from(selectedIds).forEach((id) => {
+      const task = tasks.find((t) => t.id === id)
+      useNotificationCenterStore.getState().push({
+        id: `task:${id}`,
+        type: 'scrape',
+        title: task?.result_title || task?.title || '刮削任务',
+        message: '刮削已启动，正在刮削...',
+        status: 'running',
+      }, { restart: true })
+    })
     try {
-      const res = await scrapeApi.batchStartScrape(Array.from(selectedIds))
-      toast.success(`批量刮削已启动: ${res.data.started} 个任务`)
+      await scrapeApi.batchStartScrape(Array.from(selectedIds))
       setSelectedIds(new Set())
       fetchTasks()
     } catch {

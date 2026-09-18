@@ -16,12 +16,16 @@ interface Toast {
   duration?: number
 }
 
+interface ToastOptions {
+  duration?: number
+}
+
 interface ToastContextType {
-  toast: (type: ToastType, message: string, duration?: number) => void
-  success: (message: string) => void
-  error: (message: string) => void
-  warning: (message: string) => void
-  info: (message: string) => void
+  toast: (type: ToastType, message: string, options?: ToastOptions) => void
+  success: (message: string, options?: ToastOptions) => void
+  error: (message: string, options?: ToastOptions) => void
+  warning: (message: string, options?: ToastOptions) => void
+  info: (message: string, options?: ToastOptions) => void
 }
 
 const ToastContext = createContext<ToastContextType | null>(null)
@@ -40,7 +44,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  const toast = useCallback((type: ToastType, message: string, duration = 3500) => {
+  const toast = useCallback((type: ToastType, message: string, options?: ToastOptions) => {
+    const duration = options?.duration ?? 3500
     const id = `toast-${++idRef.current}`
     setToasts(prev => [...prev, { id, type, message, duration }])
     if (duration > 0) {
@@ -48,10 +53,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }
   }, [removeToast])
 
-  const success = useCallback((msg: string) => toast('success', msg), [toast])
-  const error = useCallback((msg: string) => toast('error', msg), [toast])
-  const warning = useCallback((msg: string) => toast('warning', msg), [toast])
-  const info = useCallback((msg: string) => toast('info', msg), [toast])
+  const success = useCallback((msg: string, options?: ToastOptions) => toast('success', msg, options), [toast])
+  const error = useCallback((msg: string, options?: ToastOptions) => toast('error', msg, options), [toast])
+  const warning = useCallback((msg: string, options?: ToastOptions) => toast('warning', msg, options), [toast])
+  const info = useCallback((msg: string, options?: ToastOptions) => toast('info', msg, options), [toast])
 
   const value: ToastContextType = useMemo(() => ({
     toast,
@@ -65,7 +70,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       {/* Toast 容器 — AnimatePresence 实现退出动画 + layout 实现布局过渡 */}
-      <div className="pointer-events-none fixed right-4 top-4 z-[999] flex flex-col items-end gap-2">
+      <div className="pointer-events-none fixed right-4 top-16 z-[999] flex flex-col items-end gap-2">
         <AnimatePresence mode="popLayout">
           {toasts.map((t) => (
             <ToastItem key={t.id} toast={t} onClose={() => removeToast(t.id)} />
@@ -100,6 +105,7 @@ const ToastItem = forwardRef<HTMLDivElement, { toast: Toast; onClose: () => void
         initial="initial"
         animate="animate"
         exit="exit"
+        onClick={onClose}
         className="pointer-events-auto flex items-center gap-3 rounded-xl px-4 py-3 shadow-2xl"
         style={{
           background: 'var(--bg-elevated)',
@@ -112,7 +118,10 @@ const ToastItem = forwardRef<HTMLDivElement, { toast: Toast; onClose: () => void
         {iconMap[toast.type]}
         <p className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>{toast.message}</p>
         <button
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation()
+            onClose()
+          }}
           className="shrink-0 rounded-lg p-1 text-surface-500 transition-colors hover:text-white"
         >
           <X size={14} />

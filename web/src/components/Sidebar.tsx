@@ -2,6 +2,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { libraryApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import { NotificationBell } from '@/components/NotificationCenter'
 import { useThemeStore } from '@/stores/theme'
 import { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
@@ -304,6 +305,9 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           >
             {themeIcon}
           </button>
+
+          {/* 通知中心 */}
+          <NotificationBell />
 
           {/* 登出 */}
           <button

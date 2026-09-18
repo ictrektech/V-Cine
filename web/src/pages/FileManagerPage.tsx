@@ -9,6 +9,7 @@ import { openAppUrl, toAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
 import { useToast } from '@/components/Toast'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
 import ScrapeManagerPage from '@/pages/ScrapeManagerPage'
@@ -386,10 +387,21 @@ export default function FileManagerPage() {
     } catch { toast.error('批量删除失败') }
   }
 
+  // 乐观推送刮削进行中通知（与 WS scrape_chain 同 id，事件到达后原地更新）
+  const pushScrapeRunning = (id: string) => {
+    useNotificationCenterStore.getState().push({
+      id: `scrape:${id}`,
+      type: 'scrape',
+      title: files.find((f) => f.id === id)?.title || '刮削任务',
+      message: '刮削已启动，正在刮削...',
+      status: 'running',
+    }, { restart: true })
+  }
+
   const handleScrapeFile = async (id: string) => {
+    pushScrapeRunning(id)
     try {
       await fileManagerApi.scrapeFile(id, scrapeSource === 'auto' ? undefined : scrapeSource)
-      toast.success('刮削已启动')
       // 乐观预热海报版本（刮削完成 WS 到达时也会再刷一次）
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '刮削失败')
@@ -398,9 +410,10 @@ export default function FileManagerPage() {
 
   const handleBatchScrape = async () => {
     if (selectedIds.size === 0) return
+    // 乐观推送：每个文件一条进行中通知，完成/失败后转为终态
+    Array.from(selectedIds).forEach(pushScrapeRunning)
     try {
-      const res = await fileManagerApi.batchScrapeFiles(Array.from(selectedIds), scrapeSource === 'auto' ? undefined : scrapeSource)
-      toast.success(`已启动 ${res.data.started} 个刮削任务`)
+      await fileManagerApi.batchScrapeFiles(Array.from(selectedIds), scrapeSource === 'auto' ? undefined : scrapeSource)
     } catch { toast.error('批量刮削失败') }
   }
 

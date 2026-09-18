@@ -4,8 +4,9 @@ import type { Media, Library, FileManagerStats } from '@/types'
 export const REMOTE_ANALYSIS_DISABLED_TIP = '远程挂载视频暂不支持结构化分析'
 
 // 数据源选项
+// 自动：走完整多源降级链（Adult → TMDb → 豆瓣 → TheTVDB/Bangumi → Fanart → AI）
 export const SOURCE_OPTIONS = [
-  { value: 'auto', label: '自动 (TMDb)' },
+  { value: 'auto', label: '自动 (多源降级)' },
   { value: 'tmdb', label: 'TMDb' },
   { value: 'bangumi', label: 'Bangumi' },
   { value: 'ai', label: 'AI增强' },

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { libraryApi } from '@/api'
 import type { Library, CreateLibraryRequest } from '@/types'
 import { getLibraryPaths } from '@/types'
@@ -117,7 +118,14 @@ function LibraryManager({
       for (const lib of toScan) {
         await handleScan(lib.id)
       }
-      toast.success(`已启动 ${toScan.length} 个媒体库扫描`)
+      // 立即写入通知中心（scan_started/completed 事件到达后原地更新）；点击 toast 跳转通知中心
+      useNotificationCenterStore.getState().push({
+        id: 'scan:status',
+        type: 'scan',
+        title: '媒体库扫描',
+        message: `已启动 ${toScan.length} 个媒体库扫描`,
+        status: 'running',
+      })
     } finally {
       setScanAllLoading(false)
     }

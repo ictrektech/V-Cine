@@ -8,6 +8,9 @@ import { getBasePath } from '@/lib/basePath'
 import { Toaster } from 'react-hot-toast'
 import Layout from '@/components/Layout'
 import TitleBar from '@/components/TitleBar'
+import NotificationCenter from '@/components/NotificationCenter'
+import NotificationToaster from '@/components/NotificationToaster'
+import { useNotificationBridge } from '@/hooks/useNotificationBridge'
 import LoginPage from '@/pages/LoginPage'
 import ForceChangePasswordPage from '@/pages/ForceChangePasswordPage'
 import { DesktopEventBinder, DesktopServerPicker, UpdateBanner } from '@/desktop'
@@ -63,6 +66,12 @@ function ForceChangePasswordRoute() {
   return <ForceChangePasswordPage />
 }
 
+// 全局通知中心桥接：将各类后台任务 WS 事件写入通知中心（hook 的组件包装）
+function NotificationBridge() {
+  useNotificationBridge()
+  return null
+}
+
 export default function App() {
   const setAuth = useAuthStore((s) => s.setAuth)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -103,6 +112,12 @@ export default function App() {
         <DesktopEventBinder />
         {/* 桌面端自动更新横幅 */}
         <UpdateBanner />
+        {/* 全局通知中心桥接：各类后台任务 WS 事件 → 通知中心 */}
+        <NotificationBridge />
+        {/* 全局通知中心：右侧 Sheet 抽屉（侧边栏铃铛入口） */}
+        <NotificationCenter />
+        {/* 右上角通知弹窗（紧凑版）：新任务启动/完成时弹出，点击打开通知中心 */}
+        <NotificationToaster />
         {/* 顶层应用壳：桌面端标题栏 + 全屏主体 */}
         <div className="nv-app-shell">
           <TitleBar />

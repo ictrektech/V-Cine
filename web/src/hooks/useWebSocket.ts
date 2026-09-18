@@ -14,6 +14,7 @@ export const WS_EVENTS = {
   SCRAPE_STARTED: 'scrape_started',
   SCRAPE_PROGRESS: 'scrape_progress',
   SCRAPE_COMPLETED: 'scrape_completed',
+  SCRAPE_CHAIN: 'scrape_chain', // 刮削链路追踪（单条媒体实时链路）
   // 转码事件
   TRANSCODE_STARTED: 'transcode_started',
   TRANSCODE_PROGRESS: 'transcode_progress',
