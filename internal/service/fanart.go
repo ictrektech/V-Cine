@@ -324,6 +324,12 @@ func (s *FanartService) downloadImage(entityID, imageURL, imageType, entityType 
 		return "", fmt.Errorf("Fanart.tv 图片请求失败: %d", resp.StatusCode)
 	}
 
+	// 校验响应体确实是图片，避免错误页落盘
+	body, err := openVerifiedImageBody(resp)
+	if err != nil {
+		return "", fmt.Errorf("Fanart.tv 图片内容校验失败: %w", err)
+	}
+
 	// 确定扩展名
 	ext := ".jpg"
 	ct := resp.Header.Get("Content-Type")
@@ -350,7 +356,7 @@ func (s *FanartService) downloadImage(entityID, imageURL, imageType, entityType 
 	}
 	defer file.Close()
 
-	if _, err := io.Copy(file, resp.Body); err != nil {
+	if _, err := io.Copy(file, body); err != nil {
 		return "", fmt.Errorf("保存图片失败: %w", err)
 	}
 

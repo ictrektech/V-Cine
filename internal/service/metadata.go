@@ -1745,6 +1745,12 @@ func (s *MetadataService) downloadImage(media *model.Media, tmdbPath, imageType,
 	}
 	defer resp.Body.Close()
 
+	// 校验响应体确实是图片，避免错误页落盘
+	body, err := openVerifiedImageBody(resp)
+	if err != nil {
+		return "", fmt.Errorf("图片内容校验失败: %w", err)
+	}
+
 	// 保存到媒体文件同目录
 	mediaDir := filepath.Dir(media.FilePath)
 	baseName := strings.TrimSuffix(filepath.Base(media.FilePath), filepath.Ext(media.FilePath))
@@ -1768,7 +1774,7 @@ func (s *MetadataService) downloadImage(media *model.Media, tmdbPath, imageType,
 	}
 	defer file.Close()
 
-	if _, err := io.Copy(file, resp.Body); err != nil {
+	if _, err := io.Copy(file, body); err != nil {
 		return "", fmt.Errorf("保存图片失败: %w", err)
 	}
 
@@ -2598,7 +2604,7 @@ func (s *MetadataService) ScrapeAllSeries(libraryID string) (int, int) {
 	return success, failed
 }
 
-// downloadToFile 下载文件到指定路径（带重试）
+// downloadToFile 下载图片到指定路径（带重试）
 func (s *MetadataService) downloadToFile(url, filePath string) error {
 	resp, err := s.tmdbGetWithRetry(url)
 	if err != nil {
@@ -2606,13 +2612,18 @@ func (s *MetadataService) downloadToFile(url, filePath string) error {
 	}
 	defer resp.Body.Close()
 
+	body, err := openVerifiedImageBody(resp)
+	if err != nil {
+		return err
+	}
+
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, resp.Body)
+	_, err = io.Copy(file, body)
 	return err
 }
 

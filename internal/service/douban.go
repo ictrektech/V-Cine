@@ -360,6 +360,12 @@ func (s *DoubanService) downloadDoubanCover(media *model.Media, coverURL string)
 		return "", fmt.Errorf("封面请求失败: %d", resp.StatusCode)
 	}
 
+	// 豆瓣被风控时会返回 200 + HTML 错误页，校验通过后才能落盘
+	body, err := openVerifiedImageBody(resp)
+	if err != nil {
+		return "", fmt.Errorf("豆瓣封面内容校验失败: %w", err)
+	}
+
 	// 保存到媒体文件同目录
 	mediaDir := filepath.Dir(media.FilePath)
 	baseName := strings.TrimSuffix(filepath.Base(media.FilePath), filepath.Ext(media.FilePath))
@@ -386,7 +392,7 @@ func (s *DoubanService) downloadDoubanCover(media *model.Media, coverURL string)
 	}
 	defer file.Close()
 
-	if _, err := io.Copy(file, resp.Body); err != nil {
+	if _, err := io.Copy(file, body); err != nil {
 		return "", fmt.Errorf("保存封面失败: %w", err)
 	}
 
