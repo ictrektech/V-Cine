@@ -160,38 +160,27 @@ func (s *CollectionService) ListCollectionsWithOptions(page, size int, sort, aut
 	return colls, total, nil
 }
 
-// GetCollectionPosterPath 获取合集封面海报的文件路径
-// 策略：
-// 1. 优先使用合集自身的 PosterPath
-// 2. 如果为空，使用合集中第一部电影（按年份排序）的海报
+// GetCollectionPosterPath 获取合集封面海报的文件路径。
+// 合集海报始终派生自成员电影，PosterPath 字段仅作缓存。
 func (s *CollectionService) GetCollectionPosterPath(collectionID string) (string, error) {
 	coll, err := s.collRepo.FindByID(collectionID)
 	if err != nil {
 		return "", err
 	}
 
-	// 1. 尝试合集自身的海报路径
-	if coll.PosterPath != "" {
-		return coll.PosterPath, nil
-	}
-
-	// 2. 获取合集中第一部电影的海报
-	media, err := s.collRepo.GetMediaByCollectionID(collectionID)
-	if err != nil || len(media) == 0 {
+	poster := s.pickCollectionPoster(collectionID)
+	if poster == "" {
+		// 成员都没有可用海报时，退回合集自身的记录
+		if collectionPosterUsable(coll.PosterPath) {
+			return coll.PosterPath, nil
+		}
 		return "", nil
 	}
-
-	// 使用第一部电影的海报路径，并同步更新到合集记录中
-	firstMedia := media[0]
-	if firstMedia.PosterPath != "" {
-		// 同步更新合集的 PosterPath
-		coll.PosterPath = firstMedia.PosterPath
+	if poster != coll.PosterPath {
+		coll.PosterPath = poster
 		s.collRepo.Update(coll)
-		return firstMedia.PosterPath, nil
 	}
-
-	// 返回第一部电影的 ID，让 handler 层通过 StreamService 获取海报
-	return "", nil
+	return poster, nil
 }
 
 // GetFirstMediaID 获取合集中第一部电影的 ID（用于海报回退）
@@ -205,25 +194,45 @@ func (s *CollectionService) GetFirstMediaID(collectionID string) (string, error)
 
 // ensureCollectionPoster 确保合集有封面海报
 func (s *CollectionService) ensureCollectionPoster(coll *model.MovieCollection) {
-	media, err := s.collRepo.GetMediaByCollectionID(coll.ID)
-	if err != nil || len(media) == 0 {
+	poster := s.pickCollectionPoster(coll.ID)
+	if poster == "" || poster == coll.PosterPath {
 		return
 	}
 
-	// 使用第一部电影的海报
+	coll.PosterPath = poster
+	// 异步更新数据库
+	go func(id, posterPath string) {
+		if c, err := s.collRepo.FindByID(id); err == nil {
+			c.PosterPath = posterPath
+			s.collRepo.Update(c)
+		}
+	}(coll.ID, poster)
+}
+
+// pickCollectionPoster 从合集中挑选首个可用海报路径
+func (s *CollectionService) pickCollectionPoster(collectionID string) string {
+	media, err := s.collRepo.GetMediaByCollectionID(collectionID)
+	if err != nil {
+		return ""
+	}
 	for _, m := range media {
-		if m.PosterPath != "" {
-			coll.PosterPath = m.PosterPath
-			// 异步更新数据库
-			go func(id, posterPath string) {
-				if c, err := s.collRepo.FindByID(id); err == nil {
-					c.PosterPath = posterPath
-					s.collRepo.Update(c)
-				}
-			}(coll.ID, m.PosterPath)
-			return
+		if collectionPosterUsable(m.PosterPath) {
+			return m.PosterPath
 		}
 	}
+	return ""
+}
+
+// collectionPosterUsable 判断海报路径是否可用：
+// 远程路径（webdav/alist/s3）无法本地校验，直接信任；本地路径必须是有效图片文件。
+func collectionPosterUsable(path string) bool {
+	if path == "" {
+		return false
+	}
+	if IsRemotePath(path) {
+		return true
+	}
+	return isValidImageFile(path)
 }
 
 // AutoMatchCollections 自动匹配电影系列合集
