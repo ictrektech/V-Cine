@@ -1845,6 +1845,8 @@ export interface CacheCategory {
   size: number        // 字节数
   count: number       // 文件数
   cleanable: boolean  // 是否安全可清空
+  // 是否支持"仅清理孤儿"（数据库已无引用的目录）。与 cleanable 互斥。
+  orphan_cleanable: boolean
 }
 
 // 整个 cache/ 目录的分类占用统计

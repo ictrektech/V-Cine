@@ -175,6 +175,19 @@ func main() {
 		}
 	}()
 
+	// 图片类缓存孤儿清理：回收 cache/images（含 series / persons 命名空间）、covers、thumbnails
+	// 下已无数据库引用的目录，每天执行（首次循环即启动时执行一次）。策略与安全阀见 image_cache_cleaner.go。
+	go func() {
+		for {
+			if services.ImageCacheCleaner != nil {
+				if _, err := services.ImageCacheCleaner.CleanOrphanImageCaches(); err != nil {
+					sugar.Warnf("图片缓存孤儿清理失败: %v", err)
+				}
+			}
+			time.Sleep(24 * time.Hour)
+		}
+	}()
+
 	// 记录服务启动事件
 	go func() {
 		_ = repos.SystemLog.Create(&model.SystemLog{

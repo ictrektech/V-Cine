@@ -85,11 +85,19 @@ type PreprocessService struct {
 
 	// V2.1: VFS 管理器（用于 WebDAV 路径验证）
 	vfsMgr *VFSManager
+
+	// 图片类缓存孤儿清理器（延迟注入，用于支持 cache/images 的 orphan 清理模式）
+	imageCleaner *ImageCacheCleaner
 }
 
 // SetVFSManager 设置 VFS 管理器（V2.1）
 func (s *PreprocessService) SetVFSManager(vfsMgr *VFSManager) {
 	s.vfsMgr = vfsMgr
+}
+
+// SetImageCacheCleaner 注入图片类缓存孤儿清理器（延迟注入，见 NewServices）。
+func (s *PreprocessService) SetImageCacheCleaner(cleaner *ImageCacheCleaner) {
+	s.imageCleaner = cleaner
 }
 
 // SetSettingRepo 注入系统设置仓储（延迟注入，用于读取 ABR 策略等全局配置）
@@ -1118,6 +1126,8 @@ type CacheCategory struct {
 	Size      int64  `json:"size"`      // 字节数
 	Count     int    `json:"count"`     // 文件数量
 	Cleanable bool   `json:"cleanable"` // 是否安全可清空（删后会自动重生成且不影响业务）
+	// OrphanCleanable 是否支持"仅清理孤儿"（数据库已无引用的目录）。与 Cleanable 互斥。
+	OrphanCleanable bool `json:"orphan_cleanable"`
 }
 
 // CacheUsage cache/ 总目录占用统计响应体
@@ -1132,20 +1142,22 @@ type CacheUsage struct {
 }
 
 // 一级子目录元信息（标签 / 是否可清）
-// 未在表内的目录归为 "other"，cleanable 默认 false。
+// 未在表内的目录归为 "other"，cleanable 与 orphanCleanable 默认 false。
 var cacheCategoryMeta = map[string]struct {
 	Label     string
 	Cleanable bool
+	// OrphanCleanable 支持仅清理孤儿目录，但禁止整体清空。
+	OrphanCleanable bool
 }{
-	"preprocess":      {"预处理产物", true},  // 用 CleanOrphan 清孤儿；当前接口仅描述，不直接清空
-	"transcode":       {"在线转码缓存", true}, // 删除后重新点播会重新生成
-	"abr":             {"自适应码率缓存", true},
-	"thumbnails":      {"缩略图/雪碧图", true}, // 重新扫描或播放时会重新生成
-	"images":          {"海报/封面", false},  // 删除会影响列表显示，需重新刮削
-	"subtitles":       {"字幕缓存", false},   // AI 字幕在子目录内，整体不默认可清
-	"downloads":       {"离线下载", false},   // 用户主动下载，不属于"缓存"
-	"webdav_download": {"WebDAV 临时下载", true},
-	"plugins":         {"插件资源", false},
+	"preprocess":      {"预处理产物", true, false},  // 用 CleanOrphan 清孤儿；当前接口仅描述，不直接清空
+	"transcode":       {"在线转码缓存", true, false}, // 删除后重新点播会重新生成
+	"abr":             {"自适应码率缓存", true, false},
+	"thumbnails":      {"缩略图/雪碧图", true, false}, // 重新扫描或播放时会重新生成
+	"images":          {"海报/封面", false, true},   // 整体清空会导致海报墙空白，只能回收孤儿
+	"subtitles":       {"字幕缓存", false, false},   // AI 字幕在子目录内，整体不默认可清
+	"downloads":       {"离线下载", false, false},   // 用户主动下载，不属于"缓存"
+	"webdav_download": {"WebDAV 临时下载", true, false},
+	"plugins":         {"插件资源", false, false},
 }
 
 var (
@@ -1226,20 +1238,23 @@ func (s *PreprocessService) GetCacheUsage(force bool) (*CacheUsage, error) {
 		key := name
 		label := name
 		cleanable := false
+		orphanCleanable := false
 		if known {
 			label = meta.Label
 			cleanable = meta.Cleanable
+			orphanCleanable = meta.OrphanCleanable
 		} else {
 			key = "other:" + name
 		}
 
 		cats = append(cats, CacheCategory{
-			Key:       key,
-			Label:     label,
-			Path:      dir,
-			Size:      size,
-			Count:     count,
-			Cleanable: cleanable,
+			Key:             key,
+			Label:           label,
+			Path:            dir,
+			Size:            size,
+			Count:           count,
+			Cleanable:       cleanable,
+			OrphanCleanable: orphanCleanable,
 		})
 		usage.TotalSize += size
 		usage.TotalCount += count
@@ -1493,6 +1508,8 @@ type CleanCategoryResult struct {
 //     · mode == "all" 或空：清所有非 running 任务的产物（默认行为，真正释放空间）
 //   - 其它 cleanable 分类（transcode / abr / thumbnails / webdav_download 等）：
 //     先统计目录大小，再 RemoveAll 整个一级子目录，最后重建空目录以便后续写入
+//   - 仅支持孤儿清理的分类（orphanCleanable=true）：只接受 mode=orphan，
+//     回收数据库中已无引用的目录；整体清空会被拒绝
 //   - 未登记的 "other:*" 分类一律拒绝（cleanable=false）
 //
 // 返回值除报错外，统一通过 CleanCategoryResult 表达"实际释放了多少"。
@@ -1532,6 +1549,16 @@ func (s *PreprocessService) CleanCacheCategory(key string, mode string) (*CleanC
 	if !known {
 		return nil, fmt.Errorf("未知分类: %s", key)
 	}
+
+	// 仅支持孤儿清理的分类（如 images 海报/封面）：整目录清空会破坏展示，
+	// 只接受 mode=orphan（回收数据库已无引用的目录）。
+	if meta.OrphanCleanable {
+		if mode != "orphan" {
+			return nil, fmt.Errorf("分类 %s 仅支持 mode=orphan（整体清空会导致海报/封面显示异常）", key)
+		}
+		return s.cleanOrphanImageCategory(key, meta.Label)
+	}
+
 	if !meta.Cleanable {
 		return nil, fmt.Errorf("分类 %s 不允许清理", key)
 	}
@@ -1583,6 +1610,25 @@ func (s *PreprocessService) CleanCacheCategory(key string, mode string) (*CleanC
 		Label:      meta.Label,
 		FreedBytes: size,
 		FreedCount: count,
+	}, nil
+}
+
+// cleanOrphanImageCategory 回收图片类缓存中"数据库已无引用"的孤儿目录（零风险）。
+// 只清理分类自身（如 key=images 时不动 covers / thumbnails），保证返回的释放量准确。
+func (s *PreprocessService) cleanOrphanImageCategory(key, label string) (*CleanCategoryResult, error) {
+	if s.imageCleaner == nil {
+		return nil, fmt.Errorf("图片缓存清理器不可用")
+	}
+	res, err := s.imageCleaner.CleanOrphanImageCaches(key)
+	if err != nil {
+		return nil, err
+	}
+	s.invalidateCacheUsage()
+	return &CleanCategoryResult{
+		Key:        key,
+		Label:      label,
+		FreedBytes: res.FreedBytes,
+		FreedCount: res.Cleaned,
 	}, nil
 }
 

@@ -679,6 +679,14 @@ func (r *MediaRepo) GetAllFilePaths(libraryID string) ([]string, error) {
 	return paths, err
 }
 
+// ListAllIDs 获取所有未删除媒体的 ID。
+// 仅供"缓存孤儿清理"这类需要一次性构建引用集合的批量场景使用（结果为全表 ID，勿用于分页查询）。
+func (r *MediaRepo) ListAllIDs() ([]string, error) {
+	var ids []string
+	err := r.db.Model(&model.Media{}).Pluck("id", &ids).Error
+	return ids, err
+}
+
 // ListByFolderPath 按文件夹路径查询文件（精确匹配目录，不递归子目录）
 func (r *MediaRepo) ListByFolderPath(folderPath string, page, size int, libraryID, mediaType, keyword, sortBy, sortOrder string, scrapedOnly *bool, excludeAdult bool) ([]model.Media, int64, error) {
 	var media []model.Media

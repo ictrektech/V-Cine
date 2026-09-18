@@ -432,6 +432,33 @@ export default function PreprocessPage() {
     }
   }, [cleaningCategory, loadStorage, loadCacheUsage])
 
+  // 仅清理"孤儿"的分类（如 images 海报/封面）：只回收数据库已无引用的目录，零风险。
+  const handleCleanOrphanCategory = useCallback(async (key: string, label: string) => {
+    if (cleaningCategory) return
+    const ok = await dialog.confirm({
+      title: `清理孤儿：${label}`,
+      message: `确认清理「${label}」中已无对应媒体/合集/人物记录的孤儿目录？\n正在使用的海报/封面不会被删除，删除仅回收磁盘空间，不影响媒体墙与播放器显示。`,
+      confirmText: '清理孤儿',
+      variant: 'danger',
+    })
+    if (!ok) return
+    setCleaningCategory(key)
+    try {
+      const res = await preprocessApi.cleanCacheCategory(key, 'orphan')
+      const { freed_bytes, freed_count, skipped_note } = res.data.data
+      if (freed_count === 0) {
+        toastRef.current.info(`「${label}」没有可清理的孤儿目录${skipped_note ? `（${skipped_note}）` : ''}`)
+      } else {
+        toastRef.current.success(`已清理「${label}」的 ${freed_count} 个孤儿目录，释放 ${formatBytes(freed_bytes)}`)
+      }
+      await loadCacheUsage(true)
+    } catch (e: any) {
+      toastRef.current.error(e?.response?.data?.error || '清理失败')
+    } finally {
+      setCleaningCategory(null)
+    }
+  }, [cleaningCategory, loadCacheUsage])
+
   // 一键清空所有可清分类
   const handleCleanAllCache = useCallback(async () => {
     if (cleaningCategory) return
@@ -1785,6 +1812,11 @@ export default function PreprocessPage() {
                                     可清理
                                   </span>
                                 )}
+                                {!cat.cleanable && cat.orphan_cleanable && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd' }} title="可回收「数据库已无引用」的孤儿目录；正在使用的图片不会被删除">
+                                    可清孤儿
+                                  </span>
+                                )}
                               </div>
                               <div className="text-[11px] truncate font-mono mt-0.5" style={{ color: 'var(--text-muted)' }}>
                                 {cat.path}
@@ -1795,7 +1827,7 @@ export default function PreprocessPage() {
                                   className="h-full rounded-full transition-all duration-500"
                                   style={{
                                     width: `${Math.min(100, pct)}%`,
-                                    background: isPreprocess ? '#f59e0b' : cat.cleanable ? '#10b981' : '#60a5fa',
+                                    background: isPreprocess ? '#f59e0b' : cat.cleanable ? '#10b981' : cat.orphan_cleanable ? '#38bdf8' : '#60a5fa',
                                   }}
                                 />
                               </div>
@@ -1829,13 +1861,34 @@ export default function PreprocessPage() {
                                 清理
                               </button>
                             )}
+                            {/* 仅支持孤儿清理的分类（orphan_cleanable）：只提供"清理孤儿"入口 */}
+                            {!cat.cleanable && cat.orphan_cleanable && cat.size > 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleCleanOrphanCategory(cat.key, cat.label)
+                                }}
+                                disabled={anyCleaning}
+                                className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-colors disabled:opacity-50 flex-shrink-0"
+                                style={{
+                                  background: 'rgba(96, 165, 250, 0.10)',
+                                  border: '1px solid rgba(96, 165, 250, 0.28)',
+                                  color: '#60a5fa',
+                                }}
+                                title={`清理「${cat.label}」中已无对应媒体/合集/人物记录的孤儿目录（正在使用的图片不受影响）`}
+                              >
+                                {isThisCleaning ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                                清理孤儿
+                              </button>
+                            )}
                           </div>
                         </div>
                       )
                     })}
                   </div>
                   <div className="mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    提示：仅"可清理"分类（绿色标签）支持清空，删除后系统会在需要时自动重新生成；海报 / AI 字幕 / 离线下载等不在自动重建范围内，因此不提供清理按钮。预处理产物的「清理」按钮会清空所有产物并把对应任务重置为待处理状态，正在运行的任务不会被中断；如仅想清理孤儿目录（数据库已无对应任务），请展开预处理产物后使用「一键清理孤儿」按钮。
+                    提示：仅"可清理"分类（绿色标签）支持清空，删除后系统会在需要时自动重新生成；海报 / AI 字幕 / 离线下载等不在自动重建范围内，因此不提供清空按钮。海报/封面归类为"可清孤儿"（蓝色标签）：系统每天会自动回收其中已无对应媒体/合集/人物记录的目录，也可以点「清理孤儿」手动触发——正在使用的图片不会被删除。预处理产物的「清理」按钮会清空所有产物并把对应任务重置为待处理状态，正在运行的任务不会被中断；如仅想清理孤儿目录（数据库已无对应任务），请展开预处理产物后使用「一键清理孤儿」按钮。
                   </div>
                 </div>
               )}

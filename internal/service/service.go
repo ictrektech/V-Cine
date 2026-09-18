@@ -66,6 +66,7 @@ type Services struct {
 	// V6: P1~P3 新增功能
 	ASR                 *ASRService
 	Preprocess          *PreprocessService
+	ImageCacheCleaner   *ImageCacheCleaner // 图片类缓存（海报/封面/头像/缩略图）孤儿清理
 	SubtitlePreprocess  *SubtitlePreprocessService
 	VideoAnalysis       *VideoAnalysisService
 	VideoAnalysisWorker *VideoAnalysisWorker
@@ -517,8 +518,14 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// 延迟注入：PreprocessService 需要 SystemSettingRepo（用于读取 ABR 策略等配置）
 	preprocessService.SetSettingRepo(repos.SystemSetting)
 
-	// 删除媒体时自动清理转码/预处理/ABR 缓存
-	cacheCleaner := NewMediaCacheCleaner(transcoder, preprocessService, abrService, logger)
+	// 图片类缓存（海报/封面/人物头像/缩略图）孤儿清理器，策略与安全阀见 image_cache_cleaner.go；
+	// 定时任务见 cmd/server/main.go。
+	imageCacheCleaner := NewImageCacheCleaner(cfg, repos.Media, repos.Series, repos.Person, logger)
+	svcs.ImageCacheCleaner = imageCacheCleaner
+	preprocessService.SetImageCacheCleaner(imageCacheCleaner)
+
+	// 删除媒体时自动清理转码/预处理/ABR/图片缓存
+	cacheCleaner := NewMediaCacheCleaner(transcoder, preprocessService, abrService, cfg.Cache.CacheDir, logger)
 	libService.SetCacheCleaner(cacheCleaner)
 	fileManager.SetCacheCleaner(cacheCleaner)
 

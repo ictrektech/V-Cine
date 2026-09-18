@@ -61,6 +61,13 @@ func (r *PersonRepo) Search(keyword string, limit int) ([]model.Person, error) {
 	return people, err
 }
 
+// ListAllIDs 获取所有人物 ID（供 cache/images/persons 孤儿头像清理构建引用集合使用）。
+func (r *PersonRepo) ListAllIDs() ([]string, error) {
+	var ids []string
+	err := r.db.Model(&model.Person{}).Pluck("id", &ids).Error
+	return ids, err
+}
+
 // ==================== MediaPersonRepo ====================
 
 type MediaPersonRepo struct {

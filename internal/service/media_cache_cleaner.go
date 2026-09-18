@@ -1,18 +1,45 @@
 package service
 
-import "go.uber.org/zap"
+import (
+	"os"
+	"path/filepath"
+	"strings"
 
-// MediaCacheCleaner 删除媒体记录时清理转码/预处理/ABR 缓存的协调器。
+	"go.uber.org/zap"
+)
+
+// mediaScopedCacheCategories 以 media_id 为一级目录名的缓存分类。
+// 删除媒体记录后，这些目录必然成为孤儿，可精确按 ID 直接删除。
+var mediaScopedCacheCategories = []string{
+	"images",     // 海报/背景图（含刮削回退到缓存的副本）
+	"covers",     // AI 场景封面候选
+	"thumbnails", // 播放器缩略图/雪碧图
+}
+
+// MediaCacheCleaner 删除媒体记录时清理转码/预处理/ABR/图片缓存的协调器。
 // 所有清理都是 best-effort，失败只记日志，不阻断媒体删除。
 type MediaCacheCleaner struct {
 	transcode  *TranscodeService
 	preprocess *PreprocessService
 	abr        *ABRService
+	cacheDir   string
 	logger     *zap.SugaredLogger
 }
 
-func NewMediaCacheCleaner(transcode *TranscodeService, preprocess *PreprocessService, abr *ABRService, logger *zap.SugaredLogger) *MediaCacheCleaner {
-	return &MediaCacheCleaner{transcode: transcode, preprocess: preprocess, abr: abr, logger: logger}
+func NewMediaCacheCleaner(
+	transcode *TranscodeService,
+	preprocess *PreprocessService,
+	abr *ABRService,
+	cacheDir string,
+	logger *zap.SugaredLogger,
+) *MediaCacheCleaner {
+	return &MediaCacheCleaner{
+		transcode:  transcode,
+		preprocess: preprocess,
+		abr:        abr,
+		cacheDir:   cacheDir,
+		logger:     logger,
+	}
 }
 
 func (c *MediaCacheCleaner) Clean(mediaID string) {
@@ -24,5 +51,22 @@ func (c *MediaCacheCleaner) Clean(mediaID string) {
 	}
 	if err := c.abr.CleanABRCache(mediaID); err != nil {
 		c.logger.Warnf("删除媒体后清理 ABR 缓存失败: media_id=%s, err=%v", mediaID, err)
+	}
+	c.removeMediaScopedDirs(mediaID)
+}
+
+// removeMediaScopedDirs 删除该媒体在 cache 下的图片类目录。
+//
+// 只删 cache 内的副本：视频同目录的 {视频名}-poster.jpg 属于用户媒体目录，
+// 程序不做任何删除（与 NFO 同级，由用户自行管理）。
+func (c *MediaCacheCleaner) removeMediaScopedDirs(mediaID string) {
+	// 防御性校验：mediaID 会作为路径片段参与拼接，含分隔符或上跳会把删除范围带出 cache 目录。
+	if mediaID == "" || c.cacheDir == "" || strings.ContainsAny(mediaID, `/\`) || strings.Contains(mediaID, "..") {
+		return
+	}
+	for _, category := range mediaScopedCacheCategories {
+		if err := os.RemoveAll(filepath.Join(c.cacheDir, category, mediaID)); err != nil {
+			c.logger.Warnf("删除媒体后清理%s缓存失败: media_id=%s, err=%v", category, mediaID, err)
+		}
 	}
 }

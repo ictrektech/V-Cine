@@ -86,6 +86,15 @@ func (r *SeriesRepo) ListAll(libraryID string) ([]model.Series, error) {
 	return series, err
 }
 
+// ListAllIDs 获取所有未删除剧集合集的 ID。
+// 注意：这里不过滤 episode_count，因为空的合集记录仍可能被引用，
+// 过滤会导致其图片缓存被孤儿清理误删（供 cache/images/series 清理使用）。
+func (r *SeriesRepo) ListAllIDs() ([]string, error) {
+	var ids []string
+	err := r.db.Model(&model.Series{}).Pluck("id", &ids).Error
+	return ids, err
+}
+
 func (r *SeriesRepo) Update(series *model.Series) error {
 	return r.db.Save(series).Error
 }

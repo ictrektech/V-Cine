@@ -131,6 +131,7 @@ export const preprocessApi = {
   // 手动清理单个分类
   // - preprocess + mode='all'（默认）：清所有非 running 任务的产物，并把任务重置为 pending
   // - preprocess + mode='orphan'：只清孤儿目录（数据库无对应任务记录）
+  // - images（orphan_cleanable）+ mode='orphan'：只回收数据库已无引用的海报/封面目录；mode='all' 会被后端拒绝
   // - 其它 cleanable 分类：整目录清空
   cleanCacheCategory: (key: string, mode: 'all' | 'orphan' = 'all') =>
     api.post<{
