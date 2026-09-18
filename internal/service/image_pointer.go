@@ -1,0 +1,31 @@
+package service
+
+import (
+	"os"
+	"strings"
+
+	"github.com/nowen-video/nowen-video/internal/model"
+)
+
+// 本地图片指针校验：源目录中的 nfo/jpg 被外部删除后，失效的 poster/backdrop 指针
+// 会导致假成功 scraped 与前端海报 404。仅校验本地路径（/ 开头），http(s)/远程存储不做 stat。
+
+// validateLocalImagePaths 校验媒体的本地图片指针，失效时清空并回写。返回是否有指针被清空。
+func validateLocalImagePaths(media *model.Media) bool {
+	if media == nil {
+		return false
+	}
+	var invalid bool
+	for _, p := range []*string{&media.PosterPath, &media.BackdropPath} {
+		path := strings.TrimSpace(*p)
+		isLocalPath := strings.HasPrefix(path, "/") && !IsRemotePath(path)
+		if path == "" || !isLocalPath {
+			continue
+		}
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			*p = ""
+			invalid = true
+		}
+	}
+	return invalid
+}

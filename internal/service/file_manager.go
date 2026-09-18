@@ -845,7 +845,9 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		return
 	}
 
-	// 根据结果精确判定 scrape_status：海报和overview都齐才算 scraped，否则 partial
+	// 根据结果精确判定 scrape_status：海报和overview都齐才算 scraped，否则 partial。
+	// 判定前先校验本地图片指针：nfo/jpg 可能已被外部删除，失效指针不算有效资产。
+	validateLocalImagePaths(media)
 	if strings.TrimSpace(media.PosterPath) != "" && strings.TrimSpace(media.Overview) != "" {
 		media.ScrapeStatus = "scraped"
 	} else {

@@ -1013,6 +1013,9 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 	if len(updateList) > 0 {
 		for _, pm := range updateList {
 			s.scanExternalSubtitles(pm.media)
+			// 校验已有记录的本地图片指针：nfo/jpg 可能已被外部删除；有意只清指针、
+			// 不降级 scrape_status，避免删图后全量扫描时刮削请求涌入，补海报靠手动重刮。
+			validateLocalImagePaths(pm.media)
 			if err := s.mediaRepo.Update(pm.media); err != nil {
 				s.logger.Warnf("更新媒体失败: %s, 错误: %v", pm.path, err)
 				continue

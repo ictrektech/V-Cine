@@ -570,6 +570,9 @@ func (s *MetadataService) ScrapeMedia(mediaID string) error {
 			recorder.broadcastFinal("failed", err.Error())
 			return err
 		}
+		// 判定前校验本地图片指针：nfo/jpg 可能已被外部删除；必须在 Update 前执行，
+		// 确保清空后的指针落盘，避免失效路径残留 DB 并被写入 NFO。
+		validateLocalImagePaths(media)
 		// 保存更新
 		if saveErr := s.mediaRepo.Update(media); saveErr != nil {
 			s.logger.Errorf("保存元数据失败: %s - %v", media.Title, saveErr)
