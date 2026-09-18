@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nowen-video/nowen-video/internal/config"
 )
 
 // ==================== TMDb 配置管理 ====================
@@ -466,7 +467,11 @@ func (h *AdminHandler) UpdateBangumiConfig(c *gin.Context) {
 		return
 	}
 
-	h.cfg.Secrets.BangumiAccessToken = req.AccessToken
+	if err := h.cfg.UpdateSecrets(func(s *config.SecretsConfig) { s.BangumiAccessToken = req.AccessToken }); err != nil {
+		h.logger.Errorf("持久化 Bangumi Access Token 失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败: " + err.Error()})
+		return
+	}
 	h.logger.Info("Bangumi Access Token 已更新")
 
 	c.JSON(http.StatusOK, gin.H{
@@ -479,7 +484,11 @@ func (h *AdminHandler) UpdateBangumiConfig(c *gin.Context) {
 
 // ClearBangumiConfig 清除 Bangumi Access Token
 func (h *AdminHandler) ClearBangumiConfig(c *gin.Context) {
-	h.cfg.Secrets.BangumiAccessToken = ""
+	if err := h.cfg.UpdateSecrets(func(s *config.SecretsConfig) { s.BangumiAccessToken = "" }); err != nil {
+		h.logger.Errorf("持久化 Bangumi Access Token 清除失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "清除失败: " + err.Error()})
+		return
+	}
 	h.logger.Info("Bangumi Access Token 已清除")
 
 	c.JSON(http.StatusOK, gin.H{

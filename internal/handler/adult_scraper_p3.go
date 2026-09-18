@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/service"
 )
 
@@ -34,7 +35,7 @@ func (h *AdultScraperHandler) ensureLazyScraperDefaults() error {
 	if h == nil || h.cfg == nil {
 		return nil
 	}
-	ac := &h.cfg.AdultScraper
+	ac := h.cfg.AdultScraper
 	changed := false
 	if !ac.Enabled {
 		ac.Enabled = true
@@ -59,7 +60,7 @@ func (h *AdultScraperHandler) ensureLazyScraperDefaults() error {
 		changed = true
 	}
 	if changed {
-		return h.cfg.SaveAdultScraperConfig()
+		return h.cfg.UpdateAdultScraperConfig(func(a *config.AdultScraperConfig) { *a = ac })
 	}
 	return nil
 }

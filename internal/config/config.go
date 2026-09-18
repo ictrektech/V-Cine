@@ -50,7 +50,7 @@ type SecretsConfig struct {
 	// JWT 签名密钥（必须修改默认值）
 	JWTSecret string `mapstructure:"jwt_secret"`
 	// TMDb API Key，用于元数据刮削
-	TMDbAPIKey string `mapstructure:"tmdb_api_key"`
+	TMDbAPIKey string `mapstructure:"tmdb_api_key" enc:"true"`
 	// TMDb API 反向代理 Base URL。程序会自动拼接 /3/...，不是 HTTP forward proxy。
 	TMDbAPIProxy string `mapstructure:"tmdb_api_proxy"`
 	// TMDb 图片反向代理 Base URL。程序会自动拼接 /t/p/...，不是 HTTP forward proxy。
@@ -60,20 +60,20 @@ type SecretsConfig struct {
 	// Bangumi Access Token（用于提高 API 请求速率限制，可选）
 	// 获取地址: https://next.bgm.tv/demo/access-token
 	// 留空也可使用（匿名请求，速率较低）
-	BangumiAccessToken string `mapstructure:"bangumi_access_token"`
+	BangumiAccessToken string `mapstructure:"bangumi_access_token" enc:"true"`
 	// TheTVDB API Key（用于获取电视剧集的详细元数据）
 	// 申请地址: https://thetvdb.com/api-information
 	// 留空则跳过 TheTVDB 数据源
-	TheTVDBAPIKey string `mapstructure:"thetvdb_api_key"`
+	TheTVDBAPIKey string `mapstructure:"thetvdb_api_key" enc:"true"`
 	// Fanart.tv API Key（用于获取高质量图片资源：ClearLogo、背景图、光碟封面等）
 	// 申请地址: https://fanart.tv/get-an-api-key/
 	// 留空则跳过 Fanart.tv 图片增强
-	FanartTVAPIKey string `mapstructure:"fanart_tv_api_key"`
+	FanartTVAPIKey string `mapstructure:"fanart_tv_api_key" enc:"true"`
 	// 豆瓣登录 Cookie（可选，用于提升豆瓣刮削成功率和降低风控概率）
 	// 从浏览器登录豆瓣后 F12 -> Network -> Request Headers 中复制完整 Cookie 字符串
 	// 关键字段：bid / dbcl2 / ck。留空则以匿名方式访问豆瓣，仍可工作但成功率较低。
 	// 注意：Cookie 有效期约 1 个月，失效时需重新获取。仅供个人使用，请勿分享。
-	DoubanCookie string `mapstructure:"douban_cookie"`
+	DoubanCookie string `mapstructure:"douban_cookie" enc:"true"`
 	// 预留：其他第三方服务密钥可在此扩展
 }
 
@@ -144,7 +144,7 @@ type VideoAnalysisConfig struct {
 	SceneBaseURL        string `mapstructure:"scene_base_url" yaml:"scene_base_url" json:"scene_base_url"`
 	StructureBaseURL    string `mapstructure:"structure_base_url" yaml:"structure_base_url" json:"structure_base_url"`
 	MediaBaseURL        string `mapstructure:"media_base_url" yaml:"media_base_url" json:"media_base_url"`
-	SourceToken         string `mapstructure:"source_token" yaml:"source_token" json:"source_token"`
+	SourceToken         string `mapstructure:"source_token" yaml:"source_token" json:"source_token" enc:"true"`
 	RemoteVideoEnabled  bool   `mapstructure:"remote_video_enabled" yaml:"remote_video_enabled" json:"remote_video_enabled"`
 	AssetDir            string `mapstructure:"asset_dir" yaml:"asset_dir" json:"asset_dir"`
 	MaxConcurrent       int    `mapstructure:"max_concurrent" yaml:"max_concurrent" json:"max_concurrent"`
@@ -172,7 +172,7 @@ type AIProviderEntry struct {
 	ID      string         `json:"id" mapstructure:"id" yaml:"id"`
 	Name    string         `json:"name" mapstructure:"name" yaml:"name"`
 	APIBase string         `json:"api_base" mapstructure:"api_base" yaml:"api_base"`
-	APIKey  string         `json:"api_key,omitempty" mapstructure:"api_key" yaml:"api_key,omitempty"`
+	APIKey  string         `json:"api_key,omitempty" mapstructure:"api_key" yaml:"api_key,omitempty" enc:"true"`
 	Models  []AIModelEntry `json:"models" mapstructure:"models" yaml:"models"`
 	Enabled bool           `json:"enabled" mapstructure:"enabled" yaml:"enabled"`
 }
@@ -301,7 +301,7 @@ type AIConfig struct {
 	// Whisper API 独立地址（留空则复用 APIBase）
 	WhisperAPIBase string `mapstructure:"whisper_api_base"`
 	// Whisper API 独立密钥（留空则复用 APIKey）
-	WhisperAPIKey string `mapstructure:"whisper_api_key"`
+	WhisperAPIKey string `mapstructure:"whisper_api_key" enc:"true"`
 	// Whisper 模型名称（留空则使用默认 whisper-1）
 	WhisperModel string `mapstructure:"whisper_model"`
 	// Whisper API 请求超时（秒，0 则使用默认 300）
@@ -476,9 +476,9 @@ type AdultScraperConfig struct {
 	// 翻译服务接口地址（自建 deeplx 时必填，格式 http://host:port/translate）
 	TranslateEndpoint string `mapstructure:"translate_endpoint"`
 	// 翻译服务 API Key（百度/有道等商业服务需要）
-	TranslateAPIKey string `mapstructure:"translate_api_key"`
+	TranslateAPIKey string `mapstructure:"translate_api_key" enc:"true"`
 	// 翻译服务 API Secret（百度/有道需要）
-	TranslateAPISecret string `mapstructure:"translate_api_secret"`
+	TranslateAPISecret string `mapstructure:"translate_api_secret" enc:"true"`
 	// 翻译目标语言（默认 zh-CN）
 	TranslateTargetLang string `mapstructure:"translate_target_lang"`
 
@@ -487,7 +487,7 @@ type AdultScraperConfig struct {
 	// 示例: http://localhost:5000
 	PythonServiceURL string `mapstructure:"python_service_url"`
 	// Python 微服务 API Key（可选，用于认证）
-	PythonServiceAPIKey string `mapstructure:"python_service_api_key"`
+	PythonServiceAPIKey string `mapstructure:"python_service_api_key" enc:"true"`
 	// 是否在 Go 后端启动时自动拉起 Python 微服务子进程
 	// 为 true 时，Go 进程会 fork 出一个 python app.py 子进程，并在主服务关闭时一并回收
 	AutoStartPython bool `mapstructure:"auto_start_python"`
@@ -506,13 +506,13 @@ type AdultScraperConfig struct {
 	// 格式：浏览器复制的完整 Cookie 字符串，如 "locale=zh; _jdb_session=abc..."
 	//
 	// 获取方法：登录网站 → F12 → Network → 任一请求 → 复制 Cookie 头
-	CookieJavBus    string `mapstructure:"cookie_javbus"`
-	CookieJavDB     string `mapstructure:"cookie_javdb"`
-	CookieFreejavbt string `mapstructure:"cookie_freejavbt"`
-	CookieJav321    string `mapstructure:"cookie_jav321"`
-	CookieFanza     string `mapstructure:"cookie_fanza"`
-	CookieMGStage   string `mapstructure:"cookie_mgstage"`
-	CookieFC2Hub    string `mapstructure:"cookie_fc2hub"`
+	CookieJavBus    string `mapstructure:"cookie_javbus" enc:"true"`
+	CookieJavDB     string `mapstructure:"cookie_javdb" enc:"true"`
+	CookieFreejavbt string `mapstructure:"cookie_freejavbt" enc:"true"`
+	CookieJav321    string `mapstructure:"cookie_jav321" enc:"true"`
+	CookieFanza     string `mapstructure:"cookie_fanza" enc:"true"`
+	CookieMGStage   string `mapstructure:"cookie_mgstage" enc:"true"`
+	CookieFC2Hub    string `mapstructure:"cookie_fc2hub" enc:"true"`
 }
 
 // StorageConfig 存储配置（支持本地、WebDAV、网盘等多种存储后端）
@@ -546,9 +546,9 @@ type AlistConfig struct {
 	// 用户名（Token 模式可不填）
 	Username string `mapstructure:"username"`
 	// 密码（Token 模式可不填）
-	Password string `mapstructure:"password"`
+	Password string `mapstructure:"password" enc:"true"`
 	// 长期 Token（优先于用户名密码）
-	Token string `mapstructure:"token"`
+	Token string `mapstructure:"token" enc:"true"`
 	// 基础路径（Alist 内的根目录，如 /aliyun/movies）
 	BasePath string `mapstructure:"base_path"`
 	// 连接超时（秒，默认 30）
@@ -574,7 +574,7 @@ type S3Config struct {
 	// Access Key
 	AccessKey string `mapstructure:"access_key"`
 	// Secret Key
-	SecretKey string `mapstructure:"secret_key"`
+	SecretKey string `mapstructure:"secret_key" enc:"true"`
 	// Bucket 名称
 	Bucket string `mapstructure:"bucket"`
 	// 基础路径前缀（Object Key 前缀，如 media/）
@@ -602,7 +602,7 @@ type WebDAVConfig struct {
 	// 用户名
 	Username string `mapstructure:"username"`
 	// 密码
-	Password string `mapstructure:"password"`
+	Password string `mapstructure:"password" enc:"true"`
 	// 基础路径（服务器上的根目录，如 /media）
 	BasePath string `mapstructure:"base_path"`
 	// 连接超时（秒，默认 30）
@@ -755,40 +755,9 @@ func Load() (*Config, error) {
 		cfg.Secrets.JWTSecret = loadOrCreatePersistedSecret(cfg.App.DataDir)
 	}
 
-	// 8. 解密 AI API Key（兼容老明文和 ENC:ENC: 双重加密残留）
-	//    顶层 api_key 已移除，此处只解密 Providers 列表中的 key
-	for i, p := range cfg.AI.Providers {
-		if p.APIKey != "" {
-			cfg.AI.Providers[i].APIKey = decryptSecretValue(p.APIKey)
-		}
-	}
-	cfg.AI.WhisperAPIKey = decryptSecretValue(cfg.AI.WhisperAPIKey)
-
-	// 8.1 解密存储后端敏感字段（WebDAV / Alist / S3）
-	cfg.Storage.WebDAV.Password = decryptSecretValue(cfg.Storage.WebDAV.Password)
-	cfg.Storage.Alist.Password = decryptSecretValue(cfg.Storage.Alist.Password)
-	cfg.Storage.Alist.Token = decryptSecretValue(cfg.Storage.Alist.Token)
-	cfg.Storage.S3.SecretKey = decryptSecretValue(cfg.Storage.S3.SecretKey)
-
-	// 8.2 解密 Adult Scraper 敏感字段（Cookie / 翻译密钥 / Python 服务密钥）
-	cfg.AdultScraper.CookieJavBus = decryptSecretValue(cfg.AdultScraper.CookieJavBus)
-	cfg.AdultScraper.CookieJavDB = decryptSecretValue(cfg.AdultScraper.CookieJavDB)
-	cfg.AdultScraper.CookieFreejavbt = decryptSecretValue(cfg.AdultScraper.CookieFreejavbt)
-	cfg.AdultScraper.CookieJav321 = decryptSecretValue(cfg.AdultScraper.CookieJav321)
-	cfg.AdultScraper.CookieFanza = decryptSecretValue(cfg.AdultScraper.CookieFanza)
-	cfg.AdultScraper.CookieMGStage = decryptSecretValue(cfg.AdultScraper.CookieMGStage)
-	cfg.AdultScraper.CookieFC2Hub = decryptSecretValue(cfg.AdultScraper.CookieFC2Hub)
-	cfg.AdultScraper.TranslateAPIKey = decryptSecretValue(cfg.AdultScraper.TranslateAPIKey)
-	cfg.AdultScraper.TranslateAPISecret = decryptSecretValue(cfg.AdultScraper.TranslateAPISecret)
-	cfg.AdultScraper.PythonServiceAPIKey = decryptSecretValue(cfg.AdultScraper.PythonServiceAPIKey)
-
-	// 8.3 解密 Secrets 敏感字段（secrets.yaml 分片中以 ENC: 密文存储，
-	//     兼容明文与未加密残留；代理地址非敏感，无需解密）
-	cfg.Secrets.TMDbAPIKey = decryptSecretValue(cfg.Secrets.TMDbAPIKey)
-	cfg.Secrets.BangumiAccessToken = decryptSecretValue(cfg.Secrets.BangumiAccessToken)
-	cfg.Secrets.TheTVDBAPIKey = decryptSecretValue(cfg.Secrets.TheTVDBAPIKey)
-	cfg.Secrets.FanartTVAPIKey = decryptSecretValue(cfg.Secrets.FanartTVAPIKey)
-	cfg.Secrets.DoubanCookie = decryptSecretValue(cfg.Secrets.DoubanCookie)
+	// 8. 解密所有 ENC: 前缀敏感字段（加密侧由 enc tag 声明，读取侧零声明，
+	//    兼容老明文与双重加密残留）
+	decryptEncValues(cfg)
 
 	// 9. AI 用量预算默认值兜底
 	if cfg.AI.WarningThresholdPct <= 0 || cfg.AI.WarningThresholdPct > 100 {
@@ -1316,13 +1285,7 @@ func (c *Config) GetTMDbAPIKeyMasked() string {
 // 不再回写主 config.yaml：主配置文件可能位于只读/属主不匹配的挂载上
 // （如 VOS 共享存储），回写会报 permission denied 且导致整个保存失败。
 func (c *Config) SetTMDbAPIKey(key string) error {
-	c.mu.Lock()
-	c.Secrets.TMDbAPIKey = key
-	c.mu.Unlock()
-
-	viper.Set("secrets.tmdb_api_key", key)
-
-	return SaveSecretsShard(c)
+	return c.UpdateSecrets(func(s *SecretsConfig) { s.TMDbAPIKey = key })
 }
 
 // ClearTMDbAPIKey 清除 TMDb API Key 并持久化
@@ -1340,13 +1303,7 @@ func (c *Config) GetTMDbAPIProxy() string {
 // SetTMDbAPIProxy 设置 TMDb API 代理地址并持久化到 secrets.yaml 分片
 // （与 SetTMDbAPIKey 相同的原因：不依赖回写主 config.yaml）。
 func (c *Config) SetTMDbAPIProxy(proxy string) error {
-	c.mu.Lock()
-	c.Secrets.TMDbAPIProxy = proxy
-	c.mu.Unlock()
-
-	viper.Set("secrets.tmdb_api_proxy", proxy)
-
-	return SaveSecretsShard(c)
+	return c.UpdateSecrets(func(s *SecretsConfig) { s.TMDbAPIProxy = proxy })
 }
 
 // GetTMDbImageProxy 获取 TMDb 图片代理地址（线程安全）
@@ -1358,13 +1315,7 @@ func (c *Config) GetTMDbImageProxy() string {
 
 // SetTMDbImageProxy 设置 TMDb 图片代理地址并持久化到 secrets.yaml 分片。
 func (c *Config) SetTMDbImageProxy(proxy string) error {
-	c.mu.Lock()
-	c.Secrets.TMDbImageProxy = proxy
-	c.mu.Unlock()
-
-	viper.Set("secrets.tmdb_image_proxy", proxy)
-
-	return SaveSecretsShard(c)
+	return c.UpdateSecrets(func(s *SecretsConfig) { s.TMDbImageProxy = proxy })
 }
 
 // GetTMDbNetworkProxy 获取 TMDb HTTP/SOCKS 网络出口代理。
@@ -1376,11 +1327,7 @@ func (c *Config) GetTMDbNetworkProxy() string {
 
 // SetTMDbNetworkProxy 设置网络出口代理并持久化到 secrets.yaml 分片。
 func (c *Config) SetTMDbNetworkProxy(proxy string) error {
-	c.mu.Lock()
-	c.Secrets.TMDbNetworkProxy = proxy
-	c.mu.Unlock()
-	viper.Set("secrets.tmdb_network_proxy", proxy)
-	return SaveSecretsShard(c)
+	return c.UpdateSecrets(func(s *SecretsConfig) { s.TMDbNetworkProxy = proxy })
 }
 
 // ==================== 豆瓣 Cookie 管理 ====================
@@ -1410,13 +1357,7 @@ func (c *Config) GetDoubanCookieMasked() string {
 // SetDoubanCookie 设置豆瓣 Cookie 并持久化到 secrets.yaml 分片
 // （与 SetTMDbAPIKey 相同的原因：不依赖回写主 config.yaml）。
 func (c *Config) SetDoubanCookie(cookie string) error {
-	c.mu.Lock()
-	c.Secrets.DoubanCookie = cookie
-	c.mu.Unlock()
-
-	viper.Set("secrets.douban_cookie", cookie)
-
-	return SaveSecretsShard(c)
+	return c.UpdateSecrets(func(s *SecretsConfig) { s.DoubanCookie = cookie })
 }
 
 // ClearDoubanCookie 清除豆瓣 Cookie 并持久化
@@ -1424,39 +1365,101 @@ func (c *Config) ClearDoubanCookie() error {
 	return c.SetDoubanCookie("")
 }
 
-// SaveAdultScraperConfig 将当前 AdultScraper 配置持久化到配置文件
-// 调用前应先在内存中更新 c.AdultScraper 字段，本方法只负责落盘。
-// Cookie 字段会被自动加密（ENC: 前缀）。
-func (c *Config) SaveAdultScraperConfig() error {
-	encryptPaths := []string{
-		"cookie_javbus", "cookie_javdb", "cookie_freejavbt", "cookie_jav321",
-		"cookie_fanza", "cookie_mgstage", "cookie_fc2hub",
-		"translate_api_key", "translate_api_secret",
-		"python_service_api_key",
+// UpdateStorage 在锁内更新并持久化 Storage 配置；落盘失败时回滚内存变更。
+func (c *Config) UpdateStorage(update func(*StorageConfig)) error {
+	c.mu.Lock()
+	old := c.Storage
+	update(&c.Storage)
+	c.mu.Unlock()
+
+	if err := c.saveStorageConfig(); err != nil {
+		c.mu.Lock()
+		c.Storage = old
+		c.mu.Unlock()
+		return err
 	}
-	return SaveSection(c, "adult_scraper", "adult_scraper.yaml", encryptPaths, func() AdultScraperConfig {
-		return c.AdultScraper
+	return nil
+}
+
+// saveStorageConfig 将存储配置持久化到 config/storage.yaml 分片文件。
+func (c *Config) saveStorageConfig() error {
+	return SaveSection(c, "storage", "storage.yaml", func() StorageConfig {
+		return c.Storage
 	})
 }
 
-// SaveSTRMConfig 将当前 STRM 配置持久化到配置文件
-func (c *Config) SaveSTRMConfig() error {
-	return SaveSection(c, "strm", "strm.yaml", nil, func() STRMConfig {
+// UpdateSecrets 在锁内更新并持久化 Secrets 配置；落盘失败时回滚内存变更。
+func (c *Config) UpdateSecrets(update func(*SecretsConfig)) error {
+	c.mu.Lock()
+	old := c.Secrets
+	update(&c.Secrets)
+	c.mu.Unlock()
+
+	if err := saveSecretsShard(c); err != nil {
+		c.mu.Lock()
+		c.Secrets = old
+		c.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
+// UpdateSTRM 在锁内更新并持久化 STRM 配置；落盘失败时回滚内存变更。
+func (c *Config) UpdateSTRM(update func(*STRMConfig)) error {
+	c.mu.Lock()
+	old := c.STRM
+	update(&c.STRM)
+	c.mu.Unlock()
+
+	if err := c.saveSTRMConfig(); err != nil {
+		c.mu.Lock()
+		c.STRM = old
+		c.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
+// saveSTRMConfig 将 STRM 配置持久化到 config/strm.yaml 分片文件。
+func (c *Config) saveSTRMConfig() error {
+	return SaveSection(c, "strm", "strm.yaml", func() STRMConfig {
 		return c.STRM
 	})
 }
 
-// SaveStorageConfig 将存储配置持久化到 config/storage.yaml 分片文件。
-// 修复此前 handler 直接改 c.Storage.WebDAV = newCfg 但不落盘的 bug。
-// 敏感字段（密码/Token/SecretKey）自动加密。
-func (c *Config) SaveStorageConfig() error {
-	encryptPaths := []string{
-		"webdav.password",
-		"alist.token",
-		"s3.secret_key",
+// UpdateAdultScraperConfig 在锁内更新并持久化番号刮削配置；落盘失败时回滚内存变更。
+func (c *Config) UpdateAdultScraperConfig(update func(*AdultScraperConfig)) error {
+	c.mu.Lock()
+	old := deepCopyAdultScraperConfig(c.AdultScraper)
+	update(&c.AdultScraper)
+	c.mu.Unlock()
+
+	if err := c.saveAdultScraperConfig(); err != nil {
+		c.mu.Lock()
+		c.AdultScraper = old
+		c.mu.Unlock()
+		return err
 	}
-	return SaveSection(c, "storage", "storage.yaml", encryptPaths, func() StorageConfig {
-		return c.Storage
+	return nil
+}
+
+// deepCopyAdultScraperConfig 拷贝 AdultScraper 配置（含 FieldPriority map，
+// 避免共享底层 map 导致回滚不彻底）。
+func deepCopyAdultScraperConfig(a AdultScraperConfig) AdultScraperConfig {
+	out := a
+	if a.FieldPriority != nil {
+		out.FieldPriority = make(map[string][]string, len(a.FieldPriority))
+		for k, v := range a.FieldPriority {
+			out.FieldPriority[k] = append([]string(nil), v...)
+		}
+	}
+	return out
+}
+
+// saveAdultScraperConfig 将番号刮削配置持久化到 config/adult_scraper.yaml 分片文件。
+func (c *Config) saveAdultScraperConfig() error {
+	return SaveSection(c, "adult_scraper", "adult_scraper.yaml", func() AdultScraperConfig {
+		return c.AdultScraper
 	})
 }
 
@@ -1471,17 +1474,24 @@ func (c *Config) GetVideoAnalysisConfig() VideoAnalysisConfig {
 // 落盘失败时回滚内存中的变更。
 func (c *Config) UpdateVideoAnalysisConfig(update func(*VideoAnalysisConfig)) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	old := c.VideoAnalysis
 	update(&c.VideoAnalysis)
-	if err := saveSectionLocked(c, "video_analysis", "video_analysis.yaml", nil, func() VideoAnalysisConfig {
-		return c.VideoAnalysis
-	}); err != nil {
+	c.mu.Unlock()
+
+	if err := c.saveVideoAnalysisConfig(); err != nil {
+		c.mu.Lock()
 		c.VideoAnalysis = old
+		c.mu.Unlock()
 		return err
 	}
 	return nil
+}
+
+// saveVideoAnalysisConfig 将视频分析配置持久化到 config/video_analysis.yaml 分片文件。
+func (c *Config) saveVideoAnalysisConfig() error {
+	return SaveSection(c, "video_analysis", "video_analysis.yaml", func() VideoAnalysisConfig {
+		return c.VideoAnalysis
+	})
 }
 
 // SetVideoAnalysisDescribeEnabled 仅更新内存中的 describe_enabled（热更新，不落盘）。
@@ -1493,30 +1503,9 @@ func (c *Config) SetVideoAnalysisDescribeEnabled(enabled bool) {
 
 // SaveAIConfig 将当前 AI 配置持久化到 config/ai.yaml 分片文件。
 // 调用前应先在内存中更新 c.AI 字段，本方法只负责落盘。
-// Providers 列表中的 api_key 在闭包内手动加密（不走 encryptPaths，因为需要逐条处理）。
-// encryptPaths 为 nil：scene_describe_ai.api_key 已移除，该 section 无敏感字段。
-func (c *Config) SaveAIConfig() error {
-	return SaveSection(c, "ai", "ai.yaml", nil, c.aiSectionSnapshot)
-}
-
-// aiSectionSnapshot 返回持久化用的 AI 配置快照（对 Providers api_key 做加密）。
-// 调用方需已持有 c.mu。
-func (c *Config) aiSectionSnapshot() AIConfig {
-	// 对 Providers 列表中的 api_key 做加密
-	ac := c.AI
-	if len(ac.Providers) > 0 {
-		encProviders := make([]AIProviderEntry, len(ac.Providers))
-		for i, p := range ac.Providers {
-			if p.APIKey != "" && !strings.HasPrefix(p.APIKey, "ENC:") {
-				if enc, err := secretcrypto.Encrypt(p.APIKey); err == nil {
-					p.APIKey = enc
-				}
-			}
-			encProviders[i] = p
-		}
-		ac.Providers = encProviders
-	}
-	return ac
+// 敏感字段（providers[].api_key / whisper_api_key）由 enc tag 声明加密。
+func (c *Config) saveAIConfig() error {
+	return SaveSection(c, "ai", "ai.yaml", func() AIConfig { return c.AI })
 }
 
 // AISnapshot 返回 AI 配置的只读快照（加锁拷贝，避免与运行期写操作竞争）。
@@ -1537,7 +1526,7 @@ func (c *Config) UpdateAIConfig(update func(*AIConfig)) error {
 	update(&c.AI)
 	c.mu.Unlock()
 
-	if err := c.SaveAIConfig(); err != nil {
+	if err := c.saveAIConfig(); err != nil {
 		c.mu.Lock()
 		c.AI = old
 		c.mu.Unlock()
@@ -1552,15 +1541,6 @@ func deepCopyAIConfig(c AIConfig) AIConfig {
 	out := c
 	out.Providers = append([]AIProviderEntry(nil), c.Providers...)
 	return out
-}
-
-// saveConfig 将当前配置写入配置文件
-func (c *Config) saveConfig() error {
-	configFile := viper.ConfigFileUsed()
-	if configFile == "" {
-		configFile = "config.yaml"
-	}
-	return viper.WriteConfigAs(configFile)
 }
 
 // generateRandomSecret 生成随机密钥字符串

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/service"
 )
 
@@ -236,7 +237,7 @@ func (h *AdultScraperHandler) UpdateConfigExtended(c *gin.Context) {
 		return
 	}
 
-	cfg := &h.cfg.AdultScraper
+	cfg := h.cfg.AdultScraper
 
 	// 基础
 	if req.Enabled != nil {
@@ -342,7 +343,7 @@ func (h *AdultScraperHandler) UpdateConfigExtended(c *gin.Context) {
 		cfg.FieldPriority = req.FieldPriority
 	}
 
-	if err := h.cfg.SaveAdultScraperConfig(); err != nil {
+	if err := h.cfg.UpdateAdultScraperConfig(func(a *config.AdultScraperConfig) { *a = cfg }); err != nil {
 		h.logger.Warnf("持久化番号刮削扩展配置失败: %v", err)
 	}
 

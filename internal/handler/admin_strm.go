@@ -54,8 +54,7 @@ func (h *AdminHandler) UpdateSTRMConfig(c *gin.Context) {
 	}
 
 	// 覆盖写入内存 + 持久化到 config 文件
-	h.cfg.STRM = body
-	if err := h.cfg.SaveSTRMConfig(); err != nil {
+	if err := h.cfg.UpdateSTRM(func(s *config.STRMConfig) { *s = body }); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败: " + err.Error()})
 		return
 	}

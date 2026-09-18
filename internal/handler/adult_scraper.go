@@ -168,62 +168,61 @@ func (h *AdultScraperHandler) UpdateConfig(c *gin.Context) {
 	oldEnabled := h.cfg.AdultScraper.Enabled
 	oldAutoStart := h.cfg.AdultScraper.AutoStartPython
 
-	// 更新配置（使用指针语义：提供字段即更新，未提供保持原值）
-	if req.Enabled != nil {
-		h.cfg.AdultScraper.Enabled = *req.Enabled
-	}
-	if req.EnableJavBus != nil {
-		h.cfg.AdultScraper.EnableJavBus = *req.EnableJavBus
-	}
-	if req.JavBusURL != nil {
-		h.cfg.AdultScraper.JavBusURL = *req.JavBusURL
-	}
-	if req.EnableJavDB != nil {
-		h.cfg.AdultScraper.EnableJavDB = *req.EnableJavDB
-	}
-	if req.JavDBURL != nil {
-		h.cfg.AdultScraper.JavDBURL = *req.JavDBURL
-	}
-	if req.PythonServiceURL != nil {
-		h.cfg.AdultScraper.PythonServiceURL = *req.PythonServiceURL
-	}
-	if req.PythonServiceAPIKey != nil {
-		h.cfg.AdultScraper.PythonServiceAPIKey = *req.PythonServiceAPIKey
-	}
-	if req.AutoStartPython != nil {
-		h.cfg.AdultScraper.AutoStartPython = *req.AutoStartPython
-	}
-	if req.MinRequestInterval != nil && *req.MinRequestInterval > 0 {
-		h.cfg.AdultScraper.MinRequestInterval = *req.MinRequestInterval
-	}
-	if req.MaxRequestInterval != nil && *req.MaxRequestInterval > 0 {
-		h.cfg.AdultScraper.MaxRequestInterval = *req.MaxRequestInterval
-	}
-	// Cookie 登录配置
-	if req.CookieJavBus != nil {
-		h.cfg.AdultScraper.CookieJavBus = *req.CookieJavBus
-	}
-	if req.CookieJavDB != nil {
-		h.cfg.AdultScraper.CookieJavDB = *req.CookieJavDB
-	}
-	if req.CookieFreejavbt != nil {
-		h.cfg.AdultScraper.CookieFreejavbt = *req.CookieFreejavbt
-	}
-	if req.CookieJav321 != nil {
-		h.cfg.AdultScraper.CookieJav321 = *req.CookieJav321
-	}
-	if req.CookieFanza != nil {
-		h.cfg.AdultScraper.CookieFanza = *req.CookieFanza
-	}
-	if req.CookieMGStage != nil {
-		h.cfg.AdultScraper.CookieMGStage = *req.CookieMGStage
-	}
-	if req.CookieFC2Hub != nil {
-		h.cfg.AdultScraper.CookieFC2Hub = *req.CookieFC2Hub
-	}
-
-	// 持久化配置到磁盘，确保重启后不丢失
-	if err := h.cfg.SaveAdultScraperConfig(); err != nil {
+	// 更新配置（使用指针语义：提供字段即更新，未提供保持原值）并持久化
+	if err := h.cfg.UpdateAdultScraperConfig(func(a *config.AdultScraperConfig) {
+		if req.Enabled != nil {
+			a.Enabled = *req.Enabled
+		}
+		if req.EnableJavBus != nil {
+			a.EnableJavBus = *req.EnableJavBus
+		}
+		if req.JavBusURL != nil {
+			a.JavBusURL = *req.JavBusURL
+		}
+		if req.EnableJavDB != nil {
+			a.EnableJavDB = *req.EnableJavDB
+		}
+		if req.JavDBURL != nil {
+			a.JavDBURL = *req.JavDBURL
+		}
+		if req.PythonServiceURL != nil {
+			a.PythonServiceURL = *req.PythonServiceURL
+		}
+		if req.PythonServiceAPIKey != nil {
+			a.PythonServiceAPIKey = *req.PythonServiceAPIKey
+		}
+		if req.AutoStartPython != nil {
+			a.AutoStartPython = *req.AutoStartPython
+		}
+		if req.MinRequestInterval != nil && *req.MinRequestInterval > 0 {
+			a.MinRequestInterval = *req.MinRequestInterval
+		}
+		if req.MaxRequestInterval != nil && *req.MaxRequestInterval > 0 {
+			a.MaxRequestInterval = *req.MaxRequestInterval
+		}
+		// Cookie 登录配置
+		if req.CookieJavBus != nil {
+			a.CookieJavBus = *req.CookieJavBus
+		}
+		if req.CookieJavDB != nil {
+			a.CookieJavDB = *req.CookieJavDB
+		}
+		if req.CookieFreejavbt != nil {
+			a.CookieFreejavbt = *req.CookieFreejavbt
+		}
+		if req.CookieJav321 != nil {
+			a.CookieJav321 = *req.CookieJav321
+		}
+		if req.CookieFanza != nil {
+			a.CookieFanza = *req.CookieFanza
+		}
+		if req.CookieMGStage != nil {
+			a.CookieMGStage = *req.CookieMGStage
+		}
+		if req.CookieFC2Hub != nil {
+			a.CookieFC2Hub = *req.CookieFC2Hub
+		}
+	}); err != nil {
 		h.logger.Warnf("持久化番号刮削配置失败: %v", err)
 	}
 
