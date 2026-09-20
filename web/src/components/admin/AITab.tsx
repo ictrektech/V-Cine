@@ -246,10 +246,9 @@ export default function AITab() {
         toast.error('未获取到模型，请检查 API 地址与密钥')
         return
       }
-      const existing = new Set(providerForm.models.map((m) => m.name))
       setFetchedModels(names)
-      // 默认勾选尚未添加的模型
-      setFetchedSelected(new Set(names.filter((n) => !existing.has(n))))
+      // 默认不勾选，由用户自行选择
+      setFetchedSelected(new Set())
       toast.success(`已获取 ${names.length} 个模型，请勾选添加`)
     } catch (e) {
       toast.error(extractErrMsg(e) || '获取模型失败，请检查 API 地址与密钥')
@@ -916,12 +915,12 @@ export default function AITab() {
 
       {/* ==================== 新增/编辑供应商弹窗 ==================== */}
       <Modal open={showProviderDialog} onClose={() => setShowProviderDialog(false)} className="max-w-md">
-          <div className="glass-panel rounded-2xl p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
-            <h3 className="text-lg font-semibold text-theme-primary">
+          <div className="glass-panel flex max-h-[calc(100vh-3rem)] flex-col rounded-2xl p-6" style={{ background: 'var(--bg-card)' }}>
+            <h3 className="shrink-0 text-lg font-semibold text-theme-primary">
               {editingProvider ? '编辑供应商' : '新增供应商'}
             </h3>
 
-            <div className="space-y-3">
+            <div className="-mx-2 min-h-0 flex-1 space-y-3 overflow-y-auto px-2" style={{ scrollbarGutter: 'stable' }}>
               <div>
                 <label className="mb-1 block text-sm font-medium text-theme-secondary">
                   名称 <span className="text-red-400">*</span>
@@ -1154,7 +1153,7 @@ export default function AITab() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex shrink-0 items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setShowProviderDialog(false)}
                 className="btn-ghost px-4 py-2 text-sm"
