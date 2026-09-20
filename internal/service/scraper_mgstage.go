@@ -25,7 +25,7 @@ var (
 
 // scrapeMGStage 从 MGStage 刮削元数据
 func (s *AdultScraperService) scrapeMGStage(code string) (*AdultMetadata, error) {
-	baseURL := s.cfg.AdultScraper.MGStageURL
+	baseURL := s.cfg.AdultScraperSnapshot().MGStageURL
 	if baseURL == "" {
 		baseURL = "https://www.mgstage.com"
 	}

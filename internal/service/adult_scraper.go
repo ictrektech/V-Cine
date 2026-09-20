@@ -104,7 +104,7 @@ func (s *AdultScraperService) SetPersonRepos(personRepo *repository.PersonRepo, 
 
 // IsEnabled 检查服务是否可用（受全局 NSFW 开关约束）
 func (s *AdultScraperService) IsEnabled() bool {
-	return s.cfg.NSFW.Enabled && s.cfg.AdultScraper.Enabled
+	return s.cfg.NSFW.Enabled && s.cfg.AdultScraperSnapshot().Enabled
 }
 
 // ==================== 番号识别 ====================
@@ -154,7 +154,7 @@ func ParseCode(input string) (string, string) {
 
 // scrapeJavBus 从 JavBus 刮削番号元数据
 func (s *AdultScraperService) scrapeJavBus(code string) (*AdultMetadata, error) {
-	baseURL := s.cfg.AdultScraper.JavBusURL
+	baseURL := s.cfg.AdultScraperSnapshot().JavBusURL
 	if baseURL == "" {
 		baseURL = "https://www.javbus.com"
 	}
@@ -304,7 +304,7 @@ func (s *AdultScraperService) parseJavBusHTML(html, code string) (*AdultMetadata
 
 // scrapeJavDB 从 JavDB 刮削番号元数据
 func (s *AdultScraperService) scrapeJavDB(code string) (*AdultMetadata, error) {
-	baseURL := s.cfg.AdultScraper.JavDBURL
+	baseURL := s.cfg.AdultScraperSnapshot().JavDBURL
 	if baseURL == "" {
 		baseURL = "https://javdb.com"
 	}
@@ -567,7 +567,7 @@ func (s *AdultScraperService) parseJavDBHTML(html, code string) (*AdultMetadata,
 //	Body: {"code": "SSIS-001", "sources": ["javdb", "javbus", "fanza"]}
 //	Response: AdultMetadata JSON
 func (s *AdultScraperService) scrapePythonService(code string) (*AdultMetadata, error) {
-	serviceURL := s.cfg.AdultScraper.PythonServiceURL
+	serviceURL := s.cfg.AdultScraperSnapshot().PythonServiceURL
 	if serviceURL == "" {
 		return nil, fmt.Errorf("Python 刮削微服务未配置")
 	}
@@ -584,7 +584,7 @@ func (s *AdultScraperService) scrapePythonService(code string) (*AdultMetadata, 
 	req.Header.Set("Content-Type", "application/json")
 
 	// Python 微服务可能需要 API Key 认证
-	if apiKey := s.cfg.AdultScraper.PythonServiceAPIKey; apiKey != "" {
+	if apiKey := s.cfg.AdultScraperSnapshot().PythonServiceAPIKey; apiKey != "" {
 		req.Header.Set("X-API-Key", apiKey)
 	}
 
@@ -636,7 +636,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// P2：聚合模式（并发+合并）。聚合失败时自动降级串行多源刮削，避免某一轮聚合 0 命中就直接失败。
-	if s.cfg.AdultScraper.EnableAggregatedMode {
+	if s.cfg.AdultScraperSnapshot().EnableAggregatedMode {
 		merged, _, err := s.ScrapeByCodeAggregated(code)
 		if err == nil && merged != nil {
 			return merged, nil
@@ -654,7 +654,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// P2：Fanza 优先（官方数据）
-	if s.cfg.AdultScraper.EnableFanza {
+	if s.cfg.AdultScraperSnapshot().EnableFanza {
 		meta, err := s.scrapeFanza(code)
 		if err == nil {
 			s.logger.Infof("Fanza 刮削成功: %s -> %s", code, meta.Title)
@@ -665,7 +665,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// 第一层：Go 原生爬虫 - JavBus
-	if s.cfg.AdultScraper.EnableJavBus {
+	if s.cfg.AdultScraperSnapshot().EnableJavBus {
 		meta, err := s.scrapeJavBus(code)
 		if err == nil {
 			s.logger.Infof("JavBus 刮削成功: %s -> %s", code, meta.Title)
@@ -676,7 +676,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// 第二层：Go 原生爬虫 - JavDB
-	if s.cfg.AdultScraper.EnableJavDB {
+	if s.cfg.AdultScraperSnapshot().EnableJavDB {
 		meta, err := s.scrapeJavDB(code)
 		if err == nil {
 			s.logger.Infof("JavDB 刮削成功: %s -> %s", code, meta.Title)
@@ -687,7 +687,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// 第三层：Go 原生爬虫 - Freejavbt（P1 新增）
-	if s.cfg.AdultScraper.EnableFreejavbt {
+	if s.cfg.AdultScraperSnapshot().EnableFreejavbt {
 		meta, err := s.scrapeFreejavbt(code)
 		if err == nil {
 			s.logger.Infof("Freejavbt 刮削成功: %s -> %s", code, meta.Title)
@@ -698,7 +698,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// 第四层：Go 原生爬虫 - JAV321（P1 新增）
-	if s.cfg.AdultScraper.EnableJav321 {
+	if s.cfg.AdultScraperSnapshot().EnableJav321 {
 		meta, err := s.scrapeJav321(code)
 		if err == nil {
 			s.logger.Infof("JAV321 刮削成功: %s -> %s", code, meta.Title)
@@ -709,7 +709,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// P2：MGStage（MGS/200GANA 系列番号）
-	if s.cfg.AdultScraper.EnableMGStage {
+	if s.cfg.AdultScraperSnapshot().EnableMGStage {
 		meta, err := s.scrapeMGStage(code)
 		if err == nil {
 			s.logger.Infof("MGStage 刮削成功: %s -> %s", code, meta.Title)
@@ -720,7 +720,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// P2：FC2Hub（FC2-PPV 无码）
-	if s.cfg.AdultScraper.EnableFC2Hub {
+	if s.cfg.AdultScraperSnapshot().EnableFC2Hub {
 		meta, err := s.scrapeFC2Hub(code)
 		if err == nil {
 			s.logger.Infof("FC2Hub 刮削成功: %s -> %s", code, meta.Title)
@@ -731,7 +731,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 	}
 
 	// Fallback：Python 微服务（处理 Cloudflare 等强反爬）
-	if s.cfg.AdultScraper.PythonServiceURL != "" {
+	if s.cfg.AdultScraperSnapshot().PythonServiceURL != "" {
 		meta, err := s.scrapePythonService(code)
 		if err == nil {
 			s.logger.Infof("Python 微服务刮削成功: %s -> %s", code, meta.Title)
@@ -921,7 +921,7 @@ func (s *AdultScraperService) ApplyToMedia(media *model.Media, meta *AdultMetada
 	}
 
 	// ==================== P2：封面自动裁剪成竖版 poster（Emby 媒体墙更美观）====================
-	if s.cfg.AdultScraper.EnablePosterCrop && media.PosterPath != "" &&
+	if s.cfg.AdultScraperSnapshot().EnablePosterCrop && media.PosterPath != "" &&
 		media.FilePath != "" && !IsRemotePath(media.FilePath) {
 		if posterPath, err := s.GeneratePosterForMedia(media.FilePath, media.PosterPath); err != nil {
 			s.logger.Debugf("封面裁剪失败（不影响主流程）: %v", err)
@@ -1036,7 +1036,7 @@ func (s *AdultScraperService) lookupSiteCookie(host string) string {
 		return ""
 	}
 	h := strings.ToLower(host)
-	ac := &s.cfg.AdultScraper
+	ac := s.cfg.AdultScraperSnapshot()
 	switch {
 	case strings.Contains(h, "javbus"):
 		return strings.TrimSpace(ac.CookieJavBus)

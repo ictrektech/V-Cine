@@ -60,7 +60,7 @@ func (h *AdultScraperHandler) SetP3Services(
 
 // GetConfig 获取番号刮削配置状态
 func (h *AdultScraperHandler) GetConfig(c *gin.Context) {
-	cfg := h.cfg.AdultScraper
+	cfg := h.cfg.AdultScraperSnapshot()
 
 	// 构建数据源状态列表
 	sources := []gin.H{}
@@ -165,8 +165,9 @@ func (h *AdultScraperHandler) UpdateConfig(c *gin.Context) {
 	}
 
 	// 记录变更前状态，用于判断是否需要拉起 / 回收 Python 子进程
-	oldEnabled := h.cfg.AdultScraper.Enabled
-	oldAutoStart := h.cfg.AdultScraper.AutoStartPython
+	oldSnap := h.cfg.AdultScraperSnapshot()
+	oldEnabled := oldSnap.Enabled
+	oldAutoStart := oldSnap.AutoStartPython
 
 	// 更新配置（使用指针语义：提供字段即更新，未提供保持原值）并持久化
 	if err := h.cfg.UpdateAdultScraperConfig(func(a *config.AdultScraperConfig) {
@@ -230,8 +231,9 @@ func (h *AdultScraperHandler) UpdateConfig(c *gin.Context) {
 	// - 启用变为 true 且 AutoStartPython=true 时，尝试拉起
 	// - 启用变为 false 时，回收已运行的进程
 	if h.pythonLauncher != nil {
-		nowEnabled := h.cfg.AdultScraper.Enabled
-		nowAutoStart := h.cfg.AdultScraper.AutoStartPython
+		nowSnap := h.cfg.AdultScraperSnapshot()
+		nowEnabled := nowSnap.Enabled
+		nowAutoStart := nowSnap.AutoStartPython
 		switch {
 		case !oldEnabled && nowEnabled && nowAutoStart:
 			h.logger.Infof("番号刮削已启用，尝试拉起 Python 微服务子进程...")
@@ -305,7 +307,7 @@ func (h *AdultScraperHandler) ParseCode(c *gin.Context) {
 
 // PythonServiceHealth 检查 Python 微服务健康状态
 func (h *AdultScraperHandler) PythonServiceHealth(c *gin.Context) {
-	url := h.cfg.AdultScraper.PythonServiceURL
+	url := h.cfg.AdultScraperSnapshot().PythonServiceURL
 	if url == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"data": gin.H{

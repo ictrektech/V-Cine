@@ -104,7 +104,7 @@ func (r *AIRouter) CurrentActive() string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if r.currentActive == "" && r.cfg != nil {
-		return r.cfg.AI.ActiveProvider
+		return r.cfg.AISnapshot().ActiveProvider
 	}
 	return r.currentActive
 }
@@ -114,7 +114,7 @@ func (r *AIRouter) PreferredProvider() string {
 	if r.cfg == nil {
 		return ""
 	}
-	return r.cfg.AI.ActiveProvider
+	return r.cfg.AISnapshot().ActiveProvider
 }
 
 // FailoverChain 返回当前生效的切换链。
@@ -266,7 +266,7 @@ func (r *AIRouter) checkBudgetAfterUse(deltaTokens int) {
 	if r.cfg == nil {
 		return
 	}
-	budget := r.cfg.AI.MonthlyTokenBudget
+	budget := r.cfg.AISnapshot().MonthlyTokenBudget
 	if budget <= 0 || deltaTokens <= 0 {
 		return
 	}
@@ -283,7 +283,7 @@ func (r *AIRouter) checkBudgetAfterUse(deltaTokens int) {
 	}
 	r.monthCountTokens += int64(deltaTokens)
 	used := r.monthCountTokens
-	warnThresh := r.cfg.AI.WarningThresholdPct
+	warnThresh := r.cfg.AISnapshot().WarningThresholdPct
 	r.mu.Unlock()
 
 	if warnThresh <= 0 || warnThresh > 100 {
@@ -384,16 +384,19 @@ func (r *AIRouter) GetSnapshot() AIRouterSnapshot {
 		ConsecutiveErrors: consec,
 		MonthlyTokenUsed:  used,
 	}
+	activeModel := ""
 	if r.cfg != nil {
+		aiCfg := r.cfg.AISnapshot()
 		snap.FailoverEnabled = false // V10: failover 已删除
 		snap.Chain = r.FailoverChain()
-		snap.MonthlyTokenBudget = r.cfg.AI.MonthlyTokenBudget
-		snap.WarningThresholdPct = r.cfg.AI.WarningThresholdPct
+		snap.MonthlyTokenBudget = aiCfg.MonthlyTokenBudget
+		snap.WarningThresholdPct = aiCfg.WarningThresholdPct
 		snap.AutoRecoverAfterMin = 0 // V10: failover 已删除
 
 		// V10: 从扁平字段读取模型信息
-		snap.CurrentModel = r.cfg.AI.ActiveModel
-		snap.PreferredModel = r.cfg.AI.ActiveModel
+		snap.CurrentModel = aiCfg.ActiveModel
+		snap.PreferredModel = aiCfg.ActiveModel
+		activeModel = aiCfg.ActiveModel
 	}
 	if snap.MonthlyTokenBudget > 0 {
 		snap.MonthlyTokenPct = int(used * 100 / snap.MonthlyTokenBudget)
@@ -411,7 +414,7 @@ func (r *AIRouter) GetSnapshot() AIRouterSnapshot {
 					CostCNY:      row.CostCNY,
 					Enabled:      true,
 					Configured:   true,
-					CurrentModel: r.cfg.AI.ActiveModel,
+					CurrentModel: activeModel,
 				}
 				snap.ProviderTotals = append(snap.ProviderTotals, view)
 			}

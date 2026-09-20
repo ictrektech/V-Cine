@@ -84,7 +84,7 @@ func NewFanartService(mediaRepo *repository.MediaRepo, seriesRepo *repository.Se
 
 // IsEnabled 检查 Fanart.tv 数据源是否可用
 func (s *FanartService) IsEnabled() bool {
-	return s.cfg.Secrets.FanartTVAPIKey != ""
+	return s.cfg.SecretsSnapshot().FanartTVAPIKey != ""
 }
 
 // ==================== 核心方法 ====================
@@ -93,7 +93,7 @@ func (s *FanartService) IsEnabled() bool {
 // tmdbID: TMDb 电影 ID（Fanart.tv 使用 TMDb ID 作为查询键）
 func (s *FanartService) GetMovieImages(tmdbID int) (*FanartMovieImages, error) {
 	apiURL := fmt.Sprintf("https://webservice.fanart.tv/v3/movies/%d?api_key=%s",
-		tmdbID, s.cfg.Secrets.FanartTVAPIKey)
+		tmdbID, s.cfg.SecretsSnapshot().FanartTVAPIKey)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *FanartService) GetMovieImages(tmdbID int) (*FanartMovieImages, error) {
 // tvdbID: TheTVDB 剧集 ID（Fanart.tv 使用 TVDB ID 作为查询键）
 func (s *FanartService) GetTVImages(tvdbID int) (*FanartTVImages, error) {
 	apiURL := fmt.Sprintf("https://webservice.fanart.tv/v3/tv/%d?api_key=%s",
-		tvdbID, s.cfg.Secrets.FanartTVAPIKey)
+		tvdbID, s.cfg.SecretsSnapshot().FanartTVAPIKey)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {

@@ -426,7 +426,7 @@ func (s *BangumiService) setHeaders(req *http.Request) {
 	req.Header.Set("Connection", "keep-alive")
 
 	// 如果配置了 Access Token，添加认证头
-	token := s.cfg.Secrets.BangumiAccessToken
+	token := s.cfg.SecretsSnapshot().BangumiAccessToken
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}

@@ -2928,9 +2928,10 @@ func (s *ScannerService) probeMediaInfo(media *model.Media) {
 
 		// 可选：对直链型 STRM 进行远程 FFprobe 探测（慢但能拿到真实时长/编码/分辨率）
 		// 仅对 http(s) + 明显的视频直链启用（排除 HLS/磁力/rtmp 等）
-		if s.cfg != nil && s.cfg.STRM.RemoteProbe && isDirectVideoLink(meta.URL) {
+		if s.cfg != nil && s.cfg.STRMSnapshot().RemoteProbe && isDirectVideoLink(meta.URL) {
 			// 构造请求头（FFprobe 需要透传 UA / Referer / Cookie）
-			ua, referer, cookie, extra := ResolveSTRMHeaders(&s.cfg.STRM, media)
+			strmSnap := s.cfg.STRMSnapshot()
+			ua, referer, cookie, extra := ResolveSTRMHeaders(&strmSnap, media)
 			hdr := http.Header{}
 			if ua != "" {
 				hdr.Set("User-Agent", ua)
@@ -2944,7 +2945,7 @@ func (s *ScannerService) probeMediaInfo(media *model.Media) {
 			for k, v := range extra {
 				hdr.Set(k, v)
 			}
-			timeout := s.cfg.STRM.RemoteProbeTimeout
+			timeout := strmSnap.RemoteProbeTimeout
 			if timeout <= 0 {
 				timeout = 8
 			}

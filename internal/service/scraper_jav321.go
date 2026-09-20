@@ -24,7 +24,7 @@ var (
 
 // scrapeJav321 从 JAV321 刮削番号元数据（POST 搜索 + 详情页一步到位）
 func (s *AdultScraperService) scrapeJav321(code string) (*AdultMetadata, error) {
-	baseURL := s.cfg.AdultScraper.Jav321URL
+	baseURL := s.cfg.AdultScraperSnapshot().Jav321URL
 	if baseURL == "" {
 		baseURL = "https://www.jav321.com"
 	}

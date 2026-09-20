@@ -519,7 +519,7 @@ func NewTMDbProvider(metadata *MetadataService) *TMDbProvider {
 }
 
 func (p *TMDbProvider) Name() string             { return "TMDb" }
-func (p *TMDbProvider) IsEnabled() bool          { return p.metadata.cfg.Secrets.TMDbAPIKey != "" }
+func (p *TMDbProvider) IsEnabled() bool          { return p.metadata.cfg.SecretsSnapshot().TMDbAPIKey != "" }
 func (p *TMDbProvider) Priority() int            { return 10 }
 func (p *TMDbProvider) SupportedTypes() []string { return []string{"all"} }
 

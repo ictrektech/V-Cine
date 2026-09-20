@@ -25,15 +25,15 @@ func (s *AdultScraperService) TranslateAdultMetadata(meta *AdultMetadata) {
 	if meta == nil {
 		return
 	}
-	if !s.cfg.AdultScraper.EnableTranslate {
+	if !s.cfg.AdultScraperSnapshot().EnableTranslate {
 		return
 	}
-	provider := strings.ToLower(strings.TrimSpace(s.cfg.AdultScraper.TranslateProvider))
+	provider := strings.ToLower(strings.TrimSpace(s.cfg.AdultScraperSnapshot().TranslateProvider))
 	if provider == "" || provider == "disabled" {
 		return
 	}
 
-	targetLang := s.cfg.AdultScraper.TranslateTargetLang
+	targetLang := s.cfg.AdultScraperSnapshot().TranslateTargetLang
 	if targetLang == "" {
 		targetLang = "zh-CN"
 	}
@@ -143,7 +143,7 @@ func (s *AdultScraperService) translateByGoogle(text, sourceLang, targetLang str
 // translateByDeeplx 使用自建的 DeepLX 服务（https://github.com/OwO-Network/DeepLX）
 // endpoint 格式：http://host:port/translate
 func (s *AdultScraperService) translateByDeeplx(text, sourceLang, targetLang string) (string, error) {
-	endpoint := s.cfg.AdultScraper.TranslateEndpoint
+	endpoint := s.cfg.AdultScraperSnapshot().TranslateEndpoint
 	if endpoint == "" {
 		return "", fmt.Errorf("DeepLX 需要配置 translate_endpoint")
 	}
@@ -165,7 +165,7 @@ func (s *AdultScraperService) translateByDeeplx(text, sourceLang, targetLang str
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if apiKey := s.cfg.AdultScraper.TranslateAPIKey; apiKey != "" {
+	if apiKey := s.cfg.AdultScraperSnapshot().TranslateAPIKey; apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
@@ -201,8 +201,8 @@ func (s *AdultScraperService) translateByDeeplx(text, sourceLang, targetLang str
 
 // translateByBaidu 使用百度翻译 API（需要 appid/secret）
 func (s *AdultScraperService) translateByBaidu(text, sourceLang, targetLang string) (string, error) {
-	appid := s.cfg.AdultScraper.TranslateAPIKey
-	secret := s.cfg.AdultScraper.TranslateAPISecret
+	appid := s.cfg.AdultScraperSnapshot().TranslateAPIKey
+	secret := s.cfg.AdultScraperSnapshot().TranslateAPISecret
 	if appid == "" || secret == "" {
 		return "", fmt.Errorf("百度翻译需要配置 translate_api_key 和 translate_api_secret")
 	}
@@ -267,8 +267,8 @@ func (s *AdultScraperService) translateByBaidu(text, sourceLang, targetLang stri
 
 // translateByYoudao 使用有道翻译 API（需要 API Key）
 func (s *AdultScraperService) translateByYoudao(text, targetLang string) (string, error) {
-	appKey := s.cfg.AdultScraper.TranslateAPIKey
-	appSecret := s.cfg.AdultScraper.TranslateAPISecret
+	appKey := s.cfg.AdultScraperSnapshot().TranslateAPIKey
+	appSecret := s.cfg.AdultScraperSnapshot().TranslateAPISecret
 	if appKey == "" || appSecret == "" {
 		return "", fmt.Errorf("有道翻译需要配置 translate_api_key 和 translate_api_secret")
 	}

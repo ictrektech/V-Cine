@@ -35,7 +35,7 @@ var (
 
 // scrapeFanza 从 Fanza 刮削番号元数据
 func (s *AdultScraperService) scrapeFanza(code string) (*AdultMetadata, error) {
-	baseURL := s.cfg.AdultScraper.FanzaURL
+	baseURL := s.cfg.AdultScraperSnapshot().FanzaURL
 	if baseURL == "" {
 		baseURL = "https://www.dmm.co.jp"
 	}
@@ -79,8 +79,8 @@ func (s *AdultScraperService) scrapeFanza(code string) (*AdultMetadata, error) {
 	// 若没有提前加载详情页 HTML，则去抓详情页
 	if !strings.Contains(html, "id=\"title\"") {
 		randomDelay(
-			s.cfg.AdultScraper.MinRequestInterval,
-			s.cfg.AdultScraper.MaxRequestInterval,
+			s.cfg.AdultScraperSnapshot().MinRequestInterval,
+			s.cfg.AdultScraperSnapshot().MaxRequestInterval,
 		)
 		h, err := s.fetchFanzaHTML(detailURL, baseURL)
 		if err != nil {

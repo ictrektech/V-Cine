@@ -194,11 +194,11 @@ func (s *VideoAnalysisService) buildAnalysisSourceURL(mediaID string) string {
 		return ""
 	}
 	base := defaultAnalysisMediaBaseURL
-	if b := strings.TrimRight(strings.TrimSpace(s.appCfg.VideoAnalysis.MediaBaseURL), "/"); b != "" {
+	if b := strings.TrimRight(strings.TrimSpace(s.appCfg.VideoAnalysisSnapshot().MediaBaseURL), "/"); b != "" {
 		base = b
 	}
 	u := base + "/internal/video-analysis/source/" + url.PathEscape(mediaID)
-	if token := strings.TrimSpace(s.appCfg.VideoAnalysis.SourceToken); token != "" {
+	if token := strings.TrimSpace(s.appCfg.VideoAnalysisSnapshot().SourceToken); token != "" {
 		u += "?token=" + url.QueryEscape(token)
 	}
 	return u
@@ -220,7 +220,7 @@ func (s *VideoAnalysisService) GetConfig() VideoAnalysisConfig {
 	defer s.mu.RUnlock()
 	remoteEnabled := false
 	if s.appCfg != nil {
-		remoteEnabled = s.appCfg.VideoAnalysis.RemoteVideoEnabled
+		remoteEnabled = s.appCfg.VideoAnalysisSnapshot().RemoteVideoEnabled
 	}
 	return VideoAnalysisConfig{
 		DescribeEnabled:    s.describeEnabled,
@@ -377,7 +377,7 @@ func (s *VideoAnalysisService) SubmitMediaWithOutcome(mediaID string, options Vi
 	// 不依赖宿主文件路径，也不依赖两侧共享文件系统。
 	mappedPath := s.buildAnalysisSourceURL(mediaID)
 	// 远程视频结构化默认关闭：避免无感知消耗带宽/网络。
-	if IsRemotePath(media.FilePath) && (s.appCfg == nil || !s.appCfg.VideoAnalysis.RemoteVideoEnabled) {
+	if IsRemotePath(media.FilePath) && (s.appCfg == nil || !s.appCfg.VideoAnalysisSnapshot().RemoteVideoEnabled) {
 		return nil, errors.New("远程视频结构化未开启，已跳过；本地/内网视频可正常解析")
 	}
 	// 本地文件用 os.Stat；webdav/alist/s3 远程文件用 VFS.Stat（URL 模式已能统一拉流）。
@@ -1083,11 +1083,11 @@ func (s *VideoAnalysisService) submitStructureWithScenes(ctx context.Context, ta
 
 // resolveSceneDescribeProvider 解析场景描述视觉模型的连接信息。
 // 优先从 scene_describe_ai 指定的 provider 获取，回退到当前激活的 provider。
-func resolveSceneDescribeProvider(cfg *config.Config) (apiBase, apiKey string) {
-	if p := cfg.AI.FindProvider(cfg.AI.SceneDescribeAI.ProviderID); p != nil && p.APIBase != "" {
+func resolveSceneDescribeProvider(ai config.AIConfig) (apiBase, apiKey string) {
+	if p := ai.FindProvider(ai.SceneDescribeAI.ProviderID); p != nil && p.APIBase != "" {
 		return p.APIBase, p.APIKey
 	}
-	if ap := cfg.AI.ActiveProfile(); ap != nil && ap.APIBase != "" {
+	if ap := ai.ActiveProfile(); ap != nil && ap.APIBase != "" {
 		return ap.APIBase, ap.APIKey
 	}
 	return "", ""
@@ -1111,8 +1111,12 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		Force:          task.Force,
 	}
 	// 注入视觉 LLM 配置（场景描述需要视觉模型，从指定供应商获取连接信息）
-	if s.appCfg != nil && s.appCfg.AI.SceneDescribeAI.Model != "" {
-		apiBase, apiKey := resolveSceneDescribeProvider(s.appCfg)
+	ai := config.AIConfig{}
+	if s.appCfg != nil {
+		ai = s.appCfg.AISnapshot()
+	}
+	if ai.SceneDescribeAI.Model != "" {
+		apiBase, apiKey := resolveSceneDescribeProvider(ai)
 		if apiBase != "" {
 			// worker 内部用 OpenAI SDK 调用，SDK 把空 key 视为缺少凭证直接报错
 			// （"Missing credentials. Please pass an api_key..."），全部场景会失败。
@@ -1120,9 +1124,9 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 			// 做用量归属（对齐 V-ChatCut），无登录态时传占位 key（网关忽略）；
 			// 常规 provider 空 key 时在提交前失败并给出可读错误，避免异步失败难排查。
 			if apiKey == "" {
-				activeProvider := s.appCfg.AI.SceneDescribeAI.ProviderID
+				activeProvider := ai.SceneDescribeAI.ProviderID
 				if activeProvider == "" {
-					activeProvider = s.appCfg.AI.ActiveProvider
+					activeProvider = ai.ActiveProvider
 				}
 				if !config.IsKeyFreeProvider(activeProvider, apiBase) {
 					return "", fmt.Errorf("供应商未配置 API Key，场景描述无法执行，请先在 AI 设置中配置密钥")
@@ -1147,7 +1151,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 			req.ModelCfg = &DescribeModelCfg{
 				BaseURL:        apiBase,
 				APIKey:         apiKey,
-				ModelName:      s.appCfg.AI.SceneDescribeAI.Model,
+				ModelName:      ai.SceneDescribeAI.Model,
 				MaxConcurrency: 3,
 			}
 		}

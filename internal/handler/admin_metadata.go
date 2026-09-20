@@ -438,7 +438,7 @@ func (h *AdminHandler) MatchSeriesBangumi(c *gin.Context) {
 
 // GetBangumiConfig 获取 Bangumi 配置状态
 func (h *AdminHandler) GetBangumiConfig(c *gin.Context) {
-	token := h.cfg.Secrets.BangumiAccessToken
+	token := h.cfg.SecretsSnapshot().BangumiAccessToken
 	configured := token != ""
 	maskedToken := ""
 	if configured {

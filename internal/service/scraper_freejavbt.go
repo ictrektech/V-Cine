@@ -33,7 +33,7 @@ var (
 
 // scrapeFreejavbt 从 Freejavbt 刮削番号元数据
 func (s *AdultScraperService) scrapeFreejavbt(code string) (*AdultMetadata, error) {
-	baseURL := s.cfg.AdultScraper.FreejavbtURL
+	baseURL := s.cfg.AdultScraperSnapshot().FreejavbtURL
 	if baseURL == "" {
 		baseURL = "https://freejavbt.com"
 	}
@@ -64,8 +64,8 @@ func (s *AdultScraperService) scrapeFreejavbt(code string) (*AdultMetadata, erro
 
 	// 站点内间隔（防反爬）
 	randomDelay(
-		s.cfg.AdultScraper.MinRequestInterval,
-		s.cfg.AdultScraper.MaxRequestInterval,
+		s.cfg.AdultScraperSnapshot().MinRequestInterval,
+		s.cfg.AdultScraperSnapshot().MaxRequestInterval,
 	)
 
 	// Step 2: 抓取详情页

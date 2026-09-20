@@ -258,7 +258,7 @@ type updateVideoAnalysisSettingsRequest struct {
 
 // GetSettings 返回视频分析可配置项（不要求服务可用，供设置页编辑）。
 func (h *VideoAnalysisHandler) GetSettings(c *gin.Context) {
-	cfg := h.cfg.GetVideoAnalysisConfig()
+	cfg := h.cfg.VideoAnalysisSnapshot()
 	c.JSON(http.StatusOK, gin.H{"data": videoAnalysisSettingsView{
 		Enabled:            cfg.Enabled,
 		SceneBaseURL:       cfg.SceneBaseURL,
@@ -279,7 +279,7 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	updated := h.cfg.GetVideoAnalysisConfig()
+	updated := h.cfg.VideoAnalysisSnapshot()
 	updated.Enabled = req.Enabled
 	updated.SceneBaseURL = strings.TrimSpace(req.SceneBaseURL)
 	updated.StructureBaseURL = strings.TrimSpace(req.StructureBaseURL)

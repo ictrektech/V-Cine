@@ -143,7 +143,7 @@ func shouldFallbackToLocalDownload(cfg *config.Config, inputPath string) bool {
 		return false
 	}
 	// V2.3: WebDAV / Alist / S3 任一启用即允许降级
-	if cfg.Storage.WebDAV.Enabled || cfg.Storage.Alist.Enabled || cfg.Storage.S3.Enabled {
+	if cfg.StorageSnapshot().WebDAV.Enabled || cfg.StorageSnapshot().Alist.Enabled || cfg.StorageSnapshot().S3.Enabled {
 		return true
 	}
 	return false

@@ -94,25 +94,25 @@ func (s *AdultScraperService) ScrapeByCodeAggregated(code string) (*AdultMetadat
 	// 组装待执行的数据源列表
 	type scrapeFn func(string) (*AdultMetadata, error)
 	sources := map[string]scrapeFn{}
-	if s.cfg.AdultScraper.EnableJavBus {
+	if s.cfg.AdultScraperSnapshot().EnableJavBus {
 		sources["javbus"] = s.scrapeJavBus
 	}
-	if s.cfg.AdultScraper.EnableJavDB {
+	if s.cfg.AdultScraperSnapshot().EnableJavDB {
 		sources["javdb"] = s.scrapeJavDB
 	}
-	if s.cfg.AdultScraper.EnableFreejavbt {
+	if s.cfg.AdultScraperSnapshot().EnableFreejavbt {
 		sources["freejavbt"] = s.scrapeFreejavbt
 	}
-	if s.cfg.AdultScraper.EnableJav321 {
+	if s.cfg.AdultScraperSnapshot().EnableJav321 {
 		sources["jav321"] = s.scrapeJav321
 	}
-	if s.cfg.AdultScraper.EnableFanza {
+	if s.cfg.AdultScraperSnapshot().EnableFanza {
 		sources["fanza"] = s.scrapeFanza
 	}
-	if s.cfg.AdultScraper.EnableMGStage {
+	if s.cfg.AdultScraperSnapshot().EnableMGStage {
 		sources["mgstage"] = s.scrapeMGStage
 	}
-	if s.cfg.AdultScraper.EnableFC2Hub {
+	if s.cfg.AdultScraperSnapshot().EnableFC2Hub {
 		sources["fc2hub"] = s.scrapeFC2Hub
 	}
 
@@ -167,7 +167,7 @@ func (s *AdultScraperService) ScrapeByCodeAggregated(code string) (*AdultMetadat
 	}
 
 	// 按字段优先级合并（支持配置覆盖）
-	merged := mergeAdultMetadata(code, results, adultFieldPriorityWithOverrides(s.cfg.AdultScraper.FieldPriority))
+	merged := mergeAdultMetadata(code, results, adultFieldPriorityWithOverrides(s.cfg.AdultScraperSnapshot().FieldPriority))
 
 	// 统一执行规范化和翻译
 	NormalizeMetadata(merged)

@@ -133,7 +133,7 @@ func NewTheTVDBService(mediaRepo *repository.MediaRepo, seriesRepo *repository.S
 
 // IsEnabled 检查 TheTVDB 数据源是否可用
 func (s *TheTVDBService) IsEnabled() bool {
-	return s.cfg.Secrets.TheTVDBAPIKey != ""
+	return s.cfg.SecretsSnapshot().TheTVDBAPIKey != ""
 }
 
 // ==================== 认证 ====================
@@ -155,7 +155,7 @@ func (s *TheTVDBService) authenticate() error {
 		return nil
 	}
 
-	apiKey := s.cfg.Secrets.TheTVDBAPIKey
+	apiKey := s.cfg.SecretsSnapshot().TheTVDBAPIKey
 	if apiKey == "" {
 		return fmt.Errorf("TheTVDB API Key 未配置")
 	}

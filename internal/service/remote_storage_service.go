@@ -53,7 +53,7 @@ func (s *RemoteStorageService) Initialize() error {
 	s.vfsMgr.SetGlobalS3FS(nil)
 
 	// ---- Alist ----
-	if s.config.Storage.Alist.Enabled {
+	if s.config.StorageSnapshot().Alist.Enabled {
 		// 启动时不测试连接，避免慢/不可达阻塞启动
 		if err := s.initAlistLocked(false); err != nil {
 			s.logger.Warnf("Alist 初始化失败: %v", err)
@@ -63,7 +63,7 @@ func (s *RemoteStorageService) Initialize() error {
 	}
 
 	// ---- S3 ----
-	if s.config.Storage.S3.Enabled {
+	if s.config.StorageSnapshot().S3.Enabled {
 		// 启动时不测试连接，避免慢/不可达阻塞启动
 		if err := s.initS3Locked(false); err != nil {
 			s.logger.Warnf("S3 初始化失败: %v", err)
@@ -77,7 +77,7 @@ func (s *RemoteStorageService) Initialize() error {
 
 // initAlistLocked 必须持有 s.mu。testConn 为 true 时（配置保存）同步验证连接。
 func (s *RemoteStorageService) initAlistLocked(testConn bool) error {
-	cfg := s.config.Storage.Alist
+	cfg := s.config.StorageSnapshot().Alist
 	if cfg.ServerURL == "" {
 		return fmt.Errorf("Alist 服务器地址不能为空")
 	}
@@ -104,7 +104,7 @@ func (s *RemoteStorageService) initAlistLocked(testConn bool) error {
 
 // initS3Locked 必须持有 s.mu。testConn 为 true 时（配置保存）同步验证连接。
 func (s *RemoteStorageService) initS3Locked(testConn bool) error {
-	cfg := s.config.Storage.S3
+	cfg := s.config.StorageSnapshot().S3
 	if cfg.Endpoint == "" {
 		return fmt.Errorf("S3 Endpoint 不能为空")
 	}
@@ -176,7 +176,7 @@ func (s *RemoteStorageService) UpdateAlistConfig(cfg config.AlistConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.config.Storage.Alist = cfg
+	s.config.UpdateStorageInMemory(func(st *config.StorageConfig) { st.Alist = cfg })
 	s.alistFS = nil
 	s.vfsMgr.SetGlobalAlistFS(nil)
 	if cfg.Enabled {
@@ -191,7 +191,7 @@ func (s *RemoteStorageService) UpdateS3Config(cfg config.S3Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.config.Storage.S3 = cfg
+	s.config.UpdateStorageInMemory(func(st *config.StorageConfig) { st.S3 = cfg })
 	s.s3FS = nil
 	s.vfsMgr.SetGlobalS3FS(nil)
 	if cfg.Enabled {
@@ -215,7 +215,7 @@ func applyStorageProbeStatus(p Prober, status map[string]interface{}) {
 // GetAlistStatus 获取 Alist 单存储状态（独立探测，互不阻塞）。
 func (s *RemoteStorageService) GetAlistStatus() map[string]interface{} {
 	s.mu.RLock()
-	cfg := s.config.Storage.Alist
+	cfg := s.config.StorageSnapshot().Alist
 	fs := s.alistFS
 	s.mu.RUnlock()
 
@@ -234,7 +234,7 @@ func (s *RemoteStorageService) GetAlistStatus() map[string]interface{} {
 // GetS3Status 获取 S3 单存储状态（独立探测，互不阻塞）。
 func (s *RemoteStorageService) GetS3Status() map[string]interface{} {
 	s.mu.RLock()
-	cfg := s.config.Storage.S3
+	cfg := s.config.StorageSnapshot().S3
 	fs := s.s3FS
 	s.mu.RUnlock()
 

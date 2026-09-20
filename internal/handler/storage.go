@@ -35,7 +35,7 @@ func NewStorageHandler(webdavService *service.WebDAVService, remoteStorageServic
 
 // GetWebDAVConfig 获取 WebDAV 配置
 func (h *StorageHandler) GetWebDAVConfig(c *gin.Context) {
-	webdavCfg := h.cfg.Storage.WebDAV
+	webdavCfg := h.cfg.StorageSnapshot().WebDAV
 
 	// 返回配置（密码字段需要掩码处理）
 	response := gin.H{
@@ -110,7 +110,7 @@ func (h *StorageHandler) UpdateWebDAVConfig(c *gin.Context) {
 
 	// 如果密码为空，保持原密码
 	if req.Password == "" {
-		newCfg.Password = h.cfg.Storage.WebDAV.Password
+		newCfg.Password = h.cfg.StorageSnapshot().WebDAV.Password
 	}
 
 	// 更新服务配置
@@ -147,8 +147,8 @@ func (h *StorageHandler) TestWebDAVConnection(c *gin.Context) {
 	}
 
 	password := req.Password
-	if password == "" && req.Username == h.cfg.Storage.WebDAV.Username && req.ServerURL == h.cfg.Storage.WebDAV.ServerURL {
-		password = h.cfg.Storage.WebDAV.Password
+	if password == "" && req.Username == h.cfg.StorageSnapshot().WebDAV.Username && req.ServerURL == h.cfg.StorageSnapshot().WebDAV.ServerURL {
+		password = h.cfg.StorageSnapshot().WebDAV.Password
 	}
 
 	testCfg := config.WebDAVConfig{

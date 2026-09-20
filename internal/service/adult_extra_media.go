@@ -25,7 +25,7 @@ import (
 // 若配置未启用或无剧照则直接返回
 // 返回已下载的本地文件路径列表
 func (s *AdultScraperService) DownloadExtraFanart(media *model.Media, meta *AdultMetadata) []string {
-	if !s.cfg.AdultScraper.DownloadExtraFanart || len(meta.ExtraFanart) == 0 {
+	if !s.cfg.AdultScraperSnapshot().DownloadExtraFanart || len(meta.ExtraFanart) == 0 {
 		return nil
 	}
 	if media.FilePath == "" || IsRemotePath(media.FilePath) {
@@ -39,7 +39,7 @@ func (s *AdultScraperService) DownloadExtraFanart(media *model.Media, meta *Adul
 		return nil
 	}
 
-	maxCount := s.cfg.AdultScraper.MaxExtraFanart
+	maxCount := s.cfg.AdultScraperSnapshot().MaxExtraFanart
 	if maxCount <= 0 {
 		maxCount = 10
 	}
@@ -95,7 +95,7 @@ func (s *AdultScraperService) DownloadExtraFanart(media *model.Media, meta *Adul
 // DownloadActorPhotos 为演员下载头像到媒体同目录的 .actors/ 下
 // Emby/Jellyfin 标准：<media_dir>/.actors/<actor_name>.jpg
 func (s *AdultScraperService) DownloadActorPhotos(media *model.Media, meta *AdultMetadata) int {
-	if !s.cfg.AdultScraper.DownloadActorPhoto || len(meta.ActorPhotos) == 0 {
+	if !s.cfg.AdultScraperSnapshot().DownloadActorPhoto || len(meta.ActorPhotos) == 0 {
 		return 0
 	}
 	if media.FilePath == "" || IsRemotePath(media.FilePath) {

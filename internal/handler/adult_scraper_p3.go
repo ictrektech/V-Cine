@@ -23,10 +23,10 @@ import (
 // ==================== 懒人刮削聚合状态 ====================
 
 func (h *AdultScraperHandler) isLazyScraperReady() bool {
-	if h == nil || h.cfg == nil || !h.cfg.AdultScraper.Enabled {
+	if h == nil || h.cfg == nil || !h.cfg.AdultScraperSnapshot().Enabled {
 		return false
 	}
-	ac := h.cfg.AdultScraper
+	ac := h.cfg.AdultScraperSnapshot()
 	return ac.EnableJavBus || ac.EnableJavDB || ac.EnableFreejavbt || ac.EnableJav321 ||
 		ac.EnableFanza || ac.EnableMGStage || ac.EnableFC2Hub || strings.TrimSpace(ac.PythonServiceURL) != ""
 }
@@ -35,7 +35,7 @@ func (h *AdultScraperHandler) ensureLazyScraperDefaults() error {
 	if h == nil || h.cfg == nil {
 		return nil
 	}
-	ac := h.cfg.AdultScraper
+	ac := h.cfg.AdultScraperSnapshot()
 	changed := false
 	if !ac.Enabled {
 		ac.Enabled = true
