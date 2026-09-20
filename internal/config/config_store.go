@@ -20,7 +20,7 @@ var sectionDirs = []string{"./config", "./data/config", "/etc/nowen-video/config
 // SaveSection 将某个子配置序列化写入对应的 yaml 分片文件。
 //
 // 这是所有"运行时可改"子配置的统一持久化入口，替代原有
-// SaveAIConfig / SaveAdultScraperConfig / SaveSTRMConfig 中各自手写的
+// saveAIConfig / saveAdultScraperConfig / saveSTRMConfig 中各自手写的
 // viper.Set × N 行样板代码。
 //
 // 敏感字段加密由结构体 tag `enc:"true"` 声明（单一事实源），

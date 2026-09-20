@@ -237,7 +237,7 @@ func (h *AdultScraperHandler) UpdateConfigExtended(c *gin.Context) {
 		return
 	}
 
-	cfg := h.cfg.AdultScraper
+	cfg := h.cfg.AdultScraperSnapshot()
 
 	// 基础
 	if req.Enabled != nil {

@@ -262,7 +262,7 @@ func (s *AuthService) generateToken(user *model.User) (*TokenResponse, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenStr, err := token.SignedString([]byte(s.cfg.Secrets.JWTSecret))
+	tokenStr, err := token.SignedString([]byte(s.cfg.SecretsSnapshot().JWTSecret))
 	if err != nil {
 		return nil, err
 	}

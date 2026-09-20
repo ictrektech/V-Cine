@@ -49,7 +49,7 @@ func (l *AdultPythonLauncher) Start() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	ac := &l.cfg.AdultScraper
+	ac := l.cfg.AdultScraperSnapshot()
 	if !ac.Enabled {
 		// 番号刮削总开关未开启，Python 微服务本身就不会被调用，直接跳过
 		return nil

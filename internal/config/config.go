@@ -1365,6 +1365,26 @@ func (c *Config) ClearDoubanCookie() error {
 	return c.SetDoubanCookie("")
 }
 
+// SetBangumiAccessToken 设置 Bangumi Access Token 并持久化到 secrets.yaml 分片
+// （与 SetTMDbAPIKey 相同的原因：不依赖回写主 config.yaml）。
+func (c *Config) SetBangumiAccessToken(token string) error {
+	return c.UpdateSecrets(func(s *SecretsConfig) { s.BangumiAccessToken = token })
+}
+
+// ClearBangumiAccessToken 清除 Bangumi Access Token 并持久化
+func (c *Config) ClearBangumiAccessToken() error {
+	return c.SetBangumiAccessToken("")
+}
+
+// UpdateStorageInMemory 在锁内仅更新内存中的 Storage 配置，不落盘。
+// 供 WebDAV/远程存储服务在自身重初始化流程中同步内存状态；
+// 持久化由调用方随后通过 UpdateStorage 完成。
+func (c *Config) UpdateStorageInMemory(update func(*StorageConfig)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	update(&c.Storage)
+}
+
 // UpdateStorage 在锁内更新并持久化 Storage 配置；落盘失败时回滚内存变更。
 func (c *Config) UpdateStorage(update func(*StorageConfig)) error {
 	c.mu.Lock()
@@ -1463,13 +1483,6 @@ func (c *Config) saveAdultScraperConfig() error {
 	})
 }
 
-// GetVideoAnalysisConfig 返回视频分析配置的线程安全副本。
-func (c *Config) GetVideoAnalysisConfig() VideoAnalysisConfig {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.VideoAnalysis
-}
-
 // UpdateVideoAnalysisConfig 在锁内更新并持久化视频分析配置；
 // 落盘失败时回滚内存中的变更。
 func (c *Config) UpdateVideoAnalysisConfig(update func(*VideoAnalysisConfig)) error {
@@ -1501,23 +1514,15 @@ func (c *Config) SetVideoAnalysisDescribeEnabled(enabled bool) {
 	c.mu.Unlock()
 }
 
-// SaveAIConfig 将当前 AI 配置持久化到 config/ai.yaml 分片文件。
+// saveAIConfig 将当前 AI 配置持久化到 config/ai.yaml 分片文件。
 // 调用前应先在内存中更新 c.AI 字段，本方法只负责落盘。
 // 敏感字段（providers[].api_key / whisper_api_key）由 enc tag 声明加密。
 func (c *Config) saveAIConfig() error {
 	return SaveSection(c, "ai", "ai.yaml", func() AIConfig { return c.AI })
 }
 
-// AISnapshot 返回 AI 配置的只读快照（加锁拷贝，避免与运行期写操作竞争）。
-// 业务读取 AI 配置应一律通过本方法，保证读到最新状态且无数据竞争。
-func (c *Config) AISnapshot() AIConfig {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.AI
-}
-
 // UpdateAIConfig 在锁内更新 AI 配置并持久化到 config/ai.yaml 分片文件
-// （与 SaveAIConfig 相同的 api_key 加密处理）。
+// （与 saveAIConfig 相同的 api_key 加密处理）。
 // 持久化失败时用拷贝回滚内存状态（避免共享切片底层数组导致回滚不彻底）；
 // 落盘在 c.mu 之外执行，避免文件 I/O 阻塞并发的 AI 配置读取。
 func (c *Config) UpdateAIConfig(update func(*AIConfig)) error {

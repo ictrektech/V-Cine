@@ -95,7 +95,7 @@ func buildTMDbHTTPClient(cfg *config.Config, logger *zap.SugaredLogger) *http.Cl
 
 // getTMDbAPIBase 获取 TMDb API 基础地址（支持代理）
 func (s *MetadataService) getTMDbAPIBase() string {
-	if proxy := s.cfg.Secrets.TMDbAPIProxy; proxy != "" {
+	if proxy := s.cfg.SecretsSnapshot().TMDbAPIProxy; proxy != "" {
 		return strings.TrimRight(proxy, "/")
 	}
 	return "https://api.themoviedb.org"
@@ -103,7 +103,7 @@ func (s *MetadataService) getTMDbAPIBase() string {
 
 // getTMDbImageBase 获取 TMDb 图片基础地址（支持代理）
 func (s *MetadataService) getTMDbImageBase() string {
-	if proxy := s.cfg.Secrets.TMDbImageProxy; proxy != "" {
+	if proxy := s.cfg.SecretsSnapshot().TMDbImageProxy; proxy != "" {
 		return strings.TrimRight(proxy, "/")
 	}
 	return "https://image.tmdb.org"
@@ -252,7 +252,7 @@ func (s *MetadataService) PingTMDbProxy(apiProxy, imageProxy string) (apiOK bool
 func (s *MetadataService) PingTMDb(apiKey string) (ok bool, msg string) {
 	key := strings.TrimSpace(apiKey)
 	if key == "" {
-		key = s.cfg.Secrets.TMDbAPIKey
+		key = s.cfg.SecretsSnapshot().TMDbAPIKey
 	}
 	if key == "" {
 		return false, "未配置 TMDb API Key"
@@ -286,8 +286,8 @@ func (s *MetadataService) PingTMDb(apiKey string) (ok bool, msg string) {
 		}
 		if body.Success {
 			tip := "官方直连"
-			if s.cfg.Secrets.TMDbAPIProxy != "" {
-				tip = "代理: " + s.cfg.Secrets.TMDbAPIProxy
+			if s.cfg.SecretsSnapshot().TMDbAPIProxy != "" {
+				tip = "代理: " + s.cfg.SecretsSnapshot().TMDbAPIProxy
 			}
 			return true, "连接成功，API Key 有效（" + tip + "）"
 		}
@@ -419,12 +419,12 @@ type TMDbFindResult struct {
 // 使用 TMDb 的 /3/find/{external_id} API，支持 IMDB ID (tt开头) 转换为 TMDb ID
 // 返回: (TMDb搜索结果, 媒体类型 "movie"/"tv", 错误)
 func (s *MetadataService) FindByIMDbID(imdbID string) (*TMDbMovie, string, error) {
-	if s.cfg.Secrets.TMDbAPIKey == "" {
+	if s.cfg.SecretsSnapshot().TMDbAPIKey == "" {
 		return nil, "", fmt.Errorf("TMDb API Key 未配置")
 	}
 
 	apiURL := fmt.Sprintf("%s/3/find/%s?api_key=%s&external_source=imdb_id&language=zh-CN",
-		s.getTMDbAPIBase(), imdbID, s.cfg.Secrets.TMDbAPIKey)
+		s.getTMDbAPIBase(), imdbID, s.cfg.SecretsSnapshot().TMDbAPIKey)
 
 	resp, err := s.tmdbGetWithRetry(apiURL)
 	if err != nil {
@@ -603,7 +603,7 @@ func (s *MetadataService) ScrapeMedia(mediaID string) error {
 
 	// 第一步：尝试TMDb刮削（超时 5s 快速失败，不拖慢整体流程）
 	var tmdbErr error
-	if s.cfg.Secrets.TMDbAPIKey != "" {
+	if s.cfg.SecretsSnapshot().TMDbAPIKey != "" {
 		if media.MediaType == "movie" {
 			tmdbErr = s.scrapeMovie(media, searchTitle, year)
 		} else {
@@ -703,7 +703,7 @@ func (s *MetadataService) ScrapeMedia(mediaID string) error {
 
 // ScrapeLibrary 为整个媒体库刮削元数据（P3: 并发刮削池 + 失败重试窗口）
 func (s *MetadataService) ScrapeLibrary(libraryID string, mediaList []model.Media) (int, int) {
-	if s.cfg.Secrets.TMDbAPIKey == "" && s.providerChain == nil {
+	if s.cfg.SecretsSnapshot().TMDbAPIKey == "" && s.providerChain == nil {
 		s.logger.Warn("TMDb API Key未配置且无可用数据源，跳过元数据刮削")
 		return 0, 0
 	}
@@ -1007,7 +1007,7 @@ func (s *MetadataService) scrapeMovie(media *model.Media, searchTitle string, ye
 	}
 
 	// 获取并保存演职人员
-	if s.cfg.Secrets.TMDbAPIKey != "" && best.ID > 0 {
+	if s.cfg.SecretsSnapshot().TMDbAPIKey != "" && best.ID > 0 {
 		if credits, err := s.getTMDbMovieCredits(best.ID); err == nil {
 			s.saveCreditsForMedia(media.ID, credits)
 		}
@@ -1117,7 +1117,7 @@ func (s *MetadataService) scrapeMovieByTMDbID(media *model.Media, tmdbID int) er
 func (s *MetadataService) scrapeTVByTMDbID(media *model.Media, tmdbID int) error {
 	// 使用 TMDb TV Detail API
 	apiURL := fmt.Sprintf("%s/3/tv/%d?api_key=%s&language=zh-CN",
-		s.getTMDbAPIBase(), tmdbID, s.cfg.Secrets.TMDbAPIKey)
+		s.getTMDbAPIBase(), tmdbID, s.cfg.SecretsSnapshot().TMDbAPIKey)
 	resp, err := s.tmdbGetWithRetry(apiURL)
 	if err != nil {
 		return fmt.Errorf("TMDb TV ID=%d 获取详情失败: %w", tmdbID, err)
@@ -1273,7 +1273,7 @@ func (s *MetadataService) bestMatchResult(results []TMDbMovie, searchTitle strin
 // searchTMDb 搜索TMDb
 func (s *MetadataService) searchTMDb(mediaType, query string, year int) ([]TMDbMovie, error) {
 	params := url.Values{}
-	params.Set("api_key", s.cfg.Secrets.TMDbAPIKey)
+	params.Set("api_key", s.cfg.SecretsSnapshot().TMDbAPIKey)
 	params.Set("query", query)
 	params.Set("language", "zh-CN")
 	params.Set("include_adult", "false")
@@ -1304,7 +1304,7 @@ func (s *MetadataService) searchTMDb(mediaType, query string, year int) ([]TMDbM
 // getMovieDetail 获取电影详情
 func (s *MetadataService) getMovieDetail(tmdbID int) (*TMDbMovieDetail, error) {
 	apiURL := fmt.Sprintf("%s/3/movie/%d?api_key=%s&language=zh-CN&append_to_response=videos",
-		s.getTMDbAPIBase(), tmdbID, s.cfg.Secrets.TMDbAPIKey)
+		s.getTMDbAPIBase(), tmdbID, s.cfg.SecretsSnapshot().TMDbAPIKey)
 
 	resp, err := s.tmdbGetWithRetry(apiURL)
 	if err != nil {
@@ -1324,7 +1324,7 @@ func (s *MetadataService) getMovieDetail(tmdbID int) (*TMDbMovieDetail, error) {
 // API: /3/tv/{tv_id}/season/{season_number}
 func (s *MetadataService) getTVSeasonDetail(tvID int, seasonNum int) (*TMDbTVSeasonDetail, error) {
 	apiURL := fmt.Sprintf("%s/3/tv/%d/season/%d?api_key=%s&language=zh-CN",
-		s.getTMDbAPIBase(), tvID, seasonNum, s.cfg.Secrets.TMDbAPIKey)
+		s.getTMDbAPIBase(), tvID, seasonNum, s.cfg.SecretsSnapshot().TMDbAPIKey)
 
 	resp, err := s.tmdbGetWithRetry(apiURL)
 	if err != nil {
@@ -1343,7 +1343,7 @@ func (s *MetadataService) getTVSeasonDetail(tvID int, seasonNum int) (*TMDbTVSea
 // scrapeSeriesEpisodes 从 TMDb 获取逐集元数据（每集独立的标题和简介）
 // 遍历系列中所有季，调用 /3/tv/{id}/season/{num} 获取每集数据，并更新到对应的 Media 记录
 func (s *MetadataService) scrapeSeriesEpisodes(seriesID string, tmdbID int) {
-	if tmdbID == 0 || s.cfg.Secrets.TMDbAPIKey == "" {
+	if tmdbID == 0 || s.cfg.SecretsSnapshot().TMDbAPIKey == "" {
 		return
 	}
 
@@ -1465,7 +1465,7 @@ func (s *MetadataService) scrapeSeriesEpisodes(seriesID string, tmdbID int) {
 // getTMDbMovieCredits 获取电影演职人员
 func (s *MetadataService) getTMDbMovieCredits(tmdbID int) (*TMDbCredits, error) {
 	apiURL := fmt.Sprintf("%s/3/movie/%d/credits?api_key=%s&language=zh-CN",
-		s.getTMDbAPIBase(), tmdbID, s.cfg.Secrets.TMDbAPIKey)
+		s.getTMDbAPIBase(), tmdbID, s.cfg.SecretsSnapshot().TMDbAPIKey)
 
 	resp, err := s.tmdbGetWithRetry(apiURL)
 	if err != nil {
@@ -1483,7 +1483,7 @@ func (s *MetadataService) getTMDbMovieCredits(tmdbID int) (*TMDbCredits, error) 
 // getTMDbTVCredits 获取剧集演职人员
 func (s *MetadataService) getTMDbTVCredits(tmdbID int) (*TMDbCredits, error) {
 	apiURL := fmt.Sprintf("%s/3/tv/%d/credits?api_key=%s&language=zh-CN",
-		s.getTMDbAPIBase(), tmdbID, s.cfg.Secrets.TMDbAPIKey)
+		s.getTMDbAPIBase(), tmdbID, s.cfg.SecretsSnapshot().TMDbAPIKey)
 
 	resp, err := s.tmdbGetWithRetry(apiURL)
 	if err != nil {
@@ -1853,7 +1853,7 @@ func (s *MetadataService) parseTitleWithAlt(title string) (cleanTitle string, al
 
 // SearchTMDb 公开的TMDb搜索方法（用于手动元数据匹配）
 func (s *MetadataService) SearchTMDb(mediaType, query string, year int) ([]TMDbMovie, error) {
-	if s.cfg.Secrets.TMDbAPIKey == "" {
+	if s.cfg.SecretsSnapshot().TMDbAPIKey == "" {
 		return nil, fmt.Errorf("TMDb API Key未配置")
 	}
 	return s.searchTMDb(mediaType, query, year)
@@ -1922,12 +1922,12 @@ type TMDbImagesResult struct {
 
 // SearchTMDbImages 获取TMDb条目的所有可用图片（海报+背景图）
 func (s *MetadataService) SearchTMDbImages(mediaType string, tmdbID int) (*TMDbImagesResult, error) {
-	if s.cfg.Secrets.TMDbAPIKey == "" {
+	if s.cfg.SecretsSnapshot().TMDbAPIKey == "" {
 		return nil, fmt.Errorf("TMDb API Key 未配置")
 	}
 
 	apiURL := fmt.Sprintf("%s/3/%s/%d/images?api_key=%s&include_image_language=zh,en,null",
-		s.getTMDbAPIBase(), mediaType, tmdbID, s.cfg.Secrets.TMDbAPIKey)
+		s.getTMDbAPIBase(), mediaType, tmdbID, s.cfg.SecretsSnapshot().TMDbAPIKey)
 
 	resp, err := s.tmdbGetWithRetry(apiURL)
 	if err != nil {
@@ -2207,7 +2207,7 @@ func (s *MetadataService) ScrapeSeries(seriesID string) error {
 		}
 
 		// 获取并保存演职人员
-		if series.TMDbID > 0 && s.cfg.Secrets.TMDbAPIKey != "" {
+		if series.TMDbID > 0 && s.cfg.SecretsSnapshot().TMDbAPIKey != "" {
 			if credits, credErr := s.getTMDbTVCredits(series.TMDbID); credErr == nil {
 				s.saveCreditsForSeries(seriesID, credits)
 			}
@@ -2224,7 +2224,7 @@ func (s *MetadataService) ScrapeSeries(seriesID string) error {
 
 	// 第一步：TMDb 搜索 TV 类型
 	var tmdbResult *TMDbMovie
-	if s.cfg.Secrets.TMDbAPIKey != "" {
+	if s.cfg.SecretsSnapshot().TMDbAPIKey != "" {
 		results, err := s.searchTMDb("tv", searchTitle, year)
 		if err == nil && len(results) > 0 {
 			tmdbResult = &results[0]
@@ -2371,7 +2371,7 @@ func (s *MetadataService) ScrapeSeries(seriesID string) error {
 	}
 
 	// 获取并保存演职人员
-	if series.TMDbID > 0 && s.cfg.Secrets.TMDbAPIKey != "" {
+	if series.TMDbID > 0 && s.cfg.SecretsSnapshot().TMDbAPIKey != "" {
 		if credits, err := s.getTMDbTVCredits(series.TMDbID); err == nil {
 			s.saveCreditsForSeries(seriesID, credits)
 		}
@@ -2705,7 +2705,7 @@ func (s *MetadataService) MatchSeriesWithTMDb(seriesID string, tmdbID int) error
 	}
 
 	// 从 TMDb 获取 TV 详情
-	apiKey := s.cfg.Secrets.TMDbAPIKey
+	apiKey := s.cfg.SecretsSnapshot().TMDbAPIKey
 	if apiKey == "" {
 		return fmt.Errorf("TMDb API Key 未配置")
 	}
@@ -2835,7 +2835,7 @@ func (s *MetadataService) MatchMediaWithTMDb(mediaID string, tmdbID int) error {
 		return ErrMediaNotFound
 	}
 
-	if s.cfg.Secrets.TMDbAPIKey == "" {
+	if s.cfg.SecretsSnapshot().TMDbAPIKey == "" {
 		return fmt.Errorf("TMDb API Key未配置")
 	}
 

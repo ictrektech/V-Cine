@@ -31,7 +31,7 @@ func (s *AdultScraperService) scrapeFC2Hub(code string) (*AdultMetadata, error) 
 		return nil, fmt.Errorf("非 FC2 番号，跳过 FC2Hub")
 	}
 
-	baseURL := s.cfg.AdultScraper.FC2HubURL
+	baseURL := s.cfg.AdultScraperSnapshot().FC2HubURL
 	if baseURL == "" {
 		baseURL = "https://fc2hub.com"
 	}
@@ -59,8 +59,8 @@ func (s *AdultScraperService) scrapeFC2Hub(code string) (*AdultMetadata, error) 
 	}
 
 	randomDelay(
-		s.cfg.AdultScraper.MinRequestInterval,
-		s.cfg.AdultScraper.MaxRequestInterval,
+		s.cfg.AdultScraperSnapshot().MinRequestInterval,
+		s.cfg.AdultScraperSnapshot().MaxRequestInterval,
 	)
 
 	// Step 3: 抓取详情页

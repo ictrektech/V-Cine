@@ -16,7 +16,7 @@ func (h *AdminHandler) GetSTRMConfig(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "配置未加载"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": h.cfg.STRM})
+	c.JSON(http.StatusOK, gin.H{"data": h.cfg.STRMSnapshot()})
 }
 
 // UpdateSTRMConfig 更新 STRM 全局配置
@@ -61,6 +61,6 @@ func (h *AdminHandler) UpdateSTRMConfig(c *gin.Context) {
 	h.auditFromContext(c, "strm.update_config", "system", "strm", "")
 	c.JSON(http.StatusOK, gin.H{
 		"message": "STRM 配置已更新",
-		"data":    h.cfg.STRM,
+		"data":    h.cfg.STRMSnapshot(),
 	})
 }

@@ -22,7 +22,7 @@ import (
 
 // GetAlistConfig 获取 Alist 配置（密码 / Token 脱敏）
 func (h *StorageHandler) GetAlistConfig(c *gin.Context) {
-	cfg := h.cfg.Storage.Alist
+	cfg := h.cfg.StorageSnapshot().Alist
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
 		"enabled":            cfg.Enabled,
 		"server_url":         cfg.ServerURL,
@@ -82,7 +82,7 @@ func (h *StorageHandler) UpdateAlistConfig(c *gin.Context) {
 		ReadBlockCount:  req.ReadBlockCount,
 	}
 	// 空字符串沿用原值
-	old := h.cfg.Storage.Alist
+	old := h.cfg.StorageSnapshot().Alist
 	if newCfg.Password == "" {
 		newCfg.Password = old.Password
 	}
@@ -130,7 +130,7 @@ func (h *StorageHandler) TestAlistConnection(c *gin.Context) {
 	}
 	password := req.Password
 	token := req.Token
-	saved := h.cfg.Storage.Alist
+	saved := h.cfg.StorageSnapshot().Alist
 	if password == "" && token == "" && strings.TrimRight(req.ServerURL, "/") == saved.ServerURL {
 		password = saved.Password
 		token = saved.Token
@@ -155,7 +155,7 @@ func (h *StorageHandler) TestAlistConnection(c *gin.Context) {
 
 // GetS3Config 获取 S3 配置（密钥脱敏）
 func (h *StorageHandler) GetS3Config(c *gin.Context) {
-	cfg := h.cfg.Storage.S3
+	cfg := h.cfg.StorageSnapshot().S3
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
 		"enabled":            cfg.Enabled,
 		"endpoint":           cfg.Endpoint,
@@ -222,7 +222,7 @@ func (h *StorageHandler) UpdateS3Config(c *gin.Context) {
 		ReadBlockSizeMB: req.ReadBlockSizeMB,
 		ReadBlockCount:  req.ReadBlockCount,
 	}
-	old := h.cfg.Storage.S3
+	old := h.cfg.StorageSnapshot().S3
 	if newCfg.SecretKey == "" {
 		newCfg.SecretKey = old.SecretKey
 	}
@@ -268,7 +268,7 @@ func (h *StorageHandler) TestS3Connection(c *gin.Context) {
 		return
 	}
 	secretKey := req.SecretKey
-	saved := h.cfg.Storage.S3
+	saved := h.cfg.StorageSnapshot().S3
 	if secretKey == "" && req.AccessKey == saved.AccessKey &&
 		strings.TrimRight(req.Endpoint, "/") == saved.Endpoint && req.Bucket == saved.Bucket {
 		secretKey = saved.SecretKey

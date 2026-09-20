@@ -520,7 +520,7 @@ func (s *SubtitlePreprocessService) processTask(taskID string) {
 		return
 	}
 
-	if s.cfg.AI.SubCleanEnabled && task.OriginalVTTPath != "" {
+	if s.cfg.AISnapshot().SubCleanEnabled && task.OriginalVTTPath != "" {
 		s.updatePhase(task, "clean", 48, "正在清洗字幕内容...")
 
 		cleaner := NewSubtitleCleaner(s.buildCleanConfig(), s.logger)
@@ -716,7 +716,7 @@ func (s *SubtitlePreprocessService) tryExtractSubtitle(media *model.Media) (stri
 		}
 
 		// P3: 如果只有图形字幕，尝试 OCR 提取
-		if bestTrack == nil && s.cfg.AI.OCREnabled {
+		if bestTrack == nil && s.cfg.AISnapshot().OCREnabled {
 			for i := range tracks {
 				if tracks[i].Bitmap {
 					vttPath, err := s.extractBitmapSubtitleOCR(filePath, &tracks[i])
@@ -876,12 +876,13 @@ func (s *SubtitlePreprocessService) countVTTCues(vttPath string) int {
 // 2. Tesseract 对每张图片进行 OCR 识别
 // 3. 将识别结果组装为 VTT 格式
 func (s *SubtitlePreprocessService) extractBitmapSubtitleOCR(filePath string, track *SubtitleTrack) (string, error) {
-	if !s.cfg.AI.OCREnabled {
+	ai := s.cfg.AISnapshot()
+	if !ai.OCREnabled {
 		return "", fmt.Errorf("OCR 未启用")
 	}
 
 	// 检查 Tesseract 是否可用
-	tesseractBin := s.cfg.AI.TesseractPath
+	tesseractBin := ai.TesseractPath
 	if tesseractBin == "" {
 		tesseractBin = "tesseract"
 	}
@@ -889,7 +890,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleOCR(filePath string, tr
 		return "", fmt.Errorf("Tesseract 未安装或不在 PATH 中: %v", err)
 	}
 
-	tesseractLang := s.cfg.AI.TesseractLang
+	tesseractLang := ai.TesseractLang
 	if tesseractLang == "" {
 		tesseractLang = "eng"
 	}
@@ -1342,23 +1343,24 @@ func (s *SubtitlePreprocessService) BatchRetryTasks(taskIDs []string) (int, erro
 
 // buildCleanConfig 从应用配置构建字幕清洗配置
 func (s *SubtitlePreprocessService) buildCleanConfig() SubtitleCleanConfig {
+	ai := s.cfg.AISnapshot()
 	return SubtitleCleanConfig{
 		AutoDetectEncoding:   true, // 始终启用编码检测
-		FallbackEncoding:     s.cfg.AI.SubCleanFallbackEnc,
-		RemoveHTMLTags:       s.cfg.AI.SubCleanRemoveHTML,
-		RemoveASSStyles:      s.cfg.AI.SubCleanRemoveASSStyle,
-		NormalizePunctuation: s.cfg.AI.SubCleanNormalizePunct,
-		RemoveSDH:            s.cfg.AI.SubCleanRemoveSDH,
-		RemoveAds:            s.cfg.AI.SubCleanRemoveAds,
-		TimeOffsetMs:         s.cfg.AI.SubCleanTimeOffsetMs,
-		MinDurationMs:        s.cfg.AI.SubCleanMinDurationMs,
-		MaxDurationMs:        s.cfg.AI.SubCleanMaxDurationMs,
-		MinGapMs:             s.cfg.AI.SubCleanMinGapMs,
-		MergeShortCues:       s.cfg.AI.SubCleanMergeShort,
-		SplitLongCues:        s.cfg.AI.SubCleanSplitLong,
-		MaxCharsPerLine:      s.cfg.AI.SubCleanMaxCharsPerLine,
-		MaxLinesPerCue:       s.cfg.AI.SubCleanMaxLinesPerCue,
-		BackupOriginal:       s.cfg.AI.SubCleanBackup,
+		FallbackEncoding:     ai.SubCleanFallbackEnc,
+		RemoveHTMLTags:       ai.SubCleanRemoveHTML,
+		RemoveASSStyles:      ai.SubCleanRemoveASSStyle,
+		NormalizePunctuation: ai.SubCleanNormalizePunct,
+		RemoveSDH:            ai.SubCleanRemoveSDH,
+		RemoveAds:            ai.SubCleanRemoveAds,
+		TimeOffsetMs:         ai.SubCleanTimeOffsetMs,
+		MinDurationMs:        ai.SubCleanMinDurationMs,
+		MaxDurationMs:        ai.SubCleanMaxDurationMs,
+		MinGapMs:             ai.SubCleanMinGapMs,
+		MergeShortCues:       ai.SubCleanMergeShort,
+		SplitLongCues:        ai.SubCleanSplitLong,
+		MaxCharsPerLine:      ai.SubCleanMaxCharsPerLine,
+		MaxLinesPerCue:       ai.SubCleanMaxLinesPerCue,
+		BackupOriginal:       ai.SubCleanBackup,
 	}
 }
 

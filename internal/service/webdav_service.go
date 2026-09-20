@@ -44,7 +44,7 @@ func (s *WebDAVService) Initialize() error {
 // initializeLocked 执行初始化，调用方必须已持有 s.mu。
 // testConn 为 true 时（配置保存）会同步验证连接，给管理端即时错误反馈。
 func (s *WebDAVService) initializeLocked(testConn bool) error {
-	webdavCfg := s.config.Storage.WebDAV
+	webdavCfg := s.config.StorageSnapshot().WebDAV
 
 	// 检查是否启用 WebDAV
 	if !webdavCfg.Enabled {
@@ -99,7 +99,7 @@ func (s *WebDAVService) GetWebDAVFS() (VFS, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	webdavCfg := s.config.Storage.WebDAV
+	webdavCfg := s.config.StorageSnapshot().WebDAV
 	if !webdavCfg.Enabled {
 		return nil, fmt.Errorf("WebDAV 存储未启用")
 	}
@@ -160,7 +160,7 @@ func (s *WebDAVService) UpdateConfig(newCfg config.WebDAVConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	oldCfg := s.config.Storage.WebDAV
+	oldCfg := s.config.StorageSnapshot().WebDAV
 
 	// 如果配置未改变，直接返回
 	if s.getConfigHash(oldCfg) == s.getConfigHash(newCfg) {
@@ -168,7 +168,7 @@ func (s *WebDAVService) UpdateConfig(newCfg config.WebDAVConfig) error {
 	}
 
 	// 更新配置
-	s.config.Storage.WebDAV = newCfg
+	s.config.UpdateStorageInMemory(func(st *config.StorageConfig) { st.WebDAV = newCfg })
 
 	// 清除旧的客户端缓存
 	s.clients = make(map[string]*WebDAVFS)
@@ -187,7 +187,7 @@ func (s *WebDAVService) GetStatus() map[string]interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	webdavCfg := s.config.Storage.WebDAV
+	webdavCfg := s.config.StorageSnapshot().WebDAV
 
 	status := map[string]interface{}{
 		"enabled":      webdavCfg.Enabled,

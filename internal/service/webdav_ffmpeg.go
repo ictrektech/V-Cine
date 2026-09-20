@@ -27,11 +27,11 @@ func ResolveWebDAVFFmpegURL(cfg *config.Config, p string) string {
 	if !strings.HasPrefix(p, WebDAVScheme) {
 		return p
 	}
-	if cfg == nil || !cfg.Storage.WebDAV.Enabled || cfg.Storage.WebDAV.ServerURL == "" {
+	if cfg == nil || !cfg.StorageSnapshot().WebDAV.Enabled || cfg.StorageSnapshot().WebDAV.ServerURL == "" {
 		return p
 	}
 
-	webdavCfg := cfg.Storage.WebDAV
+	webdavCfg := cfg.StorageSnapshot().WebDAV
 
 	// 1) 解析服务器 URL
 	base, err := url.Parse(webdavCfg.ServerURL)

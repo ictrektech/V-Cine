@@ -796,7 +796,7 @@ func (s *StreamService) ProxyRemoteStreamForMedia(mediaID string, w http.Respons
 	hdr := buildSTRMRequestHeader(ua, referer, cookie, extra)
 
 	// 若客户端请求的是 HLS manifest，走文本代理并重写 URL
-	if s.cfg != nil && s.cfg.STRM.RewriteHLS && looksLikeHLSURL(media.StreamURL) {
+	if s.cfg != nil && s.cfg.STRMSnapshot().RewriteHLS && looksLikeHLSURL(media.StreamURL) {
 		return s.proxyHLSPlaylist(mediaID, media.StreamURL, hdr, w, r)
 	}
 	return s.proxyRemoteStreamWithHeaders(media.StreamURL, cookie, w, r, hdr)
@@ -1050,23 +1050,29 @@ func (s *StreamService) proxyHLSPlaylist(mediaID, remoteURL string, hdr http.Hea
 
 // strmConnectTimeoutSec 读取配置中的 STRM 连接超时
 func (s *StreamService) strmConnectTimeoutSec() int {
-	if s.cfg != nil && s.cfg.STRM.ConnectTimeout > 0 {
-		return s.cfg.STRM.ConnectTimeout
+	if s.cfg != nil {
+		if t := s.cfg.STRMSnapshot().ConnectTimeout; t > 0 {
+			return t
+		}
 	}
 	return 30
 }
 
-// strmCfg 返回 STRM 配置指针（可能为空配置但非 nil）
+// strmCfg 返回 STRM 配置快照指针（可能为空配置但非 nil）。
+// 指向私有副本，调用期间配置热更新不影响本次处理。
 func (s *StreamService) strmCfg() *config.STRMConfig {
 	if s.cfg == nil {
 		return nil
 	}
-	return &s.cfg.STRM
+	snap := s.cfg.STRMSnapshot()
+	return &snap
 }
 
 func (s *StreamService) defaultUA() string {
-	if s.cfg != nil && s.cfg.STRM.DefaultUserAgent != "" {
-		return s.cfg.STRM.DefaultUserAgent
+	if s.cfg != nil {
+		if ua := s.cfg.STRMSnapshot().DefaultUserAgent; ua != "" {
+			return ua
+		}
 	}
 	return "v-cine/1.0"
 }

@@ -1048,7 +1048,7 @@ func (s *AIService) GetStatus() map[string]interface{} {
 		"enable_smart_search":     cfg.EnableSmartSearch,
 		"enable_recommend_reason": cfg.EnableRecommendReason,
 		"enable_metadata_enhance": cfg.EnableMetadataEnhance,
-		"describe_enabled":        s.appCfg.GetVideoAnalysisConfig().DescribeEnabled,
+		"describe_enabled":        s.appCfg.VideoAnalysisSnapshot().DescribeEnabled,
 		"scene_describe_ai": map[string]interface{}{
 			"provider_id": cfg.SceneDescribeAI.ProviderID,
 			"model":       cfg.SceneDescribeAI.Model,
