@@ -95,7 +95,7 @@ export default function FileListView({
     return lib ? lib.name : '未知'
   }
 
-  // 表格横向滚动时显示标题列分隔线
+  // 表格横向滚动时显示固定列（标题/操作）分隔线
   const [tableScrolled, setTableScrolled] = useState(false)
   const handleTableScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setTableScrolled(e.currentTarget.scrollLeft > 0)
@@ -311,9 +311,10 @@ export default function FileListView({
           <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>当前文件夹下无直接文件，请浏览子文件夹</p>
         </div>
       ) : viewMode === 'table' ? (
-        /* 表格视图 */
-        <div className="overflow-x-auto" onScroll={handleTableScroll}>
-          <table className="w-full min-w-[960px] text-sm whitespace-nowrap">
+        /* 表格视图。无强制 min-width：列宽由内容撑起，操作列 sticky right，小屏不产生滚动空白；
+           @container 阈值 660 = 固定列 ~456 + 中间最小 ~200，低于只留两端（档位见 tailwind.config.js） */
+        <div className="@container overflow-x-auto" onScroll={handleTableScroll}>
+          <table className="w-full text-sm whitespace-nowrap">
             <TableHeader>
               <TableRow className="border-b" style={{ borderColor: 'var(--border-default)' }}>
                 <TableHead className="sticky left-0 top-0 z-30 w-10 px-2.5 py-2 text-left" style={{ background: 'var(--bg-surface)' }}>
@@ -322,13 +323,13 @@ export default function FileListView({
                   </button>
                 </TableHead>
                 <TableHead className="sticky left-10 top-0 z-30 px-2.5 py-2 text-left" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>标题</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left md:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>类型</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>年份</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left lg:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>评分</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>大小</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>来源</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left xl:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>状态</TableHead>
-                <TableHead className="sticky top-0 z-20 px-2.5 py-2 text-right" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>操作</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>类型</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>年份</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>评分</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>大小</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>来源</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>状态</TableHead>
+                <TableHead className="sticky top-0 right-0 z-30 px-2.5 py-2 text-right" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset 1px 0 0 var(--border-strong)' : 'none' }}>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -344,7 +345,7 @@ export default function FileListView({
                       {selectedIds.has(file.id) ? <CheckSquare size={16} className="text-neon" /> : <Square size={16} className="text-surface-500" />}
                     </button>
                   </TableCell>
-                  <TableCell className="sticky left-10 z-10 max-w-[280px] px-2.5 py-2" style={{ background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>
+                  <TableCell className="sticky left-10 z-10 max-w-[160px] md:max-w-[280px] px-2.5 py-2" style={{ background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>
                     <div className="flex items-center gap-3">
                       <img
                         src={streamApi.getPosterUrl(file.id)}
@@ -377,7 +378,7 @@ export default function FileListView({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden px-2.5 py-2 md:table-cell">
+                  <TableCell className="hidden px-2.5 py-2 @660:table-cell">
                     <Badge variant="outline" className={clsx('gap-1 rounded-full border-transparent text-xs',
                       file.media_type === 'movie' ? 'bg-purple-500/10 text-purple-400' : 'bg-green-500/10 text-green-400'
                     )}>
@@ -385,37 +386,37 @@ export default function FileListView({
                       {file.media_type === 'movie' ? '电影' : '剧集'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden px-2.5 py-2 lg:table-cell" style={{ color: 'var(--text-secondary)' }}>
+                  <TableCell className="hidden px-2.5 py-2 @660:table-cell" style={{ color: 'var(--text-secondary)' }}>
                     {file.year || '-'}
                   </TableCell>
-                  <TableCell className="hidden px-2.5 py-2 lg:table-cell">
+                  <TableCell className="hidden px-2.5 py-2 @660:table-cell">
                     {file.rating > 0 ? (
                       <span className="text-amber-400">★ {file.rating.toFixed(1)}</span>
                     ) : (
                       <span style={{ color: 'var(--text-tertiary)' }}>-</span>
                     )}
                   </TableCell>
-                  <TableCell className="hidden px-2.5 py-2 xl:table-cell" style={{ color: 'var(--text-secondary)' }}>
+                  <TableCell className="hidden px-2.5 py-2 @660:table-cell" style={{ color: 'var(--text-secondary)' }}>
                     {file.file_size > 0 ? formatFileSize(file.file_size) : '-'}
                   </TableCell>
-                  <TableCell className="hidden px-2.5 py-2 xl:table-cell">
+                  <TableCell className="hidden px-2.5 py-2 @660:table-cell">
                     <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{sourceLabel(file)}</span>
                   </TableCell>
-                  <TableCell className="hidden px-2.5 py-2 xl:table-cell">
+                  <TableCell className="hidden px-2.5 py-2 @660:table-cell">
                     {renderScrapeBadge(file, 'md')}
                   </TableCell>
-                  <TableCell className="px-2.5 py-2 text-right">
+                  <TableCell className="sticky right-0 z-10 px-2.5 py-2 text-right" style={{ background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset 1px 0 0 var(--border-strong)' : 'none' }}>
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => onViewDetail(file)}
                         className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-blue-400" title="查看详情">
                         <Eye size={14} />
                       </button>
                       <button onClick={() => onEdit(file)}
-                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-amber-400" title="编辑">
+                        className="hidden md:inline-flex p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-amber-400" title="编辑">
                         <Edit3 size={14} />
                       </button>
                       <button onClick={() => onScrape(file.id)}
-                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-purple-400" title="刮削">
+                        className="hidden md:inline-flex p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-purple-400" title="刮削">
                         <Sparkles size={14} />
                       </button>
                       <button onClick={() => onDelete(file.id)}

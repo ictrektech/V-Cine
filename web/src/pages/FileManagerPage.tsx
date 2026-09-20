@@ -17,6 +17,7 @@ import PreprocessPage from '@/pages/PreprocessPage'
 import SubtitlePreprocessPage from '@/pages/SubtitlePreprocessPage'
 import LibraryManager from '@/components/LibraryManager'
 import { useScanProgress } from '@/hooks/useScanProgress'
+import { isSmallScreen, useIsSmallScreen } from '@/hooks/useSmallScreen'
 import AdultScraperSection from '@/components/admin/AdultScraperTab'
 import AdultScraperProSection from '@/components/admin/AdultScraperPro'
 import STRMConfigSection from '@/components/admin/STRMConfigSection'
@@ -149,8 +150,13 @@ export default function FileManagerPage() {
     })
   }, [files])
 
-  // 视图模式
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
+  // 视图模式（小屏默认网格：表格固定列在窄屏下会互相重叠）
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => (isSmallScreen() ? 'grid' : 'table'))
+  // 进入小屏时自动切到网格；手动切回表格后不强切，直到再次跨越断点
+  const smallScreen = useIsSmallScreen()
+  useEffect(() => {
+    if (smallScreen) setViewMode('grid')
+  }, [smallScreen])
 
   // 文件夹导航
   const [folderTree, setFolderTree] = useState<FolderNode[]>([])

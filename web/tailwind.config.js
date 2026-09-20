@@ -9,6 +9,10 @@ export default {
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
+      // 文件列表中间列显隐的容器查询阈值：容器 < 660 只留两端固定列，中间列全部显示、超出即滚动
+      containers: {
+        660: '660px',
+      },
       fontFamily: {
         display: ['Inter', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
         body: ['Inter', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
@@ -214,5 +218,5 @@ export default {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require('tailwindcss-animate'), require('@tailwindcss/container-queries')],
 }
