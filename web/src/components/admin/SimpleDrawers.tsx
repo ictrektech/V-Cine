@@ -17,15 +17,17 @@ type CommonProps = {
   onOpenChange: (open: boolean) => void
 }
 
-function DrawerShell({ open, onOpenChange, title, description, size, children }: CommonProps & {
+function DrawerShell({ open, onOpenChange, title, description, size, contentClassName, children }: CommonProps & {
   title: string
   description: string
   size?: ComponentProps<typeof DrawerContent>['size']
+  /** 传给 DrawerContent 的额外 className（如固定高度，避免内容切换时弹窗跳变） */
+  contentClassName?: string
   children: ReactNode
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent size={size} title={title} description={description}>
+      <DrawerContent size={size} className={contentClassName} title={title} description={description}>
         {children}
       </DrawerContent>
     </Drawer>
@@ -34,7 +36,7 @@ function DrawerShell({ open, onOpenChange, title, description, size, children }:
 
 export function AIDrawer({ open, onOpenChange }: CommonProps) {
   return (
-    <DrawerShell open={open} onOpenChange={onOpenChange} size="xl" title="AI 服务" description="AI 识别、归类、搜索、推荐、元数据增强">
+    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" contentClassName="h-[85vh]" title="AI 服务" description="AI 识别、归类、搜索、推荐、元数据增强">
       <AITab />
     </DrawerShell>
   )

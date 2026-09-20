@@ -4,6 +4,7 @@ import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import { Modal } from '@/components/ui/modal'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { useTranslation } from '@/i18n'
 import { extractErrMsg } from '@/utils/error'
 import type { AIStatus, AIErrorLog, AICacheStats, AITestResult } from '@/types'
@@ -29,12 +30,14 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Wifi,
   WifiOff,
   Rocket,
   Plus,
   Pencil,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import clsx from 'clsx'
 
 // ==================== 提供商预设 ====================
@@ -50,6 +53,16 @@ const RECOMMEND_TEST_CASES = [
   { title: '星际穿越', genres: '科幻,冒险,剧情' },
   { title: '你的名字', genres: '动画,爱情,奇幻' },
   { title: '肖申克的救赎', genres: '剧情,犯罪' },
+]
+
+// ==================== 分组导航定义（左栏点击点） ====================
+type AISectionKey = 'overview' | 'providers' | 'advanced' | 'ops'
+
+const AI_SECTIONS: { key: AISectionKey; label: string; icon: LucideIcon }[] = [
+  { key: 'overview', label: '概览与托管', icon: Power },
+  { key: 'providers', label: 'AI 提供商', icon: Settings },
+  { key: 'advanced', label: '高级设置', icon: Shield },
+  { key: 'ops', label: '运维诊断', icon: Activity },
 ]
 
 export default function AITab() {
@@ -96,6 +109,9 @@ export default function AITab() {
 
   // ==================== 供应商配置（扁平字段） ====================
   const [showErrors, setShowErrors] = useState(false)
+
+  // 当前分组（左栏导航）
+  const [section, setSection] = useState<AISectionKey>('overview')
 
   // ==================== 供应商列表管理 ====================
   type ModelItem = { name: string; is_vision: boolean; is_default: boolean }
@@ -527,6 +543,45 @@ export default function AITab() {
 
   return (
     <div className="space-y-6">
+      {/* 左右结构：左 = 分组导航（桌面纵排 sticky，右侧分界线 / 移动端横滑，底部分界线），右 = 当前分组内容 */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:gap-0">
+      <div
+        className="shrink-0 border-b lg:w-44 lg:border-b-0 lg:border-r"
+        style={{ borderColor: 'var(--border-default)' }}
+      >
+      <nav
+        aria-label="AI 服务分组"
+        className="flex gap-1 overflow-x-auto pb-3 lg:sticky lg:top-0 lg:flex-col lg:gap-0.5 lg:overflow-x-visible lg:py-1 lg:pr-3"
+      >
+        {AI_SECTIONS.map((s) => {
+          const Icon = s.icon
+          const active = section === s.key
+          return (
+            <button
+              key={s.key}
+              onClick={() => setSection(s.key)}
+              aria-current={active || undefined}
+              className={clsx(
+                'flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium outline-none',
+                'transition-[color,background-color] duration-200',
+                'focus-visible:ring-2 focus-visible:ring-neon/40',
+                active
+                  ? 'bg-[var(--neon-blue-10)] text-[var(--neon-blue)]'
+                  : 'text-[var(--text-muted)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--text-primary)]'
+              )}
+            >
+              <Icon size={15} className="shrink-0" />
+              <span>{s.label}</span>
+              {active && <ChevronRight size={14} className="ml-auto hidden lg:block" />}
+            </button>
+          )
+        })}
+      </nav>
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-6 lg:pl-6">
+        {section === 'overview' && (
+        <>
       {/* ==================== 状态概览卡片 ==================== */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* 服务状态 */}
@@ -635,16 +690,12 @@ export default function AITab() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => handleToggleAutoPilot(!status?.auto_pilot)}
+            <Switch
+              checked={!!status?.auto_pilot}
+              onCheckedChange={handleToggleAutoPilot}
               disabled={autoPilotBusy}
-              className="toggle-switch toggle-switch-lg"
-              role="switch"
-              aria-checked={!!status?.auto_pilot}
               aria-label="全自动托管模式"
-            >
-              <span className="toggle-switch-thumb" />
-            </button>
+            />
           </div>
           {!status?.api_configured && (
             <div className="mt-3 flex items-center gap-2 text-xs text-yellow-400">
@@ -695,15 +746,11 @@ export default function AITab() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setEditEnabled(!editEnabled)}
-              className="toggle-switch toggle-switch-lg shrink-0"
-              role="switch"
-              aria-checked={editEnabled}
+            <Switch
+              checked={editEnabled}
+              onCheckedChange={setEditEnabled}
               aria-label="启用 AI 功能"
-            >
-              <span className="toggle-switch-thumb" />
-            </button>
+            />
           </div>
 
           {/* 子功能开关卡片（2 列网格，一眼掌握） */}
@@ -748,15 +795,11 @@ export default function AITab() {
                       <p className="text-xs text-theme-muted truncate">{item.desc}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => item.setter(!item.value)}
-                    className="toggle-switch toggle-switch-sm shrink-0"
-                    role="switch"
-                    aria-checked={item.value}
+                  <Switch
+                    checked={item.value}
+                    onCheckedChange={item.setter}
                     aria-label={item.label}
-                  >
-                    <span className="toggle-switch-thumb" />
-                  </button>
+                  />
                 </div>
               )
             })}
@@ -771,6 +814,10 @@ export default function AITab() {
         </div>
       </section>
 
+        </>
+        )}
+        {section === 'providers' && (
+        <>
       {/* ==================== 供应商列表 ==================== */}
       <section>
         <h2
@@ -895,6 +942,8 @@ export default function AITab() {
         </div>
       </section>
 
+        </>
+        )}
       {/* ==================== 开启全自动托管模式提示 ==================== */}
       <Modal open={showAutoPilotWarning} onClose={cancelAutoPilotWarning} className="max-w-md">
           <div className="glass-panel rounded-2xl p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
@@ -1172,6 +1221,8 @@ export default function AITab() {
           </div>
       </Modal>
 
+        {section === 'advanced' && (
+        <>
       {/* ==================== 数据脱敏 ==================== */}
       <section>
         <h2
@@ -1200,15 +1251,11 @@ export default function AITab() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setEditDesensitize(!editDesensitize)}
-              className="toggle-switch toggle-switch-lg shrink-0"
-              role="switch"
-              aria-checked={editDesensitize}
+            <Switch
+              checked={editDesensitize}
+              onCheckedChange={setEditDesensitize}
               aria-label="启用数据脱敏"
-            >
-              <span className="toggle-switch-thumb" />
-            </button>
+            />
           </div>
 
           {/* 配置项（启用后展开） */}
@@ -1242,15 +1289,11 @@ export default function AITab() {
                   <p className="text-sm font-medium text-theme-primary">NER 语义识别</p>
                   <p className="text-xs text-theme-muted">开启后额外识别人名、地址等语义信息（有并发限制）</p>
                 </div>
-                <button
-                  onClick={() => setEditDesensitizeNER(!editDesensitizeNER)}
-                  className="toggle-switch toggle-switch-sm shrink-0"
-                  role="switch"
-                  aria-checked={editDesensitizeNER}
+                <Switch
+                  checked={editDesensitizeNER}
+                  onCheckedChange={setEditDesensitizeNER}
                   aria-label="NER 语义识别"
-                >
-                  <span className="toggle-switch-thumb" />
-                </button>
+                />
               </div>
               <div className="h-px" style={{ background: 'var(--border-default)' }} />
               <div className="flex items-center justify-between gap-3">
@@ -1258,15 +1301,11 @@ export default function AITab() {
                   <p className="text-sm font-medium text-theme-primary">图片脱敏</p>
                   <p className="text-xs text-theme-muted">开启后对外发图片先经脱敏服务打码（同一服务地址）</p>
                 </div>
-                <button
-                  onClick={() => setEditDesensitizeImageEnabled(!editDesensitizeImageEnabled)}
-                  className="toggle-switch toggle-switch-sm shrink-0"
-                  role="switch"
-                  aria-checked={editDesensitizeImageEnabled}
+                <Switch
+                  checked={editDesensitizeImageEnabled}
+                  onCheckedChange={setEditDesensitizeImageEnabled}
                   aria-label="图片脱敏"
-                >
-                  <span className="toggle-switch-thumb" />
-                </button>
+                />
               </div>
               {editDesensitizeImageEnabled && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1387,6 +1426,10 @@ export default function AITab() {
         </div>
       </section>
 
+        </>
+        )}
+        {section === 'ops' && (
+        <>
       {/* ==================== 使用统计 ==================== */}
       <section>
         <h2
@@ -1397,7 +1440,7 @@ export default function AITab() {
         </h2>
 
         <div className="glass-panel rounded-xl p-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="text-center">
               <p className="text-2xl font-bold text-neon">{status?.monthly_calls || 0}</p>
               <p className="mt-1 text-xs text-theme-muted">
@@ -1434,14 +1477,6 @@ export default function AITab() {
               </p>
               <p className="mt-1 text-xs text-theme-muted">
                 输出 Token
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-400">
-                ${(((status?.total_tokens || 0) / 1000000) * 0.15).toFixed(4)}
-              </p>
-              <p className="mt-1 text-xs text-theme-muted">
-                费用估算 (gpt-4o-mini)
               </p>
             </div>
           </div>
@@ -1705,6 +1740,8 @@ export default function AITab() {
         )}
       </section>
 
+        </>
+        )}
       {/* ==================== 权限说明 ==================== */}
       <section className="rounded-xl p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
         <div className="flex items-start gap-3">
@@ -1720,6 +1757,8 @@ export default function AITab() {
           </div>
         </div>
       </section>
+      </div>
+      </div>
 
     </div>
   )
