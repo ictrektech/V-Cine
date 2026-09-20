@@ -1365,6 +1365,17 @@ func (c *Config) ClearDoubanCookie() error {
 	return c.SetDoubanCookie("")
 }
 
+// SetBangumiAccessToken 设置 Bangumi Access Token 并持久化到 secrets.yaml 分片
+// （与 SetTMDbAPIKey 相同的原因：不依赖回写主 config.yaml）。
+func (c *Config) SetBangumiAccessToken(token string) error {
+	return c.UpdateSecrets(func(s *SecretsConfig) { s.BangumiAccessToken = token })
+}
+
+// ClearBangumiAccessToken 清除 Bangumi Access Token 并持久化
+func (c *Config) ClearBangumiAccessToken() error {
+	return c.SetBangumiAccessToken("")
+}
+
 // UpdateStorageInMemory 在锁内仅更新内存中的 Storage 配置，不落盘。
 // 供 WebDAV/远程存储服务在自身重初始化流程中同步内存状态；
 // 持久化由调用方随后通过 UpdateStorage 完成。
