@@ -563,8 +563,6 @@ func (h *AdminHandler) ClearAllData(c *gin.Context) {
 		{name: "内容分级", model: &model.ContentRating{}},
 
 		// 刮削与任务
-		{name: "刮削历史", model: &model.ScrapeHistory{}},
-		{name: "刮削任务", model: &model.ScrapeTask{}},
 		{name: "转码任务", model: &model.TranscodeTask{}},
 
 		// AI 相关

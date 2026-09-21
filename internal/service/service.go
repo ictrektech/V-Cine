@@ -38,7 +38,6 @@ type Services struct {
 	RemoteStorage  *RemoteStorageService // V2.3: Alist / S3 统一管理
 	WSHub          *WSHub
 	AI             *AIService
-	ScrapeManager  *ScrapeManagerService
 	FileManager    *FileManagerService
 	AIAssistant    *AIAssistantService
 	TheTVDB        *TheTVDBService
@@ -196,14 +195,6 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	recommendService := NewRecommendService(repos.Media, repos.Series, repos.WatchHistory, repos.Favorite, repos.RecommendCache, logger)
 	recommendService.SetAIService(aiService)
 
-	// 创建刮削管理服务
-	scrapeManager := NewScrapeManagerService(
-		repos.ScrapeTask, repos.ScrapeHistory,
-		repos.Media, repos.Series,
-		metadata, aiService, logger,
-	)
-	scrapeManager.SetWSHub(wsHub)
-
 	// 创建文件管理服务
 	fileManager := NewFileManagerService(
 		repos.Media, repos.Series, repos.FileOpLog,
@@ -321,7 +312,6 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 		RemoteStorage:  remoteStorageService,
 		WSHub:          wsHub,
 		AI:             aiService,
-		ScrapeManager:  scrapeManager,
 		FileManager:    fileManager,
 		AIAssistant:    aiAssistant,
 		TheTVDB:        thetvdbService,

@@ -8,7 +8,7 @@ import { Film, Rss, Clapperboard, Subtitles, Settings2 } from 'lucide-react'
 // 通过 WS 事件桥接写入，localStorage 持久化，刷新页面不丢失。
 
 export type NotificationType =
-  | 'scrape'    // 刮削（元数据/番号/URL任务）
+  | 'scrape'    // 刮削（元数据/番号）
   | 'scan'      // 媒体库扫描
   | 'transcode' // 转码
   | 'subtitle'  // 字幕（ASR/翻译）

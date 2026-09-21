@@ -27,7 +27,6 @@ type Handlers struct {
 	Danmaku        *DanmakuHandler
 	Stats          *StatsHandler
 	AI             *AIHandler
-	ScrapeManager  *ScrapeManagerHandler
 	FileManager    *FileManagerHandler
 	AIAssistant    *AIAssistantHandler
 	Notification   *NotificationHandler
@@ -117,7 +116,6 @@ func NewHandlers(services *service.Services, repos *repository.Repositories, cfg
 			cfg:         cfg,
 			logger:      logger,
 		},
-		ScrapeManager:  &ScrapeManagerHandler{scrapeService: services.ScrapeManager, logger: logger},
 		FileManager:    &FileManagerHandler{fileService: services.FileManager, cfg: cfg, logger: logger},
 		AIAssistant:    &AIAssistantHandler{assistantService: services.AIAssistant, logger: logger},
 		Notification:   &NotificationHandler{notifyService: services.Notification, logger: logger},

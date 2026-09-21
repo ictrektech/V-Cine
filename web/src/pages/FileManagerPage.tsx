@@ -12,7 +12,6 @@ import { useToast } from '@/components/Toast'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
-import ScrapeManagerPage from '@/pages/ScrapeManagerPage'
 import PreprocessPage from '@/pages/PreprocessPage'
 import SubtitlePreprocessPage from '@/pages/SubtitlePreprocessPage'
 import LibraryManager from '@/components/LibraryManager'
@@ -27,7 +26,6 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
 import {
   FolderOpen,
-  Globe,
   RefreshCw,
   History,
   PanelLeftOpen,
@@ -70,7 +68,6 @@ export default function FileManagerPage() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const tab = searchParams.get('tab')
     if (tab === 'library') return 'library'
-    if (tab === 'scrape') return 'scrape'
     if (tab === 'analysis') return 'analysis'
     if (tab === 'adult') return 'adult'
     if (tab === 'preprocess') return 'preprocess'
@@ -815,7 +812,6 @@ export default function FileManagerPage() {
         tabs={[
           { key: 'library', label: '媒体库', icon: LibraryIcon },
           { key: 'files', label: '文件列表', icon: FolderOpen },
-          { key: 'scrape', label: '刮削任务', icon: Globe },
           { key: 'analysis', label: '视频分析', icon: ScanLine },
           { key: 'preprocess', label: '预处理', icon: Zap },
           { key: 'adult', label: '成人刮削', icon: ShieldAlert, hidden: nsfwEnabled !== true },
@@ -826,23 +822,18 @@ export default function FileManagerPage() {
 
       {/* ==================== 媒体库管理 Tab ==================== */}
       {activeTab === 'library' && (
-        <LibraryManager
-          libraries={visibleLibraries}
-          setLibraries={setLibraries}
-          scanning={scanning}
-          setScanning={setScanning}
-          scanProgress={scanProgress}
-          scrapeProgress={scrapeProgress}
-          scanPhase={scanPhase}
-        />
-      )}
-
-      {/* ==================== 刮削任务 Tab ==================== */}
-      {activeTab === 'scrape' && (
         <div className="space-y-5">
-          {/* STRM 远程流全局配置（.strm 云盘/CDN 流的默认 UA/Referer、HLS 重写、远程探测、域名白名单）*/}
+          <LibraryManager
+            libraries={visibleLibraries}
+            setLibraries={setLibraries}
+            scanning={scanning}
+            setScanning={setScanning}
+            scanProgress={scanProgress}
+            scrapeProgress={scrapeProgress}
+            scanPhase={scanPhase}
+          />
+          {/* STRM 远程流全局配置（.strm 云盘/CDN 流的默认 UA/Referer、HLS 重写、远程探测、域名白名单）— 原刮削任务 Tab 迁入 */}
           <STRMConfigSection />
-          <ScrapeManagerPage embedded />
         </div>
       )}
 

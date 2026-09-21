@@ -49,7 +49,7 @@ export function formatFileSize(bytes: number): string {
 }
 
 // Tab 类型
-export type TabType = 'library' | 'files' | 'scrape' | 'analysis' | 'adult' | 'preprocess'
+export type TabType = 'library' | 'files' | 'analysis' | 'adult' | 'preprocess'
 
 // 对话框类型
 export type DialogType = 'none' | 'import' | 'batchImport' | 'detail' | 'rename' | 'logs' | 'batchAnalyze'

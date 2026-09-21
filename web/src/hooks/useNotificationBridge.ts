@@ -108,25 +108,6 @@ export function useNotificationBridge() {
     const handleScanCompleted = (data: GenericEventData) => scanPush('success', data?.message || '扫描完成')
     const handleScanFailed = (data: GenericEventData) => scanPush('failed', data?.message || '扫描失败')
 
-    // ---------- URL 刮削任务（刮削数据管理页）实时状态 ----------
-    const handleTaskUpdate = (data: any) => {
-      if (!data?.id) return
-      const status = data.status || 'pending'
-      if (status === 'pending') return
-      const isFinal = status === 'scraped' || status === 'completed' || status === 'failed'
-      push({
-        id: `task:${data.id}`,
-        type: 'scrape',
-        title: data.result_title || data.title || data.url || '刮削任务',
-        message:
-          status === 'scraping' ? '正在刮削...' :
-          status === 'translating' ? '正在翻译...' :
-          status === 'failed' ? (data.error_message || '刮削失败') :
-          '完成',
-        status: (isFinal ? (status === 'failed' ? 'failed' : 'success') : 'running') as any,
-      })
-    }
-
     // ---------- 转码 ----------
     const handleTranscode = (data: GenericEventData, final: boolean, ok: boolean) => {
       if (!final && !data?.media_id) return
@@ -154,7 +135,6 @@ export function useNotificationBridge() {
     // 事件名 → 处理函数映射表：注册与注销共用
     const handlers: Array<[string, (data: any) => void]> = [
       ['scrape_chain', handleChain],
-      ['scrape_task_update', handleTaskUpdate],
       ['scan_started', handleScanStarted],
       ['scan_completed', handleScanCompleted],
       ['scan_failed', handleScanFailed],

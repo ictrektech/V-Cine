@@ -1019,59 +1019,6 @@ export interface DoubanImportTokenStatus {
   remaining_secs: number
 }
 
-// ==================== 潮汐调度 ====================
-// ==================== 刮削数据管理 ====================
-export interface ScrapeTask {
-  id: string
-  url: string
-  source: string
-  title: string
-  media_type: string
-  status: 'pending' | 'scraping' | 'scraped' | 'failed' | 'translating' | 'completed'
-  progress: number
-  media_id: string
-  series_id: string
-  result_title: string
-  result_orig_title: string
-  result_year: number
-  result_overview: string
-  result_genres: string
-  result_rating: number
-  result_poster: string
-  result_country: string
-  result_language: string
-  translate_status: 'none' | 'pending' | 'translating' | 'done' | 'failed'
-  translate_lang: string
-  translated_title: string
-  translated_overview: string
-  translated_genres: string
-  translated_tagline: string
-  quality_score: number
-  error_message: string
-  created_by: string
-  created_at: string
-  updated_at: string
-}
-
-export interface ScrapeHistory {
-  id: string
-  task_id: string
-  action: string
-  detail: string
-  user_id: string
-  created_at: string
-}
-
-export interface ScrapeStatistics {
-  total: number
-  pending: number
-  scraping: number
-  scraped: number
-  failed: number
-  translating: number
-  completed: number
-}
-
 // ==================== 影视文件管理 ====================
 export interface FileImportRequest {
   file_path: string

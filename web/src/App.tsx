@@ -161,7 +161,6 @@ export default function App() {
               </Route>
               <Route path="mine" element={<Navigate to="/favorites" replace />} />
               <Route path="admin" element={<AdminPage />} />
-              <Route path="scrape" element={<Navigate to="/files?tab=scrape" replace />} />
               <Route path="files" element={<FileManagerPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="pulse" element={<Navigate to="/admin?tab=pulse" replace />} />

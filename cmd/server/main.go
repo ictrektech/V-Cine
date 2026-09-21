@@ -806,22 +806,6 @@ func main() {
 		// Cookie 连通性测试
 		admin.GET("/adult-scraper/cookie/test", handlers.AdultScraper.TestCookie)
 
-		// 刮削数据管理
-		admin.POST("/scrape/tasks", handlers.ScrapeManager.CreateTask)
-		admin.POST("/scrape/tasks/batch", handlers.ScrapeManager.BatchCreateTasks)
-		admin.GET("/scrape/tasks", handlers.ScrapeManager.ListTasks)
-		admin.GET("/scrape/tasks/:id", handlers.ScrapeManager.GetTask)
-		admin.PUT("/scrape/tasks/:id", handlers.ScrapeManager.UpdateTask)
-		admin.DELETE("/scrape/tasks/:id", handlers.ScrapeManager.DeleteTask)
-		admin.POST("/scrape/tasks/:id/scrape", handlers.ScrapeManager.StartScrape)
-		admin.POST("/scrape/tasks/:id/translate", handlers.ScrapeManager.TranslateTask)
-		admin.POST("/scrape/batch/scrape", handlers.ScrapeManager.BatchStartScrape)
-		admin.POST("/scrape/batch/translate", handlers.ScrapeManager.BatchTranslate)
-		admin.POST("/scrape/batch/delete", handlers.ScrapeManager.BatchDeleteTasks)
-		admin.POST("/scrape/export", handlers.ScrapeManager.ExportTasks)
-		admin.GET("/scrape/statistics", handlers.ScrapeManager.GetStatistics)
-		admin.GET("/scrape/history", handlers.ScrapeManager.GetHistory)
-
 		// 影视文件管理
 		admin.GET("/files", handlers.FileManager.ListFiles)
 		admin.GET("/files/folders", handlers.FileManager.GetFolderTree)

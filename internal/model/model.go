@@ -912,8 +912,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&ContentRating{},
 		&UserPermission{},
 		&PlaybackStats{},
-		&ScrapeTask{},
-		&ScrapeHistory{},
 		// V3: AI 场景识别与内容理解
 		&VideoChapter{},
 		&VideoHighlight{},
