@@ -70,6 +70,7 @@ import { useDialog } from '@/components/Dialog'
 import { usePagination } from '@/hooks/usePagination'
 import Pagination from '@/components/Pagination'
 import TranscodeJobsPanel from '@/components/preprocess/TranscodeJobsPanel'
+import { Modal } from '@/components/ui/modal'
 import type {
   PreprocessTask,
   PreprocessStatistics,
@@ -1666,33 +1667,16 @@ export default function PreprocessPage() {
       )}
 
       {/* 预处理产物存储占用 - 详情弹窗 */}
-      <AnimatePresence>
-        {storageOpen && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: durations.fast, ease: easeSmooth }}
-            onClick={() => setStorageOpen(false)}
-          >
-            {/* 遮罩 */}
-            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} />
-            {/* 弹窗主体 */}
-            <motion.div
-              className="relative w-full max-w-3xl rounded-2xl overflow-hidden"
-              style={{
-                background: 'var(--glass-bg)',
-                border: '1px solid var(--storage-enable-row-border, var(--border-strong))',
-                boxShadow: '0 20px 48px rgba(0,0,0,0.45)',
-                maxHeight: '85vh',
-              }}
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              transition={{ duration: durations.normal, ease: easeSmooth }}
-              onClick={(e) => e.stopPropagation()}
-            >
+      <Modal open={storageOpen} onClose={() => setStorageOpen(false)} className="max-w-3xl">
+        <div
+          className="relative rounded-2xl overflow-hidden -m-4"
+          style={{
+            background: 'var(--glass-bg)',
+            border: '1px solid var(--storage-enable-row-border, var(--border-strong))',
+            boxShadow: '0 20px 48px rgba(0,0,0,0.45)',
+            maxHeight: '85vh',
+          }}
+        >
               {/* 顶部高光 */}
               <div className="absolute top-0 left-0 right-0 h-[1px] opacity-70" style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }} />
 
@@ -2033,37 +2017,20 @@ export default function PreprocessPage() {
                   </ul>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </Modal>
 
       {/* 自定义筛选预处理 - 弹窗 */}
-      <AnimatePresence>
-        {filterOpen && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: durations.fast, ease: easeSmooth }}
-            onClick={() => setFilterOpen(false)}
-          >
-            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} />
-            <motion.div
-              className="relative w-full max-w-4xl rounded-2xl overflow-hidden flex flex-col"
-              style={{
-                background: 'var(--glass-bg)',
-                border: '1px solid var(--storage-enable-row-border, var(--border-strong))',
-                boxShadow: '0 20px 48px rgba(0,0,0,0.45)',
-                maxHeight: '90vh',
-              }}
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              transition={{ duration: durations.normal, ease: easeSmooth }}
-              onClick={(e) => e.stopPropagation()}
-            >
+      <Modal open={filterOpen} onClose={() => setFilterOpen(false)} className="max-w-4xl">
+        <div
+          className="relative rounded-2xl overflow-hidden flex flex-col -m-4"
+          style={{
+            background: 'var(--glass-bg)',
+            border: '1px solid var(--storage-enable-row-border, var(--border-strong))',
+            boxShadow: '0 20px 48px rgba(0,0,0,0.45)',
+            maxHeight: '90vh',
+          }}
+        >
               <div className="absolute top-0 left-0 right-0 h-[1px] opacity-70" style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }} />
 
               {/* Header */}
@@ -2334,10 +2301,8 @@ export default function PreprocessPage() {
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </Modal>
     </motion.div>
   )
 }

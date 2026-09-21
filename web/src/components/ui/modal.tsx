@@ -48,7 +48,7 @@ export function Modal({
           )}
         />
         {/* 居中容器：flex 定位替代 translate，slide-up+blur 动画无需位置补偿 */}
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <DialogPrimitive.Content
             className={clsx(
               'w-full rounded-lg p-4',
