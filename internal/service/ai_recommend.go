@@ -72,7 +72,7 @@ func (s *AIService) GenerateRecommendReason(media *model.Media, userGenres []str
 	userPrompt := strings.Join(parts, "\n")
 
 	// 调用 LLM
-	result, err := s.ChatCompletion(
+	result, err := s.ChatCompletionNoReasoning(
 		recommendReasonSystemPrompt,
 		userPrompt,
 		0.7, // 较高温度，增加创造性

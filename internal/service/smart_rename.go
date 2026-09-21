@@ -942,7 +942,7 @@ func (s *SmartRenameService) callAIFallback(srcName, parentDir string, hint Pars
 		// JSON 损坏的缓存就当未命中
 	}
 
-	raw, err := s.ai.ChatCompletion(sysPrompt, userPrompt, 0.2, 512)
+	raw, err := s.ai.ChatCompletionNoReasoning(sysPrompt, userPrompt, 0.2, 512)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1126,7 +1126,7 @@ func (s *SmartRenameService) callAIBatchSeries(parentDir string, samples []strin
 		hint.Title, hint.TitleAlt, hint.Year, hint.TMDbID, hint.IMDbID))
 	sb.WriteString("请按 JSON Schema 返回最终识别结果。")
 
-	raw, err := s.ai.ChatCompletion(sysPrompt, sb.String(), 0.2, 512)
+	raw, err := s.ai.ChatCompletionNoReasoning(sysPrompt, sb.String(), 0.2, 512)
 	if err != nil {
 		return nil, err
 	}

@@ -1108,7 +1108,7 @@ func (s *FileManagerService) AIGenerateRenames(mediaIDs []string, targetLang str
 			)
 		}
 
-		response, err := s.ai.ChatCompletion(systemPrompt, userPrompt, 0.3, 150)
+		response, err := s.ai.ChatCompletionNoReasoning(systemPrompt, userPrompt, 0.3, 150)
 		if err != nil {
 			// AI失败时使用模板生成
 			response = s.generateRenameTitle(media, "{title} ({year}) [{resolution}]")

@@ -77,7 +77,7 @@ func (s *AIService) ParseSearchIntent(userQuery string) (*SearchIntent, error) {
 	}
 
 	// 调用 LLM
-	result, err := s.ChatCompletion(
+	result, err := s.ChatCompletionNoReasoning(
 		smartSearchSystemPrompt,
 		userQuery,
 		0.1, // 低温度，确保输出稳定

@@ -235,7 +235,7 @@ func (s *AISceneService) aiGenerateChapterTitles(media *model.Media, scenePoints
 scene_type可选: opening/dialogue/action/landscape/montage/credits/climax/transition`,
 		media.Title, media.Genres, truncateStr(media.Overview, 200), media.Duration, scenePoints)
 
-	result, err := s.ai.ChatCompletion(
+	result, err := s.ai.ChatCompletionNoReasoning(
 		"你是一个视频内容分析助手，擅长为视频生成准确的章节划分。",
 		prompt, 0.5, 1000,
 	)
@@ -882,7 +882,7 @@ func (s *AISceneService) aiScoreCandidates(media *model.Media, candidates []mode
 
 返回JSON数组格式: [{"time":时间点,"score":评分}]`
 
-	result, err := s.ai.ChatCompletion(
+	result, err := s.ai.ChatCompletionNoReasoning(
 		"你是一个视频封面选择专家。",
 		prompt, 0.3, 500,
 	)

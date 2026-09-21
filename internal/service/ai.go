@@ -291,6 +291,14 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, "", nil)
 }
 
+// ChatCompletionNoReasoning 普通补全 + 显式禁用思考（reasoning_effort=none）。
+// 用于意图解析、推荐理由、标题生成等确定性小任务：思考模型（GLM/DeepSeek 系）在
+// 小预算下会把 max_tokens 全烧在思维链上导致 content 为空（finish_reason=length），
+// 这类任务无需思考。后端不支持该字段时由 400 兜底自动降级为保留默认思考。
+func (s *AIService) ChatCompletionNoReasoning(systemPrompt, userPrompt string, temperature float64, maxTokens int) (string, error) {
+	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, "none", nil)
+}
+
 // ChatCompletionJSONSchema 结构化输出补全（response_format=json_schema + strict），
 // 用于意图解析等结构化任务。后端在解码层做语法约束，即使小模型也强制遵循 schema。
 // 不支持的后端由 400 兜底降级为 json_object 再降级为纯 prompt。

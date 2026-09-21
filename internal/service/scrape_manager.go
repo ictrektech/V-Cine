@@ -396,7 +396,7 @@ func (s *ScrapeManagerService) scrapeWithAI(task *model.ScrapeTask, title string
 
 	userPrompt := fmt.Sprintf("请为以下影视作品生成元数据：\n标题: %s\n类型: %s", title, task.MediaType)
 
-	result, err := s.ai.ChatCompletion(systemPrompt, userPrompt, 0.3, 500)
+	result, err := s.ai.ChatCompletionNoReasoning(systemPrompt, userPrompt, 0.3, 500)
 	if err != nil {
 		return fmt.Errorf("AI生成失败: %w", err)
 	}
@@ -532,7 +532,7 @@ func (s *ScrapeManagerService) executeTranslation(task *model.ScrapeTask, target
 
 	userPrompt := fmt.Sprintf("请翻译以下内容为%s：\n%s", langName, string(fieldsJSON))
 
-	result, err := s.ai.ChatCompletion(systemPrompt, userPrompt, 0.2, 1000)
+	result, err := s.ai.ChatCompletionNoReasoning(systemPrompt, userPrompt, 0.2, 1000)
 	if err != nil {
 		task.TranslateStatus = "failed"
 		task.ErrorMessage = fmt.Sprintf("翻译失败: %v", err)
