@@ -5,6 +5,7 @@ import { useToast } from '@/components/Toast'
 import type { Media, SearchIntent } from '@/types'
 import type { SceneSearchResult } from '@/types/videoAnalysis'
 import { formatVideoAnalysisSeconds } from '@/components/video-analysis/videoAnalysisResultUtils'
+import { routes } from '@/lib/routes'
 import { Skeleton } from '@/components/ui/skeleton'
 import MediaGrid from '@/components/MediaGrid'
 import Pagination from '@/components/Pagination'
@@ -616,7 +617,7 @@ function SceneSearchCard({ result }: { result: SceneSearchResult }) {
 
   return (
     <button
-      onClick={() => navigate(`/play/${result.media_id}?start=${Math.floor(result.start_time)}`)}
+      onClick={() => navigate(routes.player(result.media_id, Math.floor(result.start_time)))}
       title={result.description}
       className="group text-left"
     >

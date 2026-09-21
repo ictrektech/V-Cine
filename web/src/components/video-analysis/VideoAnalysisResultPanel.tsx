@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { videoAnalysisApi } from '@/api'
 import type { VideoAnalysisResult, VideoAnalysisSceneResult, VideoAnalysisTask } from '@/types/videoAnalysis'
@@ -7,7 +8,6 @@ import VideoAnalysisResultSummary from './VideoAnalysisResultSummary'
 import VideoAnalysisSceneGrid, { type VideoAnalysisSceneGridState } from './VideoAnalysisSceneGrid'
 import VideoAnalysisWorkflow from './VideoAnalysisWorkflow'
 import { VIDEO_ANALYSIS_SCENES_PER_PAGE } from './videoAnalysisResultUtils'
-import { openAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 
 interface VideoAnalysisResultPanelProps {
@@ -15,6 +15,7 @@ interface VideoAnalysisResultPanelProps {
 }
 
 export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPanelProps) {
+  const navigate = useNavigate()
   const [result, setResult] = useState<VideoAnalysisResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -122,7 +123,7 @@ export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPa
 
   const openSceneInPlayer = (scene: VideoAnalysisSceneResult) => {
     const start = Math.max(0, Math.floor(scene.start_time || 0))
-    openAppUrl(routes.player(task.media_id, start))
+    navigate(routes.player(task.media_id, start))
   }
 
   return (

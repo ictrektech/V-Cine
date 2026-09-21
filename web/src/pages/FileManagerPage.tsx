@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
 import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/videoAnalysis'
 import { aiApi, adultScraperApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { extractErrMsg } from '@/utils/error'
-import { openAppUrl, toAppUrl } from '@/lib/appUrl'
+import { toAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
 import { useToast } from '@/components/Toast'
@@ -64,6 +64,7 @@ export default function FileManagerPage() {
   const dialog = useDialog()
   const { on, off } = useWebSocket()
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
 
   // Tab 状态（支持从URL参数读取，如 /files?tab=scrape&tab=adult）
   const [activeTab, setActiveTab] = useState<TabType>(() => {
@@ -720,11 +721,6 @@ export default function FileManagerPage() {
     })
   }, [toast])
 
-  const handlePlayFile = useCallback((media: Media) => {
-    // 打开新窗口播放
-    openAppUrl(routes.player(media.id))
-  }, [])
-
   const executeCreateFolder = useCallback(async () => {
     if (!folderInputValue.trim()) { toast.error('文件夹名不能为空'); return }
     try {
@@ -1020,7 +1016,7 @@ export default function FileManagerPage() {
                     subFolders={subFolders}
                     currentFolderPath={currentFolderPath}
                     onNavigateFolder={handleSelectFolder}
-                    onPlayFile={handlePlayFile}
+                    onPlayFile={(media) => navigate(routes.player(media.id))}
                     onCopyFilePath={handleCopyPath}
                     onCreateSubFolder={handleCreateFolder}
                     onRenameSubFolder={handleRenameFolder}

@@ -2,8 +2,7 @@
  * 内部路由唯一真源。
  *
  * 所有业务页面路径都从这里生成：
- * - React Router 的 `<Link to={...}>` / `navigate(...)` 使用返回值；
- * - 新窗口跳转 `openAppUrl(routes.xxx(...))` 使用同一个返回值。
+ * - React Router 的 `<Link to={...}>` / `navigate(...)` 使用返回值。
  *
  * 这里只负责“逻辑路径”（根相对路径），不负责 VOS 子路径前缀；
  * 前缀统一由 `appUrl.ts` / `basePath.ts` 处理。

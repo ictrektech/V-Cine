@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ExternalLink, FileVideo } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { streamApi } from '@/api/stream'
 import { usePosterVersion } from '@/stores/mediaRefresh'
-import { openAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 import type { VideoAnalysisTask } from '@/types/videoAnalysis'
 import { formatVideoAnalysisError, formatVideoAnalysisTime, videoAnalysisStatusMeta } from './videoAnalysisResultUtils'
@@ -20,6 +20,7 @@ interface VideoAnalysisResultDrawerProps {
 export default function VideoAnalysisResultDrawer({ task, onClose }: VideoAnalysisResultDrawerProps) {
   // 常驻挂载 + open 受控：关闭时 Radix 先播放退出动画（下滑/模糊淡出）再卸载；
   // visibleTask 保留最后一条任务，供关闭动画期间渲染面板内容
+  const navigate = useNavigate()
   const [visibleTask, setVisibleTask] = useState(task)
   // 订阅海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
@@ -55,7 +56,7 @@ export default function VideoAnalysisResultDrawer({ task, onClose }: VideoAnalys
                   <p className="mt-1 truncate text-xs text-red-400" title={formatVideoAnalysisError(visibleTask.error_message)}>{formatVideoAnalysisError(visibleTask.error_message)}</p>
                 )}
               </div>
-              <Button variant="outline" size="sm" className="shrink-0" onClick={() => openAppUrl(routes.player(visibleTask.media_id))}>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate(routes.player(visibleTask.media_id))}>
                 <ExternalLink /> 打开播放器
               </Button>
             </div>
