@@ -30,37 +30,26 @@ type AIProviderPreset struct {
 	Recommended bool `json:"recommended"`
 }
 
-// builtinAIPresets 内置主流 LLM 提供商预设
+// IsVRouterGateway 判断是否为 V-Router 网关（网关判定的唯一入口，
+// 特征表全仓只维护这一份）。custom = 非网关，无需独立判定函数。
 //
-// ⚠️ 调整此处时请同步检查：
-//   - service/ai_models.go 的 builtinAIModelCatalog（定价与上下文窗口）
-//   - handler/ai.go 的 EnableAutoPilot 老逻辑（已迁移到本表，保留兼容）
-// IsKeyFreeProvider 判断某 provider 是否无需 API Key 即可调用（免 key 判定的唯一来源）。
+// 网关特征：providerID 含 vrouter/v-router，或 APIBase 指向网关
+// （docker 服务名 ://v-router: / 宿主机端口 22888）——与命名无关。
 //
-// 免 key provider 两类：
-//   - vrouter：VOS 内网模型网关，REQUIRE_KEY=false（默认）时容器网络内无凭证即可调用。
-//     含手动添加的 V-Router 条目（AddProvider 会生成 custom_ 前缀 id），
-//     以及 APIBase 指向网关的任意命名条目（docker 服务名 / 宿主机端口 22888）；
-//   - ollama：本地推理，无鉴权概念。
-//
-// 三处检查点（IsEnabled / chatCompletion / TestConnection）统一引用本函数，
-// 禁止散落硬编码；其他 provider 不配 Key 仍报"未配置"。
-func IsKeyFreeProvider(provider, apiBase string) bool {
-	p := strings.ToLower(strings.TrimSpace(provider))
-	switch p {
-	case "vrouter", "ollama", "custom_vrouter", "custom_v-router":
-		return true
-	}
-	// APIBase 指向 V-Router 网关的任意手动条目
+// API Key 全局可选：空 key = 不发 Authorization，是否需要 key
+// 由服务端 401 事实回答，不再维护免 key 白名单。
+func IsVRouterGateway(providerID, apiBase string) bool {
+	p := strings.ToLower(strings.TrimSpace(providerID))
 	b := strings.ToLower(strings.TrimSpace(apiBase))
-	return strings.Contains(b, "://v-router:") || strings.Contains(b, ":22888")
+	return strings.Contains(p, "vrouter") || strings.Contains(p, "v-router") ||
+		strings.Contains(b, "://v-router:") || strings.Contains(b, ":22888")
 }
 
 var builtinAIPresets = []AIProviderPreset{
 	// vrouter 排第一：VOS 内嵌部署的默认 provider（配合 Load() 的启动种子）。
 	// APIBase 为 VOS docker 网络内的服务名；独立 NAS 部署可改为 http://<vos-host>:22888/v1。
 	// AvailableModels 留空：V-Router 是动态 Model Hub，静态清单必然过时，
-	// 模型通过现有 FetchModels 接口（免 key）从网关实时拉取。
+	// 模型通过现有 FetchModels 接口（空 key 即可）从网关实时拉取。
 	{
 		Provider:     "vrouter",
 		Label:        "V-Router · VOS 账户模型",

@@ -208,6 +208,7 @@ func (p *AIProviderEntry) ViewMap(activeID string) map[string]interface{} {
 		"models":             models,
 		"enabled":            p.Enabled,
 		"api_key_configured": p.APIKey != "",
+		"is_gateway":         IsVRouterGateway(p.ID, p.APIBase),
 		"active":             p.ID == activeID,
 	}
 }
@@ -738,7 +739,7 @@ func Load() (*Config, error) {
 	// 4. 向后兼容：将旧版扁平字段合并到子模块
 	cfg.migrateFromFlatConfig()
 
-	// 4.5 全新安装时种子 vrouter 免 key 条目（默认 provider）
+	// 4.5 全新安装时种子 vrouter 条目（默认 provider，空 key 即可调用）
 	cfg.ensureDefaultProvider()
 
 	// 5. 确保目录存在
@@ -1517,8 +1518,11 @@ func (c *Config) SetVideoAnalysisDescribeEnabled(enabled bool) {
 // saveAIConfig 将当前 AI 配置持久化到 config/ai.yaml 分片文件。
 // 调用前应先在内存中更新 c.AI 字段，本方法只负责落盘。
 // 敏感字段（providers[].api_key / whisper_api_key）由 enc tag 声明加密。
+// snapshot 必须返回深拷贝：SaveSection 的 encryptStruct 通过反射原地改写
+// enc 字段，浅拷贝时 Providers 切片与 c.AI.Providers 共享底层数组，会把
+// 内存中的明文 key 原地加密成 ENC:xxx（之后所有调用发送 Bearer ENC:xxx 必然 401）。
 func (c *Config) saveAIConfig() error {
-	return SaveSection(c, "ai", "ai.yaml", func() AIConfig { return c.AI })
+	return SaveSection(c, "ai", "ai.yaml", func() AIConfig { return deepCopyAIConfig(c.AI) })
 }
 
 // UpdateAIConfig 在锁内更新 AI 配置并持久化到 config/ai.yaml 分片文件

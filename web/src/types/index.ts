@@ -888,6 +888,8 @@ export interface AIStatus {
     models: Array<{ name: string; is_vision: boolean; is_default: boolean }>
     enabled: boolean
     api_key_configured: boolean
+    /** V-Router 网关判定（后端 config.IsVRouterGateway 唯一特征表下发） */
+    is_gateway: boolean
     active: boolean
   }>
 }

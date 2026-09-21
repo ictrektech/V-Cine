@@ -319,9 +319,9 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	}
 
 	// 从 Providers 列表解析激活 provider 的配置
-	// 免 key provider（vrouter / ollama）只需 APIBase，无需 APIKey。
+	// API Key 可选：空 key = 不发 Authorization，是否需要 key 由服务端 401 事实回答。
 	ap := cfg.ActiveProfile()
-	if ap == nil || ap.APIBase == "" || (ap.APIKey == "" && !config.IsKeyFreeProvider(cfg.ActiveProvider, ap.APIBase)) {
+	if ap == nil || ap.APIBase == "" {
 		return "", fmt.Errorf("未配置 AI 供应商（provider=%s）", cfg.ActiveProvider)
 	}
 	apiBase := ap.APIBase
@@ -334,10 +334,13 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 		return "", fmt.Errorf("AI 供应商 %s 未配置模型，请在 AI 设置中为该供应商拉取模型或手动添加后重试", cfg.ActiveProvider)
 	}
 
+	// 网关判定（唯一特征表），凭证策略与 BlockLocalAI 豁免共用。
+	isGateway := config.IsVRouterGateway(cfg.ActiveProvider, apiBase)
+
 	// 云端强制：拦截本地 AI（如 ollama），避免「全自动托管」语义下走本地推理。
-	// vrouter 豁免：V-Router 是云模型网关而非本地推理，APIBase 为私网 IP
+	// 网关豁免：V-Router 是云模型网关而非本地推理，APIBase 为私网 IP
 	// （宿主机端口模式）不代表本地推理。
-	if cfg.BlockLocalAI && cfg.ActiveProvider != "vrouter" && isLocalAIProvider(cfg.ActiveProvider, apiBase) {
+	if cfg.BlockLocalAI && !isGateway && isLocalAIProvider(cfg.ActiveProvider, apiBase) {
 		return "", fmt.Errorf("当前系统禁止本地 AI（provider=%s），请在 AI 配置中选择云端服务商（OpenAI/DeepSeek/通义千问）", cfg.ActiveProvider)
 	}
 
@@ -391,16 +394,14 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	}
 	apiURL := strings.TrimRight(apiBase, "/") + "/chat/completions"
 
+	authorization := s.resolveCredential(isGateway, apiKey)
 	// 凭证方式（可观测）：configured=用户配置的 key；vos_token=VOS 登录态转发；
 	// none=无凭证（网关归 internal）。用于日志区分 vrouter 调用的用量归属。
-	vosToken := ""
-	if apiKey == "" && cfg.ActiveProvider == "vrouter" && config.IsKeyFreeProvider(cfg.ActiveProvider, apiBase) {
-		vosToken = LatestVOSAccessToken()
-	}
 	credential := "none"
-	if apiKey != "" {
+	switch {
+	case apiKey != "":
 		credential = "configured"
-	} else if vosToken != "" {
+	case isGateway && authorization != "":
 		credential = "vos_token"
 	}
 
@@ -417,14 +418,8 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 			return "", fmt.Errorf("创建请求失败: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		// 免 key provider（vrouter 无 key / ollama）不发 Authorization 头，
-		// 避免发出空值的 "Bearer "。
-		// vrouter 对齐 V-ChatCut：有 VOS 登录态时转发 accessToken 做用量归属；
-		// 无登录态时完全不带（网关归 internal）。
-		if apiKey != "" {
-			req.Header.Set("Authorization", "Bearer "+apiKey)
-		} else if vosToken != "" {
-			req.Header.Set("Authorization", "Bearer "+vosToken)
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
 		}
 
 		resp, err := s.client.Do(req)
@@ -994,8 +989,9 @@ func maskAPIBase(base string) string {
 	return base[:20] + "..."
 }
 
-// isLocalAIProvider 判断是否为本地 AI 推理实例（provider 名或 api_base 是本地地址）
-// AutoPilot/BlockLocalAI 语义下会拒绝调用，确保「全部调用服务商提供的 AI API」。
+// isLocalAIProvider 判断是否为本地 AI 推理实例（provider 名或 api_base 是本地地址）。
+// 仅服务 BlockLocalAI/AutoPilot 云端强制策略（key 可选化后不再参与 key 判定），
+// 确保开启 BlockLocalAI 时「全部调用走服务商提供的 AI API」。
 func isLocalAIProvider(provider, apiBase string) bool {
 	p := strings.ToLower(strings.TrimSpace(provider))
 	if p == "ollama" || p == "local" || p == "localai" || p == "llamacpp" || p == "llama-cpp" {
@@ -1026,10 +1022,8 @@ func isLocalAIProvider(provider, apiBase string) bool {
 func (s *AIService) GetStatus() map[string]interface{} {
 	cfg := s.snapshotCfg()
 	ap := cfg.ActiveProfile()
-	// 免 key provider（vrouter / ollama）只需 APIBase 即视为已配置，
-	// 与 IsEnabled / chatCompletion 的判定口径一致。
-	apiConfigured := ap != nil && ap.APIBase != "" &&
-		(ap.APIKey != "" || config.IsKeyFreeProvider(cfg.ActiveProvider, ap.APIBase))
+	// API Key 可选：api_configured 仅作展示，不作为可用性判定。
+	apiConfigured := ap != nil && ap.APIBase != ""
 
 	apiBase := ""
 	if ap != nil {
@@ -1233,14 +1227,42 @@ func applyAIConfigUpdates(cfg *config.AIConfig, updates map[string]interface{}) 
 
 // ==================== 连接测试 ====================
 
-// friendlyGatewayError 把 V-Router 网关的常见错误翻译成中文可读提示，
+// resolveCredential 凭证策略收口：custom有key→Bearer；gateway→VOS token（有登录态）；
+// 都无→不发。返回空串表示不发 Authorization 头。
+func (s *AIService) resolveCredential(isGateway bool, apiKey string) string {
+	// 规范化：去空白；剥离误粘贴的 "Bearer " 前缀，避免 "Bearer Bearer ..."。
+	apiKey = strings.TrimSpace(apiKey)
+	apiKey = strings.TrimPrefix(apiKey, "Bearer ")
+	if apiKey != "" {
+		return "Bearer " + apiKey
+	}
+	if isGateway {
+		if t := LatestVOSAccessToken(); t != "" {
+			return "Bearer " + t
+		}
+	}
+	return ""
+}
+
+// friendlyProviderError 按 provider 类别与 key 配置解释 HTTP 错误，
 // 指出原因与下一步。返回空串表示非已知模式，沿用原始错误。
-func friendlyGatewayError(statusCode int, body string) string {
+// 网关专属文案仅对 V-Router 网关生效；其他 provider 走通用文案，
+// 避免误报「V-Router 网关鉴权失败」。空 key 与无效 key 分开提示。
+func friendlyProviderError(isGateway, hasKey bool, statusCode int, body string) string {
 	switch {
 	case statusCode == http.StatusBadRequest && strings.Contains(body, "requires model"):
-		return "V-Router 网关要求先选择模型：请点击「设置」拉取模型并添加后重试"
+		if isGateway {
+			return "V-Router 网关要求先选择模型：请点击「设置」拉取模型并添加后重试"
+		}
+		return ""
 	case statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden:
-		return "V-Router 网关鉴权失败：网关开启了 REQUIRE_KEY 或 VOS 账户校验，请检查网关配置或 API Key"
+		if isGateway {
+			return "V-Router 网关鉴权失败：网关开启了 REQUIRE_KEY 或 VOS 账户校验，请检查网关配置或 API Key"
+		}
+		if !hasKey {
+			return "未配置 API Key：该服务商可能需要密钥，请在「设置」中配置后重试"
+		}
+		return "鉴权失败：API Key 无效或未获授权，请检查 API Key 是否正确"
 	default:
 		return ""
 	}
@@ -1264,28 +1286,28 @@ func (s *AIService) TestConnection(providerID string) (map[string]interface{}, e
 		apiBase, apiKey, model = p.APIBase, p.APIKey, p.DefaultModel()
 	} else {
 		ap := cfg.ActiveProfile()
-		if ap == nil || ap.APIBase == "" || (ap.APIKey == "" && !config.IsKeyFreeProvider(cfg.ActiveProvider, ap.APIBase)) {
+		if ap == nil || ap.APIBase == "" {
 			return map[string]interface{}{
 				"success": false,
-				"error":   "当前激活的供应商未配置 API Base 或 API Key",
+				"error":   "当前激活的供应商未配置 API Base",
 			}, fmt.Errorf("未配置")
 		}
 		apiBase, apiKey, model = ap.APIBase, ap.APIKey, cfg.ActiveModelName()
 	}
-	// 免 key provider（vrouter / ollama）只需 APIBase；常规 provider 仍需 API Key
-	testProvider := providerID
-	if testProvider == "" {
-		testProvider = cfg.ActiveProvider
+	// API Key 可选：空 key 不发 Authorization，是否需要 key 由服务端 401 事实回答。
+	testProviderID := providerID
+	if testProviderID == "" {
+		testProviderID = cfg.ActiveProvider
 	}
 	// 错误消息用的显示名（优先配置的 Name，回退 ID）
-	label := testProvider
-	if p := cfg.FindProvider(testProvider); p != nil && p.Name != "" {
+	label := testProviderID
+	if p := cfg.FindProvider(testProviderID); p != nil && p.Name != "" {
 		label = p.Name
 	}
-	if apiBase == "" || (apiKey == "" && !config.IsKeyFreeProvider(testProvider, apiBase)) {
+	if apiBase == "" {
 		return map[string]interface{}{
 			"success": false,
-			"error":   fmt.Sprintf("供应商 %q 未配置 API Base 或 API Key", label),
+			"error":   fmt.Sprintf("供应商 %q 未配置 API Base", label),
 		}, fmt.Errorf("供应商 %q 未配置", label)
 	}
 	// V-Router 网关要求请求体必须带 model：空 model 提前报可读错误，
@@ -1320,14 +1342,8 @@ func (s *AIService) TestConnection(providerID string) (map[string]interface{}, e
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	// 免 key provider（vrouter 无 key）不发 Authorization 头，避免空值的 "Bearer "。
-	// vrouter 对齐 V-ChatCut：有 VOS 登录态时转发 accessToken 做用量归属。
-	if apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	} else if testProvider == "vrouter" && config.IsKeyFreeProvider(testProvider, apiBase) {
-		if vosToken := LatestVOSAccessToken(); vosToken != "" {
-			req.Header.Set("Authorization", "Bearer "+vosToken)
-		}
+	if authorization := s.resolveCredential(config.IsVRouterGateway(testProviderID, apiBase), apiKey); authorization != "" {
+		req.Header.Set("Authorization", authorization)
 	}
 
 	resp, err := s.client.Do(req)
@@ -1356,8 +1372,8 @@ func (s *AIService) TestConnection(providerID string) (map[string]interface{}, e
 
 	if resp.StatusCode != http.StatusOK {
 		errMsg := fmt.Errorf("API 返回 HTTP %d: %s", resp.StatusCode, string(respBody))
-		// 网关错误的友好翻译：指出原因与下一步（设计验收标准 5）。
-		if friendly := friendlyGatewayError(resp.StatusCode, string(respBody)); friendly != "" {
+		// 错误的友好翻译：按 provider 类别与 key 配置解释（设计验收标准 5）。
+		if friendly := friendlyProviderError(config.IsVRouterGateway(testProviderID, apiBase), apiKey != "", resp.StatusCode, string(respBody)); friendly != "" {
 			s.addErrorLog("connection_test", fmt.Errorf("%s（原始: %s）", friendly, string(respBody)), latency)
 			return map[string]interface{}{
 				"success":    false,

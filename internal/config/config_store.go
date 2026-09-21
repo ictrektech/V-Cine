@@ -207,6 +207,10 @@ func encryptStruct(v any) {
 func decryptEncValues(v any) {
 	walkEncFields(reflect.ValueOf(v), func(fv reflect.Value, _ bool) {
 		if s := fv.String(); strings.HasPrefix(s, "ENC:") && fv.CanSet() {
+			if _, err := secretcrypto.Decrypt(s); err != nil {
+				// 解密失败必须可见：密文透传后会被当作凭证发送（如 Bearer ENC:xxx）。
+				slog.Warn("配置敏感字段解密失败（常见于主密钥变化），密文原样保留；请重新保存对应密钥", "error", err)
+			}
 			fv.SetString(decryptSecretValue(s))
 		}
 	})

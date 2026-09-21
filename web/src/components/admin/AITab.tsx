@@ -115,7 +115,7 @@ export default function AITab() {
 
   // ==================== 供应商列表管理 ====================
   type ModelItem = { name: string; is_vision: boolean; is_default: boolean }
-  type ProviderItem = { id: string; name: string; api_base: string; models: ModelItem[]; enabled: boolean; api_key_configured: boolean; active: boolean }
+  type ProviderItem = { id: string; name: string; api_base: string; models: ModelItem[]; enabled: boolean; api_key_configured: boolean; is_gateway: boolean; active: boolean }
   const [providers, setProviders] = useState<ProviderItem[]>([])
   const [showProviderDialog, setShowProviderDialog] = useState(false)
   const [editingProvider, setEditingProvider] = useState<ProviderItem | null>(null)
@@ -234,16 +234,10 @@ export default function AITab() {
     setFetchedSearch('')
   }
 
-  // vrouter 网关判定：与后端 config.IsKeyFreeProvider 对齐（id 含 vrouter，
-  // 或 APIBase 指向网关服务名 / 宿主机端口）。命中即免 key（与命名无关）。
-  const isVRouter = (id: string, base: string): boolean => {
-    const i = (id || '').toLowerCase()
-    const b = (base || '').toLowerCase()
-    return i.includes('vrouter') || i.includes('v-router') ||
-      b.includes('://v-router:') || b.includes(':22888')
-  }
+  // 网关判定：后端下发 is_gateway（config.IsVRouterGateway 唯一特征表），
+  // 前端不再自行猜测。弹窗内表单用编辑对象的 is_gateway。
   const isBuiltInVRouter = editingProvider?.id === 'vrouter'
-  const isVRouterForm = (): boolean => isVRouter(editingProvider?.id ?? '', providerForm.api_base)
+  const isGatewayForm = (): boolean => !!editingProvider?.is_gateway
 
   const handleFetchModels = async () => {
     if (!providerForm.api_base.trim()) {
@@ -877,9 +871,7 @@ export default function AITab() {
                         ? p.models.map(m => `${m.name}${m.is_default ? '(默认)' : ''}${m.is_vision ? '👁' : ''}`).join(', ')
                         : '未配置模型，请点击「设置」拉取模型'}
                       {' · '}{p.api_base || '默认 API'}
-                      {isVRouter(p.id, p.api_base)
-                        ? ' · 内网免鉴权'
-                        : !p.api_key_configured ? ' · ⚠️ 未配置密钥' : ''}
+                      {p.is_gateway ? ' · 内网免鉴权' : ''}
                     </p>
                     {connTests[p.id] && !connTests[p.id].testing && (
                       <p className={`text-xs mt-0.5 ${connTests[p.id].success ? 'text-green-400' : 'text-red-400'}`}>
@@ -1010,11 +1002,11 @@ export default function AITab() {
                     value={providerForm.api_key}
                     onChange={(e) => setProviderForm({ ...providerForm, api_key: e.target.value })}
                     className="input w-full font-mono text-sm"
-                    placeholder={isVRouterForm() ? '无需 API Key（内网免鉴权）' : editingProvider?.api_key_configured ? '已配置（留空不改）' : 'sk-...'}
+                    placeholder={isGatewayForm() ? '无需 API Key（内网免鉴权）' : 'sk-...（可选，服务商需要时必填）'}
                   />
-                  {isVRouterForm() && !providerForm.api_key ? (
+                  {isGatewayForm() && !providerForm.api_key ? (
                     <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
-                      <Check size={12} /> V-Router 内网免鉴权，留空即可
+                      <Check size={12} /> 内网免鉴权，留空即可
                     </p>
                   ) : editingProvider?.api_key_configured && !providerForm.api_key && (
                     <p className="mt-1 flex items-center gap-1 text-xs text-green-400">

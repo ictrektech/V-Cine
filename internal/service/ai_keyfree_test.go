@@ -136,25 +136,86 @@ func TestKeyFreeTestConnection(t *testing.T) {
 	}
 }
 
-// TestKeyedProviderStillRequiresKey 验证：deepseek 等非免 key provider 不配 key 时
-// 行为与现状一致（IsEnabled false / 调用报"未配置"），无任何放水。
-func TestKeyedProviderStillRequiresKey(t *testing.T) {
+// TestKeyOptionalEverywhere 验证：key 全局可选——deepseek 等任意 provider 未配 key
+// 时 IsEnabled() 为 true（只查 api_base），调用发出请求由服务端 401/连接错误兑底。
+func TestKeyOptionalEverywhere(t *testing.T) {
 	app := &config.Config{AI: config.AIConfig{
 		Enabled:        true,
 		ActiveProvider: "deepseek",
 		Providers: []config.AIProviderEntry{{
 			ID:      "deepseek",
-			APIBase: "http://x",
-			APIKey:  "", // 未配 key
+			APIBase: "http://127.0.0.1:1/v1", // 必然连接失败
+			APIKey:  "",                      // 未配 key
 		}},
 	}}
 	p := NewAIConfigProvider(app)
-	if p.IsEnabled() {
-		t.Fatal("deepseek 未配 key 时 IsEnabled() 应为 false")
+	if !p.IsEnabled() {
+		t.Fatal("deepseek 未配 key 时 IsEnabled() 应为 true（key 可选，只查 api_base）")
 	}
 	svc := keyfreeTestService(app)
 	if _, err := svc.ChatCompletion("sys", "user", 0.1, 10); err == nil {
-		t.Fatal("deepseek 未配 key 时调用应报错")
+		t.Fatal("deepseek 未配 key 且服务端拒绝时调用应报错")
+	}
+}
+
+// TestLocalProviderKeyFreeTestConnection 验证：本地推理 provider（如 llama.cpp，
+// APIBase 为本地/私网地址）不配 key 时 TestConnection 不报"未配置"，能正常测试连接。
+func TestLocalProviderKeyFreeTestConnection(t *testing.T) {
+	var gotAuth string
+	srv := keyfreeStubServer(t, &gotAuth) // httptest 监听 127.0.0.1，不需要鉴权
+
+	app := &config.Config{AI: config.AIConfig{
+		Enabled:        true,
+		ActiveProvider: "custom_llama.cpp",
+		Providers: []config.AIProviderEntry{{
+			ID:      "custom_llama.cpp",
+			Name:    "llama.cpp",
+			APIBase: srv.URL,
+			APIKey:  "", // 本地推理免 key
+			Models:  []config.AIModelEntry{{Name: "test-model"}},
+		}},
+	}}
+	svc := keyfreeTestService(app)
+
+	result, err := svc.TestConnection("")
+	if err != nil {
+		t.Fatalf("本地推理 provider 无 key 测试连接应成功，实际报错: %v", err)
+	}
+	if result["success"] != true {
+		t.Errorf("success 应为 true，实际 %v (error: %v)", result["success"], result["error"])
+	}
+	if gotAuth != "" {
+		t.Errorf("无 key 时不应发送 Authorization 头，实际 %q", gotAuth)
+	}
+}
+
+// TestFriendlyProviderError 验证错误解释按 provider 类别与 key 配置分流：
+// gateway 报网关专属文案；custom 空 key 报"未配置"、有 key 报"鉴权失败"，均不含 V-Router。
+func TestFriendlyProviderError(t *testing.T) {
+	// custom provider：401 分空 key 与无效 key 两种文案，均不含 V-Router
+	got := friendlyProviderError(false, false, http.StatusUnauthorized, `{"error":"invalid api key"}`)
+	if got == "" || !strings.Contains(got, "未配置 API Key") || strings.Contains(got, "V-Router") {
+		t.Errorf("custom 空 key 401 应报「未配置 API Key」且不含 V-Router，实际: %s", got)
+	}
+	got = friendlyProviderError(false, true, http.StatusUnauthorized, `{"error":"invalid api key"}`)
+	if got == "" || !strings.Contains(got, "鉴权失败") || strings.Contains(got, "V-Router") {
+		t.Errorf("custom 有 key 401 应报「鉴权失败」且不含 V-Router，实际: %s", got)
+	}
+	// 非网关的 400 "requires model"：不套 V-Router 文案，沿用原始错误
+	if got := friendlyProviderError(false, true, http.StatusBadRequest, `body requires model`); got != "" {
+		t.Errorf("非网关 provider 400 不应套网关文案，实际: %s", got)
+	}
+	// gateway：id 或 APIBase 任一特征命中即报网关专属文案
+	for _, tc := range [][2]string{
+		{"vrouter", ""},
+		{"custom_v-router", ""},
+		{"任意命名", "http://v-router:8080/v1"},
+		{"任意命名", "http://172.17.0.1:22888/v1"},
+	} {
+		got := friendlyProviderError(true, false, http.StatusUnauthorized, "")
+		if got == "" || !strings.Contains(got, "V-Router") {
+			t.Errorf("网关 %v 401 应报 V-Router 文案，实际: %s", tc, got)
+		}
 	}
 }
 

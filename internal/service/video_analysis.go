@@ -1120,22 +1120,16 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		if apiBase != "" {
 			// worker 内部用 OpenAI SDK 调用，SDK 把空 key 视为缺少凭证直接报错
 			// （"Missing credentials. Please pass an api_key..."），全部场景会失败。
-			// 免 key provider（vrouter / ollama）：优先用最近的 VOS accessToken
-			// 做用量归属（对齐 V-ChatCut），无登录态时传占位 key（网关忽略）；
-			// 常规 provider 空 key 时在提交前失败并给出可读错误，避免异步失败难排查。
+			// API Key 可选：空 key 传占位 key（服务端需要 key 时由 401 报错）；
+			// gateway 优先用最近的 VOS accessToken 做用量归属。
 			if apiKey == "" {
-				activeProvider := ai.SceneDescribeAI.ProviderID
-				if activeProvider == "" {
-					activeProvider = ai.ActiveProvider
+				activeProviderID := ai.SceneDescribeAI.ProviderID
+				if activeProviderID == "" {
+					activeProviderID = ai.ActiveProvider
 				}
-				if !config.IsKeyFreeProvider(activeProvider, apiBase) {
-					return "", fmt.Errorf("供应商未配置 API Key，场景描述无法执行，请先在 AI 设置中配置密钥")
-				}
-				// vrouter 优先用最近的 VOS accessToken 做用量归属；无登录态时传
-				// 占位 key（OpenAI SDK 不接受空 key，网关忽略非 JWT 的 Bearer）。
-				apiKey = "vrouter"
+				apiKey = "placeholder"
 				credential := "placeholder"
-				if activeProvider == "vrouter" {
+				if config.IsVRouterGateway(activeProviderID, apiBase) {
 					if vosToken := LatestVOSAccessToken(); vosToken != "" {
 						apiKey = vosToken
 						credential = "vos_token"
@@ -1143,7 +1137,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 				}
 				if s.logger != nil {
 					s.logger.Infow("Scene describe credential resolved",
-						"provider", activeProvider,
+						"provider", activeProviderID,
 						"credential", credential,
 					)
 				}
