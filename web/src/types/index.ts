@@ -834,9 +834,9 @@ export interface AIProviderProfileView {
   api_key_configured: boolean
   /** 是否参与 AIRouter failover 链路（默认 true） */
   enabled?: boolean
-  /** V8：当前实际生效模型（同 provider 内 failover 推进后） */
+  /** 当前实际生效模型（同 provider 内 failover 推进后） */
   current_model?: string
-  /** V8：模型级 failover 链（仅对当前激活 provider 生效，其他 provider 的链按需激活） */
+  /** 模型级 failover 链（仅对当前激活 provider 生效，其他 provider 的链按需激活） */
   model_chain?: string[]
   /** V9：供应商显示名称 */
   name?: string
@@ -919,17 +919,7 @@ export interface AITestResult {
   reason?: string
 }
 
-// ==================== V7：AI 智能调度 / 故障转移 / 用量监控 ====================
-
-export interface AIProviderPreset {
-  provider: string
-  label: string
-  api_base: string
-  default_model: string
-  available_models: string[]
-  description: string
-  recommended?: boolean
-}
+// ==================== AI 智能调度 / 故障转移 / 用量监控 ====================
 
 export interface AIProviderTotalView {
   provider: string
@@ -938,20 +928,20 @@ export interface AIProviderTotalView {
   cost_cny: number
   enabled: boolean
   configured: boolean
-  /** V8：本 provider 当前生效模型 */
+  /** 本 provider 当前生效模型 */
   current_model?: string
-  /** V8：本 provider 模型链 */
+  /** 本 provider 模型链 */
   model_chain?: string[]
 }
 
 export interface AIRouterSnapshot {
   preferred_provider: string
   current_active: string
-  /** V8：当前生效 provider 的模型 */
+  /** 当前生效 provider 的模型 */
   current_model?: string
-  /** V8：当前 provider 的偏好主模型 */
+  /** 当前 provider 的偏好主模型 */
   preferred_model?: string
-  /** V8：当前 provider 的模型链 */
+  /** 当前 provider 的模型链 */
   current_model_chain?: string[]
   last_switched_at: number
   failover_enabled: boolean

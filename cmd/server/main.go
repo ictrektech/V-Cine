@@ -703,8 +703,6 @@ func main() {
 		admin.GET("/ai/cost/summary", handlers.AICost.Summary)
 
 		// V7：AI 智能调度器 / 用量监控 / 故障转移
-		admin.GET("/ai/presets", handlers.AI.ListProviderPresets)
-		admin.POST("/ai/quick-config/qwen", handlers.AI.QuickConfigQwen)
 		admin.GET("/ai/router", handlers.AI.GetRouterSnapshot)
 		admin.POST("/ai/router/switch", handlers.AI.ForceSwitchProvider)
 		admin.POST("/ai/router/restore", handlers.AI.RestoreProvider)

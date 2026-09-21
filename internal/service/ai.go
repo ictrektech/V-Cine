@@ -213,7 +213,7 @@ func desensitizeClient(timeout int) *http.Client {
 	}
 }
 
-// SetRouter 注入 AI 智能路由器（V7：故障转移与用量监控）
+// SetRouter 注入 AI 智能路由器（故障转移与用量监控）
 //
 // 与 NewAIRouter 配合：
 //   - NewAIRouter(ai, ...) 内部会调用 ai.SetRouter(r)
@@ -312,7 +312,7 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	// 以“一次快照”在本次调用全程使用同一份 cfg，避免中途热更新导致 model/url 不一致，
 	cfg := s.snapshotCfg()
 
-	// V7：走热路径时顺便检查主 provider 是否可自动恢复
+	// 走热路径时顺便检查主 provider 是否可自动恢复
 	if s.router != nil {
 		s.router.MaybeAutoRecover()
 		cfg = s.snapshotCfg()
@@ -472,7 +472,7 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 				cfg.ActiveProvider, model, credential,
 				chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, chatResp.Usage.TotalTokens, attempt,
 				finishReason, len(reasoning), truncateForLog(result, 500))
-			// V7：通知路由器记录用量
+			// 通知路由器记录用量
 			if s.router != nil {
 				s.router.MarkSuccess(cfg.ActiveProvider, model,
 					chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, 0, "chat_completion")
@@ -559,7 +559,7 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 		s.logger.Warnf("AI API 返回错误 (provider=%s, credential=%s, HTTP %d): %s",
 			cfg.ActiveProvider, credential, resp.StatusCode, string(respBody))
 		s.addErrorLog("chat_completion", errMsg, 0)
-		// V7：通知路由器试图切换（这里不另外重试，避免双重试逻辑交叉）
+		// 通知路由器试图切换（这里不另外重试，避免双重试逻辑交叉）
 		if s.router != nil {
 			s.router.MarkFailure(cfg.ActiveProvider, resp.StatusCode, string(respBody))
 		}
@@ -570,7 +570,7 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 		lastErr = fmt.Errorf("AI 调用失败（未知原因）")
 	}
 	s.addErrorLog("chat_completion", lastErr, 0)
-	// V7：重试后仍失败（网络错误路径），同样平衡给 router
+	// 重试后仍失败（网络错误路径），同样平衡给 router
 	if s.router != nil {
 		s.router.MarkFailure(cfg.ActiveProvider, 0, lastErr.Error())
 	}

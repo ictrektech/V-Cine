@@ -32,7 +32,7 @@ import (
 // FailoverReason 切换原因常量
 const (
 	FailoverReasonQuotaExhausted      = "quota_exhausted"
-	FailoverReasonModelQuotaExhausted = "model_quota_exhausted" // V8：单模型免费额度用尽（同 provider 内换 model）
+	FailoverReasonModelQuotaExhausted = "model_quota_exhausted" // 单模型免费额度用尽（同 provider 内换 model）
 	FailoverReasonHTTP429             = "http_429_persistent"
 	FailoverReasonHTTP5xx             = "http_5xx_consecutive"
 	FailoverReasonNetwork             = "network_error"
@@ -341,9 +341,9 @@ func (r *AIRouter) LoadMonthUsage() {
 type AIRouterSnapshot struct {
 	PreferredProvider   string              `json:"preferred_provider"`
 	CurrentActive       string              `json:"current_active"`
-	CurrentModel        string              `json:"current_model"`       // V8：当前生效 model（同 provider 内 failover 推进后）
-	PreferredModel      string              `json:"preferred_model"`     // V8：用户偏好主模型（profile.Model）
-	CurrentModelChain   []string            `json:"current_model_chain"` // V8：当前 provider 的模型链
+	CurrentModel        string              `json:"current_model"`       // 当前生效 model（同 provider 内 failover 推进后）
+	PreferredModel      string              `json:"preferred_model"`     // 用户偏好主模型（profile.Model）
+	CurrentModelChain   []string            `json:"current_model_chain"` // 当前 provider 的模型链
 	LastSwitchedAt      int64               `json:"last_switched_at"`
 	FailoverEnabled     bool                `json:"failover_enabled"`
 	Chain               []string            `json:"chain"`
@@ -364,8 +364,8 @@ type ProviderTotalView struct {
 	CostCNY      float64  `json:"cost_cny"`
 	Enabled      bool     `json:"enabled"`
 	Configured   bool     `json:"configured"`
-	CurrentModel string   `json:"current_model,omitempty"` // V8：本 provider 当前生效模型
-	ModelChain   []string `json:"model_chain,omitempty"`   // V8：本 provider 模型链
+	CurrentModel string   `json:"current_model,omitempty"` // 本 provider 当前生效模型
+	ModelChain   []string `json:"model_chain,omitempty"`   // 本 provider 模型链
 }
 
 // GetSnapshot 拉取 AIRouter 当前状态（前端 dashboard 用）

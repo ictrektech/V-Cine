@@ -280,7 +280,7 @@ type AIConfig struct {
 	MaxConcurrent     int `mapstructure:"max_concurrent"`
 	RequestIntervalMs int `mapstructure:"request_interval_ms"`
 
-	// ==================== Token 用量预算（V7：智能切换机制） ====================
+	// ==================== Token 用量预算（智能切换机制） ====================
 	// MonthlyTokenBudget 月度 token 预算（prompt + completion 之和）。
 	//   0 表示不限制；> 0 时，AIRouter 会在用量达到 WarningThresholdPct 时发出预警，
 	//   达到 100% 时拒绝请求或触发故障转移到链路上的下一个 provider。

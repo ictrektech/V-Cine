@@ -134,10 +134,10 @@ func (h *AIHandler) TestSmartSearch(c *gin.Context) {
 
 // EnableAutoPilot 一键启用 AI 全自动托管模式（管理员）
 //
-// 接受可选的 provider 预设与 api_key，会在一次调用中：
+// 接受可选的 provider 与 api_key，会在一次调用中：
 //  1. 强制开启 ai.enabled / ai.auto_pilot
 //  2. 强制启用三个子功能开关（智能搜索、推荐理由、元数据增强）
-//  3. 按预设 provider 自动填好 api_base / model（用户只需提供 api_key）
+//  3. 仅切换 active_provider，不回填 api_base / model（未配置的由调用链可读错误兜底）
 //
 // 不再强制 block_local_ai：允许本地模型参与托管模式，由用户自行选择。
 //
@@ -165,13 +165,11 @@ func (h *AIHandler) EnableAutoPilot(c *gin.Context) {
 		"enable_metadata_enhance": true,
 	}
 
-	// V7：provider 预设走统一表（config/ai_presets.go）
+	// 仅切换 provider，不回填 api_base/model：预设回填会静默覆盖用户
+	// 已自定义的地址（如独立部署 vrouter 的网关 URL）。未配置的 provider
+	// 由调用链「未配置 API Base」可读错误兜底。
 	if req.Provider != "" {
 		updates["active_provider"] = req.Provider
-		if p, ok := config.FindAIProviderPreset(req.Provider); ok {
-			updates["api_base"] = p.APIBase
-			updates["model"] = p.DefaultModel
-		}
 	}
 	if req.APIKey != "" {
 		updates["api_key"] = req.APIKey
@@ -209,68 +207,7 @@ func (h *AIHandler) TestRecommendReason(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
-// ==================== V7：智能调度器 / 用量监控 / 故障转移 ====================
-
-// ListProviderPresets 返回所有 AI 提供商的开箱即用预设（公开 GET）
-//
-// 用于前端"一键配置"按钮：列出 qwen / deepseek / openai / zhipu / claude / ollama
-// 等候选 provider，含默认 api_base、推荐 model、备注说明。
-func (h *AIHandler) ListProviderPresets(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"data": config.ListAIProviderPresets()})
-}
-
-// QuickConfigQwen 一键配置通义千问（管理员）
-//
-// 请求体：{ "api_key": "sk-..." }
-//
-// 行为：
-//  1. 读取 qwen 预设（api_base + 推荐 model）
-//  2. 写入 ai.profiles.qwen = { api_base, api_key, model }
-//  3. 切换 ai.provider = qwen
-//  4. 自动开启 ai.enabled
-//  5. 触发一次连接验证，返回结果
-func (h *AIHandler) QuickConfigQwen(c *gin.Context) {
-	var req struct {
-		APIKey string `json:"api_key" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 api_key 参数"})
-		return
-	}
-	preset := config.QwenPreset()
-	// V8：默认填充模型链（同 provider 内 failover 顺序）。AvailableModels 已按推荐度倒序排列。
-	// 用户后续可在 UI 上自由增删 / 排序。
-	defaultChain := append([]string{}, preset.AvailableModels...)
-	updates := map[string]interface{}{
-		"enabled":  true,
-		"provider": preset.Provider,
-		"api_base": preset.APIBase,
-		"api_key":  req.APIKey,
-		"model":    preset.DefaultModel,
-		"profiles": map[string]interface{}{
-			preset.Provider: map[string]interface{}{
-				"api_base":    preset.APIBase,
-				"api_key":     req.APIKey,
-				"model":       preset.DefaultModel,
-				"enabled":     true,
-				"model_chain": defaultChain,
-			},
-		},
-	}
-	if err := h.aiService.UpdateConfig(updates); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	// 验证连接
-	test, _ := h.aiService.TestConnection("")
-	c.JSON(http.StatusOK, gin.H{
-		"message": "通义千问已配置完成",
-		"data": gin.H{
-			"status": h.aiService.GetStatus(),
-			"test":   test,
-		},
-	})
-}
+// ==================== 智能调度器 / 用量监控 / 故障转移 ====================
 
 // GetRouterSnapshot 获取 AIRouter 当前状态（管理员）
 //
@@ -432,16 +369,6 @@ func (h *AIHandler) AddProvider(c *gin.Context) {
 		if p.ID == id {
 			c.JSON(http.StatusConflict, gin.H{"error": "同名供应商已存在"})
 			return
-		}
-	}
-
-	// 如果 api_base 为空，从预设填充
-	if req.APIBase == "" {
-		if preset, ok := config.FindAIProviderPreset(id); ok {
-			req.APIBase = preset.APIBase
-			if len(req.Models) == 0 && preset.DefaultModel != "" {
-				req.Models = []config.AIModelEntry{{Name: preset.DefaultModel}}
-			}
 		}
 	}
 

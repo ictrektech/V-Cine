@@ -475,7 +475,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// AI 成本估算服务（无状态，仅依赖 AIService 取累计 token）
 	svcs.AICost = NewAICostService(aiService)
 
-	// V7：AI 智能路由器（故障转移 / 用量监控 / 阈值预警）
+	// AI 智能路由器（故障转移 / 用量监控 / 阈值预警）
 	// 构造函数内部会调用 aiService.SetRouter(r) 进行双向注入。
 	svcs.AIRouter = NewAIRouter(aiService, svcs.AICost, repos.AIUsage, repos.AIFailover, cfg, logger)
 	// 启动时从库里装载当月已用 token（报表连续性）
