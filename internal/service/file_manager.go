@@ -753,6 +753,14 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 	recorder := newChainRecorder(func(data ScrapeChainData) {
 		s.broadcastEvent("scrape_chain", data)
 	}, media.ID, media.Title, chainPlan)
+	// 链路终态收敛：无论成功/失败/保存失败，恰好广播一次（新增路径无需再手动广播）
+	defer func() {
+		if scrapeErr != nil {
+			recorder.broadcastFinal("failed", scrapeErr.Error())
+			return
+		}
+		recorder.broadcastFinal(media.ScrapeStatus, "刮削完成")
+	}()
 	addChainStep := func(provider, status, errMsg string) {
 		recorder.steps = append(recorder.steps, ScrapeStepData{Provider: provider, Status: status, Error: errMsg})
 	}
@@ -831,9 +839,8 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 			Progress: 0,
 			Message:  scrapeErr.Error(),
 		})
-		// 广播链路完成（失败态，含每步状态）
-		recorder.broadcastFinal("failed", scrapeErr.Error())
-		// 也广播全局 scrape_completed（失败态），让前端统计卡片刷新
+		// 链路终态由入口 defer 统一广播
+		// 也广播全局 scrape_completed（失败态），供 Android 端刷新（前端通知中心已由链路终态覆盖）
 		s.broadcastEvent(EventScrapeCompleted, map[string]interface{}{
 			"media_id": media.ID,
 			"title":    media.Title,
@@ -860,6 +867,7 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 	}
 	if err := s.mediaRepo.Update(media); err != nil {
 		s.logger.Errorf("保存刮削结果失败: %v", err)
+		scrapeErr = err // 同步到 defer 终态广播：保存失败同样视为刮削失败
 		return
 	}
 
@@ -874,9 +882,8 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		Progress: 100,
 		Message:  "刮削完成",
 	})
-	// 广播链路完成（成功态，含来源与每步状态）
-	recorder.broadcastFinal(media.ScrapeStatus, "刮削完成")
-	// 广播全局 scrape_completed 事件，触发前端统计卡片及列表刷新
+	// 链路终态由入口 defer 统一广播
+	// 广播全局 scrape_completed 事件，供 Android 端刷新（前端通知中心已由链路终态覆盖）
 	s.broadcastEvent(EventScrapeCompleted, map[string]interface{}{
 		"media_id":      media.ID,
 		"title":         media.Title,

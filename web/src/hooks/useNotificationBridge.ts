@@ -4,8 +4,8 @@ import { useNotificationCenterStore, type NotificationStep, type NotificationPla
 
 // ==================== 全局 WS 事件 → 通知中心桥接 ====================
 // 将各类后台任务事件写入通知中心：
-//   - scrape_chain:        刮削链路（单条媒体实时链路 + 批量汇总，含文件管理页）
-//   - scrape_completed:     媒体级刮削完成（含来源，与链路事件同 ID 去重）
+//   - scrape_chain:        刮削链路（单条媒体实时链路 + 批量汇总，含文件管理页；
+//                          终态由后端收敛为恰好广播一次，无步骤时退化简单卡片）
 //   - scan_completed:       媒体库扫描完成
 //   - transcode_*:          转码开始/完成/失败
 //   - asr_*/translate_*:    字幕 ASR 与翻译
@@ -43,7 +43,7 @@ export function useNotificationBridge() {
     const handleChain = (data: ChainEventData) => {
       if (!data) return
 
-      // 批量汇总事件（无 steps）：更新批量进度；完成时作为最终通知保留
+      // 批量汇总事件（无 steps）：更新批量进度
       if (!data.steps || data.steps.length === 0) {
         if (data.current && data.current > 0) {
           push({
@@ -59,6 +59,17 @@ export function useNotificationBridge() {
               failed: data.failed || 0,
             },
           })
+          return
+        }
+        // 终态但无链路步骤（未走调度链的 fallback 路径）：退化为简单卡片，保证通知不丢
+        if (data.media_id && data.status && data.status !== 'running') {
+          push({
+            id: `scrape:${data.media_id}`,
+            type: 'scrape',
+            title: data.title || '未识别',
+            message: data.message || (data.status === 'failed' ? '刮削失败' : '刮削完成'),
+            status: (data.status === 'failed' ? 'failed' : data.status === 'partial' ? 'partial' : 'success') as any,
+          })
         }
         return
       }
@@ -73,23 +84,12 @@ export function useNotificationBridge() {
           data.status === 'running'
             ? data.message || '正在刮削...'
             : data.message || (data.status === 'failed' ? '刮削失败' : '刮削完成'),
-        status: (data.status as any) || 'running',
+        // 后端终态是 DB 状态（scraped/partial/failed），归一化为前端通知状态
+        status: (data.status === 'scraped' ? 'success' : data.status || 'running') as any,
         source: data.source,
         steps: data.steps,
         // 完整调度计划：与 steps 合并后展示"完整链路 + 未执行/跳过"
         plan: data.plan?.length ? data.plan : undefined,
-      })
-    }
-
-    // ---------- 媒体级刮削完成（全局事件，与链路事件同 ID 去重） ----------
-    const handleScrapeCompleted = (data: GenericEventData) => {
-      if (!data?.media_id) return
-      push({
-        id: `scrape:${data.media_id}`,
-        type: 'scrape',
-        title: data.title || '未识别',
-        message: data.message || (data.status === 'failed' ? '刮削失败' : '刮削完成'),
-        status: (data.status as any) === 'failed' ? 'failed' : 'success',
       })
     }
 
@@ -154,7 +154,6 @@ export function useNotificationBridge() {
     // 事件名 → 处理函数映射表：注册与注销共用
     const handlers: Array<[string, (data: any) => void]> = [
       ['scrape_chain', handleChain],
-      ['scrape_completed', handleScrapeCompleted],
       ['scrape_task_update', handleTaskUpdate],
       ['scan_started', handleScanStarted],
       ['scan_completed', handleScanCompleted],
