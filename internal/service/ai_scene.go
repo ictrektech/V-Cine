@@ -99,7 +99,7 @@ func (s *AISceneService) doGenerateChapters(task *model.AIAnalysisTask, media *m
 	// 使用FFmpeg检测场景变化
 	scenes, err := s.detectSceneChanges(media.FilePath, media.Duration)
 	if err != nil {
-		s.logger.Warnf("场景检测失败: %v, 使用均匀分割", err)
+		s.logger.Warnw("场景检测失败，使用均匀分割", "error", err)
 		scenes = s.generateUniformScenes(media.Duration)
 	}
 

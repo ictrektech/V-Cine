@@ -31,7 +31,7 @@ func (h *Handler) AddFavoriteHandler(c *gin.Context) {
 	// 去重
 	if !h.favoriteRepo.Exists(userID, uuid) {
 		if err := h.favoriteRepo.Add(&model.Favorite{UserID: userID, MediaID: uuid}); err != nil {
-			h.logger.Warnf("[emby] add favorite failed user=%s media=%s err=%v", userID, uuid, err)
+			h.logger.Warnw("[emby] add favorite failed", "userID", userID, "uuid", uuid, "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 			return
 		}
@@ -48,7 +48,7 @@ func (h *Handler) RemoveFavoriteHandler(c *gin.Context) {
 		return
 	}
 	if err := h.favoriteRepo.Remove(userID, uuid); err != nil {
-		h.logger.Warnf("[emby] remove favorite failed user=%s media=%s err=%v", userID, uuid, err)
+		h.logger.Warnw("[emby] remove favorite failed", "userID", userID, "uuid", uuid, "error", err)
 	}
 	h.writeUserData(c, userID, uuid)
 }

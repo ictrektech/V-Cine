@@ -1527,7 +1527,7 @@ func (s *SmartRenameService) Execute(in ExecuteInput) (*model.RenamePlan, error)
 			if err := s.repo.UpdateItem(it); err != nil {
 				s.logger.Warnw("[SmartRename] 持久化条目失败状态失败", "plan_id", plan.ID, "item_id", it.ID, "error", err)
 			}
-			s.logger.Errorf("[SmartRename] 执行条目失败 plan=%s item=%s: %v", plan.ID, it.ID, err)
+			s.logger.Errorw("[SmartRename] 执行条目失败 item=", "plan_ID", plan.ID, "it_ID", it.ID, "error", err)
 			continue
 		}
 		executed++

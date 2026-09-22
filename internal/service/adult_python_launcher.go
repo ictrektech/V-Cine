@@ -95,7 +95,7 @@ func (l *AdultPythonLauncher) Start() error {
 		if newPort == 0 {
 			return fmt.Errorf("端口 %d 已占用且附近端口也不可用", port)
 		}
-		l.logger.Warnf("[adult-python] 端口 %d 已被占用，自动切换到 %d", port, newPort)
+		l.logger.Warnw("[adult-python] 端口已被占用，自动切换到", "port", port, "newPort", newPort)
 		port = newPort
 	}
 	l.endpoint = fmt.Sprintf("http://%s:%d", host, port)
@@ -153,7 +153,7 @@ func (l *AdultPythonLauncher) Start() error {
 
 	// 7. 健康探测（最多 20 秒）
 	if err := l.waitHealthy(20 * time.Second); err != nil {
-		l.logger.Warnf("[adult-python] 健康探测失败: %v（子进程仍在运行，Go 后端不受影响）", err)
+		l.logger.Warnw("[adult-python] 健康探测失败（子进程仍在运行，Go 后端不受影响）", "error", err)
 		return nil
 	}
 

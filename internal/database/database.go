@@ -58,11 +58,11 @@ func Open(cfg *config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error) {
 		if cfg.AutoCreate && !autoCreateDone && isMissingDatabase(err) {
 			autoCreateDone = true
 			if crtErr := createDatabase(cfg, sugar); crtErr != nil {
-				sugar.Warnf("自动创建数据库 %s 失败: %v", cfg.DBName, crtErr)
+				sugar.Warnw("自动创建数据库失败", "cfg_DBName", cfg.DBName, "error", crtErr)
 			}
 		}
 		if attempt < maxRetries {
-			sugar.Warnf("连接 PostgreSQL 失败（第 %d/%d 次）: %v，%ds 后重试...", attempt, maxRetries, err, retryInterval)
+			sugar.Warnw("连接 PostgreSQL 失败，稍后重试", "attempt", attempt, "maxRetries", maxRetries, "error", err, "retryInterval", retryInterval)
 			time.Sleep(time.Duration(retryInterval) * time.Second)
 		}
 	}

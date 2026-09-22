@@ -243,7 +243,7 @@ func (ns *NotificationService) sendWebhook(hook WebhookNotifyConfig, event Notif
 
 	req, err := http.NewRequest("POST", hook.URL, bytes.NewReader(payload))
 	if err != nil {
-		ns.logger.Errorf("Webhook 创建请求失败: %s -> %v", hook.URL, err)
+		ns.logger.Errorw("Webhook 创建请求失败", "hook_URL", hook.URL, "error", err)
 		return
 	}
 
@@ -272,7 +272,7 @@ func (ns *NotificationService) sendWebhook(hook WebhookNotifyConfig, event Notif
 		lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	ns.logger.Warnf("Webhook 发送失败: %s -> %s: %v", event.Type, hook.URL, lastErr)
+	ns.logger.Warnw("Webhook 发送失败", "event_Type", event.Type, "hook_URL", hook.URL, "error", lastErr)
 }
 
 // sendEmail 发送邮件通知

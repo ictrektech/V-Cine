@@ -151,10 +151,10 @@ func (s *AdultScraperService) ScrapeByCodeAggregated(code string) (*AdultMetadat
 					mu.Unlock()
 					s.logger.Debugf("聚合刮削 %s 成功: %s", name, code)
 				} else if err != nil {
-					s.logger.Warnf("聚合刮削 %s 失败: %s - %v", name, code, err)
+					s.logger.Warnw("聚合刮削失败", "name", name, "code", code, "error", err)
 				}
 			case <-time.After(20 * time.Second):
-				s.logger.Warnf("聚合刮削 %s 超时: %s", name, code)
+				s.logger.Warnw("聚合刮削超时", "name", name, "code", code)
 			}
 		})
 	}

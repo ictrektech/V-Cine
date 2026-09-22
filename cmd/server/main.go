@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -33,20 +32,23 @@ import (
 func main() {
 	appVer := version.Current()
 
+	// 初始化日志（bootstrap：配置加载前先建 logger，配置加载后按 Debug 切换）
+	logger := config.BootstrapZap() // safego/config_store 等基础设施通过 zap 全局 logger 记录
+	sugar := logger.Sugar()
+
 	// 加载配置
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("加载配置失败: %v", err)
+		sugar.Fatalf("加载配置失败: %v", err)
 	}
 
-	// 初始化日志
-	logger, _ := zap.NewProduction()
+	// 按 Debug 切换日志格式（config 加载期的日志已是 production 格式）
 	if cfg.App.Debug {
 		logger, _ = zap.NewDevelopment()
+		zap.ReplaceGlobals(logger)
+		sugar = logger.Sugar()
 	}
 	defer logger.Sync()
-	zap.ReplaceGlobals(logger) // safego 等基础设施通过 zap 全局 logger 记录 panic
-	sugar := logger.Sugar()
 
 	// 初始化数据库
 	db, err := database.Open(&cfg.Database, logger)

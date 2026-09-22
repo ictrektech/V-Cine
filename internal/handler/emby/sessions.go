@@ -133,7 +133,7 @@ func (h *Handler) recordProgress(c *gin.Context, isStop bool) {
 		UpdatedAt: time.Now(),
 	}
 	if err := h.watchRepo.Upsert(hist); err != nil {
-		h.logger.Warnf("[emby] upsert watch history failed user=%s media=%s err=%v", userID, uuid, err)
+		h.logger.Warnw("[emby] upsert watch history failed", "userID", userID, "uuid", uuid, "error", err)
 	}
 	// Throttling：把播放位置喂给所有正在运行的 transcode job
 	if h.transcode != nil && !isStop {

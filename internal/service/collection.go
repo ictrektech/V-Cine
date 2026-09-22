@@ -424,7 +424,7 @@ func (s *CollectionService) AutoMatchCollections() (int, error) {
 		}
 
 		if err := s.collRepo.Create(coll); err != nil {
-			s.logger.Warnf("创建合集 '%s' 失败: %v", baseName, err)
+			s.logger.Warnw("创建合集失败", "baseName", baseName, "error", err)
 			continue
 		}
 
@@ -488,7 +488,7 @@ func (s *CollectionService) MergeDuplicateCollections() (int, error) {
 
 		// 合并：将源合集的电影迁移到目标合集，然后删除源合集
 		if err := s.collRepo.MergeCollections(target.ID, sourceIDs); err != nil {
-			s.logger.Warnf("合并同名合集 '%s' 失败: %v", name, err)
+			s.logger.Warnw("合并同名合集失败", "name", name, "error", err)
 			continue
 		}
 

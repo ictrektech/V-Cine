@@ -245,7 +245,7 @@ func (s *PreprocessService) SubmitMedia(mediaID string, priority int, force bool
 	case s.jobQueue <- task.ID:
 		s.logger.Infof("任务已入队: %s (优先级=%d)", task.MediaTitle, priority)
 	default:
-		s.logger.Warnf("预处理队列已满，任务 %s 将在下次调度时处理", task.ID)
+		s.logger.Warnw("预处理队列已满，任务将在下次调度时处理", "task_ID", task.ID)
 	}
 
 	return task, nil
@@ -1078,7 +1078,7 @@ func (s *PreprocessService) CleanPreprocessCache(mediaID string) error {
 // DeleteByMediaID 删除某媒体的预处理任务与缓存（运行中任务跳过）。
 func (s *PreprocessService) DeleteByMediaID(mediaID string) error {
 	if task, err := s.repo.FindActiveByMediaID(mediaID); err == nil && task != nil {
-		s.logger.Warnf("跳过删除预处理缓存: media_id=%s 任务运行中", mediaID)
+		s.logger.Warnw("跳过删除预处理缓存: 任务运行中", "mediaID", mediaID)
 		return nil
 	}
 	cacheDir := filepath.Join(s.cfg.Cache.CacheDir, "preprocess", mediaID)
@@ -1916,7 +1916,7 @@ func (s *PreprocessService) processTask(taskID string) {
 	// 收集结果
 	for r := range resultCh {
 		if r.err != nil {
-			s.logger.Errorf("转码变体 %s 失败: %v", r.name, r.err)
+			s.logger.Errorw("转码变体失败", "r_name", r.name, "r_err", r.err)
 			continue
 		}
 		completedVariants = append(completedVariants, r.name)
@@ -2259,7 +2259,7 @@ func (s *PreprocessService) transcodeVariantWithWebDAVFallback(
 		return err
 	}
 
-	s.logger.Warnf("WebDAV 源转码失败，尝试降级为本地下载: task=%s, err=%v", task.MediaTitle, err)
+	s.logger.Warnw("WebDAV 源转码失败，尝试降级为本地下载", "task_MediaTitle", task.MediaTitle, "error", err)
 
 	// 下载到本地
 	ctx, cancel := context.WithCancel(context.Background())
@@ -2337,7 +2337,7 @@ func (s *PreprocessService) transcodeWithFallback(
 		useGPU, accel := s.gpuMonitor.ShouldUseGPU(actualHWAccel)
 		if !useGPU {
 			actualHWAccel = accel // 降级为 "none"（CPU 编码）
-			s.logger.Warnf("GPU 安全保护: 任务 %s 降级为 CPU 编码", task.MediaTitle)
+			s.logger.Warnw("GPU 安全保护: 任务降级为 CPU 编码", "task_MediaTitle", task.MediaTitle)
 		}
 	}
 
@@ -2415,7 +2415,7 @@ func (s *PreprocessService) transcodeWithFallback(
 		}
 
 		if err := cmd.Start(); err != nil {
-			s.logger.Warnf("硬件加速 %s 启动失败: %v", attemptName, err)
+			s.logger.Warnw("硬件加速启动失败", "attemptName", attemptName, "error", err)
 			continue // 尝试下一种方式
 		}
 
@@ -2463,7 +2463,7 @@ func (s *PreprocessService) transcodeWithFallback(
 				s.logger.Warnf("硬件加速 %s 转码失败: %v\nFFmpeg 输出:\n%s",
 					attemptName, err, strings.Join(stderrLines, "\n"))
 			} else {
-				s.logger.Warnf("硬件加速 %s 转码失败: %v", attemptName, err)
+				s.logger.Warnw("硬件加速转码失败", "attemptName", attemptName, "error", err)
 			}
 
 			// 如果不是最后一次尝试，继续尝试下一种方式
@@ -2476,7 +2476,7 @@ func (s *PreprocessService) transcodeWithFallback(
 						os.Remove(filepath.Join(cleanupDir, entry.Name()))
 					}
 				}
-				s.logger.Warnf("回退: %s 失败，尝试下一种方式", attemptName)
+				s.logger.Warnw("回退: 失败，尝试下一种方式", "attemptName", attemptName)
 				continue
 			}
 

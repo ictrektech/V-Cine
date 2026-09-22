@@ -750,7 +750,7 @@ func (s *MediaService) probeTechSpecs(filePath string) *TechSpecs {
 
 	output, err := cmd.Output()
 	if err != nil {
-		s.logger.Warnf("FFprobe 获取技术规格失败: %s, 错误: %v", filePath, err)
+		s.logger.Warnw("FFprobe 获取技术规格失败", "filePath", filePath, "error", err)
 		return nil
 	}
 
@@ -805,7 +805,7 @@ func (s *MediaService) probeTechSpecs(filePath string) *TechSpecs {
 	}
 
 	if err := json.Unmarshal(output, &probeResult); err != nil {
-		s.logger.Warnf("解析 FFprobe 输出失败: %s, 错误: %v", filePath, err)
+		s.logger.Warnw("解析 FFprobe 输出失败", "filePath", filePath, "error", err)
 		return nil
 	}
 

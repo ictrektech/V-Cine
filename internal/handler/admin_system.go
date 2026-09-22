@@ -594,7 +594,7 @@ func (h *AdminHandler) ClearAllData(c *gin.Context) {
 		if tx.Error != nil {
 			result.Status = "error"
 			result.Message = tx.Error.Error()
-			h.logger.Errorf("清空表 %s 失败: %v", item.name, tx.Error)
+			h.logger.Errorw("清空表失败", "item_name", item.name, "tx_Error", tx.Error)
 		} else {
 			result.Cleared = tx.RowsAffected
 			result.Status = "success"

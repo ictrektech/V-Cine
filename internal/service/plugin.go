@@ -285,7 +285,7 @@ func (s *PluginService) ExecuteHook(hookName string, data map[string]interface{}
 	for _, h := range handlers {
 		result, err := h.Handler(data)
 		if err != nil {
-			s.logger.Warnf("插件钩子执行失败: %s/%s -> %v", h.PluginID, hookName, err)
+			s.logger.Warnw("插件钩子执行失败: / ->", "h_PluginID", h.PluginID, "hookName", hookName, "error", err)
 			continue
 		}
 		if result != nil {
@@ -341,7 +341,7 @@ func (s *PluginService) loadEnabledPlugins() {
 
 	for i := range plugins {
 		if err := s.loadPlugin(&plugins[i]); err != nil {
-			s.logger.Warnf("加载插件失败: %s -> %v", plugins[i].Name, err)
+			s.logger.Warnw("加载插件失败", "plugins_i_Name", plugins[i].Name, "error", err)
 		}
 	}
 

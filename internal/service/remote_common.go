@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"path"
@@ -164,7 +163,7 @@ func readAtCached(cache *webdavBlockCache, fileSize int64, readAt func([]byte, i
 		return 0, nil
 	}
 	if off < 0 {
-		return 0, fmt.Errorf("ReadAt: negative offset")
+		return 0, errors.New("negative read offset")
 	}
 	if cache == nil {
 		return readAt(p, off)

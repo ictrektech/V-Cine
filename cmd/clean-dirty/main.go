@@ -43,7 +43,6 @@ import (
 	"strings"
 	"time"
 
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/nowen-video/nowen-video/internal/config"
@@ -699,14 +698,13 @@ func main() {
 		*dryRun = false
 	}
 
-	// 加载配置
+	logger := config.BootstrapZap()
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[warn] 加载配置失败: %v；将使用默认配置\n", err)
 		cfg = &config.Config{}
 	}
 
-	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 	db, err := database.Open(&cfg.Database, logger)
 	if err != nil {

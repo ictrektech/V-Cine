@@ -325,7 +325,7 @@ func (s *LazyIngestService) Submit(in LazyIngestInput) (*model.IngestJob, error)
 			"error_message": err.Error(),
 			"completed_at":  &now,
 		})
-		s.logger.Warnf("[LazyIngest] 跨卷预检失败 job=%s src=%s target=%s err=%v", job.ID, absSrc, tgtRoot, err)
+		s.logger.Warnw("[LazyIngest] 跨卷预检失败", "job_ID", job.ID, "absSrc", absSrc, "tgtRoot", tgtRoot, "error", err)
 		return nil, err
 	}
 
@@ -405,7 +405,7 @@ func (s *LazyIngestService) run(jobID string) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			s.logger.Errorf("[LazyIngest] 任务 panic job=%s err=%v", jobID, r)
+			s.logger.Errorw("[LazyIngest] 任务 panic", "jobID", jobID, "r", r)
 			_ = s.markFailed(jobID, fmt.Sprintf("内部错误：%v", r))
 		}
 	}()
@@ -423,7 +423,7 @@ func (s *LazyIngestService) run(jobID string) {
 			journal = jw
 			defer journal.Close()
 		} else {
-			s.logger.Warnf("[LazyIngest] journal 创建失败 job=%s err=%v", jobID, jerr)
+			s.logger.Warnw("[LazyIngest] journal 创建失败", "jobID", jobID, "jerr", jerr)
 			_ = s.markFailed(jobID, fmt.Sprintf("journal 创建失败：%v", jerr))
 			return
 		}
@@ -556,7 +556,7 @@ func (s *LazyIngestService) run(jobID string) {
 			if err := executor.placeFile(p.Item.SourcePath, p.DestPath); err != nil {
 				res.failed = true
 				res.err = err
-				s.logger.Warnf("[LazyIngest] 落盘失败 src=%s dst=%s: %v", p.Item.SourcePath, p.DestPath, err)
+				s.logger.Warnw("[LazyIngest] 落盘失败 dst=", "p_Item_SourcePath", p.Item.SourcePath, "p_DestPath", p.DestPath, "error", err)
 				results <- res
 				continue
 			}
@@ -577,7 +577,7 @@ func (s *LazyIngestService) run(jobID string) {
 				suffix := strings.TrimPrefix(origRelStem, origStem)
 				relDest := filepath.Join(mainDir, mainStem+suffix+ext)
 				if err := executor.placeFile(r.Source, relDest); err != nil {
-					s.logger.Warnf("[LazyIngest] 关联资源落盘失败 src=%s dst=%s: %v", r.Source, relDest, err)
+					s.logger.Warnw("[LazyIngest] 关联资源落盘失败 dst=", "r_Source", r.Source, "relDest", relDest, "error", err)
 				}
 			}
 			results <- res

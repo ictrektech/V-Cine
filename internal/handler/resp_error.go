@@ -29,6 +29,11 @@ var userSafeErrors = []error{
 	service.ErrTaskNotFound,
 	service.ErrRegistrationDisabled,
 	service.ErrInvalidInviteCode,
+	service.ErrAIDisabled,
+	service.ErrAINotConfigured,
+	service.ErrAIModelNotConfigured,
+	service.ErrLocalAIBlocked,
+	service.ErrAIBudgetExhausted,
 	service.ErrVideoAnalysisTaskActive,
 }
 

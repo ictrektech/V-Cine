@@ -735,7 +735,7 @@ func (s *StreamService) GetSegmentPlaylist(mediaID, quality string) (string, err
 
 	// 超时：返回 EVENT 类型的空 playlist，客户端会继续轮询
 	// 由 HLS 规范，没有 #EXT-X-ENDLIST 的列表会被视为直播/事件流
-	s.logger.Warnf("HLS 首片等待超时: %s/%s，返回占位 playlist", mediaID, quality)
+	s.logger.Warnw("HLS 首片等待超时: /，返回占位 playlist", "mediaID", mediaID, "quality", quality)
 	return "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:2\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:EVENT\n", nil
 }
 

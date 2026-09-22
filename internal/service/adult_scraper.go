@@ -598,7 +598,11 @@ func (s *AdultScraperService) scrapePythonService(code string) (*AdultMetadata, 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Python 微服务返回异常: HTTP %d, body=%s", resp.StatusCode, string(body))
+		tail := string(body)
+		if len(tail) > 400 {
+			tail = tail[:400]
+		}
+		return nil, fmt.Errorf("Python 微服务返回异常: HTTP %d, body=%s", resp.StatusCode, tail)
 	}
 
 	var meta AdultMetadata

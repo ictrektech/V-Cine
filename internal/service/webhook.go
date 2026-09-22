@@ -152,7 +152,7 @@ func (ws *WebhookService) sendWebhook(hook WebhookConfig, event WebhookEvent) {
 
 	req, err := http.NewRequest("POST", hook.URL, bytes.NewReader(payload))
 	if err != nil {
-		ws.logger.Errorf("Webhook 创建请求失败: %s -> %v", hook.URL, err)
+		ws.logger.Errorw("Webhook 创建请求失败", "hook_URL", hook.URL, "error", err)
 		return
 	}
 
@@ -181,5 +181,5 @@ func (ws *WebhookService) sendWebhook(hook WebhookConfig, event WebhookEvent) {
 		lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	ws.logger.Warnf("Webhook 发送失败（已重试）: %s -> %s: %v", event.Type, hook.URL, lastErr)
+	ws.logger.Warnw("Webhook 发送失败（已重试）", "event_Type", event.Type, "hook_URL", hook.URL, "error", lastErr)
 }

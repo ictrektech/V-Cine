@@ -150,7 +150,7 @@ func (s *FederationService) RegisterNode(name, url, apiKey, role string) (*Serve
 
 	// 立即进行健康检查
 	if err := s.checkNodeHealth(node); err != nil {
-		s.logger.Warnf("节点健康检查失败: %s -> %v", url, err)
+		s.logger.Warnw("节点健康检查失败", "url", url, "error", err)
 		node.Status = "error"
 		node.SyncError = err.Error()
 	}

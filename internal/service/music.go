@@ -156,7 +156,7 @@ func (s *MusicService) ScanMusicLibrary(libraryID, dirPath string) (int, error) 
 		}
 
 		if err := s.db.Create(track).Error; err != nil {
-			s.logger.Warnf("添加音乐曲目失败: %s -> %v", path, err)
+			s.logger.Warnw("添加音乐曲目失败", "path", path, "error", err)
 			return nil
 		}
 		count++

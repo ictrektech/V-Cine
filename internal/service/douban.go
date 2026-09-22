@@ -567,7 +567,7 @@ func (s *DoubanService) ValidateDoubanCookie() (valid bool, username string, err
 			return true, uname, nil
 		}
 		// 情况 3：其他未知跳转，保守视为失效并记日志便于排查
-		s.logger.Warnf("[ValidateDoubanCookie] 未知重定向 %s -> %s，保守视为失效", req.URL, location)
+		s.logger.Warnw("[ValidateDoubanCookie] 未知重定向 ->，保守视为失效", "req_URL", req.URL, "location", location)
 		return false, "", nil
 	}
 
@@ -584,7 +584,7 @@ func (s *DoubanService) ValidateDoubanCookie() (valid bool, username string, err
 	if strings.EqualFold(contentEncoding, "gzip") {
 		gz, gzErr := gzip.NewReader(reader)
 		if gzErr != nil {
-			s.logger.Warnf("[ValidateDoubanCookie] gzip 解压失败：%v（可能是误判的压缩头）", gzErr)
+			s.logger.Warnw("[ValidateDoubanCookie] gzip 解压失败：（可能是误判的压缩头）", "error", gzErr)
 		} else {
 			defer gz.Close()
 			reader = gz

@@ -214,7 +214,7 @@ func (s *ScanPostProcessService) worker(idx int) {
 				return
 			}
 			if err := s.ProcessMedia(mediaID); err != nil {
-				s.logger.Warnf("[ScanPostProcess] worker#%d 处理失败 media_id=%s err=%v", idx, mediaID, err)
+				s.logger.Warnw("[ScanPostProcess] worker# 处理失败", "idx", idx, "mediaID", mediaID, "error", err)
 			}
 		}
 	}
@@ -359,9 +359,9 @@ func (s *ScanPostProcessService) ProcessMedia(mediaID string) error {
 			outputDir := strings.TrimSpace(lib.OrganizeOutputDir)
 			if outputDir != "" {
 				if r, errHL := s.organizeHardlink.ProcessResolvedMediaHardlink(media, classification, outputDir); errHL != nil {
-					s.logger.Warnf("[ScanPostProcess] 硬链接失败 media_id=%s err=%v", media.ID, errHL)
+					s.logger.Warnw("[ScanPostProcess] 硬链接失败", "media_ID", media.ID, "errHL", errHL)
 				} else if r != nil && r.ErrorMsg != "" {
-					s.logger.Warnf("[ScanPostProcess] 硬链接警告 media_id=%s msg=%s", media.ID, r.ErrorMsg)
+					s.logger.Warnw("[ScanPostProcess] 硬链接警告", "media_ID", media.ID, "r_ErrorMsg", r.ErrorMsg)
 				} else if r != nil && s.wsHub != nil {
 					s.wsHub.BroadcastEvent(EventLibraryUpdated, &LibraryChangedData{
 						LibraryID:   media.LibraryID,
@@ -490,9 +490,9 @@ func (s *ScanPostProcessService) processAdultMedia(media *model.Media, lib *mode
 
 	if s.organizeHardlink != nil && strings.TrimSpace(lib.OrganizeOutputDir) != "" {
 		if r, errHL := s.organizeHardlink.ProcessResolvedMediaHardlink(media, c, strings.TrimSpace(lib.OrganizeOutputDir)); errHL != nil {
-			s.logger.Warnf("[ScanPostProcess] 成人硬链接失败 media_id=%s err=%v", media.ID, errHL)
+			s.logger.Warnw("[ScanPostProcess] 成人硬链接失败", "media_ID", media.ID, "errHL", errHL)
 		} else if r != nil && r.ErrorMsg != "" {
-			s.logger.Warnf("[ScanPostProcess] 成人硬链接警告 media_id=%s msg=%s", media.ID, r.ErrorMsg)
+			s.logger.Warnw("[ScanPostProcess] 成人硬链接警告", "media_ID", media.ID, "r_ErrorMsg", r.ErrorMsg)
 		}
 	}
 
@@ -534,7 +534,7 @@ func (s *ScanPostProcessService) ProcessBatchWithProgress(mediaIDs []string, onP
 	total := len(mediaIDs)
 	for i, id := range mediaIDs {
 		if err := s.ProcessMedia(id); err != nil {
-			s.logger.Warnf("[ScanPostProcess] 批量处理失败 media_id=%s err=%v", id, err)
+			s.logger.Warnw("[ScanPostProcess] 批量处理失败", "id", id, "error", err)
 		} else {
 			ok++
 		}
@@ -580,7 +580,7 @@ DrainLoop:
 	// 2) 把 DB 中 pending/running 状态的记录改写为 failed（带取消标记）
 	marked, err := s.repo.MarkPendingCancelled(libraryID)
 	if err != nil {
-		s.logger.Warnf("[ScanPostProcess] 取消时回写 DB 失败 library_id=%s err=%v", libraryID, err)
+		s.logger.Warnw("[ScanPostProcess] 取消时回写 DB 失败", "libraryID", libraryID, "error", err)
 		return res, err
 	}
 	res.Marked = marked
@@ -625,7 +625,7 @@ func (s *ScanPostProcessService) ReprocessLibrary(libraryID string, async bool) 
 
 	// ---------- 模式 B：指定单个媒体库 ----------
 	if _, err := s.repo.DeleteByLibraryID(libraryID); err != nil {
-		s.logger.Warnf("[ScanPostProcess] 清理旧记录失败 library_id=%s err=%v", libraryID, err)
+		s.logger.Warnw("[ScanPostProcess] 清理旧记录失败", "libraryID", libraryID, "error", err)
 	}
 	if async {
 		return s.EnqueueLibrary(libraryID)
@@ -816,7 +816,7 @@ func (s *ScanPostProcessService) identify(media *model.Media, c *model.MediaClas
 			// AI 失败 → 不影响整体流程；
 			// 但若规则解析已经拿到核心字段（标题 + 年份 / 季集），
 			// 就保留 processed 状态，避免列表上一片"待修正"假阳性。
-			s.logger.Warnf("[ScanPostProcess] AI 识别失败 file=%s err=%v", srcName, err)
+			s.logger.Warnw("[ScanPostProcess] AI 识别失败", "srcName", srcName, "error", err)
 			ruleHasCoreFields := parsed.Title != "" &&
 				(parsed.Year > 0 || parsed.Season > 0 || parsed.Episode > 0)
 			if !ruleHasCoreFields {
@@ -1136,7 +1136,7 @@ func (s *ScanPostProcessService) syncParsedToMedia(media *model.Media, parsed sc
 	}
 	oldSeriesID := media.SeriesID
 	if err := s.mediaRepo.UpdateOrganizedFields(media.ID, fields); err != nil {
-		s.logger.Warnf("[ScanPostProcess] 同步识别结果到 Media 失败 media_id=%s err=%v", media.ID, err)
+		s.logger.Warnw("[ScanPostProcess] 同步识别结果到 Media 失败", "media_ID", media.ID, "error", err)
 		return
 	}
 	applyScanPostFields(media, fields)
@@ -1150,7 +1150,7 @@ func (s *ScanPostProcessService) recalculateSeriesAfterMediaMove(seriesID string
 		return
 	}
 	if err := s.seriesRepo.RecalculateCounts(seriesID); err != nil {
-		s.logger.Warnf("[ScanPostProcess] 重算剧集合集统计失败 series_id=%s err=%v", seriesID, err)
+		s.logger.Warnw("[ScanPostProcess] 重算剧集合集统计失败", "seriesID", seriesID, "error", err)
 		return
 	}
 	if removed, err := s.seriesRepo.CleanEmptySeries(); err != nil {

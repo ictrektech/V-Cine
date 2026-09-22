@@ -192,7 +192,7 @@ func (m *GPUMonitor) ShouldUseGPU(requestedAccel string) (bool, string) {
 	// 检查是否处于降级模式
 	if m.IsDegraded() {
 		atomic.AddInt32(&m.degradedTasks, 1)
-		m.logger.Warnf("GPU 过载保护: 任务降级为 CPU 编码 (原因: %s)", m.getDegradeReason())
+		m.logger.Warnw("GPU 过载保护: 任务降级为 CPU 编码", "m_getDegradeReason", m.getDegradeReason())
 		return false, "none"
 	}
 
@@ -445,7 +445,7 @@ func (m *GPUMonitor) evaluateSafety() {
 
 		if reason != "" {
 			m.setDegraded(true, reason)
-			m.logger.Warnf("⚠️ GPU 安全保护触发: %s → 新任务将降级为 CPU 编码", reason)
+			m.logger.Warnw("⚠️ GPU 安全保护触发: → 新任务将降级为 CPU 编码", "reason", reason)
 
 			// 广播降级事件
 			if m.wsHub != nil {

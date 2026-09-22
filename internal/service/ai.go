@@ -315,7 +315,7 @@ func (s *AIService) ChatCompletionJSONSchema(systemPrompt, userPrompt string, te
 
 func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature float64, maxTokens int, forceJSON bool, reasoningEffort string, schema *ChatCompletionJSONSchema) (string, error) {
 	if !s.IsEnabled() {
-		return "", fmt.Errorf("AI 服务未启用")
+		return "", ErrAIDisabled
 	}
 
 	// 以“一次快照”在本次调用全程使用同一份 cfg，避免中途热更新导致 model/url 不一致，
@@ -331,7 +331,7 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	// API Key 可选：空 key = 不发 Authorization，是否需要 key 由服务端 401 事实回答。
 	ap := cfg.ActiveProfile()
 	if ap == nil || ap.APIBase == "" {
-		return "", fmt.Errorf("未配置 AI 供应商（provider=%s）", cfg.ActiveProvider)
+		return "", fmt.Errorf("%w（provider=%s）", ErrAINotConfigured, cfg.ActiveProvider)
 	}
 	apiBase := ap.APIBase
 	apiKey := ap.APIKey
@@ -340,7 +340,7 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	// V-Router 网关要求请求体必须带 model（V-ChatCut 同款语义：vrouter 无模型即不可用）。
 	// 空 model 提前报可读错误，而不是让网关返回 400 "JSON body requires model"。
 	if model == "" {
-		return "", fmt.Errorf("AI 供应商 %s 未配置模型，请在 AI 设置中为该供应商拉取模型或手动添加后重试", cfg.ActiveProvider)
+		return "", fmt.Errorf("%w（provider=%s）", ErrAIModelNotConfigured, cfg.ActiveProvider)
 	}
 
 	// 网关判定（唯一特征表），凭证策略与 BlockLocalAI 豁免共用。
@@ -350,12 +350,12 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	// 网关豁免：V-Router 是云模型网关而非本地推理，APIBase 为私网 IP
 	// （宿主机端口模式）不代表本地推理。
 	if cfg.BlockLocalAI && !isGateway && isLocalAIProvider(cfg.ActiveProvider, apiBase) {
-		return "", fmt.Errorf("当前系统禁止本地 AI（provider=%s），请在 AI 配置中选择云端服务商（OpenAI/DeepSeek/通义千问）", cfg.ActiveProvider)
+		return "", fmt.Errorf("%w（provider=%s）", ErrLocalAIBlocked, cfg.ActiveProvider)
 	}
 
 	// 预算检查
 	if !s.checkBudget() {
-		return "", fmt.Errorf("AI 月度调用预算已用尽")
+		return "", ErrAIBudgetExhausted
 	}
 
 	// 并发控制
@@ -692,7 +692,7 @@ func (s *AIService) desensitizeImage(dataURL string) string {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		s.logger.Warnf("desensitize image returned HTTP %d, passing through", resp.StatusCode)
+		s.logger.Warnw("desensitize image returned HTTP, passing through", "resp_StatusCode", resp.StatusCode)
 		return dataURL
 	}
 	respBytes, err := io.ReadAll(resp.Body)
@@ -756,7 +756,7 @@ func (s *AIService) desensitizeText(text string) string {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		s.logger.Warnf("desensitize returned HTTP %d, passing through", resp.StatusCode)
+		s.logger.Warnw("desensitize returned HTTP, passing through", "resp_StatusCode", resp.StatusCode)
 		return text
 	}
 

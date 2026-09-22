@@ -642,7 +642,7 @@ func (s *FileManagerService) deleteFile(mediaID, userID string, cleanOrphanStruc
 	if s.videoAnalysisRepo != nil {
 		if deletedCount, err := s.videoAnalysisRepo.DeleteByMediaID(mediaID); err != nil {
 			if s.logger != nil {
-				s.logger.Warnf("清理视频分析任务失败: media_id=%s, err=%v", mediaID, err)
+				s.logger.Warnw("清理视频分析任务失败", "mediaID", mediaID, "error", err)
 			}
 		} else if deletedCount > 0 {
 			if s.logger != nil {
@@ -654,7 +654,7 @@ func (s *FileManagerService) deleteFile(mediaID, userID string, cleanOrphanStruc
 	// 任务删除后回收 cache/structure 下不再被引用的孤儿产物（best-effort）
 	if cleanOrphanStructure && s.videoAnalysis != nil {
 		if err := s.videoAnalysis.CleanOrphanStructure(); err != nil && s.logger != nil {
-			s.logger.Warnf("删除媒体后清理 structure 孤儿失败: media_id=%s, err=%v", mediaID, err)
+			s.logger.Warnw("删除媒体后清理 structure 孤儿失败", "mediaID", mediaID, "error", err)
 		}
 	}
 
@@ -687,7 +687,7 @@ func (s *FileManagerService) BatchDeleteFiles(mediaIDs []string, userID string) 
 	// 孤儿目录回收在批量结束后统一执行一次，避免每个媒体各做一次全目录扫描
 	if deleted > 0 && s.videoAnalysis != nil {
 		if err := s.videoAnalysis.CleanOrphanStructure(); err != nil && s.logger != nil {
-			s.logger.Warnf("批量删除后清理 structure 孤儿失败: count=%d, err=%v", deleted, err)
+			s.logger.Warnw("批量删除后清理 structure 孤儿失败", "deleted", deleted, "error", err)
 		}
 	}
 	return

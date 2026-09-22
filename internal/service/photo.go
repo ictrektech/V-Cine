@@ -148,7 +148,7 @@ func (s *PhotoService) ScanPhotoLibrary(libraryID, dirPath string) (int, error) 
 		}
 
 		if err := s.db.Create(photo).Error; err != nil {
-			s.logger.Warnf("添加照片失败: %s -> %v", path, err)
+			s.logger.Warnw("添加照片失败", "path", path, "error", err)
 			return nil
 		}
 		count++

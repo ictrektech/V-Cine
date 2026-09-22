@@ -269,7 +269,7 @@ func (fw *FileWatcherService) handleEvent(event fsnotify.Event) {
 	if isVideo && event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
 		if m, err := fw.mediaRepo.FindByFilePath(event.Name); err == nil && m != nil {
 			if delErr := fw.mediaRepo.DeleteByID(m.ID); delErr != nil {
-				fw.logger.Warnf("即时删除失效媒体记录失败: %s, 错误: %v", event.Name, delErr)
+				fw.logger.Warnw("即时删除失效媒体记录失败", "event_Name", event.Name, "error", delErr)
 			} else {
 				fw.logger.Infof("即时删除失效媒体记录（文件已移除/重命名）: %s", event.Name)
 				// 通知前端立即刷新
@@ -442,12 +442,12 @@ func (fw *FileWatcherService) enqueueAutoVideoAnalysis(lib *model.Library, since
 		return nil
 	}
 	if fw.videoAnalysis == nil || !fw.videoAnalysis.IsAvailable() {
-		fw.logger.Warnf("媒体库 %s 已开启自动视频分析，但视频分析服务不可用，已跳过自动入队", lib.Name)
+		fw.logger.Warnw("媒体库已开启自动视频分析，但视频分析服务不可用，已跳过自动入队", "lib_Name", lib.Name)
 		return nil
 	}
 	mediaList, err := fw.mediaRepo.ListByLibraryCreatedSince(lib.ID, since)
 	if err != nil {
-		fw.logger.Warnf("媒体库 %s 增量自动视频分析获取本次新增媒体失败: %v", lib.Name, err)
+		fw.logger.Warnw("媒体库增量自动视频分析获取本次新增媒体失败", "lib_Name", lib.Name, "error", err)
 		return nil
 	}
 	if len(mediaList) == 0 {
@@ -469,7 +469,7 @@ func (fw *FileWatcherService) enqueueAutoVideoAnalysis(lib *model.Library, since
 		fw.videoAnalysisWorker.Notify()
 	}
 	if len(result.Errors) > 0 {
-		fw.logger.Warnf("媒体库 %s 增量自动视频分析入队完成: created=%d reused=%d skipped=%d errors=%d", lib.Name, result.Created, result.Reused, result.Skipped, len(result.Errors))
+		fw.logger.Warnw("媒体库增量自动视频分析入队完成", "lib_Name", lib.Name, "result_Created", result.Created, "result_Reused", result.Reused, "result_Skipped", result.Skipped, "len_result_Errors", len(result.Errors))
 		return &result
 	}
 	fw.logger.Infof("媒体库 %s 增量自动视频分析入队完成: created=%d reused=%d skipped=%d", lib.Name, result.Created, result.Reused, result.Skipped)

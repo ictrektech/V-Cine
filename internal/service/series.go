@@ -373,7 +373,7 @@ func (s *SeriesService) AutoMergeDuplicates() ([]MergeResult, error) {
 
 		result, err := s.MergeSeries(primaryID, secondaryIDs)
 		if err != nil {
-			s.logger.Warnf("自动合并失败 [%s]: %v", key.NormalizedName, err)
+			s.logger.Warnw("自动合并失败", "key_NormalizedName", key.NormalizedName, "error", err)
 			continue
 		}
 		results = append(results, *result)

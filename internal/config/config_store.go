@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -193,7 +193,9 @@ func encryptStruct(v any) {
 		}
 		if enc, err := secretcrypto.Encrypt(s); err != nil {
 			// 加密失败保留明文落盘，但必须可见（通常是主密钥异常）
-			slog.Warn("配置敏感字段加密失败，明文将写入分片文件", "error", err)
+			// 通过 zap 全局 logger 输出（cmd/server 启动时 ReplaceGlobals 接线；
+			// cmd 工具需自行接线，否则为 nop）
+			zap.S().Warn("配置敏感字段加密失败，明文将写入分片文件", "error", err)
 		} else if fv.CanSet() {
 			fv.SetString(enc)
 		}
@@ -209,7 +211,7 @@ func decryptEncValues(v any) {
 		if s := fv.String(); strings.HasPrefix(s, "ENC:") && fv.CanSet() {
 			if _, err := secretcrypto.Decrypt(s); err != nil {
 				// 解密失败必须可见：密文透传后会被当作凭证发送（如 Bearer ENC:xxx）。
-				slog.Warn("配置敏感字段解密失败（常见于主密钥变化），密文原样保留；请重新保存对应密钥", "error", err)
+				zap.S().Warn("配置敏感字段解密失败（常见于主密钥变化），密文原样保留；请重新保存对应密钥", "error", err)
 			}
 			fv.SetString(decryptSecretValue(s))
 		}

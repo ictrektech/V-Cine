@@ -97,7 +97,7 @@ func (s *AIService) ParseSearchIntent(userQuery string) (*SearchIntent, error) {
 
 	var intent SearchIntent
 	if err := json.Unmarshal([]byte(result), &intent); err != nil {
-		s.logger.Warnf("AI 搜索意图解析 JSON 失败: %v, 原始响应: %s", err, result)
+		s.logger.Warnw("AI 搜索意图解析 JSON 失败", "error", err, "result", result)
 		return &SearchIntent{
 			Query:  userQuery,
 			Parsed: false,

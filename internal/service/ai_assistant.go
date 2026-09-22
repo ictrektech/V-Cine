@@ -967,7 +967,7 @@ func (s *AIAssistantService) executeBatchTag(session *ChatSession, action *Sugge
 func (s *AIAssistantService) executeDetectDuplicates(session *ChatSession, action *SuggestedAction, userID string) (*ExecuteResponse, error) {
 	groups, err := s.scanner.DetectDuplicates(session.Context.LibraryID)
 	if err != nil {
-		s.logger.Errorf("检测重复文件失败（library=%s）: %v", session.Context.LibraryID, err)
+		s.logger.Errorw("检测重复文件失败（library=）", "session_Context_LibraryID", session.Context.LibraryID, "error", err)
 		return &ExecuteResponse{Success: false, Message: "检测重复文件失败"}, nil
 	}
 

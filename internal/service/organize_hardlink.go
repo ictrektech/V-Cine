@@ -185,10 +185,10 @@ func (s *OrganizeHardlinkService) syncMediaToHardlink(media *model.Media, c *mod
 			if existing.ID != media.ID {
 				s.updateOrganizedFields(existing, c, dstPath)
 				if err := s.classRepo.DeleteByMediaID(media.ID); err != nil {
-					s.logger.Warnf("[OrganizeHardlink] 删除重复分类记录失败 media_id=%s err=%v", media.ID, err)
+					s.logger.Warnw("[OrganizeHardlink] 删除重复分类记录失败", "media_ID", media.ID, "error", err)
 				}
 				if err := s.mediaRepo.DeleteByID(media.ID); err != nil {
-					s.logger.Warnf("[OrganizeHardlink] 删除重复源媒体记录失败 media_id=%s err=%v", media.ID, err)
+					s.logger.Warnw("[OrganizeHardlink] 删除重复源媒体记录失败", "media_ID", media.ID, "error", err)
 				} else {
 					s.logger.Infof("[OrganizeHardlink] 源目录重复记录已合并到硬链接路径: %s -> %s", media.FilePath, dstPath)
 				}
@@ -207,7 +207,7 @@ func (s *OrganizeHardlinkService) updateOrganizedFields(media *model.Media, c *m
 	}
 	oldPath := media.FilePath
 	if err := s.mediaRepo.UpdateOrganizedFields(media.ID, fields); err != nil {
-		s.logger.Warnf("[OrganizeHardlink] 同步媒体整理数据失败 media_id=%s %s -> %s err=%v", media.ID, oldPath, dstPath, err)
+		s.logger.Warnw("[OrganizeHardlink] 同步媒体整理数据失败 ->", "media_ID", media.ID, "oldPath", oldPath, "dstPath", dstPath, "error", err)
 		return
 	}
 	applyOrganizedFields(media, fields)
@@ -404,7 +404,7 @@ func (s *OrganizeHardlinkService) ProcessBatchHardlink(mediaIDs []string, output
 		r, err := s.ProcessMediaHardlink(id, outputDir)
 		if err != nil {
 			result.Failed++
-			s.logger.Warnf("[OrganizeHardlink] 处理失败 media_id=%s err=%v", id, err)
+			s.logger.Warnw("[OrganizeHardlink] 处理失败", "id", id, "error", err)
 			continue
 		}
 		if r == nil {
@@ -417,7 +417,7 @@ func (s *OrganizeHardlinkService) ProcessBatchHardlink(mediaIDs []string, output
 			result.Skipped++
 		} else if r.ErrorMsg != "" {
 			result.Failed++
-			s.logger.Warnf("[OrganizeHardlink] media_id=%s error=%s", id, r.ErrorMsg)
+			s.logger.Warnw("[OrganizeHardlink]", "id", id, "r_ErrorMsg", r.ErrorMsg)
 		}
 	}
 	return result

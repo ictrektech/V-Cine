@@ -42,7 +42,7 @@ func (h *StreamHandler) Direct(c *gin.Context) {
 	if filePath == "__strm__" {
 		h.logger.Debugf("STRM 代理播放: %s", id)
 		if err := h.streamService.ProxyRemoteStreamForMedia(id, c.Writer, c.Request); err != nil {
-			h.logger.Warnf("STRM 代理播放失败: %s, 错误: %v", id, err)
+			h.logger.Warnw("STRM 代理播放失败", "id", id, "error", err)
 			// 如果还没写入响应头，返回错误
 			c.JSON(http.StatusBadGateway, gin.H{"error": "远程流播放失败: " + err.Error()})
 		}
@@ -57,7 +57,7 @@ func (h *StreamHandler) Direct(c *gin.Context) {
 	if service.IsRemotePath(filePath) {
 		vfsFile, err := h.streamService.OpenMediaFile(filePath)
 		if err != nil {
-			h.logger.Warnf("远程打开文件失败: %s, 错误: %v", filePath, err)
+			h.logger.Warnw("远程打开文件失败", "filePath", filePath, "error", err)
 			respondErr(c, http.StatusInternalServerError, "打开远程文件失败", err)
 			return
 		}
@@ -65,7 +65,7 @@ func (h *StreamHandler) Direct(c *gin.Context) {
 
 		stat, err := vfsFile.Stat()
 		if err != nil {
-			h.logger.Warnf("WebDAV 获取文件信息失败: %s, 错误: %v", filePath, err)
+			h.logger.Warnw("WebDAV 获取文件信息失败", "filePath", filePath, "error", err)
 			respondErr(c, http.StatusInternalServerError, "获取文件信息失败", err)
 			return
 		}
@@ -185,7 +185,7 @@ func (h *StreamHandler) Remux(c *gin.Context) {
 	id := c.Param("id")
 	h.logger.Debugf("Remux 播放请求: %s", id)
 	if err := h.streamService.RemuxStream(id, c.Writer, c.Request); err != nil {
-		h.logger.Warnf("Remux 播放失败: %s, 错误: %v", id, err)
+		h.logger.Warnw("Remux 播放失败", "id", id, "error", err)
 		// 如果还没写入响应头，返回错误
 		respondErr(c, http.StatusInternalServerError, "Remux 播放失败", err)
 	}
@@ -425,7 +425,7 @@ func (h *StreamHandler) STRMSegment(c *gin.Context) {
 		return
 	}
 	if err := h.streamService.ProxySTRMSegment(id, target, c.Writer, c.Request); err != nil {
-		h.logger.Warnf("STRM 子资源代理失败: %s, 错误: %v", id, err)
+		h.logger.Warnw("STRM 子资源代理失败", "id", id, "error", err)
 		c.JSON(http.StatusBadGateway, gin.H{"error": "远程子资源拉取失败: " + err.Error()})
 	}
 }

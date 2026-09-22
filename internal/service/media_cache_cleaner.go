@@ -44,13 +44,13 @@ func NewMediaCacheCleaner(
 
 func (c *MediaCacheCleaner) Clean(mediaID string) {
 	if err := c.transcode.CleanMediaCache(mediaID); err != nil {
-		c.logger.Warnf("删除媒体后清理转码缓存失败: media_id=%s, err=%v", mediaID, err)
+		c.logger.Warnw("删除媒体后清理转码缓存失败", "mediaID", mediaID, "error", err)
 	}
 	if err := c.preprocess.DeleteByMediaID(mediaID); err != nil {
-		c.logger.Warnf("删除媒体后清理预处理缓存失败: media_id=%s, err=%v", mediaID, err)
+		c.logger.Warnw("删除媒体后清理预处理缓存失败", "mediaID", mediaID, "error", err)
 	}
 	if err := c.abr.CleanABRCache(mediaID); err != nil {
-		c.logger.Warnf("删除媒体后清理 ABR 缓存失败: media_id=%s, err=%v", mediaID, err)
+		c.logger.Warnw("删除媒体后清理 ABR 缓存失败", "mediaID", mediaID, "error", err)
 	}
 	c.removeMediaScopedDirs(mediaID)
 }
@@ -66,7 +66,7 @@ func (c *MediaCacheCleaner) removeMediaScopedDirs(mediaID string) {
 	}
 	for _, category := range mediaScopedCacheCategories {
 		if err := os.RemoveAll(filepath.Join(c.cacheDir, category, mediaID)); err != nil {
-			c.logger.Warnf("删除媒体后清理%s缓存失败: media_id=%s, err=%v", category, mediaID, err)
+			c.logger.Warnw("删除媒体后清理缓存失败", "category", category, "mediaID", mediaID, "error", err)
 		}
 	}
 }

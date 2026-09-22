@@ -48,7 +48,7 @@ func (h *Handler) StreamVideoHandler(c *gin.Context) {
 	// 1) STRM 远程流 → 透明代理
 	if strings.TrimSpace(m.StreamURL) != "" {
 		if err := h.stream.ProxyRemoteStream(m.StreamURL, c.Writer, c.Request); err != nil {
-			h.logger.Warnf("[emby] proxy remote stream failed media=%s err=%v", uuid, err)
+			h.logger.Warnw("[emby] proxy remote stream failed", "uuid", uuid, "error", err)
 			if !c.Writer.Written() {
 				c.JSON(http.StatusBadGateway, gin.H{"Error": "Upstream failed"})
 			}
@@ -86,7 +86,7 @@ func (h *Handler) StreamVideoHandler(c *gin.Context) {
 
 	if wantRemux || canRemux {
 		if err := h.stream.RemuxStream(uuid, c.Writer, c.Request); err != nil {
-			h.logger.Warnf("[emby] remux failed media=%s err=%v, fallback to direct serve", uuid, err)
+			h.logger.Warnw("[emby] remux failed, fallback to direct serve", "uuid", uuid, "error", err)
 			// fallthrough to direct serve，但需确认响应还没写出
 			if c.Writer.Written() {
 				return
@@ -135,7 +135,7 @@ func (h *Handler) HLSMasterHandler(c *gin.Context) {
 	}
 	playlist, err := h.stream.GetMasterPlaylistFiltered(uuid, maxBitrate)
 	if err != nil {
-		h.logger.Warnf("[emby] master playlist failed media=%s err=%v", uuid, err)
+		h.logger.Warnw("[emby] master playlist failed", "uuid", uuid, "error", err)
 		c.JSON(http.StatusNotFound, gin.H{"Error": "HLS not available"})
 		return
 	}
@@ -200,7 +200,7 @@ func (h *Handler) HLSSegmentHandler(c *gin.Context) {
 	quality := c.Param("quality")
 	segment := c.Param("segment")
 	if err := h.stream.ServeSegment(uuid, quality, segment, c.Writer, c.Request); err != nil {
-		h.logger.Warnf("[emby] segment failed media=%s seg=%s err=%v", uuid, segment, err)
+		h.logger.Warnw("[emby] segment failed", "uuid", uuid, "segment", segment, "error", err)
 		if !c.Writer.Written() {
 			c.JSON(http.StatusNotFound, gin.H{"Error": fmt.Sprintf("Segment failed: %v", err)})
 		}

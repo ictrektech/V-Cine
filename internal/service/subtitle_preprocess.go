@@ -126,7 +126,7 @@ func (s *SubtitlePreprocessService) enqueueTask(taskID string) {
 	case s.jobQueue <- taskID:
 		s.inQueueIDs.Store(taskID, true)
 	default:
-		s.logger.Warnf("字幕预处理队列已满，任务 %s 将在下次调度时处理", taskID)
+		s.logger.Warnw("字幕预处理队列已满，任务将在下次调度时处理", "taskID", taskID)
 	}
 }
 
@@ -602,7 +602,7 @@ func (s *SubtitlePreprocessService) processTask(taskID string) {
 
 					translatedPath, err := s.translateSubtitle(media, lang)
 					if err != nil {
-						s.logger.Warnf("翻译为 %s 失败: %v", lang, err)
+						s.logger.Warnw("翻译为失败", "lang", lang, "error", err)
 						failedLangs.Store(lang, err.Error())
 					} else {
 						translatedPaths.Store(lang, translatedPath)
@@ -918,7 +918,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleOCR(filePath string, tr
 	}
 	cmd := exec.Command("ffmpeg", exportArgs...)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		s.logger.Warnf("FFmpeg 导出图形字幕失败: %v, 输出: %s", err, string(output))
+		s.logger.Warnw("FFmpeg 导出图形字幕失败", "error", err, "string_output", string(output))
 		// 回退方案：尝试直接导出为图片序列
 		return s.extractBitmapSubtitleViaImages(filePath, track, tmpDir, tesseractBin, tesseractLang)
 	}
@@ -937,7 +937,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleOCR(filePath string, tr
 	}
 	cmd = exec.Command("ffmpeg", imgArgs...)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		s.logger.Warnf("FFmpeg 导出字幕图片失败: %v, 输出: %s", err, string(output))
+		s.logger.Warnw("FFmpeg 导出字幕图片失败", "error", err, "string_output", string(output))
 		return s.extractBitmapSubtitleViaImages(filePath, track, tmpDir, tesseractBin, tesseractLang)
 	}
 
@@ -1202,7 +1202,11 @@ func (s *SubtitlePreprocessService) writeVTTFile(vttPath string, cues []vttCue) 
 		fmt.Fprintf(w, "%s\n\n", cue.text)
 	}
 
-	return w.Flush()
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	// 写路径必须检查 Close：缓冲未落盘会静默产生损坏 VTT 文件
+	return f.Close()
 }
 
 // parseFloatSafe 安全解析浮点数

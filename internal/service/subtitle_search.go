@@ -187,7 +187,7 @@ func (s *SubtitleSearchService) SearchByHash(filePath string, language string) (
 	// 计算文件哈希
 	hash, err := computeOpenSubtitlesHash(filePath)
 	if err != nil {
-		s.logger.Warnf("计算文件哈希失败: %v，回退到标题搜索", err)
+		s.logger.Warnw("计算文件哈希失败，回退到标题搜索", "error", err)
 		return nil, err
 	}
 

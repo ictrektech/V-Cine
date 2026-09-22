@@ -304,7 +304,7 @@ func (r *AIRouter) handleBudgetWarning(used, budget int64, pct int) {
 	r.lastBudgetWarn = true
 	r.mu.Unlock()
 	if first {
-		r.logger.Warnf("⚠️ AI 月度 token 用量已达 %d%% (%d / %d)，请关注配额", pct, used, budget)
+		r.logger.Warnw("⚠️ AI 月度 token 用量已达 %% ( / )，请关注配额", "pct", pct, "used", used, "budget", budget)
 	}
 }
 
@@ -316,7 +316,7 @@ func (r *AIRouter) handleBudgetReached(used, budget int64) {
 	if !first {
 		return
 	}
-	r.logger.Errorf("🚨 AI 月度 token 配额已耗尽 (%d / %d)", used, budget)
+	r.logger.Errorw("🚨 AI 月度 token 配额已耗尽 ( / )", "used", used, "budget", budget)
 	// V10 重构：failover 功能已删除，不切换 provider
 	return
 }

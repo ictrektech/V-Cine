@@ -212,7 +212,7 @@ func (s *TranscodeService) recoverPendingTasks() {
 		running[i].Status = "failed"
 		running[i].Error = "服务重启导致任务中断"
 		if err := s.repo.Update(&running[i]); err != nil {
-			s.logger.Warnf("重置僵尸任务状态失败: %s, %v", running[i].ID, err)
+			s.logger.Warnw("重置僵尸任务状态失败", "running_i_ID", running[i].ID, "error", err)
 		}
 	}
 	s.logger.Infof("已重置 %d 个重启前未完成的转码任务为 failed", len(running))
@@ -337,7 +337,7 @@ func (s *TranscodeService) StartABRTranscode(media *model.Media, qualities []str
 		task, err := s.startTranscodeInternal(media, q, 0)
 		if err != nil {
 			// 单档失败不影响其他档位继续提交
-			s.logger.Warnf("StartABRTranscode: 启动 %s 档位失败: %v", q, err)
+			s.logger.Warnw("StartABRTranscode: 启动档位失败", "q", q, "error", err)
 			continue
 		}
 		tasks = append(tasks, task)
@@ -495,7 +495,7 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 	}
 
 	if err := cmd.Start(); err != nil {
-		s.logger.Errorf("转码启动失败: %s, 错误: %v", job.Media.Title, err)
+		s.logger.Errorw("转码启动失败", "job_Media_Title", job.Media.Title, "error", err)
 		job.Task.Status = "failed"
 		job.Task.Error = err.Error()
 		s.repo.Update(job.Task)
@@ -553,7 +553,7 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 	}
 
 	if waitErr != nil {
-		s.logger.Warnf("转码失败(hwAccel=%s): %s, 错误: %v，尝试回退到软件编码", s.hwAccel, job.Media.Title, waitErr)
+		s.logger.Warnw("转码失败，尝试回退到软件编码", "hw_accel", s.hwAccel, "media_title", job.Media.Title, "error", waitErr)
 
 		// 硬件加速失败时自动回退到软件编码（仅非 software 模式时回退）
 		if s.getEffectiveHWAccel() != "none" {
@@ -584,7 +584,7 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 			}
 
 			if err := fallbackCmd.Start(); err != nil {
-				s.logger.Errorf("回退软件编码启动失败: %s, 错误: %v", job.Media.Title, err)
+				s.logger.Errorw("回退软件编码启动失败", "job_Media_Title", job.Media.Title, "error", err)
 				job.Task.Status = "failed"
 				job.Task.Error = fmt.Sprintf("硬件加速失败(%v)，软件编码启动也失败(%v)", waitErr, err)
 				s.repo.Update(job.Task)
@@ -615,7 +615,7 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 				return
 			case fallbackErr := <-fallbackDone:
 				if fallbackErr != nil {
-					s.logger.Errorf("回退软件编码也失败: %s, 错误: %v", job.Media.Title, fallbackErr)
+					s.logger.Errorw("回退软件编码也失败", "job_Media_Title", job.Media.Title, "error", fallbackErr)
 					job.Task.Status = "failed"
 					job.Task.Error = fmt.Sprintf("硬件加速失败(%v)，软件编码也失败(%v)", waitErr, fallbackErr)
 					s.repo.Update(job.Task)
@@ -1119,7 +1119,7 @@ func (s *TranscodeService) CleanMediaCache(mediaID string) error {
 	ids := make([]string, 0, len(tasks))
 	for _, task := range tasks {
 		if task.Status == "running" || task.Status == "pending" {
-			s.logger.Warnf("跳过删除转码缓存: media_id=%s 任务运行中", mediaID)
+			s.logger.Warnw("跳过删除转码缓存: 任务运行中", "mediaID", mediaID)
 			return nil
 		}
 		ids = append(ids, task.ID)
@@ -1328,7 +1328,7 @@ func (s *TranscodeService) BatchSubmitByMediaIDs(
 		for _, q := range effective {
 			task, err := s.startTranscodeInternal(media, q, 0)
 			if err != nil {
-				s.logger.Warnf("BatchSubmitByMediaIDs: %s/%s 启动失败: %v", mediaID, q, err)
+				s.logger.Warnw("BatchSubmitByMediaIDs: / 启动失败", "mediaID", mediaID, "q", q, "error", err)
 				continue
 			}
 			tasks = append(tasks, task)

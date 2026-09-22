@@ -1795,6 +1795,10 @@ func (s *MetadataService) downloadImage(media *model.Media, tmdbPath, imageType,
 	if _, err := io.Copy(file, body); err != nil {
 		return "", fmt.Errorf("保存图片失败: %w", err)
 	}
+	// 写路径必须检查 Close：缓冲未落盘会静默产生损坏文件
+	if err := file.Close(); err != nil {
+		return "", fmt.Errorf("关闭图片文件失败: %w", err)
+	}
 
 	s.logger.Debugf("已下载%s: %s", imageType, localPath)
 	return localPath, nil
@@ -2651,8 +2655,11 @@ func (s *MetadataService) downloadToFile(url, filePath string) error {
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, body)
-	return err
+	// 写路径必须检查 Close：缓冲未落盘会静默产生损坏文件
+	if _, err := io.Copy(file, body); err != nil {
+		return err
+	}
+	return file.Close()
 }
 
 // downloadPersonProfile 下载演员头像到本地缓存，并更新 ProfileURL 为本地路径。

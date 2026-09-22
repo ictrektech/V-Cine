@@ -783,7 +783,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			s.logger.Warnf("访问文件失败: %s, 错误: %v", path, err)
+			s.logger.Warnw("访问文件失败", "path", path, "error", err)
 			return nil
 		}
 		if info.IsDir() {
@@ -965,7 +965,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 	if len(allPaths) <= 1 {
 		for _, root := range allPaths {
 			if walkErr := s.walkFollowSymlink(root, walkFn); walkErr != nil {
-				s.logger.Warnf("扫描路径失败: %s, 错误: %v", root, walkErr)
+				s.logger.Warnw("扫描路径失败", "root", root, "error", walkErr)
 				err = walkErr
 			}
 		}
@@ -983,7 +983,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 			go safego.Run(func() {
 				defer walkWg.Done()
 				if walkErr := s.walkFollowSymlink(root, walkFn); walkErr != nil {
-					s.logger.Warnf("扫描路径失败: %s, 错误: %v", root, walkErr)
+					s.logger.Warnw("扫描路径失败", "root", root, "error", walkErr)
 					errMu.Lock()
 					if firstErr == nil {
 						firstErr = walkErr
@@ -1018,7 +1018,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 			// 不降级 scrape_status，避免删图后全量扫描时刮削请求涌入，补海报靠手动重刮。
 			validateLocalImagePaths(pm.media)
 			if err := s.mediaRepo.Update(pm.media); err != nil {
-				s.logger.Warnf("更新媒体失败: %s, 错误: %v", pm.path, err)
+				s.logger.Warnw("更新媒体失败", "pm_path", pm.path, "error", err)
 				continue
 			}
 			s.logger.Debugf("更新已有媒体: %s", pm.path)
@@ -1069,7 +1069,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 			}
 
 			if err := s.mediaRepo.Create(pm.media); err != nil {
-				s.logger.Warnf("保存媒体失败: %s, 错误: %v", pm.path, err)
+				s.logger.Warnw("保存媒体失败", "pm_path", pm.path, "error", err)
 				continue
 			}
 			count++
@@ -1094,7 +1094,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 			}
 			if m, findErr := s.mediaRepo.FindByFilePath(stalePath); findErr == nil && m != nil {
 				if delErr := s.mediaRepo.DeleteByID(m.ID); delErr != nil {
-					s.logger.Warnf("删除失效媒体记录失败: %s, 错误: %v", stalePath, delErr)
+					s.logger.Warnw("删除失效媒体记录失败", "stalePath", stalePath, "error", delErr)
 					continue
 				}
 				staleRemoved++
@@ -1129,7 +1129,7 @@ func (s *ScannerService) deleteSourceDuplicateIfOrganized(library *model.Library
 		return false
 	}
 	if err := s.mediaRepo.DeleteByID(sourceMedia.ID); err != nil {
-		s.logger.Warnf("删除源目录重复媒体记录失败: %s, 错误: %v", sourcePath, err)
+		s.logger.Warnw("删除源目录重复媒体记录失败", "sourcePath", sourcePath, "error", err)
 		return false
 	}
 	s.logger.Infof("源目录重复记录已由 AI 整理硬链接记录代表，已删除源记录: %s -> %s", sourcePath, represented.FilePath)
@@ -1275,7 +1275,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 	for _, root := range mediaRoots {
 		entries, err := s.readDirLibraryPath(root)
 		if err != nil {
-			s.logger.Warnf("读取混合库根目录失败: %s, 错误: %v", root, err)
+			s.logger.Warnw("读取混合库根目录失败", "root", root, "error", err)
 			continue
 		}
 		s.logger.Infof("混合库根 %s 包含 %d 个条目", root, len(entries))
@@ -1353,7 +1353,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 					if normalizedName == "" {
 						normalizedName = "__series_" + rootBase + "_" + dirName
 					}
-					s.logger.Warnf("[mixed] 子目录 %s 是纯季号目录，使用父目录名作系列名 fallback: %s", dirName, normalizedName)
+					s.logger.Warnw("[mixed] 子目录是纯季号目录，使用父目录名作系列名 fallback", "dirName", dirName, "normalizedName", normalizedName)
 				}
 				seasonNum := s.extractSeasonFromDirName(dirName)
 				seriesDirGroups[normalizedName] = append(seriesDirGroups[normalizedName], seriesFolder{
@@ -1376,7 +1376,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 			seriesTitle := s.extractSeriesTitle(f.dirName)
 			newCount, err := s.scanSeriesFolder(library, f.path, seriesTitle)
 			if err != nil {
-				s.logger.Warnf("混合库-扫描剧集文件夹失败: %s, 错误: %v", f.path, err)
+				s.logger.Warnw("混合库-扫描剧集文件夹失败", "f_path", f.path, "error", err)
 				continue
 			}
 			totalCount += newCount
@@ -1384,7 +1384,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 			// 多季合并
 			newCount, err := s.scanMultiSeasonSeries(library, normalizedName, folders)
 			if err != nil {
-				s.logger.Warnf("混合库-扫描多季合集失败: %s, 错误: %v", normalizedName, err)
+				s.logger.Warnw("混合库-扫描多季合集失败", "normalizedName", normalizedName, "error", err)
 				continue
 			}
 			totalCount += newCount
@@ -1420,7 +1420,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 			s.probeMediaInfo(media)
 			s.scanExternalSubtitles(media)
 			if err := s.mediaRepo.Create(media); err != nil {
-				s.logger.Warnf("保存媒体失败: %s, 错误: %v", path, err)
+				s.logger.Warnw("保存媒体失败", "path", path, "error", err)
 				return nil
 			}
 			totalCount++
@@ -1435,7 +1435,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 			return nil
 		})
 		if err != nil {
-			s.logger.Warnf("混合库-扫描电影目录失败: %s, 错误: %v", folderPath, err)
+			s.logger.Warnw("混合库-扫描电影目录失败", "folderPath", folderPath, "error", err)
 		}
 	}
 
@@ -1464,7 +1464,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 		s.probeMediaInfo(media)
 		s.scanExternalSubtitles(media)
 		if err := s.mediaRepo.Create(media); err != nil {
-			s.logger.Warnf("保存媒体失败: %s, 错误: %v", filePath, err)
+			s.logger.Warnw("保存媒体失败", "filePath", filePath, "error", err)
 			continue
 		}
 		totalCount++
@@ -1488,7 +1488,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 			if _, statErr := s.statLibraryPath(dbPath); os.IsNotExist(statErr) {
 				if m, findErr := s.mediaRepo.FindByFilePath(dbPath); findErr == nil && m != nil {
 					if delErr := s.mediaRepo.DeleteByID(m.ID); delErr != nil {
-						s.logger.Warnf("删除失效媒体记录失败: %s, 错误: %v", dbPath, delErr)
+						s.logger.Warnw("删除失效媒体记录失败", "dbPath", dbPath, "error", delErr)
 						continue
 					}
 					staleRemoved++
@@ -1698,7 +1698,7 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 	for _, root := range mediaRoots {
 		entries, err := s.readDirLibraryPath(root)
 		if err != nil {
-			s.logger.Warnf("读取剧集根目录失败: %s, 错误: %v", root, err)
+			s.logger.Warnw("读取剧集根目录失败", "root", root, "error", err)
 			continue
 		}
 		s.logger.Infof("剧集根 %s 包含 %d 个条目", root, len(entries))
@@ -1755,7 +1755,7 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 				if fallback == "" {
 					fallback = rootBase
 				}
-				s.logger.Warnf("[剧集扫描] 检测到纯季号子目录: %s（位于 %s），使用父目录名作为系列名: %s", dirName, root, fallback)
+				s.logger.Warnw("[剧集扫描] 检测到纯季号子目录（位于 ），使用父目录名作为系列名", "dirName", dirName, "root", root, "fallback", fallback)
 				normalizedName = fallback
 				if seasonNum == 0 {
 					seasonNum = s.extractSeasonFromDirName(dirName)
@@ -1788,7 +1788,7 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 			seriesTitle := s.extractSeriesTitle(f.dirName)
 			newCount, err := s.scanSeriesFolder(library, f.path, seriesTitle)
 			if err != nil {
-				s.logger.Warnf("扫描剧集文件夹失败: %s, 错误: %v", f.path, err)
+				s.logger.Warnw("扫描剧集文件夹失败", "f_path", f.path, "error", err)
 				continue
 			}
 			totalNewEpisodes += newCount
@@ -1797,7 +1797,7 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 			// 或单个目录但明确包含季号标识 → 合并到同一个 Series
 			newCount, err := s.scanMultiSeasonSeries(library, normalizedName, folders)
 			if err != nil {
-				s.logger.Warnf("扫描多季合集失败: %s, 错误: %v", normalizedName, err)
+				s.logger.Warnw("扫描多季合集失败", "normalizedName", normalizedName, "error", err)
 				continue
 			}
 			totalNewEpisodes += newCount
@@ -1844,7 +1844,7 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 				media.EpisodeNum = ep.EpisodeNum
 				media.EpisodeTitle = ep.EpisodeTitle
 				if err := s.mediaRepo.Create(media); err != nil {
-					s.logger.Warnf("保存媒体失败: %s, 错误: %v", filePath, err)
+					s.logger.Warnw("保存媒体失败", "filePath", filePath, "error", err)
 				}
 				totalNewEpisodes++
 			}
@@ -1866,7 +1866,7 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 				FolderPath: virtualFolderPath,
 			}
 			if err := s.seriesRepo.Create(series); err != nil {
-				s.logger.Warnf("创建散落剧集合集失败: %s, 错误: %v", actualSeriesName, err)
+				s.logger.Warnw("创建散落剧集合集失败", "actualSeriesName", actualSeriesName, "error", err)
 				continue
 			}
 			s.logger.Infof("创建散落剧集合集: %s (ID=%s)", actualSeriesName, series.ID)
@@ -1897,7 +1897,7 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 			s.scanExternalSubtitles(media)
 
 			if err := s.mediaRepo.Create(media); err != nil {
-				s.logger.Warnf("保存剧集失败: %s, 错误: %v", filePath, err)
+				s.logger.Warnw("保存剧集失败", "filePath", filePath, "error", err)
 				continue
 			}
 
@@ -1934,7 +1934,7 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 			if _, statErr := s.statLibraryPath(dbPath); os.IsNotExist(statErr) {
 				if m, findErr := s.mediaRepo.FindByFilePath(dbPath); findErr == nil && m != nil {
 					if delErr := s.mediaRepo.DeleteByID(m.ID); delErr != nil {
-						s.logger.Warnf("删除失效媒体记录失败: %s, 错误: %v", dbPath, delErr)
+						s.logger.Warnw("删除失效媒体记录失败", "dbPath", dbPath, "error", delErr)
 						continue
 					}
 					staleRemoved++
@@ -2240,7 +2240,7 @@ func (s *ScannerService) scanMultiSeasonSeries(library *model.Library, seriesTit
 			s.scanExternalSubtitles(media)
 
 			if err := s.mediaRepo.Create(media); err != nil {
-				s.logger.Warnf("保存剧集失败: %s, 错误: %v", ep.FilePath, err)
+				s.logger.Warnw("保存剧集失败", "ep_FilePath", ep.FilePath, "error", err)
 				continue
 			}
 
@@ -2385,7 +2385,7 @@ func (s *ScannerService) scanSeriesFolder(library *model.Library, folderPath, se
 		s.scanExternalSubtitles(media)
 
 		if err := s.mediaRepo.Create(media); err != nil {
-			s.logger.Warnf("保存剧集失败: %s, 错误: %v", ep.FilePath, err)
+			s.logger.Warnw("保存剧集失败", "ep_FilePath", ep.FilePath, "error", err)
 			continue
 		}
 
@@ -2924,7 +2924,7 @@ func (s *ScannerService) probeMediaInfo(media *model.Media) {
 	if isSTRMFile(media.FilePath) {
 		meta, err := s.parseSTRMFileMeta(media.FilePath)
 		if err != nil {
-			s.logger.Warnf("解析 STRM 文件失败: %s, 错误: %v", media.FilePath, err)
+			s.logger.Warnw("解析 STRM 文件失败", "media_FilePath", media.FilePath, "error", err)
 			return
 		}
 		ApplySTRMMetaToMedia(media, meta)
@@ -2975,13 +2975,13 @@ func (s *ScannerService) probeMediaInfo(media *model.Media) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		s.logger.Warnf("FFprobe分析失败: %s, 错误: %v", media.FilePath, err)
+		s.logger.Warnw("FFprobe分析失败", "media_FilePath", media.FilePath, "error", err)
 		return
 	}
 
 	var result FFprobeResult
 	if err := json.Unmarshal(output, &result); err != nil {
-		s.logger.Warnf("解析FFprobe输出失败: %s, 错误: %v", media.FilePath, err)
+		s.logger.Warnw("解析FFprobe输出失败", "media_FilePath", media.FilePath, "error", err)
 		return
 	}
 
@@ -3466,7 +3466,7 @@ func (s *ScannerService) ExtractAllSubtitles(filePath string, format string, tra
 		outputPath, err := s.ExtractSubtitle(filePath, track.Index, format)
 		if err != nil {
 			result.Error = err.Error()
-			s.logger.Warnf("提取字幕轨道 #%d 失败: %v", track.Index, err)
+			s.logger.Warnw("提取字幕轨道 # 失败", "track_Index", track.Index, "error", err)
 		} else {
 			result.Path = outputPath
 		}
@@ -3704,7 +3704,7 @@ func (s *ScannerService) ExtractAllSubtitlesAsync(mediaID, mediaTitle, filePath,
 				outputPath, err := s.ExtractSubtitle(filePath, track.Index, format)
 				if err != nil {
 					result.Error = err.Error()
-					s.logger.Warnf("异步提取字幕轨道 #%d 失败: %v", track.Index, err)
+					s.logger.Warnw("异步提取字幕轨道 # 失败", "track_Index", track.Index, "error", err)
 				} else {
 					result.Path = outputPath
 				}

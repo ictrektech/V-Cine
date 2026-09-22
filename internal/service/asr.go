@@ -761,7 +761,7 @@ func (s *ASRService) failTask(mediaID string, errMsg string) {
 		})
 	}
 
-	s.logger.Warnf("ASR 任务失败: mediaID=%s, error=%s", mediaID, errMsg)
+	s.logger.Warnw("ASR 任务失败", "mediaID", mediaID, "errMsg", errMsg)
 }
 
 // formatVTTTime 格式化 VTT 时间戳 (HH:MM:SS.mmm)
@@ -1048,7 +1048,7 @@ func (s *ASRService) processTranslateTask(srcVTTPath string, mediaID string, tar
 
 		translated, err := s.translateBatch(textLines, targetLang)
 		if err != nil {
-			s.logger.Warnf("翻译批次 %d-%d 失败: %v", i, end, err)
+			s.logger.Warnw("翻译批次 - 失败", "i", i, "end", end, "error", err)
 			// 翻译失败的保留原文
 			continue
 		}
@@ -1385,7 +1385,7 @@ func (s *ASRService) failTaskByKey(taskKey string, mediaID string, errMsg string
 		})
 	}
 
-	s.logger.Warnf("翻译任务失败: mediaID=%s, error=%s", mediaID, errMsg)
+	s.logger.Warnw("翻译任务失败", "mediaID", mediaID, "errMsg", errMsg)
 }
 
 // CheckWhisperHealth 检查 Whisper API 是否真正可用（发送轻量级探测请求）
