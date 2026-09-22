@@ -269,7 +269,8 @@ function TaskRow({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        {/* shrink-0：防止左侧长标题触发 flex 收缩，挤压图标按钮 */}
+        <div className="flex shrink-0 items-center gap-1">
           {task.status === 'running' && onPause && (
             <button onClick={onPause} className="rounded p-1.5 hover:bg-[var(--nav-hover-bg)]" style={{ color: 'var(--text-secondary)' }} title="暂停">
               <Pause className="h-4 w-4" />

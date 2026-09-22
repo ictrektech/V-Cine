@@ -338,10 +338,11 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
                 return hit ? `已选择: ${hit.name}（${currentPath}）` : `已选择: ${currentPath}`
               })()}
           </p>
-          <div className="flex items-center gap-2">
+          {/* shrink-0：防止左侧长路径文本触发 flex 收缩，把按钮挤成竖排文字 */}
+          <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={onClose}
-              className="rounded-xl px-4 py-2 text-sm font-medium transition-all"
+              className="whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-all"
               style={{
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border-default)',
@@ -363,7 +364,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
                 onClose()
               }}
               disabled={isFileMode && !selectedFile}
-              className="btn-primary gap-1.5 px-4 py-2 text-sm disabled:opacity-50"
+              className="btn-primary whitespace-nowrap gap-1.5 px-4 py-2 text-sm disabled:opacity-50"
             >
               <Check size={14} />
               {isFileMode ? '选择此文件' : '选择此文件夹'}
