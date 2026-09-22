@@ -110,9 +110,9 @@ type LoggingConfig struct {
 	Level string `mapstructure:"level"`
 	// 日志输出格式: json / console
 	Format string `mapstructure:"format"`
-	// 日志输出文件路径，留空则输出到 stdout
+	// 日志输出文件路径，留空则输出到 stderr
 	OutputPath string `mapstructure:"output_path"`
-	// 错误日志输出路径，留空则输出到 stderr
+	// 错误日志独立文件路径，留空则跟随主输出
 	ErrorOutputPath string `mapstructure:"error_output_path"`
 	// 是否启用日志文件轮转
 	EnableRotation bool `mapstructure:"enable_rotation"`
@@ -853,7 +853,7 @@ func setDefaults() {
 
 	// ---- 日志 ----
 	viper.SetDefault("logging.level", "info")
-	viper.SetDefault("logging.format", "console")
+	viper.SetDefault("logging.format", "json")
 	viper.SetDefault("logging.output_path", "")
 	viper.SetDefault("logging.error_output_path", "")
 	viper.SetDefault("logging.enable_rotation", false)

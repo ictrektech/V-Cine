@@ -50,6 +50,14 @@ services:
       # Python 番号刮削微服务（内部自动拉起，默认仅监听 127.0.0.1；
       # 如需外部直接访问该微服务，取消下行 + 修改 SCRAPER_HOST 为 0.0.0.0）
       # - "5000:5000"
+
+    # 日志轮转：json-file（Docker 默认驱动）无上限，限制为 10MB × 5（共 50MB）；
+    # log-opts 仅在容器创建时生效，改后需 docker compose up -d 重建容器
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+
     volumes:
       # 数据持久化
       - ../data:/data

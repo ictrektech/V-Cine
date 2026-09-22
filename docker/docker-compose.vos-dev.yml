@@ -24,6 +24,12 @@ services:
     # 端口与生产一致：nowen-video-dev:8080
     ports: !override
       - "${VOS_DEV_PORT:-38086}:8080"
+
+    # 日志轮转：json-file（Docker 默认驱动）无上限，限制为 10MB × 5（共 50MB）
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
     # 挂载整体接管（!override）：VOS 联调时只保留源码 + Go 缓存 + 平台媒体库/授权目录，
     # 与平台上已安装应用的挂载对齐（媒体路径由 scripts/vos-dev.sh 从已安装容器读取注入，
     # VOS share uid 会变，不硬编码）；同时避免与 docker-compose.dev.yml 里的挂载点重复。

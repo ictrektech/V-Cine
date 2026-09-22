@@ -26,7 +26,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/safego"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -42,12 +41,9 @@ func main() {
 		sugar.Fatalf("加载配置失败: %v", err)
 	}
 
-	// 按 Debug 切换日志格式（config 加载期的日志已是 production 格式）
-	if cfg.App.Debug {
-		logger, _ = zap.NewDevelopment()
-		zap.ReplaceGlobals(logger)
-		sugar = logger.Sugar()
-	}
+	// 按配置重建 logger（级别/格式/输出文件/轮转），覆盖 bootstrap logger
+	logger = cfg.BuildZap()
+	sugar = logger.Sugar()
 	defer logger.Sync()
 
 	// 初始化数据库
