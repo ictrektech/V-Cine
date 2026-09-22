@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/model"
+	"github.com/nowen-video/nowen-video/internal/observability"
 	"github.com/nowen-video/nowen-video/internal/safego"
 	"github.com/nowen-video/nowen-video/internal/service"
 )
@@ -662,4 +663,21 @@ func (h *AdminHandler) ClearAllData(c *gin.Context) {
 			"details":       results,
 		},
 	})
+}
+
+// ==================== 可观测性 ====================
+
+// SetPprofEnabled pprof 运行时开关（atomic.Bool，无需重启；配置默认值见 observability.pprof_enabled）。
+func (h *AdminHandler) SetPprofEnabled(c *gin.Context) {
+	var req struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Enabled != nil {
+		observability.SetPprofEnabled(*req.Enabled)
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": observability.PprofEnabled()}})
 }

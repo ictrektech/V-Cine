@@ -20,6 +20,7 @@ import (
 	embyh "github.com/nowen-video/nowen-video/internal/handler/emby"
 	"github.com/nowen-video/nowen-video/internal/middleware"
 	"github.com/nowen-video/nowen-video/internal/model"
+	"github.com/nowen-video/nowen-video/internal/observability"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/service"
 	"github.com/nowen-video/nowen-video/internal/version"
@@ -106,6 +107,9 @@ func main() {
 		"http://tauri.localhost",
 		"https://tauri.localhost",
 	}, cfg.App.CORSOrigins...)
+
+	// RED 指标中间件：请求计数、延迟直方图、在途请求（/metrics 由内部端口暴露，不挂主路由）
+	r.Use(middleware.PrometheusMiddleware())
 	r.Use(middleware.CORS(corsOrigins...))
 	r.Use(middleware.Security())
 	r.Use(middleware.RateLimitWithConfig(middleware.RateLimitConfig{
@@ -580,6 +584,9 @@ func main() {
 		// 系统全局设置
 		admin.GET("/settings/system", handlers.Admin.GetSystemSettings)
 		admin.PUT("/settings/system", handlers.Admin.UpdateSystemSettings)
+
+		// 可观测性：pprof 运行时开关（无需重启）
+		admin.PUT("/settings/observability/pprof", handlers.Admin.SetPprofEnabled)
 
 		// STRM 远程流全局配置
 		admin.GET("/strm/config", handlers.Admin.GetSTRMConfig)
@@ -1156,10 +1163,23 @@ func main() {
 		Handler: handler,
 	}
 
+	// pprof 启动默认值走 config/env；运行期经 admin 端点切换
+	observability.SetPprofEnabled(cfg.Observability.PprofEnabled)
+
 	// 在 goroutine 中启动服务器
 	go safego.Run(func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			sugar.Fatalf("服务器启动失败: %v", err)
+		}
+	})
+
+	// 内部可观测性服务器：/metrics + /debug/pprof（独立端口，默认仅绑定 localhost）
+	obsSrv := observability.New(cfg.Observability.MetricsAddr)
+	go safego.Run(func() {
+		// 启动失败不中止主服务，仅记录
+		sugar.Infof("内部可观测性服务器启动中: http://%s/metrics (pprof: %v)", cfg.Observability.MetricsAddr, cfg.Observability.PprofEnabled)
+		if err := obsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			sugar.Warnf("内部可观测性服务器启动失败: %v", err)
 		}
 	})
 
@@ -1194,6 +1214,13 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		sugar.Fatalf("服务器强制关闭: %v", err)
+	}
+
+	// 内部可观测性服务器随主服务器一并优雅关闭
+	obsCtx, obsCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer obsCancel()
+	if err := obsSrv.Shutdown(obsCtx); err != nil {
+		sugar.Warnf("内部可观测性服务器强制关闭: %v", err)
 	}
 
 	sugar.Info("服务器已优雅关闭")

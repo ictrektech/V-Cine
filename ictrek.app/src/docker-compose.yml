@@ -43,10 +43,15 @@ services:
       # 媒体源地址（detect/structure 回源拉流访问 nowen-video 的地址）。宿主侧服务经
       # docker0 网关 + 宿主端口回源；代码默认值是 compose 服务名（仅同网络容器化部署适用）。
       VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL: "${VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL:-http://172.17.0.1:${VCINE_PORT:-38085}}"
+      # 绑 0.0.0.0 才能被容器外抓取（默认 127.0.0.1 仅容器内可达）
+      VCINE_OBSERVABILITY_METRICS_ADDR: "0.0.0.0:9090"
       TZ: "${TZ:-Asia/Shanghai}"
     # 宿主端口：Traefik file provider 经 docker0 网关 172.17.0.1 转发到该端口
     ports:
       - "${VCINE_PORT:-38085}:8080"
+      # 可观测性 /metrics + pprof（容器内 9090），需配合上方 env 绑 0.0.0.0 才可达；
+      # dev 容器用 58900，本端口无冲突
+      - "8900:9090"
 
     # 日志轮转：json-file（Docker 默认驱动）无上限，限制为 10MB × 5（共 50MB）；
     # log-opts 仅在容器创建时生效，改后需 docker compose up -d 重建容器。

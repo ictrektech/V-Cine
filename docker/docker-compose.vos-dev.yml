@@ -24,6 +24,8 @@ services:
     # 端口与生产一致：nowen-video-dev:8080
     ports: !override
       - "${VOS_DEV_PORT:-38086}:8080"
+      # 可观测性 /metrics + pprof（容器内 9090），需配合下方 env 绑 0.0.0.0 才可达
+      - "58900:9090"
 
     # 日志轮转：json-file（Docker 默认驱动）无上限，限制为 10MB × 5（共 50MB）
     logging:
@@ -68,3 +70,6 @@ services:
       - VCINE_VOS_OIDC_CLIENT_ID=com.ictrek.v-cine
       # 宿主侧视频分析服务回源拉流的地址（代码默认的服务名只适用于容器内）
       - VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL=http://${VOS_HOST_GW_IP:-172.17.0.1}:${VOS_DEV_PORT:-38086}
+      # 绑 0.0.0.0 才能被容器外抓取（默认 127.0.0.1 仅容器内可达）；
+      # /metrics 与 /debug/pprof 随之无鉴权暴露到 LAN，不受信网络建议 PPROF_ENABLED=0
+      - VCINE_OBSERVABILITY_METRICS_ADDR=0.0.0.0:9090

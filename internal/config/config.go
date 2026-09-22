@@ -652,6 +652,14 @@ type NSFWConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+// ObservabilityConfig 内部可观测性配置（/metrics + /debug/pprof 独立端口）
+type ObservabilityConfig struct {
+	// 内部可观测性服务器监听地址（默认仅绑定 localhost；容器内抓取需覆盖为 0.0.0.0:9090 并加端口映射）
+	MetricsAddr string `mapstructure:"metrics_addr"`
+	// pprof 启动默认值（默认 true）；运行期可用 admin 端点不重启切换
+	PprofEnabled bool `mapstructure:"pprof_enabled"`
+}
+
 // Config 应用主配置（聚合所有子模块）
 type Config struct {
 	mu sync.RWMutex `mapstructure:"-"`
@@ -671,6 +679,7 @@ type Config struct {
 	AdultScraper  AdultScraperConfig  `mapstructure:"adult_scraper"`
 	NSFW          NSFWConfig          `mapstructure:"nsfw"`
 	STRM          STRMConfig          `mapstructure:"strm"`
+	Observability ObservabilityConfig `mapstructure:"observability"`
 
 	// ==================== 兼容性字段（向后兼容旧的扁平配置） ====================
 	// 以下字段用于兼容旧版 config.yaml 中的扁平 key，
@@ -1001,6 +1010,12 @@ func setDefaults() {
 	viper.SetDefault("strm.rewrite_hls", true)
 	viper.SetDefault("strm.remote_probe", true)
 	viper.SetDefault("strm.remote_probe_timeout", 8)
+
+	// ---- 内部可观测性 ----
+	// env 覆盖：VCINE_OBSERVABILITY_METRICS_ADDR / VCINE_OBSERVABILITY_PPROF_ENABLED
+	//（VCINE_ 前缀 + . → _ replacer）
+	viper.SetDefault("observability.metrics_addr", "127.0.0.1:9090")
+	viper.SetDefault("observability.pprof_enabled", true)
 
 	// ---- 番号刮削 ----
 	viper.SetDefault("nsfw.enabled", false)

@@ -96,6 +96,8 @@ services:
 | `VCINE_SECRETS_JWT_SECRET` | *(必填)* | JWT 签名密钥 — **首次部署务必修改** |
 | `VCINE_APP_DATA_DIR` | `/data` | 数据目录（数据库 + 上传文件） |
 | `VCINE_LOGGING_LEVEL` | `info` | 日志级别：`debug` / `info` / `warn` / `error` |
+| `VCINE_OBSERVABILITY_METRICS_ADDR` | `127.0.0.1:9090` | 内部可观测性端口（/metrics + pprof，仅 localhost） |
+| `VCINE_OBSERVABILITY_PPROF_ENABLED` | `true` | pprof 启动默认值（运行期可用 admin 端点不重启切换） |
 | `/dev/dri` 设备 | — | 透传 Intel/AMD GPU 用于硬件转码（NVIDIA 需用 `runtime: nvidia`） |
 
 ### 三、源码构建
