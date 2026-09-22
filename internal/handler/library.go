@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/service"
@@ -210,7 +211,7 @@ func (h *LibraryHandler) Create(c *gin.Context) {
 func (h *LibraryHandler) Scan(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.libService.Scan(id); err != nil {
-		if err == service.ErrScanInProgress {
+		if errors.Is(err, service.ErrScanInProgress) {
 			c.JSON(http.StatusAccepted, gin.H{
 				"message": "扫描已在进行中",
 				"data":    h.libService.ActiveScanPhases(),
@@ -242,7 +243,7 @@ func (h *LibraryHandler) Delete(c *gin.Context) {
 func (h *LibraryHandler) Reindex(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.libService.Reindex(id); err != nil {
-		if err == service.ErrScanInProgress {
+		if errors.Is(err, service.ErrScanInProgress) {
 			c.JSON(http.StatusAccepted, gin.H{
 				"message": "扫描已在进行中",
 				"data":    h.libService.ActiveScanPhases(),

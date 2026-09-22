@@ -16,6 +16,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -887,11 +888,11 @@ func (s *AIService) SetCache(key, value string) {
 
 	// 写入持久化缓存（异步，不阻塞主流程）
 	if s.cacheRepo != nil {
-		go func() {
+		go safego.Run(func() {
 			if err := s.cacheRepo.Set(key, value, ttl); err != nil {
 				s.logger.Debugf("AI 缓存持久化失败: %v", err)
 			}
-		}()
+		})
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -47,10 +48,10 @@ func (w *VideoAnalysisWorker) Start() {
 	w.wg.Add(w.workerCount + len(running))
 	executionSlots := make(chan struct{}, w.workerCount)
 	for i := 0; i < w.workerCount; i++ {
-		go w.run(ctx, executionSlots)
+		go safego.Run(func() { w.run(ctx, executionSlots) })
 	}
 	for i := range running {
-		go w.resume(ctx, running[i].ID, executionSlots)
+		go safego.Run(func() { w.resume(ctx, running[i].ID, executionSlots) })
 	}
 	w.Notify()
 }

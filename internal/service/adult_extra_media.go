@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/nowen-video/nowen-video/internal/model"
+	"github.com/nowen-video/nowen-video/internal/safego"
 )
 
 // ==================== Extra Fanart 下载 ====================
@@ -64,7 +65,7 @@ func (s *AdultScraperService) DownloadExtraFanart(media *model.Media, meta *Adul
 		}
 		wg.Add(1)
 		sem <- struct{}{}
-		go func() {
+		go safego.Run(func() {
 			defer wg.Done()
 			defer func() { <-sem }()
 
@@ -80,7 +81,7 @@ func (s *AdultScraperService) DownloadExtraFanart(media *model.Media, meta *Adul
 			mu.Lock()
 			results = append(results, localPath)
 			mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 

@@ -20,6 +20,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -555,7 +556,6 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 				media.ScrapeStatus = "scraped"
 			}
 			if saveErr := s.mediaRepo.Update(media); saveErr != nil {
-				s.logger.Errorf("保存元数据失败: %s - %v", media.Title, saveErr)
 				return saveErr
 			}
 			s.writeNFOAfterScrape(media.ID, media.ScrapeStatus)
@@ -579,7 +579,6 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 		// 完整调度计划已在入口构建；实时 running 事件由 recorder.onStep 上报
 		err := s.providerChain.ScrapeMedia(media, searchTitle, year, recorder.onStep)
 		if err != nil {
-			s.logger.Debugf("多数据源调度链刮削失败: %s - %v", media.Title, err)
 			return err
 		}
 		// 判定前校验本地图片指针：nfo/jpg 可能已被外部删除；必须在 Update 前执行，
@@ -587,7 +586,6 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 		validateLocalImagePaths(media)
 		// 保存更新
 		if saveErr := s.mediaRepo.Update(media); saveErr != nil {
-			s.logger.Errorf("保存元数据失败: %s - %v", media.Title, saveErr)
 			return saveErr
 		}
 		// P3+: 仅当海报也成功下载时才标记 scraped；否则标记 partial 以便下次重试补海报
@@ -775,7 +773,7 @@ func (s *MetadataService) ScrapeLibrary(libraryID string, mediaList []model.Medi
 
 	for w := 0; w < workerCount; w++ {
 		wg.Add(1)
-		go func() {
+		go safego.Run(func() {
 			defer wg.Done()
 			for idx := range jobs {
 				media := needScrape[idx]
@@ -811,7 +809,7 @@ func (s *MetadataService) ScrapeLibrary(libraryID string, mediaList []model.Medi
 				// TMDb限速保护：每个 worker 内部间隔 2-5 秒随机化
 				randomDelay(2000, 5000)
 			}
-		}()
+		})
 	}
 
 	// 分发任务

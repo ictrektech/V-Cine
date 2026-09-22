@@ -12,6 +12,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -66,7 +67,7 @@ func NewCastService(
 	}
 
 	// 启动后台SSDP设备发现
-	go cs.startDiscovery()
+	go safego.Run(func() { cs.startDiscovery() })
 
 	return cs
 }
@@ -150,7 +151,7 @@ func (s *CastService) discoverDevices() {
 		device := s.parseSSDPResponse(response, remoteAddr)
 		if device != nil {
 			// 异步获取设备详细信息
-			go s.fetchDeviceDescription(device)
+			go safego.Run(func() { s.fetchDeviceDescription(device) })
 		}
 	}
 }
@@ -259,7 +260,7 @@ func (s *CastService) ListDevices() []CastDevice {
 
 // RefreshDevices 手动触发设备发现
 func (s *CastService) RefreshDevices() {
-	go s.discoverDevices()
+	go safego.Run(func() { s.discoverDevices() })
 }
 
 // GetDevice 获取指定设备

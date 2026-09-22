@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/service"
@@ -130,7 +131,7 @@ func (h *UserHandler) AddFavorite(c *gin.Context) {
 	mediaID := c.Param("mediaId")
 
 	if err := h.mediaService.AddFavorite(userID.(string), mediaID); err != nil {
-		if err == service.ErrAlreadyFavorited {
+		if errors.Is(err, service.ErrAlreadyFavorited) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}

@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -749,7 +750,7 @@ func (s *SmartRenameService) buildItemsParallel(
 
 	wg.Add(workers)
 	for w := 0; w < workers; w++ {
-		go worker()
+		go safego.Run(func() { worker() })
 	}
 	for i := range paths {
 		jobs <- i
@@ -1464,19 +1465,23 @@ func (s *SmartRenameService) Execute(in ExecuteInput) (*model.RenamePlan, error)
 	// 强制 confirm
 	if s.cfg.RequireConfirm && !in.Confirm {
 		// dry-run：把 plan 状态保留 draft，但更新一次校验时间
-		_ = s.repo.UpdatePlanFields(plan.ID, map[string]interface{}{
+		if err := s.repo.UpdatePlanFields(plan.ID, map[string]interface{}{
 			"dry_run": true,
-		})
+		}); err != nil {
+			s.logger.Warnw("[SmartRename] 更新规划校验时间失败", "plan_id", plan.ID, "error", err)
+		}
 		return plan, nil
 	}
 
 	// 标记执行中
 	now := time.Now()
-	_ = s.repo.UpdatePlanFields(plan.ID, map[string]interface{}{
+	if err := s.repo.UpdatePlanFields(plan.ID, map[string]interface{}{
 		"status":      model.RenamePlanStatusExecuting,
 		"dry_run":     false,
 		"executed_at": &now,
-	})
+	}); err != nil {
+		s.logger.Warnw("[SmartRename] 标记规划执行中失败", "plan_id", plan.ID, "error", err)
+	}
 
 	// 过滤需要执行的条目
 	itemFilter := map[string]bool{}
@@ -1510,20 +1515,26 @@ func (s *SmartRenameService) Execute(in ExecuteInput) (*model.RenamePlan, error)
 
 		var related []SmartRenameRelatedFile
 		if it.RelatedFilesJSON != "" {
-			_ = json.Unmarshal([]byte(it.RelatedFilesJSON), &related)
+			if err := json.Unmarshal([]byte(it.RelatedFilesJSON), &related); err != nil {
+				s.logger.Warnw("[SmartRename] 解析关联文件列表失败", "item_id", it.ID, "error", err)
+			}
 		}
 
 		if err := executor.executeItem(plan.ID, it, related); err != nil {
 			failed++
 			it.Status = model.RenameItemStatusFailed
 			it.ErrorMsg = err.Error()
-			_ = s.repo.UpdateItem(it)
+			if err := s.repo.UpdateItem(it); err != nil {
+				s.logger.Warnw("[SmartRename] 持久化条目失败状态失败", "plan_id", plan.ID, "item_id", it.ID, "error", err)
+			}
 			s.logger.Errorf("[SmartRename] 执行条目失败 plan=%s item=%s: %v", plan.ID, it.ID, err)
 			continue
 		}
 		executed++
 		it.Status = model.RenameItemStatusExecuted
-		_ = s.repo.UpdateItem(it)
+		if err := s.repo.UpdateItem(it); err != nil {
+			s.logger.Warnw("[SmartRename] 持久化条目执行状态失败", "plan_id", plan.ID, "item_id", it.ID, "error", err)
+		}
 	}
 
 	completedAt := time.Now()
@@ -1531,14 +1542,15 @@ func (s *SmartRenameService) Execute(in ExecuteInput) (*model.RenamePlan, error)
 	if failed > 0 && executed == 0 {
 		finalStatus = model.RenamePlanStatusFailed
 	}
-	_ = s.repo.UpdatePlanFields(plan.ID, map[string]interface{}{
+	if err := s.repo.UpdatePlanFields(plan.ID, map[string]interface{}{
 		"status":         finalStatus,
 		"executed_items": executed,
 		"failed_items":   failed,
 		"completed_at":   &completedAt,
-	})
+	}); err != nil {
+		s.logger.Warnw("[SmartRename] 更新规划完成状态失败", "plan_id", plan.ID, "error", err)
+	}
 	s.logger.Infof("[SmartRename] 规划执行完成 plan=%s executed=%d failed=%d", plan.ID, executed, failed)
-
 	return s.repo.GetPlanWithItems(plan.ID)
 }
 
@@ -1567,13 +1579,17 @@ func (s *SmartRenameService) Rollback(planID string) (*model.RenamePlan, error) 
 		it := &plan.Items[i]
 		if it.Status == model.RenameItemStatusExecuted {
 			it.Status = model.RenameItemStatusReverted
-			_ = s.repo.UpdateItem(it)
+			if err := s.repo.UpdateItem(it); err != nil {
+				s.logger.Warnw("[SmartRename] 持久化条目回滚状态失败", "plan_id", plan.ID, "item_id", it.ID, "error", err)
+			}
 		}
 	}
 
-	_ = s.repo.UpdatePlanFields(planID, map[string]interface{}{
+	if err := s.repo.UpdatePlanFields(planID, map[string]interface{}{
 		"status": model.RenamePlanStatusRolledBack,
-	})
+	}); err != nil {
+		s.logger.Warnw("[SmartRename] 更新规划回滚状态失败", "plan_id", planID, "error", err)
+	}
 	return s.repo.GetPlanWithItems(planID)
 }
 

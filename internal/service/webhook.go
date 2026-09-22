@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -60,7 +61,7 @@ func NewWebhookService(logger *zap.SugaredLogger) *WebhookService {
 	}
 
 	// 启动事件分发协程
-	go ws.dispatchLoop()
+	go safego.Run(func() { ws.dispatchLoop() })
 
 	return ws
 }
@@ -123,7 +124,7 @@ func (ws *WebhookService) dispatchLoop() {
 			if !ws.matchEvent(hook.Events, event.Type) {
 				continue
 			}
-			go ws.sendWebhook(hook, event)
+			go safego.Run(func() { ws.sendWebhook(hook, event) })
 		}
 	}
 }

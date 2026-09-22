@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"errors"
 	"go.uber.org/zap"
 )
 
@@ -293,7 +294,7 @@ func (r *vfsReadSeeker) Read(p []byte) (int, error) {
 	n, err := r.file.ReadAt(p, r.pos)
 	r.pos += int64(n)
 	// ReadAt 的 EOF 在读满前返回时是符合预期的
-	if err == io.EOF && n > 0 {
+	if errors.Is(err, io.EOF) && n > 0 {
 		// http.ServeContent 对 EOF 的处理依赖 n > 0 时不返回 EOF
 		if r.pos < r.size {
 			err = nil

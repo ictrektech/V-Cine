@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nowen-video/nowen-video/internal/model"
+	"github.com/nowen-video/nowen-video/internal/safego"
 )
 
 // 常见视频后缀名（大小写不敏感）
@@ -283,7 +284,7 @@ func (fs *AdultFolderBatchService) Start(opts FolderBatchOptions) (string, error
 	fs.mu.Unlock()
 	fs.broadcastTaskEvent(EventAdultFolderBatchStarted, task, nil)
 
-	go fs.run(task, opts)
+	go safego.Run(func() { fs.run(task, opts) })
 	return task.ID, nil
 }
 
@@ -362,13 +363,13 @@ func (fs *AdultFolderBatchService) run(task *FolderBatchTask, opts FolderBatchOp
 		path := p
 		sem <- struct{}{}
 		wg.Add(1)
-		go func() {
+		go safego.Run(func() {
 			defer func() {
 				<-sem
 				wg.Done()
 			}()
 			fs.processOne(task, path, opts)
-		}()
+		})
 	}
 	wg.Wait()
 }

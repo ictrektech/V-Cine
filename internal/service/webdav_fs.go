@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"errors"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"github.com/studio-b12/gowebdav"
 	"go.uber.org/zap"
 )
@@ -120,7 +122,7 @@ func (f *webdavFile) readAtDirect(p []byte, off int64) (int, error) {
 	for total < len(p) {
 		n, rerr := reader.Read(p[total:])
 		total += n
-		if rerr == io.EOF {
+		if errors.Is(rerr, io.EOF) {
 			if total == 0 {
 				return 0, io.EOF
 			}
@@ -276,10 +278,10 @@ func (wfs *WebDAVFS) Probe() error {
 // 底层请求仍受 http.Client 超时约束，不会无限期悬挂。
 func (wfs *WebDAVFS) ProbeContext(ctx context.Context) error {
 	done := make(chan error, 1)
-	go func() {
+	go safego.Run(func() {
 		_, err := wfs.client.ReadDir(wfs.buildPath("/"))
 		done <- err
-	}()
+	})
 
 	select {
 	case err := <-done:

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -89,11 +90,11 @@ func NewOfflineDownloadService(db *gorm.DB, downloadDir string, logger *zap.Suga
 
 	// 启动下载工作协程
 	for i := 0; i < svc.maxConcurrent; i++ {
-		go svc.downloadWorker(i)
+		go safego.Run(func() { svc.downloadWorker(i) })
 	}
 
 	// 恢复未完成的下载任务
-	go svc.resumePendingTasks()
+	go safego.Run(func() { svc.resumePendingTasks() })
 
 	return svc
 }

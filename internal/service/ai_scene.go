@@ -15,6 +15,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -80,7 +81,7 @@ func (s *AISceneService) GenerateChapters(mediaID string) (*model.AIAnalysisTask
 	}
 
 	// 异步执行
-	go s.doGenerateChapters(task, media)
+	go safego.Run(func() { s.doGenerateChapters(task, media) })
 
 	return task, nil
 }
@@ -326,7 +327,7 @@ func (s *AISceneService) ExtractHighlights(mediaID string) (*model.AIAnalysisTas
 		return nil, err
 	}
 
-	go s.doExtractHighlights(task, media)
+	go safego.Run(func() { s.doExtractHighlights(task, media) })
 	return task, nil
 }
 
@@ -747,7 +748,7 @@ func (s *AISceneService) GenerateCoverCandidates(mediaID string) (*model.AIAnaly
 		return nil, err
 	}
 
-	go s.doGenerateCoverCandidates(task, media)
+	go safego.Run(func() { s.doGenerateCoverCandidates(task, media) })
 	return task, nil
 }
 

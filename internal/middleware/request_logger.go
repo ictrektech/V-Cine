@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 )
 
 // RequestLogger 请求日志中间件 — 将所有 API 请求记录到 system_logs 表
@@ -78,8 +79,8 @@ func RequestLogger(logRepo *repository.SystemLogRepo) gin.HandlerFunc {
 		}
 
 		// 异步写入，不阻塞请求
-		go func() {
+		go safego.Run(func() {
 			_ = logRepo.Create(log)
-		}()
+		})
 	}
 }

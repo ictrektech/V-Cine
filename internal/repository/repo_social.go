@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"gorm.io/gorm"
 )
@@ -14,7 +15,7 @@ type WatchHistoryRepo struct {
 func (r *WatchHistoryRepo) Upsert(history *model.WatchHistory) error {
 	var existing model.WatchHistory
 	err := r.db.Where("user_id = ? AND media_id = ?", history.UserID, history.MediaID).First(&existing).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return r.db.Create(history).Error
 	}
 	existing.Position = history.Position

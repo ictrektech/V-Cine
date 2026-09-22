@@ -8,6 +8,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/matcher"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -201,12 +202,14 @@ func (s *CollectionService) ensureCollectionPoster(coll *model.MovieCollection) 
 
 	coll.PosterPath = poster
 	// 异步更新数据库
-	go func(id, posterPath string) {
-		if c, err := s.collRepo.FindByID(id); err == nil {
-			c.PosterPath = posterPath
-			s.collRepo.Update(c)
-		}
-	}(coll.ID, poster)
+	go safego.Run(func() {
+		func(id, posterPath string) {
+			if c, err := s.collRepo.FindByID(id); err == nil {
+				c.PosterPath = posterPath
+				s.collRepo.Update(c)
+			}
+		}(coll.ID, poster)
+	})
 }
 
 // pickCollectionPoster 从合集中挑选首个可用海报路径

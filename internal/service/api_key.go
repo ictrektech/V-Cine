@@ -11,6 +11,7 @@ import (
 	secretcrypto "github.com/nowen-video/nowen-video/internal/crypto"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -104,11 +105,11 @@ func (s *ApiKeyService) Validate(ctx context.Context, key string) (string, error
 	}
 
 	// 异步更新 last_used_at（使用请求 context 的 detached 副本，避免请求结束后被取消）
-	go func() {
+	go safego.Run(func() {
 		if err := s.repo.TouchLastUsed(context.WithoutCancel(ctx), record.ID); err != nil && s.logger != nil {
 			s.logger.Warnw("Failed to update api key last_used_at", "key_id", record.ID, "error", err)
 		}
-	}()
+	})
 
 	return record.UserID, nil
 }

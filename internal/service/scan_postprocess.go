@@ -11,6 +11,7 @@ import (
 
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -180,7 +181,7 @@ func (s *ScanPostProcessService) Start() {
 	s.started = true
 	for i := 0; i < s.cfg.Workers; i++ {
 		s.workWG.Add(1)
-		go s.worker(i)
+		go safego.Run(func() { s.worker(i) })
 	}
 	s.logger.Infof("[ScanPostProcess] 后台 worker 已启动 workers=%d queue=%d", s.cfg.Workers, s.cfg.QueueSize)
 }

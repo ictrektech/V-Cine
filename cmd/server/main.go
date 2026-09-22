@@ -26,6 +26,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/version"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -44,6 +45,7 @@ func main() {
 		logger, _ = zap.NewDevelopment()
 	}
 	defer logger.Sync()
+	zap.ReplaceGlobals(logger) // safego 等基础设施通过 zap 全局 logger 记录 panic
 	sugar := logger.Sugar()
 
 	// 初始化数据库
@@ -146,38 +148,38 @@ func main() {
 	)
 
 	// 登录日志清理定时任务：保留90天
-	go func() {
+	go safego.Run(func() {
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
 		_ = repos.LoginLog.CleanOlderThan(90)
 		for range ticker.C {
 			_ = repos.LoginLog.CleanOlderThan(90)
 		}
-	}()
+	})
 
 	// 系统日志清理定时任务：保留30天
-	go func() {
+	go safego.Run(func() {
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
 		repos.SystemLog.CleanOlderThan(30)
 		for range ticker.C {
 			repos.SystemLog.CleanOlderThan(30)
 		}
-	}()
+	})
 
 	// 转码孤儿缓存清理：只删已无媒体记录的目录，每天执行
-	go func() {
+	go safego.Run(func() {
 		for {
 			if err := services.Transcode.CleanupOrphanTranscodeCaches(); err != nil {
 				sugar.Warnf("转码孤儿缓存清理失败: %v", err)
 			}
 			time.Sleep(24 * time.Hour)
 		}
-	}()
+	})
 
 	// 图片类缓存孤儿清理：回收 cache/images（含 series / persons 命名空间）、covers、thumbnails
 	// 下已无数据库引用的目录，每天执行（首次循环即启动时执行一次）。策略与安全阀见 image_cache_cleaner.go。
-	go func() {
+	go safego.Run(func() {
 		for {
 			if services.ImageCacheCleaner != nil {
 				if _, err := services.ImageCacheCleaner.CleanOrphanImageCaches(); err != nil {
@@ -186,10 +188,10 @@ func main() {
 			}
 			time.Sleep(24 * time.Hour)
 		}
-	}()
+	})
 
 	// 记录服务启动事件
-	go func() {
+	go safego.Run(func() {
 		_ = repos.SystemLog.Create(&model.SystemLog{
 			Type:    model.LogTypeSystem,
 			Level:   model.LogLevelInfo,
@@ -197,7 +199,7 @@ func main() {
 			Source:  "startup",
 			Detail:  fmt.Sprintf("版本: %s, Go: %s, OS: %s/%s", appVer, runtime.Version(), runtime.GOOS, runtime.GOARCH),
 		})
-	}()
+	})
 
 	// 公开路由（无需认证）
 	auth := r.Group("/api/auth")
@@ -1027,7 +1029,7 @@ func main() {
 
 	// 预热 Emby ID 映射（启动时注册所有 Library/Media/Series 的 ID 映射）
 	// 避免客户端拿旧缓存 ID 请求时 resolve 失败
-	go func() {
+	go safego.Run(func() {
 		sugar.Info("开始预热 Emby ID 映射...")
 		libraries, err := repos.Library.List()
 		if err != nil {
@@ -1063,7 +1065,7 @@ func main() {
 		embyHandler.IDMapper().WarmupAll(libIDs, mediaIDs, nil)
 		sugar.Infof("Emby ID 映射预热完成: Library=%d, Media=%d",
 			len(libIDs), len(mediaIDs))
-	}()
+	})
 
 	// ==================== UDP 7359 服务器自动发现 ====================
 	// 让同网段的移动端 Emby/Jellyfin 客户端在"添加服务器"时自动发现本机，
@@ -1157,11 +1159,11 @@ func main() {
 	}
 
 	// 在 goroutine 中启动服务器
-	go func() {
+	go safego.Run(func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			sugar.Fatalf("服务器启动失败: %v", err)
 		}
-	}()
+	})
 
 	// 等待中断信号以优雅关闭服务器
 	quit := make(chan os.Signal, 1)

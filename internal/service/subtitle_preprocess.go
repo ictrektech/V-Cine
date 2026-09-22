@@ -18,6 +18,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 	"golang.org/x/sync/semaphore"
 )
@@ -100,11 +101,11 @@ func NewSubtitlePreprocessService(
 
 	// 启动工作协程池
 	for i := int32(0); i < maxWorkers; i++ {
-		go s.worker(int(i))
+		go safego.Run(func() { s.worker(int(i)) })
 	}
 
 	// 恢复未完成的任务
-	go s.recoverPendingTasks()
+	go safego.Run(func() { s.recoverPendingTasks() })
 
 	// TODO P2: 启动 pending reconciler，防止任务因队列满而永远被丢掉（方法待实现）
 	// go s.pendingReconciler()
@@ -588,7 +589,7 @@ func (s *SubtitlePreprocessService) processTask(taskID string) {
 			for _, lang := range targetLangs {
 				lang := lang
 				wg.Add(1)
-				go func() {
+				go safego.Run(func() {
 					defer wg.Done()
 					if err := sem.Acquire(ctx, 1); err != nil {
 						return
@@ -612,7 +613,7 @@ func (s *SubtitlePreprocessService) processTask(taskID string) {
 					progress := 60 + float64(done)/float64(len(targetLangs))*35
 					s.updatePhase(task, "translate", progress,
 						fmt.Sprintf("翻译进度 %d/%d（成功 %d）", done, len(targetLangs), atomic.LoadInt32(&successCount)))
-				}()
+				})
 			}
 			wg.Wait()
 
@@ -887,7 +888,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleOCR(filePath string, tr
 		tesseractBin = "tesseract"
 	}
 	if _, err := exec.LookPath(tesseractBin); err != nil {
-		return "", fmt.Errorf("Tesseract 未安装或不在 PATH 中: %v", err)
+		return "", fmt.Errorf("Tesseract 未安装或不在 PATH 中: %w", err)
 	}
 
 	tesseractLang := ai.TesseractLang
@@ -898,7 +899,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleOCR(filePath string, tr
 	// 创建临时目录
 	tmpDir, err := os.MkdirTemp("", "nowen-ocr-*")
 	if err != nil {
-		return "", fmt.Errorf("创建临时目录失败: %v", err)
+		return "", fmt.Errorf("创建临时目录失败: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -986,7 +987,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleOCR(filePath string, tr
 	// 第四步：生成 VTT 文件
 	vttPath := filepath.Join(filepath.Dir(filePath), fmt.Sprintf(".nowen_ocr_%d.vtt", track.Index))
 	if err := s.writeVTTFile(vttPath, cues); err != nil {
-		return "", fmt.Errorf("写入 VTT 文件失败: %v", err)
+		return "", fmt.Errorf("写入 VTT 文件失败: %w", err)
 	}
 
 	s.logger.Infof("OCR 提取图形字幕完成: %d 条字幕", len(cues))
@@ -1017,7 +1018,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleViaImages(filePath stri
 	// 获取时间戳
 	timestamps, err := s.extractSubtitleTimestampsFromVideo(filePath, track.Index)
 	if err != nil {
-		return "", fmt.Errorf("获取字幕时间戳失败: %v", err)
+		return "", fmt.Errorf("获取字幕时间戳失败: %w", err)
 	}
 
 	imgFiles, _ := filepath.Glob(filepath.Join(imgDir, "frame_*.png"))
@@ -1053,7 +1054,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleViaImages(filePath stri
 
 	vttPath := filepath.Join(filepath.Dir(filePath), fmt.Sprintf(".nowen_ocr_%d.vtt", track.Index))
 	if err := s.writeVTTFile(vttPath, cues); err != nil {
-		return "", fmt.Errorf("写入 VTT 文件失败: %v", err)
+		return "", fmt.Errorf("写入 VTT 文件失败: %w", err)
 	}
 
 	s.logger.Infof("OCR 回退方案提取完成: %d 条字幕", len(cues))
@@ -1078,7 +1079,7 @@ func (s *SubtitlePreprocessService) extractSubtitleTimestamps(supFilePath string
 	cmd := exec.Command("ffprobe", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("ffprobe 失败: %v", err)
+		return nil, fmt.Errorf("ffprobe 失败: %w", err)
 	}
 
 	var timestamps []ocrTimestamp
@@ -1123,7 +1124,7 @@ func (s *SubtitlePreprocessService) extractSubtitleTimestampsFromVideo(filePath 
 	cmd := exec.Command("ffprobe", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("ffprobe 失败: %v", err)
+		return nil, fmt.Errorf("ffprobe 失败: %w", err)
 	}
 
 	var timestamps []ocrTimestamp

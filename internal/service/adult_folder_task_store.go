@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"os"
 	"path/filepath"
 	"sort"
@@ -76,7 +77,7 @@ func (s *AdultFolderTaskStore) Record(task *FolderBatchTask) {
 		s.tasks = s.tasks[1:]
 	}
 	s.tasks = append(s.tasks, task)
-	go func() { _ = s.Save() }()
+	go safego.Run(func() { _ = s.Save() })
 }
 
 func (s *AdultFolderTaskStore) List() []*FolderBatchTask {

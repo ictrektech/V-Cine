@@ -26,6 +26,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -149,10 +150,10 @@ func (r *AIRouter) MarkSuccess(provider, modelID string, prompt, completion int,
 	r.mu.Unlock()
 
 	// 1. 写用量记录（异步，不阻塞调用方）
-	go r.recordUsage(provider, modelID, prompt, completion, latencyMs, scene, true)
+	go safego.Run(func() { r.recordUsage(provider, modelID, prompt, completion, latencyMs, scene, true) })
 
 	// 2. 累计月度 token 并按需告警 / 切换
-	go r.checkBudgetAfterUse(prompt + completion)
+	go safego.Run(func() { r.checkBudgetAfterUse(prompt + completion) })
 }
 
 // MarkFailure 在每次 AI 调用失败后由 AIService 回调
@@ -169,7 +170,7 @@ func (r *AIRouter) MarkFailure(provider string, statusCode int, body string) (sh
 	r.mu.Unlock()
 
 	// 1. 异步写失败的用量记录（PromptTokens=0）
-	go r.recordUsage(provider, "", 0, 0, 0, "error", false)
+	go safego.Run(func() { r.recordUsage(provider, "", 0, 0, 0, "error", false) })
 
 	// 2. V10 重构：failover 功能已删除，不切换
 	return false, "", ""

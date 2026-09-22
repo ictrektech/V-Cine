@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"gorm.io/gorm"
@@ -551,7 +552,7 @@ func (h *Handler) ItemHandler(c *gin.Context) {
 	// Media
 	m, err := h.mediaRepo.FindByID(uuid)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"Error": "Item not found"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})

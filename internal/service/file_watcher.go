@@ -12,6 +12,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -99,7 +100,7 @@ func (fw *FileWatcherService) Start() error {
 	}
 
 	// 启动事件处理协程
-	go fw.eventLoop()
+	go safego.Run(func() { fw.eventLoop() })
 
 	fw.logger.Infof("文件监听服务已启动，监听 %d 个媒体库", len(fw.watching))
 	return nil
@@ -368,7 +369,7 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 
 	// 如果有新增媒体，自动触发刮削
 	if count > 0 {
-		go func() {
+		go safego.Run(func() {
 			if lib.Type == "tvshow" {
 				success, failed := fw.metadata.ScrapeAllSeries(libraryID)
 				if success > 0 || failed > 0 {
@@ -415,7 +416,7 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 			}
 			fw.logger.Infof("%s", completedMessage)
 			fw.scanner.NotifyScanComplete(libraryID)
-		}()
+		})
 	} else {
 		if fw.wsHub != nil {
 			fw.wsHub.BroadcastEvent(EventScanCompleted, &ScanProgressData{

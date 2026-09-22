@@ -11,6 +11,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -251,7 +252,7 @@ func (s *LibraryService) Scan(id string) error {
 		return ErrScanInProgress
 	}
 
-	go func() {
+	go safego.Run(func() {
 		defer s.scanning.Delete(id)
 		defer s.clearScanPhaseState(id)
 
@@ -462,7 +463,7 @@ func (s *LibraryService) Scan(id string) error {
 		}
 		s.logger.Infof("%s", completedMessage)
 		s.scanner.NotifyScanComplete(id)
-	}()
+	})
 
 	return nil
 }
@@ -759,7 +760,7 @@ func (s *LibraryService) Reindex(id string) error {
 		return ErrScanInProgress
 	}
 
-	go func() {
+	go safego.Run(func() {
 		defer s.scanning.Delete(id)
 		defer s.clearScanPhaseState(id)
 
@@ -962,7 +963,7 @@ func (s *LibraryService) Reindex(id string) error {
 		}
 		s.logger.Infof("%s", completedMessage)
 		s.scanner.NotifyScanComplete(id)
-	}()
+	})
 
 	return nil
 }

@@ -9,6 +9,7 @@
 package service
 
 import (
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"net/http"
 	"sync"
 	"time"
@@ -214,7 +215,7 @@ func (m *AdultProxyManager) HealthCheckAll() (int, int) {
 		p := p
 		wg.Add(1)
 		sem <- struct{}{}
-		go func() {
+		go safego.Run(func() {
 			defer wg.Done()
 			defer func() { <-sem }()
 			ok, latency := m.checkSingle(p.mirror.URL)
@@ -236,7 +237,7 @@ func (m *AdultProxyManager) HealthCheckAll() (int, int) {
 				}
 			}
 			m.mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 

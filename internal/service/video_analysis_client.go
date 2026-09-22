@@ -375,7 +375,7 @@ func extractArtifactTar(r io.Reader, dstDir string, artifact *VideoAnalysisArtif
 	tr := tar.NewReader(r)
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

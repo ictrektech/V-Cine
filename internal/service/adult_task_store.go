@@ -7,6 +7,7 @@ package service
 
 import (
 	"encoding/json"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"os"
 	"path/filepath"
 	"sort"
@@ -89,9 +90,9 @@ func (s *AdultTaskStore) Record(task *AdultBatchTask) {
 	}
 	s.tasks = append(s.tasks, task)
 	// 异步持久化
-	go func() {
+	go safego.Run(func() {
 		_ = s.Save()
-	}()
+	})
 }
 
 // List 列出所有任务（按时间倒序）

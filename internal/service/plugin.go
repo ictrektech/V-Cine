@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -117,7 +118,7 @@ func NewPluginService(db *gorm.DB, pluginDir string, logger *zap.SugaredLogger) 
 	}
 
 	// 启动时加载已启用的插件
-	go svc.loadEnabledPlugins()
+	go safego.Run(func() { svc.loadEnabledPlugins() })
 
 	return svc
 }
@@ -206,7 +207,6 @@ func (s *PluginService) EnablePlugin(pluginID string) error {
 
 	// 加载插件
 	if err := s.loadPlugin(&info); err != nil {
-		s.logger.Warnf("加载插件失败: %s -> %v", pluginID, err)
 		return err
 	}
 

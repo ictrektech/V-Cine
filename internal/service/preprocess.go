@@ -20,6 +20,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"github.com/nowen-video/nowen-video/internal/service/ffmpeg"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"go.uber.org/zap"
@@ -142,14 +143,14 @@ func NewPreprocessService(
 
 	// 启动工作协程池
 	for i := int32(0); i < maxWorkers; i++ {
-		go s.worker(int(i))
+		go safego.Run(func() { s.worker(int(i)) })
 	}
 
 	// 启动自动重试协程
-	go s.retryLoop()
+	go safego.Run(func() { s.retryLoop() })
 
 	// 恢复未完成的任务（按优先级排序入队）
-	go s.recoverPendingTasks()
+	go safego.Run(func() { s.recoverPendingTasks() })
 
 	return s
 }
@@ -1805,20 +1806,20 @@ func (s *PreprocessService) processTask(taskID string) {
 	// P2 优化：Phase 2、3、sprite 互不依赖，并行执行
 	phase23Wg.Add(3)
 
-	go func() {
+	go safego.Run(func() {
 		defer phase23Wg.Done()
 		thumbnailPath, thumbnailErr = s.extractThumbnail(task)
-	}()
+	})
 
-	go func() {
+	go safego.Run(func() {
 		defer phase23Wg.Done()
 		keyframesDir, keyframesErr = s.extractKeyframes(task)
-	}()
+	})
 
-	go func() {
+	go safego.Run(func() {
 		defer phase23Wg.Done()
 		spritePath, vttPath, spriteErr = s.generateSprite(task)
-	}()
+	})
 
 	phase23Wg.Wait()
 
@@ -1884,26 +1885,28 @@ func (s *PreprocessService) processTask(taskID string) {
 		transcodeWg.Add(1)
 		sem <- struct{}{} // 获取信号量
 
-		go func(idx int, v ABRProfile) {
-			defer transcodeWg.Done()
-			defer func() { <-sem }() // 释放信号量
+		go safego.Run(func() {
+			func(idx int, v ABRProfile) {
+				defer transcodeWg.Done()
+				defer func() { <-sem }() // 释放信号量
 
-			// 计算总体进度：20% ~ 95%（转码占 75%）
-			baseProgress := 20.0 + float64(idx)/float64(totalVariants)*75.0
-			phaseName := fmt.Sprintf("transcode_%s", v.Name)
+				// 计算总体进度：20% ~ 95%（转码占 75%）
+				baseProgress := 20.0 + float64(idx)/float64(totalVariants)*75.0
+				phaseName := fmt.Sprintf("transcode_%s", v.Name)
 
-			s.updatePhase(task, phaseName, baseProgress,
-				fmt.Sprintf("正在转码 %s (%d/%d)...", v.Name, idx+1, totalVariants))
+				s.updatePhase(task, phaseName, baseProgress,
+					fmt.Sprintf("正在转码 %s (%d/%d)...", v.Name, idx+1, totalVariants))
 
-			err := s.transcodeVariant(task, v, func(progress float64, speed string) {
-				// 变体内部进度映射到总体进度
-				variantProgress := baseProgress + (progress/100.0)*(75.0/float64(totalVariants))
-				s.updatePhase(task, phaseName, variantProgress,
-					fmt.Sprintf("转码 %s: %.1f%% (速度: %s)", v.Name, progress, speed))
-			})
+				err := s.transcodeVariant(task, v, func(progress float64, speed string) {
+					// 变体内部进度映射到总体进度
+					variantProgress := baseProgress + (progress/100.0)*(75.0/float64(totalVariants))
+					s.updatePhase(task, phaseName, variantProgress,
+						fmt.Sprintf("转码 %s: %.1f%% (速度: %s)", v.Name, progress, speed))
+				})
 
-			resultCh <- variantResult{index: idx, name: v.Name, err: err}
-		}(i, variant)
+				resultCh <- variantResult{index: idx, name: v.Name, err: err}
+			}(i, variant)
+		})
 	}
 
 	// 等待所有并行转码完成
@@ -2263,7 +2266,7 @@ func (s *PreprocessService) transcodeVariantWithWebDAVFallback(
 	defer cancel()
 
 	// 同时监听取消信号
-	go func() {
+	go safego.Run(func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -2275,7 +2278,7 @@ func (s *PreprocessService) transcodeVariantWithWebDAVFallback(
 				}
 			}
 		}
-	}()
+	})
 
 	localPath, cleanup, dlErr := downloadWebDAVToLocal(ctx, task.InputPath, s.cfg.Cache.CacheDir, task.MediaID, s.logger)
 	if dlErr != nil {
@@ -2425,7 +2428,7 @@ func (s *PreprocessService) transcodeWithFallback(
 		}
 		resultCh := make(chan stderrResult, 1)
 		progressDone := make(chan struct{})
-		go func() {
+		go safego.Run(func() {
 			defer close(progressDone)
 			defer func() {
 				if r := recover(); r != nil {
@@ -2434,7 +2437,7 @@ func (s *PreprocessService) transcodeWithFallback(
 			}()
 			lastLines := s.parseFFmpegProgressWithStderr(stderrPipe, task.SourceDuration, onProgress)
 			resultCh <- stderrResult{lastLines: lastLines}
-		}()
+		})
 
 		// 等待命令完成
 		err = cmd.Wait()

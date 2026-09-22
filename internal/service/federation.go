@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -120,7 +121,7 @@ func NewFederationService(db *gorm.DB, nodeID string, logger *zap.SugaredLogger)
 	}
 
 	// 启动定期健康检查
-	go svc.healthCheckLoop()
+	go safego.Run(func() { svc.healthCheckLoop() })
 
 	return svc
 }
@@ -206,7 +207,7 @@ func (s *FederationService) SyncFromNode(nodeID string, syncType string) (*SyncT
 	s.db.Create(task)
 
 	// 异步执行同步
-	go s.executeSyncTask(task, &node)
+	go safego.Run(func() { s.executeSyncTask(task, &node) })
 
 	return task, nil
 }

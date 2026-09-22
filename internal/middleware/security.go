@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nowen-video/nowen-video/internal/safego"
 )
 
 // Security 安全头中间件
@@ -56,7 +57,7 @@ func RateLimitWithConfig(cfg RateLimitConfig) gin.HandlerFunc {
 	visitors := make(map[string]*visitor)
 
 	// 启动后台清理协程，每2分钟清理过期条目，防止内存泄漏
-	go func() {
+	go safego.Run(func() {
 		for {
 			time.Sleep(2 * time.Minute)
 			now := time.Now()
@@ -78,7 +79,7 @@ func RateLimitWithConfig(cfg RateLimitConfig) gin.HandlerFunc {
 			}
 			mu.Unlock()
 		}
-	}()
+	})
 
 	return func(c *gin.Context) {
 		// 检查路径是否在排除列表中

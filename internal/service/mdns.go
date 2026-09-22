@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -109,11 +110,11 @@ func (m *MdnsService) Start() error {
 
 	// 启动查询响应协程
 	m.wg.Add(1)
-	go m.listenAndRespond(ctx)
+	go safego.Run(func() { m.listenAndRespond(ctx) })
 
 	// 启动定期公告协程
 	m.wg.Add(1)
-	go m.periodicAnnounce(ctx)
+	go safego.Run(func() { m.periodicAnnounce(ctx) })
 
 	// 立即发送一次公告
 	m.sendAnnouncement()

@@ -134,7 +134,7 @@ func (s *AuthService) LoginWithVOSOIDC(token, ip, ua string) (*TokenResponse, er
 		user.MustChangePwd = false
 		user.TokenVersion++
 	}
-	_ = s.userRepo.UpdateLastLogin(user.ID, ip)
+	s.updateLastLogin(user.ID, ip)
 	s.recordLogin(user.ID, user.Username, ip, ua, "vos_oidc", true)
 	// 登录成功后保留 accessToken（仅内存），供 AI 调 V-Router 时转发用量归属
 	StoreVOSAccessToken(token, claims.ExpiresAt)

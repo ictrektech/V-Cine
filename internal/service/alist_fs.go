@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"errors"
 	"go.uber.org/zap"
 )
 
@@ -520,7 +521,7 @@ func (f *alistFile) readAtDirect(p []byte, off int64) (int, error) {
 	for total < len(p) {
 		n, rerr := rc.Read(p[total:])
 		total += n
-		if rerr == io.EOF {
+		if errors.Is(rerr, io.EOF) {
 			if total == 0 {
 				return 0, io.EOF
 			}

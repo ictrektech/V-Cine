@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"gorm.io/gorm"
 )
@@ -14,7 +15,7 @@ type ContentRatingRepo struct {
 func (r *ContentRatingRepo) Upsert(rating *model.ContentRating) error {
 	var existing model.ContentRating
 	err := r.db.Where("media_id = ?", rating.MediaID).First(&existing).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return r.db.Create(rating).Error
 	}
 	existing.Level = rating.Level
@@ -40,7 +41,7 @@ type UserPermissionRepo struct {
 func (r *UserPermissionRepo) Upsert(perm *model.UserPermission) error {
 	var existing model.UserPermission
 	err := r.db.Where("user_id = ?", perm.UserID).First(&existing).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return r.db.Create(perm).Error
 	}
 	existing.AllowedLibraries = perm.AllowedLibraries
@@ -77,7 +78,7 @@ func (r *SystemSettingRepo) Get(key string) (string, error) {
 func (r *SystemSettingRepo) Set(key, value string) error {
 	var existing model.SystemSetting
 	err := r.db.Where("key = ?", key).First(&existing).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return r.db.Create(&model.SystemSetting{Key: key, Value: value}).Error
 	}
 	if err != nil {

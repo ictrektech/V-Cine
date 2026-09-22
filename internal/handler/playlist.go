@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/service"
 	"go.uber.org/zap"
@@ -54,7 +55,7 @@ func (h *PlaylistHandler) Detail(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	playlist, err := h.playlistService.Get(id, userID.(string))
 	if err != nil {
-		if err == service.ErrForbidden {
+		if errors.Is(err, service.ErrForbidden) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该播放列表"})
 			return
 		}
@@ -70,7 +71,7 @@ func (h *PlaylistHandler) Delete(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
 	if err := h.playlistService.Delete(id, userID.(string)); err != nil {
-		if err == service.ErrForbidden {
+		if errors.Is(err, service.ErrForbidden) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "无权操作"})
 			return
 		}
@@ -87,7 +88,7 @@ func (h *PlaylistHandler) AddItem(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
 	if err := h.playlistService.AddItem(playlistID, mediaID, userID.(string)); err != nil {
-		if err == service.ErrForbidden {
+		if errors.Is(err, service.ErrForbidden) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "无权操作"})
 			return
 		}
@@ -104,7 +105,7 @@ func (h *PlaylistHandler) RemoveItem(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
 	if err := h.playlistService.RemoveItem(playlistID, mediaID, userID.(string)); err != nil {
-		if err == service.ErrForbidden {
+		if errors.Is(err, service.ErrForbidden) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "无权操作"})
 			return
 		}

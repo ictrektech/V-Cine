@@ -9,6 +9,7 @@ import (
 
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -159,7 +160,7 @@ func (s *RecommendService) GetRecommendations(userID string, limit int) ([]Recom
 	// 缓存推荐结果
 	if s.recommendCache != nil && len(results) > 0 {
 		if cacheBytes, err := json.Marshal(results); err == nil {
-			go s.recommendCache.Set(userID, string(cacheBytes), recommendCacheTTLMinutes)
+			go safego.Run(func() { s.recommendCache.Set(userID, string(cacheBytes), recommendCacheTTLMinutes) })
 		}
 	}
 

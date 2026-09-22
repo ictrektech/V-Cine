@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nowen-video/nowen-video/internal/model"
+	"github.com/nowen-video/nowen-video/internal/safego"
 )
 
 // ==================== WebSocket 事件常量（番号批量）====================
@@ -195,7 +196,7 @@ func (s *AdultBatchService) Start(opts AdultBatchOptions) (string, error) {
 	}
 
 	// 异步执行
-	go s.run(task, mediaList, opts)
+	go safego.Run(func() { s.run(task, mediaList, opts) })
 	return task.ID, nil
 }
 
@@ -316,11 +317,13 @@ func (s *AdultBatchService) run(task *AdultBatchTask, mediaList []model.Media, o
 		media := mediaList[i]
 		sem <- struct{}{}
 		wg.Add(1)
-		go func(m model.Media) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			s.processOne(task, &m, opts)
-		}(media)
+		go safego.Run(func() {
+			func(m model.Media) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				s.processOne(task, &m, opts)
+			}(media)
+		})
 	}
 	wg.Wait()
 }

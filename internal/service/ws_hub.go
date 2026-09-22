@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -329,6 +330,6 @@ func (h *WSHub) RegisterClient(conn *websocket.Conn, userID string) {
 	h.register <- client
 
 	// 启动读写协程
-	go client.writePump()
-	go client.readPump()
+	go safego.Run(func() { client.writePump() })
+	go safego.Run(func() { client.readPump() })
 }

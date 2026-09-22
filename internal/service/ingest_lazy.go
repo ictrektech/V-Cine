@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nowen-video/nowen-video/internal/model"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -329,7 +330,7 @@ func (s *LazyIngestService) Submit(in LazyIngestInput) (*model.IngestJob, error)
 	}
 
 	// === 异步执行 ===
-	go s.run(job.ID)
+	go safego.Run(func() { s.run(job.ID) })
 
 	s.logger.Infof("[LazyIngest] 任务已创建 job=%s src=%s target=%s", job.ID, absSrc, tgtRoot)
 	return job, nil
@@ -585,7 +586,7 @@ func (s *LazyIngestService) run(jobID string) {
 
 	wgExec.Add(numWorkers)
 	for w := 0; w < numWorkers; w++ {
-		go worker()
+		go safego.Run(func() { worker() })
 	}
 	for i := range plannedItems {
 		jobs <- i
@@ -598,10 +599,10 @@ func (s *LazyIngestService) run(jobID string) {
 	done := 0
 	total := len(plannedItems)
 
-	go func() {
+	go safego.Run(func() {
 		wgExec.Wait()
 		close(results)
-	}()
+	})
 
 	for r := range results {
 		if r.failed {

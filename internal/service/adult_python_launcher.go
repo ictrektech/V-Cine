@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -131,11 +132,11 @@ func (l *AdultPythonLauncher) Start() error {
 	l.cmd = cmd
 	l.running = true
 
-	go l.pipeLogs("stdout", stdout)
-	go l.pipeLogs("stderr", stderr)
+	go safego.Run(func() { l.pipeLogs("stdout", stdout) })
+	go safego.Run(func() { l.pipeLogs("stderr", stderr) })
 
 	// 6. 等待进程退出后自动标记
-	go func() {
+	go safego.Run(func() {
 		if werr := cmd.Wait(); werr != nil {
 			msg := werr.Error()
 			l.logger.Warnf("[adult-python] 子进程退出: %v", werr)
@@ -148,7 +149,7 @@ func (l *AdultPythonLauncher) Start() error {
 		l.mu.Lock()
 		l.running = false
 		l.mu.Unlock()
-	}()
+	})
 
 	// 7. 健康探测（最多 20 秒）
 	if err := l.waitHealthy(20 * time.Second); err != nil {
@@ -179,10 +180,10 @@ func (l *AdultPythonLauncher) Stop() {
 	}
 	// 最多等待 5 秒
 	done := make(chan struct{})
-	go func() {
+	go safego.Run(func() {
 		_, _ = l.cmd.Process.Wait()
 		close(done)
-	}()
+	})
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):

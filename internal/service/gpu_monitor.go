@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -154,7 +155,7 @@ func (m *GPUMonitor) Start() {
 	m.logger.Infof("GPU 安全监控已启动: 采样间隔=%ds, 使用率阈值=%d%%, 温度阈值=%d°C, 恢复阈值=%d%%",
 		interval, m.config.UtilizationThreshold, m.config.TemperatureThreshold, m.config.RecoveryThreshold)
 
-	go m.monitorLoop(time.Duration(interval) * time.Second)
+	go safego.Run(func() { m.monitorLoop(time.Duration(interval) * time.Second) })
 }
 
 // Stop 停止 GPU 监控
@@ -518,7 +519,7 @@ func (m *GPUMonitor) setDegraded(degraded bool, reason string) {
 	m.callbackMu.RUnlock()
 
 	for _, cb := range callbacks {
-		go cb(degraded, reason)
+		go safego.Run(func() { cb(degraded, reason) })
 	}
 }
 

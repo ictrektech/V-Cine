@@ -5,6 +5,7 @@ package service
 
 import (
 	"encoding/json"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"os"
 	"path/filepath"
 	"sync"
@@ -95,7 +96,7 @@ func (c *AdultMetadataCache) Put(code string, meta *AdultMetadata) {
 	// 定期刷盘（每 5 分钟最多一次）
 	if time.Since(c.lastPurge) > 5*time.Minute {
 		c.lastPurge = time.Now()
-		go func() { _ = c.Save() }()
+		go safego.Run(func() { _ = c.Save() })
 	}
 }
 

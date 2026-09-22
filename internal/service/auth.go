@@ -2,6 +2,7 @@ package service
 
 import (
 	"crypto/rsa"
+	"fmt"
 	"sync"
 	"time"
 
@@ -60,19 +61,28 @@ type TokenResponse struct {
 	MustChangePassword bool `json:"must_change_password,omitempty"`
 }
 
-// recordLogin 记录登录日志（尽量不影响主流程）
+// recordLogin 记录登录日志（尽力而为：失败仅记录日志，不影响主流程）
 func (s *AuthService) recordLogin(userID, username, ip, ua, reason string, success bool) {
 	if s.logRepo == nil {
 		return
 	}
-	_ = s.logRepo.Create(&model.LoginLog{
+	if err := s.logRepo.Create(&model.LoginLog{
 		UserID:    userID,
 		Username:  username,
 		IP:        ip,
 		UserAgent: ua,
 		Success:   success,
 		Reason:    reason,
-	})
+	}); err != nil {
+		s.logger.Warnw("写入登录日志失败", "username", username, "success", success, "error", err)
+	}
+}
+
+// updateLastLogin 更新最后登录信息（尽力而为：失败仅记录日志，不影响主流程）
+func (s *AuthService) updateLastLogin(userID, ip string) {
+	if err := s.userRepo.UpdateLastLogin(userID, ip); err != nil {
+		s.logger.Warnw("更新最后登录信息失败", "user_id", userID, "error", err)
+	}
 }
 
 // Login 用户登录
@@ -94,7 +104,7 @@ func (s *AuthService) Login(req *LoginRequest, ip, ua string) (*TokenResponse, e
 	}
 
 	// 更新最后登录信息
-	_ = s.userRepo.UpdateLastLogin(user.ID, ip)
+	s.updateLastLogin(user.ID, ip)
 	s.recordLogin(user.ID, user.Username, ip, ua, "", true)
 
 	resp, err := s.generateToken(user)
@@ -123,7 +133,12 @@ func (s *AuthService) GetInitStatus() (*InitStatus, error) {
 	// 判断是否有效邀请码要求：配置中有单一 invite_code 或存在 InviteCode 表记录
 	inviteRequired := s.cfg.Registration.InviteCode != ""
 	if !inviteRequired && s.inviteRepo != nil {
-		if codes, _ := s.inviteRepo.List(); len(codes) > 0 {
+		codes, err := s.inviteRepo.List()
+		if err != nil {
+			// 失败即中止：查询失败时不能按“无邀请码”放行注册
+			return nil, fmt.Errorf("查询邀请码列表失败: %w", err)
+		}
+		if len(codes) > 0 {
 			inviteRequired = true
 		}
 	}
@@ -151,7 +166,12 @@ func (s *AuthService) Register(req *RegisterRequest, ip, ua string) (*TokenRespo
 		needInvite := s.cfg.Registration.InviteCode != ""
 		var dbCodes []model.InviteCode
 		if s.inviteRepo != nil {
-			dbCodes, _ = s.inviteRepo.List()
+			codes, listErr := s.inviteRepo.List()
+			if listErr != nil {
+				// 失败即中止：查询失败时不能按“无邀请码”放行注册
+				return nil, fmt.Errorf("查询邀请码列表失败: %w", listErr)
+			}
+			dbCodes = codes
 			if len(dbCodes) > 0 {
 				needInvite = true
 			}
@@ -212,13 +232,15 @@ func (s *AuthService) Register(req *RegisterRequest, ip, ua string) (*TokenRespo
 		return nil, err
 	}
 
-	// 邀请码消费
+	// 邀请码消费（尽力而为：失败仅记录日志，注册本身已成功）
 	if consumedInvite != nil && s.inviteRepo != nil {
-		_ = s.inviteRepo.IncrUsed(consumedInvite.ID)
+		if err := s.inviteRepo.IncrUsed(consumedInvite.ID); err != nil {
+			s.logger.Warnw("更新邀请码使用次数失败", "invite_id", consumedInvite.ID, "error", err)
+		}
 	}
 
 	// 首次登录即设置 IP
-	_ = s.userRepo.UpdateLastLogin(user.ID, ip)
+	s.updateLastLogin(user.ID, ip)
 	s.recordLogin(user.ID, user.Username, ip, ua, "", true)
 
 	s.logger.Infof("新用户注册: %s (角色: %s)", user.Username, user.Role)
@@ -306,7 +328,10 @@ func (s *AuthService) ChangePassword(userID string, req *ChangePasswordRequest) 
 	}); err != nil {
 		return err
 	}
-	_ = s.userRepo.IncrTokenVersion(userID)
+	// 安全关键：使旧令牌失效；失败必须让调用方感知（密码此时已更新）
+	if err := s.userRepo.IncrTokenVersion(userID); err != nil {
+		return fmt.Errorf("密码已更新，但使旧令牌失效失败: %w", err)
+	}
 
 	s.logger.Infof("用户 %s 修改了密码", user.Username)
 	return nil
@@ -332,7 +357,10 @@ func (s *AuthService) ResetPassword(userID string, newPassword string, forceChan
 	if err := s.userRepo.UpdateFields(userID, fields); err != nil {
 		return err
 	}
-	_ = s.userRepo.IncrTokenVersion(userID)
+	// 安全关键：使旧令牌失效；失败必须让调用方感知（密码此时已重置）
+	if err := s.userRepo.IncrTokenVersion(userID); err != nil {
+		return fmt.Errorf("密码已重置，但使旧令牌失效失败: %w", err)
+	}
 
 	s.logger.Infof("管理员重置了用户 %s 的密码", user.Username)
 	return nil

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -132,7 +133,7 @@ func walkRemote(vfs VFS, root string, fn filepath.WalkFunc) error {
 		return fn(root, nil, err)
 	}
 	if err := fn(root, stat, nil); err != nil {
-		if err == filepath.SkipDir {
+		if errors.Is(err, filepath.SkipDir) {
 			return nil
 		}
 		return err
@@ -179,7 +180,7 @@ func readAtCached(cache *webdavBlockCache, fileSize int64, readAt func([]byte, i
 		block, err := ensureBlock(cache, fileSize, readAt, blockOff)
 		if err != nil {
 			if total > 0 {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					return total, io.EOF
 				}
 				return total, err

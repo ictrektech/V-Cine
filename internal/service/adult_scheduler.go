@@ -6,6 +6,7 @@
 package service
 
 import (
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"sync"
 	"time"
 )
@@ -101,7 +102,7 @@ func (s *AdultScheduler) Start() {
 	s.stopCh = make(chan struct{})
 	s.mu.Unlock()
 
-	go s.loop()
+	go safego.Run(func() { s.loop() })
 }
 
 // Stop 停止调度器
@@ -160,7 +161,7 @@ func (s *AdultScheduler) tick(now time.Time) {
 	s.lastRunAt = now
 	s.mu.Unlock()
 
-	go s.runDailyTask()
+	go safego.Run(func() { s.runDailyTask() })
 }
 
 // runDailyTask 执行每日任务

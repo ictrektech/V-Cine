@@ -10,6 +10,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"sort"
 	"strings"
 	"sync"
@@ -130,7 +131,7 @@ func (s *AdultScraperService) ScrapeByCodeAggregated(code string) (*AdultMetadat
 	for name, fn := range sources {
 		name, fn := name, fn
 		wg.Add(1)
-		go func() {
+		go safego.Run(func() {
 			defer wg.Done()
 			// 每个源独立超时保护（防止某个源拖慢整体）
 			done := make(chan struct{})
@@ -138,10 +139,10 @@ func (s *AdultScraperService) ScrapeByCodeAggregated(code string) (*AdultMetadat
 				meta *AdultMetadata
 				err  error
 			)
-			go func() {
+			go safego.Run(func() {
 				meta, err = fn(code)
 				close(done)
-			}()
+			})
 			select {
 			case <-done:
 				if err == nil && meta != nil {
@@ -155,7 +156,7 @@ func (s *AdultScraperService) ScrapeByCodeAggregated(code string) (*AdultMetadat
 			case <-time.After(20 * time.Second):
 				s.logger.Warnf("聚合刮削 %s 超时: %s", name, code)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

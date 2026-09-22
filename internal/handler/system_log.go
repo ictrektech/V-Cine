@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -193,9 +194,9 @@ func (h *SystemLogHandler) ReportPlaybackError(c *gin.Context) {
 		CreatedAt:  time.Now(),
 	}
 
-	go func() {
+	go safego.Run(func() {
 		_ = h.logRepo.Create(log)
-	}()
+	})
 
 	c.JSON(http.StatusOK, gin.H{"message": "已记录"})
 }

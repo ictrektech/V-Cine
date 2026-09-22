@@ -21,6 +21,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"github.com/nowen-video/nowen-video/internal/middleware"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -150,7 +151,7 @@ func (h *WSHub) readLoop(c *wsClient) {
 
 	// 心跳 ticker：30s 发一次 ping
 	pingDone := make(chan struct{})
-	go func() {
+	go safego.Run(func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -167,7 +168,7 @@ func (h *WSHub) readLoop(c *wsClient) {
 				return
 			}
 		}
-	}()
+	})
 	defer close(pingDone)
 
 	for {

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -120,7 +121,7 @@ func NewNotificationService(logger *zap.SugaredLogger) *NotificationService {
 	}
 
 	// 启动事件分发协程
-	go ns.dispatchLoop()
+	go safego.Run(func() { ns.dispatchLoop() })
 
 	return ns
 }
@@ -181,29 +182,31 @@ func (ns *NotificationService) dispatchLoop() {
 		for _, hook := range cfg.Webhooks {
 			if hook.Enabled {
 				wg.Add(1)
-				go func(h WebhookNotifyConfig) {
-					defer wg.Done()
-					ns.sendWebhook(h, event)
-				}(hook)
+				go safego.Run(func() {
+					func(h WebhookNotifyConfig) {
+						defer wg.Done()
+						ns.sendWebhook(h, event)
+					}(hook)
+				})
 			}
 		}
 
 		// 邮件通知
 		if cfg.Email.Enabled {
 			wg.Add(1)
-			go func() {
+			go safego.Run(func() {
 				defer wg.Done()
 				ns.sendEmail(cfg.Email, event)
-			}()
+			})
 		}
 
 		// Telegram 通知
 		if cfg.Telegram.Enabled {
 			wg.Add(1)
-			go func() {
+			go safego.Run(func() {
 				defer wg.Done()
 				ns.sendTelegram(cfg.Telegram, event)
-			}()
+			})
 		}
 
 		wg.Wait()

@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -702,7 +703,7 @@ func (s *FileManagerService) ScrapeFileMetadata(mediaID, source, userID string) 
 	}
 
 	// 异步执行刮削
-	go s.executeScrapeFile(media, source, userID)
+	go safego.Run(func() { s.executeScrapeFile(media, source, userID) })
 
 	return nil
 }
@@ -1291,11 +1292,11 @@ func (s *FileManagerService) addOpLog(action, mediaID, detail, oldValue, newValu
 		if action != "" && len(action) > 0 {
 			// 用 id 的随机性做触发器（避免每次都 count）
 			if id[0] == '0' || id[0] == '8' { // ~12.5% 触发概率
-				go func() {
+				go safego.Run(func() {
 					if _, err := s.opLogRepo.Cleanup(5000); err != nil {
 						s.logger.Debugf("清理旧日志失败: %v", err)
 					}
-				}()
+				})
 			}
 		}
 	}

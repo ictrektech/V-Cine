@@ -8,6 +8,7 @@ import (
 
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -110,7 +111,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 
 	// 创建WebSocket Hub
 	wsHub := NewWSHub(logger)
-	go wsHub.Run()
+	go safego.Run(func() { wsHub.Run() })
 
 	// 注入WSHub到各服务
 	scanner.SetWSHub(wsHub)

@@ -20,6 +20,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -686,7 +687,7 @@ func (s *ScannerService) ScanLibrary(library *model.Library) (int, error) {
 // NotifyScanComplete 触发扫描完成回调。多阶段流程可在真正完成后手动调用。
 func (s *ScannerService) NotifyScanComplete(libraryID string) {
 	if s.onScanComplete != nil {
-		go s.onScanComplete(libraryID)
+		go safego.Run(func() { s.onScanComplete(libraryID) })
 	}
 }
 
@@ -979,7 +980,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 		for _, root := range allPaths {
 			root := root
 			walkWg.Add(1)
-			go func() {
+			go safego.Run(func() {
 				defer walkWg.Done()
 				if walkErr := s.walkFollowSymlink(root, walkFn); walkErr != nil {
 					s.logger.Warnf("扫描路径失败: %s, 错误: %v", root, walkErr)
@@ -989,7 +990,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 					}
 					errMu.Unlock()
 				}
-			}()
+			})
 		}
 		walkWg.Wait()
 		if firstErr != nil {
@@ -1191,12 +1192,12 @@ func (s *ScannerService) parallelProbe(items []pendingMedia) {
 
 	for w := 0; w < workers; w++ {
 		wg.Add(1)
-		go func() {
+		go safego.Run(func() {
 			defer wg.Done()
 			for job := range jobs {
 				s.probeMediaInfo(items[job.index].media)
 			}
-		}()
+		})
 	}
 
 	for i := range items {
@@ -3631,7 +3632,7 @@ type SubExtractProgressData struct {
 
 // ExtractAllSubtitlesAsync 异步批量提取字幕（适用于大文件，通过 WebSocket 推送进度）
 func (s *ScannerService) ExtractAllSubtitlesAsync(mediaID, mediaTitle, filePath, format string, trackIndices []int) {
-	go func() {
+	go safego.Run(func() {
 		if format == "" {
 			format = "srt"
 		}
@@ -3732,7 +3733,7 @@ func (s *ScannerService) ExtractAllSubtitlesAsync(mediaID, mediaTitle, filePath,
 		})
 
 		s.logger.Infof("异步字幕提取完成: %s, %d/%d 成功", mediaTitle, successCount, total)
-	}()
+	})
 }
 
 // broadcastSubExtractEvent 广播字幕提取事件

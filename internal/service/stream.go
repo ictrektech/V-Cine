@@ -18,6 +18,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -453,19 +454,19 @@ func (s *StreamService) OpenMediaFileBounded(p string) (VFSFile, error) {
 		err error
 	}
 	done := make(chan openResult, 1)
-	go func() {
+	go safego.Run(func() {
 		f, err := s.OpenMediaFile(p)
 		done <- openResult{f, err}
-	}()
+	})
 	select {
 	case r := <-done:
 		return r.f, r.err
 	case <-time.After(RemoteProbeTimeout):
-		go func() {
+		go safego.Run(func() {
 			if r := <-done; r.f != nil {
 				_ = r.f.Close()
 			}
-		}()
+		})
 		return nil, fmt.Errorf("打开媒体文件超时(%s)", RemoteProbeTimeout)
 	}
 }
@@ -642,11 +643,11 @@ func (s *StreamService) GetMasterPlaylistFiltered(mediaID string, maxBitrate int
 	// startTranscodeInternal 内部会去重（同 media+quality 已有 job 直接复用），
 	// 所以重复调用（客户端切换档位时重新请求 master.m3u8）不会导致重复转码。
 	if s.transcoder != nil {
-		go func() {
+		go safego.Run(func() {
 			if _, err := s.transcoder.StartABRTranscode(media, qualities); err != nil {
 				s.logger.Debugf("ABR 预转码提交失败（可能只因所有档位已完成）: %v", err)
 			}
-		}()
+		})
 	}
 
 	// 多音轨支持：探测音轨，≥2 条时输出 #EXT-X-MEDIA:TYPE=AUDIO

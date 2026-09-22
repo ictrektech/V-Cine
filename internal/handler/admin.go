@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -177,7 +178,7 @@ func (h *AdminHandler) ResetUserPassword(c *gin.Context) {
 	}
 
 	if err := h.authService.ResetPassword(userID, req.NewPassword, forceChange); err != nil {
-		if err == service.ErrUserNotFound {
+		if errors.Is(err, service.ErrUserNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 			return
 		}

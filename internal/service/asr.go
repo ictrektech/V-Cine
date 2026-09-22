@@ -17,6 +17,7 @@ import (
 
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -337,7 +338,7 @@ func (s *ASRService) GenerateSubtitle(mediaID string, language string) (*ASRTask
 	s.tasksMu.Unlock()
 
 	// 异步执行
-	go s.processASRTask(inputSource, mediaID, language, isSTRM, engine)
+	go safego.Run(func() { s.processASRTask(inputSource, mediaID, language, isSTRM, engine) })
 
 	return task, nil
 }
@@ -995,7 +996,7 @@ func (s *ASRService) TranslateSubtitle(mediaID string, targetLang string) (*ASRT
 	s.tasksMu.Unlock()
 
 	// 异步执行翻译
-	go s.processTranslateTask(srcVTTPath, mediaID, targetLang, taskKey)
+	go safego.Run(func() { s.processTranslateTask(srcVTTPath, mediaID, targetLang, taskKey) })
 
 	return task, nil
 }

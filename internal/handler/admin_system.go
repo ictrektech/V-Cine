@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/model"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"github.com/nowen-video/nowen-video/internal/service"
 )
 
@@ -59,7 +60,7 @@ func (h *AdminHandler) BatchScrape(c *gin.Context) {
 	}
 
 	// 异步执行批量刮削（单个媒体的链路由 ScrapeMedia 内部广播 scrape_chain）
-	go func() {
+	go safego.Run(func() {
 		success := 0
 		failed := 0
 		total := len(req.MediaIDs)
@@ -74,7 +75,7 @@ func (h *AdminHandler) BatchScrape(c *gin.Context) {
 		}
 		h.logger.Infof("批量刮削完成: 成功 %d, 失败 %d", success, failed)
 		h.broadcastBatch(total, total, success, failed, "completed", "批量刮削完成")
-	}()
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "批量刮削已启动",

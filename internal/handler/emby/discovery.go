@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"go.uber.org/zap"
 )
 
@@ -79,7 +80,7 @@ func (d *DiscoveryService) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 
-	go d.serve(ctx)
+	go safego.Run(func() { d.serve(ctx) })
 	if d.logger != nil {
 		d.logger.Infof("[emby] 服务器自动发现已启动 (UDP :%d)", d.port)
 	}

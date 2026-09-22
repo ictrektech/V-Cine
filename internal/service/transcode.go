@@ -17,6 +17,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
+	"github.com/nowen-video/nowen-video/internal/safego"
 	"github.com/nowen-video/nowen-video/internal/service/ffmpeg"
 	"go.uber.org/zap"
 )
@@ -178,12 +179,12 @@ func NewTranscodeService(repo *repository.TranscodeRepo, mediaRepo *repository.M
 		transcodeWorkers = 1
 	}
 	for i := 0; i < transcodeWorkers; i++ {
-		go ts.worker(i)
+		go safego.Run(func() { ts.worker(i) })
 	}
 
 	// 恢复重启前未完成的任务：把 DB 中仍为 pending/running 的任务置为 failed
 	// 避免前端看到僵尸"运行中"任务（因为 goroutine 已随进程退出而消亡）
-	go ts.recoverPendingTasks()
+	go safego.Run(func() { ts.recoverPendingTasks() })
 
 	return ts
 }
@@ -510,11 +511,11 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 
 	// 异步解析FFmpeg进度输出
 	if stderrPipe != nil {
-		go s.parseFFmpegProgress(stderrPipe, job)
+		go safego.Run(func() { s.parseFFmpegProgress(stderrPipe, job) })
 	}
 
 	// 启动节流协程：根据播放位置 vs 转码位置决定挂起/恢复 ffmpeg
-	go s.throttleLoop(job)
+	go safego.Run(func() { s.throttleLoop(job) })
 	// 无论后续走到 cancel / failed / done 哪个分支，都必须停掉节流协程
 	defer func() {
 		select {
@@ -526,9 +527,9 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 
 	// 支持取消：监听 Cancel channel
 	done := make(chan error, 1)
-	go func() {
+	go safego.Run(func() {
 		done <- cmd.Wait()
-	}()
+	})
 
 	var waitErr error
 	select {
@@ -579,7 +580,7 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 
 			// 捕获 stderr
 			if stderrPipe, err := fallbackCmd.StderrPipe(); err == nil {
-				go s.parseFFmpegProgress(stderrPipe, job)
+				go safego.Run(func() { s.parseFFmpegProgress(stderrPipe, job) })
 			}
 
 			if err := fallbackCmd.Start(); err != nil {
@@ -599,9 +600,9 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 
 			// 等待回退转码完成
 			fallbackDone := make(chan error, 1)
-			go func() {
+			go safego.Run(func() {
 				fallbackDone <- fallbackCmd.Wait()
-			}()
+			})
 
 			select {
 			case <-job.Cancel:
