@@ -19,7 +19,6 @@ import { useScanProgress } from '@/hooks/useScanProgress'
 import { isSmallScreen, useIsSmallScreen } from '@/hooks/useSmallScreen'
 import AdultScraperSection from '@/components/admin/AdultScraperTab'
 import AdultScraperProSection from '@/components/admin/AdultScraperPro'
-import STRMConfigSection from '@/components/admin/STRMConfigSection'
 import VideoAnalysisTaskTab from '@/components/video-analysis/VideoAnalysisTaskTab'
 import SegmentedTabs from '@/components/ui/segmented-tabs'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -822,19 +821,15 @@ export default function FileManagerPage() {
 
       {/* ==================== 媒体库管理 Tab ==================== */}
       {activeTab === 'library' && (
-        <div className="space-y-5">
-          <LibraryManager
-            libraries={visibleLibraries}
-            setLibraries={setLibraries}
-            scanning={scanning}
-            setScanning={setScanning}
-            scanProgress={scanProgress}
-            scrapeProgress={scrapeProgress}
-            scanPhase={scanPhase}
-          />
-          {/* STRM 远程流全局配置（.strm 云盘/CDN 流的默认 UA/Referer、HLS 重写、远程探测、域名白名单）— 原刮削任务 Tab 迁入 */}
-          <STRMConfigSection />
-        </div>
+        <LibraryManager
+          libraries={visibleLibraries}
+          setLibraries={setLibraries}
+          scanning={scanning}
+          setScanning={setScanning}
+          scanProgress={scanProgress}
+          scrapeProgress={scrapeProgress}
+          scanPhase={scanPhase}
+        />
       )}
 
       {/* ==================== 视频分析任务 Tab ==================== */}

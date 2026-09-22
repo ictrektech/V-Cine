@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Film,
+  Globe,
   Sparkles,
   MonitorPlay,
   HardDrive,
@@ -145,10 +146,14 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
     { id: 'video-analysis', icon: <ScanLine size={18} className="text-cyan-400/70" />, title: '视频分析', desc: 'Scene 场景检测 / Structure 结构分析 / 场景描述', state: vaState, value: vaValue },
     { id: 'playback', icon: <MonitorPlay size={18} className="text-violet-400/70" />, title: '播放与转码', desc: 'GPU 转码、直连播放、缓存行为', state: playbackState, value: playbackValue },
     { id: 'storage', icon: <HardDrive size={18} className="text-amber-400/70" />, title: '存储', desc: 'WebDAV / Alist / S3 远程存储挂载', state: storageState, value: storageValue },
+    { id: 'strm', icon: <Globe size={18} className="text-teal-400/70" />, title: 'STRM 远程流', desc: '.strm 流默认请求头、HLS 重写、远程探测、域名白名单', state: 'configured', value: '配置' },
     { id: 'users', icon: <Users size={18} className="text-emerald-400/70" />, title: '用户管理', desc: '账号、角色与权限', state: 'configured', value: userValue },
     { id: 'logs', icon: <FileText size={18} className="text-sky-400/70" />, title: '日志', desc: '系统运行与访问日志', state: 'configured', value: logValue },
     { id: 'dashboard', icon: <Activity size={18} className="text-cyan-400/70" />, title: '运行仪表盘', desc: '实时进度、系统状态、数据维护', state: 'configured', value: '查看' },
   ]
+
+  // 按 id 查卡片，避免下标耦合 —— 在数组中间插卡时分组自动保持正确
+  const cardById = Object.fromEntries(cards.map((c) => [c.id, c]))
 
   // ===== 下一步引导 =====
   const nextStep = !tmdbOk && !doubanOk
@@ -175,9 +180,9 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
       <section>
         <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>媒体设置</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Card card={cards[0]} onClick={() => onOpenDrawer('metadata')} />
-          <Card card={cards[1]} onClick={() => onOpenDrawer('ai')} />
-          <Card card={cards[2]} onClick={() => onOpenDrawer('video-analysis')} />
+          <Card card={cardById.metadata} onClick={() => onOpenDrawer('metadata')} />
+          <Card card={cardById.ai} onClick={() => onOpenDrawer('ai')} />
+          <Card card={cardById['video-analysis']} onClick={() => onOpenDrawer('video-analysis')} />
         </div>
       </section>
 
@@ -185,8 +190,9 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
       <section>
         <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>播放与存储设置</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Card card={cards[3]} onClick={() => onOpenDrawer('playback')} />
-          <Card card={cards[4]} onClick={() => onOpenDrawer('storage')} />
+          <Card card={cardById.playback} onClick={() => onOpenDrawer('playback')} />
+          <Card card={cardById.storage} onClick={() => onOpenDrawer('storage')} />
+          <Card card={cardById.strm} onClick={() => onOpenDrawer('strm')} />
         </div>
       </section>
 
@@ -194,8 +200,8 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
       <section>
         <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>用户与系统设置</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Card card={cards[5]} onClick={() => onOpenDrawer('users')} />
-          <Card card={cards[6]} onClick={() => onOpenDrawer('logs')} />
+          <Card card={cardById.users} onClick={() => onOpenDrawer('users')} />
+          <Card card={cardById.logs} onClick={() => onOpenDrawer('logs')} />
         </div>
       </section>
 
@@ -203,7 +209,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
       <section>
         <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>运行与维护</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Card card={cards[7]} onClick={() => onOpenDrawer('dashboard')} />
+          <Card card={cardById.dashboard} onClick={() => onOpenDrawer('dashboard')} />
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import UsersTab from '@/components/admin/UsersTab'
 import LogsTab from '@/components/admin/LogsTab'
 import AITab from '@/components/admin/AITab'
 import StorageTab from '@/components/admin/StorageTab'
+import STRMConfigSection from '@/components/admin/STRMConfigSection'
 import type { SystemInfo, User } from '@/types'
 import type { ScanProgressData, ScrapeProgressData, TranscodeProgressData, ScanPhaseData } from '@/hooks/useWebSocket'
 
@@ -46,6 +47,14 @@ export function StorageDrawer({ open, onOpenChange }: CommonProps) {
   return (
     <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" title="存储" description="WebDAV / Alist / S3 远程存储挂载">
       <StorageTab />
+    </DrawerShell>
+  )
+}
+
+export function STRMDrawer({ open, onOpenChange }: CommonProps) {
+  return (
+    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" title="STRM 远程流" description=".strm 流默认请求头、HLS 重写、远程探测、域名白名单">
+      <STRMConfigSection />
     </DrawerShell>
   )
 }

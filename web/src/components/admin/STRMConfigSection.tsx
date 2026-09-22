@@ -16,6 +16,9 @@ import {
   Loader2,
 } from 'lucide-react'
 import { strmApi, type STRMGlobalConfig } from '@/api'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
 
 /**
  * STRM 全局配置区块
@@ -28,7 +31,7 @@ import { strmApi, type STRMGlobalConfig } from '@/api'
  *  - 域名级白名单（针对 115/阿里云盘等特定源自动应用 UA/Referer）
  */
 export default function STRMConfigSection() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [cfg, setCfg] = useState<STRMGlobalConfig | null>(null)
@@ -141,11 +144,6 @@ export default function STRMConfigSection() {
     border: '1px solid var(--border-default)',
     color: 'var(--text-primary)',
   }
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--bg-elevated)',
-    border: '1px solid var(--border-default)',
-    color: 'var(--text-primary)',
-  }
 
   return (
     <div className="rounded-xl p-4 md:p-5" style={cardStyle}>
@@ -212,10 +210,9 @@ export default function STRMConfigSection() {
                   >
                     <Globe size={12} /> 默认 User-Agent
                   </label>
-                  <input
+                  <Input
                     type="text"
-                    className="w-full rounded-md px-2.5 py-1.5 text-xs focus:outline-none"
-                    style={inputStyle}
+                    className="h-9 text-xs"
                     value={cfg.default_user_agent}
                     onChange={(e) =>
                       setCfg({ ...cfg, default_user_agent: e.target.value })
@@ -230,10 +227,9 @@ export default function STRMConfigSection() {
                   >
                     <Globe size={12} /> 默认 Referer
                   </label>
-                  <input
+                  <Input
                     type="text"
-                    className="w-full rounded-md px-2.5 py-1.5 text-xs focus:outline-none"
-                    style={inputStyle}
+                    className="h-9 text-xs"
                     value={cfg.default_referer}
                     onChange={(e) => setCfg({ ...cfg, default_referer: e.target.value })}
                     placeholder="https://example.com/"
@@ -246,12 +242,11 @@ export default function STRMConfigSection() {
                   >
                     <Clock size={12} /> 连接超时（秒）
                   </label>
-                  <input
+                  <Input
                     type="number"
                     min={0}
                     max={600}
-                    className="w-full rounded-md px-2.5 py-1.5 text-xs focus:outline-none"
-                    style={inputStyle}
+                    className="h-9 text-xs"
                     value={cfg.connect_timeout}
                     onChange={(e) =>
                       setCfg({ ...cfg, connect_timeout: parseInt(e.target.value) || 0 })
@@ -265,12 +260,11 @@ export default function STRMConfigSection() {
                   >
                     <Clock size={12} /> 远程 FFprobe 超时（秒）
                   </label>
-                  <input
+                  <Input
                     type="number"
                     min={0}
                     max={120}
-                    className="w-full rounded-md px-2.5 py-1.5 text-xs focus:outline-none"
-                    style={inputStyle}
+                    className="h-9 text-xs"
                     value={cfg.remote_probe_timeout}
                     onChange={(e) =>
                       setCfg({ ...cfg, remote_probe_timeout: parseInt(e.target.value) || 0 })
@@ -321,29 +315,14 @@ export default function STRMConfigSection() {
 
               {/* 底部按钮 */}
               <div className="flex items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={save}
-                  disabled={saving}
-                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
-                  style={{ background: 'var(--neon-blue)' }}
-                >
-                  {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                <Button size="sm" onClick={save} disabled={saving}>
+                  {saving ? <Loader2 className="animate-spin" /> : <Save />}
                   保存配置
-                </button>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs"
-                  style={{
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-primary)',
-                  }}
-                >
-                  <RotateCcw size={12} />
+                </Button>
+                <Button size="sm" variant="outline" onClick={reset}>
+                  <RotateCcw />
                   重置为默认
-                </button>
+                </Button>
                 <span className="ml-auto text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                   提示：Media 级 UA/Referer/Cookie 优先级高于全局；全局又高于域名白名单
                 </span>
@@ -386,19 +365,7 @@ function Toggle({ icon, label, hint, checked, onChange }: ToggleProps) {
           </div>
         )}
       </div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className="relative h-5 w-9 flex-shrink-0 rounded-full transition-colors"
-        style={{
-          background: checked ? 'var(--neon-blue)' : 'var(--border-default)',
-        }}
-      >
-        <span
-          className="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
-          style={{ left: checked ? 'calc(100% - 18px)' : '2px' }}
-        />
-      </button>
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   )
 }
@@ -441,14 +408,9 @@ function DomainTable({
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-[11px]"
-          style={{ background: 'var(--neon-blue-15)', color: 'var(--neon-blue)' }}
-        >
-          <Plus size={10} /> 新增
-        </button>
+        <Button size="sm" variant="secondary" className="ml-auto" onClick={onAdd}>
+          <Plus /> 新增
+        </Button>
       </div>
       {entries.length === 0 ? (
         <div className="py-2 text-center text-[11px]" style={{ color: 'var(--text-secondary)' }}>
@@ -458,39 +420,29 @@ function DomainTable({
         <div className="space-y-1.5">
           {entries.map(([domain, value]) => (
             <div key={domain} className="flex items-center gap-1.5">
-              <input
+              <Input
                 type="text"
                 defaultValue={domain}
                 onBlur={(e) => onRename(domain, e.target.value.trim())}
-                className="w-32 flex-shrink-0 rounded-md px-2 py-1 text-[11px] focus:outline-none"
-                style={{
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                }}
+                className="h-8 w-32 flex-shrink-0 px-2 text-xs"
                 placeholder="115.com"
               />
-              <input
+              <Input
                 type="text"
                 value={value}
                 onChange={(e) => onSetValue(domain, e.target.value)}
-                className="flex-1 rounded-md px-2 py-1 text-[11px] focus:outline-none"
-                style={{
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                }}
+                className="h-8 flex-1 px-2 text-xs"
                 placeholder={placeholder}
               />
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 text-rose-400 hover:text-rose-300"
                 onClick={() => onRemove(domain)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-rose-400 hover:text-rose-300"
-                style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-default)' }}
                 title="删除"
               >
-                <Trash2 size={12} />
-              </button>
+                <Trash2 className="size-3" />
+              </Button>
             </div>
           ))}
         </div>
