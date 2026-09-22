@@ -109,7 +109,7 @@ func (h *AIAssistantHandler) GetOperationHistory(c *gin.Context) {
 func (h *AIAssistantHandler) AnalyzeMisclassification(c *gin.Context) {
 	report, err := h.assistantService.AnalyzeMisclassification()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 

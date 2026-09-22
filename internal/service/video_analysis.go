@@ -1375,7 +1375,7 @@ func (s *VideoAnalysisService) failTask(task *model.VideoAnalysisTask, err error
 	}
 
 	if persistErr := s.persist(task); persistErr != nil && s.logger != nil {
-		s.logger.Errorf("persist failed video analysis task %s: %v", task.ID, persistErr)
+		s.logger.Errorw("persist failed video analysis task", "ID", task.ID, "error", persistErr)
 	}
 }
 

@@ -64,7 +64,7 @@ func (h *AICostHandler) Estimate(c *gin.Context) {
 func (h *AICostHandler) Summary(c *gin.Context) {
 	sum, err := h.svc.Summary()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": sum})

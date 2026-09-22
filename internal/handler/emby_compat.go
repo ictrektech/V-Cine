@@ -55,7 +55,7 @@ func (h *EmbyCompatHandler) ImportEmbyLibrary(c *gin.Context) {
 
 	result, err := h.embyService.ImportEmbyLibrary(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 

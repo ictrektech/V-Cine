@@ -1343,7 +1343,7 @@ func (s *StreamService) RemuxStream(mediaID string, w http.ResponseWriter, r *ht
 		if len(stderrStr) > 500 {
 			stderrStr = stderrStr[len(stderrStr)-500:]
 		}
-		s.logger.Warnf("Remux FFmpeg stderr (last 500 chars): %s", stderrStr)
+		s.logger.Warnw("Remux FFmpeg stderr (last 500 chars)", "stderrStr", stderrStr)
 		return fmt.Errorf("remux 进程异常退出: %w", waitErr)
 	}
 

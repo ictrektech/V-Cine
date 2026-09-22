@@ -45,7 +45,7 @@ func (h *SubtitleHandler) ListTracks(c *gin.Context) {
 	// 获取内嵌字幕
 	embedded, err := h.scanner.GetSubtitleTracks(filePath)
 	if err != nil {
-		h.logger.Warnf("获取内嵌字幕失败: %v", err)
+		h.logger.Warnw("获取内嵌字幕失败", "error", err)
 		embedded = nil
 	}
 
@@ -98,7 +98,7 @@ func (h *SubtitleHandler) ExtractTrack(c *gin.Context) {
 	// 提取字幕为WebVTT格式（浏览器原生支持）
 	vttPath, err := h.scanner.ExtractSubtitle(filePath, streamIndex, "vtt")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "字幕提取失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "字幕提取失败", err)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *SubtitleHandler) ServeExternal(c *gin.Context) {
 			// 先做编码检测转换为 UTF-8
 			utf8Path, err := h.scanner.EnsureUTF8Subtitle(subPath)
 			if err != nil {
-				h.logger.Warnf("SRT 编码转换失败，直接返回原始文件: %v", err)
+				h.logger.Warnw("SRT 编码转换失败，直接返回原始文件", "error", err)
 				c.Header("Content-Type", "application/x-subrip; charset=utf-8")
 				c.Header("Cache-Control", "public, max-age=604800")
 				c.File(subPath)
@@ -151,7 +151,7 @@ func (h *SubtitleHandler) ServeExternal(c *gin.Context) {
 		// 默认转换为 WebVTT
 		vttPath, err := h.scanner.ConvertSubtitleToVTTWithEncoding(subPath)
 		if err != nil {
-			h.logger.Warnf("字幕转换失败，尝试直接返回原始文件: %v", err)
+			h.logger.Warnw("字幕转换失败，尝试直接返回原始文件", "error", err)
 			c.Header("Content-Type", "text/plain; charset=utf-8")
 			c.Header("Cache-Control", "public, max-age=604800")
 			c.File(subPath)
@@ -167,7 +167,7 @@ func (h *SubtitleHandler) ServeExternal(c *gin.Context) {
 			// 先做编码检测转换为 UTF-8
 			utf8Path, err := h.scanner.EnsureUTF8Subtitle(subPath)
 			if err != nil {
-				h.logger.Warnf("ASS 编码转换失败，直接返回原始文件: %v", err)
+				h.logger.Warnw("ASS 编码转换失败，直接返回原始文件", "error", err)
 				c.Header("Content-Type", "text/x-ssa; charset=utf-8")
 				c.Header("Cache-Control", "public, max-age=604800")
 				c.File(subPath)
@@ -181,7 +181,7 @@ func (h *SubtitleHandler) ServeExternal(c *gin.Context) {
 		// 默认转换为 WebVTT（浏览器用）
 		vttPath, err := h.scanner.ConvertSubtitleToVTTWithEncoding(subPath)
 		if err != nil {
-			h.logger.Warnf("字幕转换失败，尝试直接返回原始文件: %v", err)
+			h.logger.Warnw("字幕转换失败，尝试直接返回原始文件", "error", err)
 			c.Header("Content-Type", "text/plain; charset=utf-8")
 			c.Header("Cache-Control", "public, max-age=604800")
 			c.File(subPath)
@@ -295,7 +295,7 @@ func (h *SubtitleHandler) DeleteAISubtitle(c *gin.Context) {
 	}
 
 	if err := h.asrService.DeleteSubtitle(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -453,7 +453,7 @@ func (h *SubtitleHandler) ExtractAll(c *gin.Context) {
 
 	results, err := h.scanner.ExtractAllSubtitles(filePath, req.Format, req.Tracks)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 

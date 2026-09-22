@@ -329,7 +329,7 @@ func (fs *AdultFolderBatchService) List() ([]*FolderBatchTask, []*FolderBatchTas
 func (fs *AdultFolderBatchService) run(task *FolderBatchTask, opts FolderBatchOptions) {
 	defer func() {
 		if r := recover(); r != nil {
-			fs.scraper.logger.Errorf("文件夹批量刮削 panic: %v", r)
+			fs.scraper.logger.Errorw("文件夹批量刮削 panic", "r", r)
 			task.mu.Lock()
 			task.Status = "failed"
 			task.mu.Unlock()
@@ -467,7 +467,7 @@ func (fs *AdultFolderBatchService) processOne(task *FolderBatchTask, videoPath s
 		meta, _, err = fs.scraper.ScrapeByCodeAggregated(code)
 		if err != nil || meta == nil {
 			aggregateErr = err
-			fs.scraper.logger.Warnf("目录聚合刮削失败，降级串行多源刮削: %s - %v", code, err)
+			fs.scraper.logger.Warnw("目录聚合刮削失败，降级串行多源刮削", "code", code, "error", err)
 			meta, err = fs.scraper.ScrapeByCode(code)
 		}
 	} else {

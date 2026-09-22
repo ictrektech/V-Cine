@@ -55,7 +55,7 @@ func (h *AdminHandler) UpdateSTRMConfig(c *gin.Context) {
 
 	// 覆盖写入内存 + 持久化到 config 文件
 	if err := h.cfg.UpdateSTRM(func(s *config.STRMConfig) { *s = body }); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "保存失败", err)
 		return
 	}
 	h.auditFromContext(c, "strm.update_config", "system", "strm", "")

@@ -154,7 +154,7 @@ func (h *AdultScraperHandler) StartLazyScrape(c *gin.Context) {
 		return
 	}
 	if err := h.ensureLazyScraperDefaults(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "初始化懒人默认配置失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "初始化懒人默认配置失败", err)
 		return
 	}
 
@@ -369,7 +369,7 @@ func (h *AdultScraperHandler) RetryLazyFailed(c *gin.Context) {
 		req.Concurrency = 2
 	}
 	if err := h.ensureLazyScraperDefaults(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "初始化懒人默认配置失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "初始化懒人默认配置失败", err)
 		return
 	}
 
@@ -420,7 +420,7 @@ func (h *AdultScraperHandler) RetryLazyFailed(c *gin.Context) {
 			SkipIfHasNFO: true,
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondErr(c, http.StatusInternalServerError, "", err)
 			return
 		}
 		folderTaskID = id
@@ -438,7 +438,7 @@ func (h *AdultScraperHandler) RetryLazyFailed(c *gin.Context) {
 			Aggregated:  req.Aggregated,
 		})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondErr(c, http.StatusInternalServerError, "", err)
 			return
 		}
 		mediaTaskID = id
@@ -693,7 +693,7 @@ func (h *AdultScraperHandler) TriggerScheduler(c *gin.Context) {
 	}
 	taskID, err := h.scheduler.RunOnce()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"task_id": taskID}})
@@ -774,7 +774,7 @@ func (h *AdultScraperHandler) RetryFailed(c *gin.Context) {
 		Aggregated:  req.Aggregated,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

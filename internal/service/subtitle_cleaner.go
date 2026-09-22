@@ -125,7 +125,7 @@ func (c *SubtitleCleaner) CleanVTT(vttPath string) (*CleanReport, error) {
 	if c.config.BackupOriginal {
 		backupPath := vttPath + ".bak"
 		if err := copyFile(vttPath, backupPath); err != nil {
-			c.logger.Warnf("备份字幕文件失败: %v", err)
+			c.logger.Warnw("备份字幕文件失败", "error", err)
 			report.Warnings = append(report.Warnings, fmt.Sprintf("备份失败: %v", err))
 		} else {
 			report.BackupPath = backupPath
@@ -183,7 +183,7 @@ func (c *SubtitleCleaner) CleanVTT(vttPath string) (*CleanReport, error) {
 func (c *SubtitleCleaner) detectAndConvertEncoding(filePath string) (string, string, bool) {
 	raw, err := os.ReadFile(filePath)
 	if err != nil {
-		c.logger.Warnf("读取字幕文件失败: %v", err)
+		c.logger.Warnw("读取字幕文件失败", "error", err)
 		return "", "unknown", false
 	}
 
@@ -225,7 +225,7 @@ func (c *SubtitleCleaner) detectAndConvertEncoding(filePath string) (string, str
 	}
 
 	// 5. 最终回退：强制当作 UTF-8 处理（可能有乱码）
-	c.logger.Warnf("无法检测字幕文件编码，强制使用 UTF-8: %s", filePath)
+	c.logger.Warnw("无法检测字幕文件编码，强制使用 UTF-8", "filePath", filePath)
 	return string(raw), "unknown (forced UTF-8)", false
 }
 

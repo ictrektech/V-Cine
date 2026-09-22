@@ -19,7 +19,7 @@ func (h *MetadataHandler) ScrapeMedia(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.metadataService.ScrapeMedia(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "元数据刮削失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "元数据刮削失败", err)
 		return
 	}
 

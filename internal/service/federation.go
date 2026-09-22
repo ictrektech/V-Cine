@@ -461,7 +461,7 @@ func (s *FederationService) failSyncTask(task *SyncTask, err error) {
 	task.Status = "failed"
 	task.Error = err.Error()
 	s.db.Save(task)
-	s.logger.Errorf("同步失败: %v", err)
+	s.logger.Errorw("同步失败", "error", err)
 }
 
 // ==================== 联邦 API 端点（供其他节点调用） ====================

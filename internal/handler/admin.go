@@ -63,7 +63,7 @@ func (h *AdminHandler) CreateUser(c *gin.Context) {
 		case service.ErrUserExists:
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		default:
-			h.logger.Errorf("创建用户失败: %v", err)
+			h.logger.Errorw("创建用户失败", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建用户失败"})
 		}
 		return
@@ -88,7 +88,7 @@ func (h *AdminHandler) UpdateUser(c *gin.Context) {
 		case service.ErrLastAdmin:
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
-			h.logger.Errorf("更新用户失败: %v", err)
+			h.logger.Errorw("更新用户失败", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新用户失败"})
 		}
 		return
@@ -120,7 +120,7 @@ func (h *AdminHandler) SetUserDisabled(c *gin.Context) {
 		case service.ErrLastAdmin:
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
-			h.logger.Errorf("更新用户禁用状态失败: %v", err)
+			h.logger.Errorw("更新用户禁用状态失败", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		}
 		return
@@ -150,7 +150,7 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 		case service.ErrLastAdmin:
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
-			h.logger.Errorf("删除用户失败: %v", err)
+			h.logger.Errorw("删除用户失败", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "删除用户失败"})
 		}
 		return
@@ -182,7 +182,7 @@ func (h *AdminHandler) ResetUserPassword(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 			return
 		}
-		h.logger.Errorf("重置用户密码失败: %v", err)
+		h.logger.Errorw("重置用户密码失败", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "重置密码失败"})
 		return
 	}
@@ -515,7 +515,7 @@ func (h *AdminHandler) BatchDeleteTranscodeTasks(c *gin.Context) {
 	}
 	deleted, err := h.transcodeService.BatchDeleteTasks(req.TaskIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

@@ -20,7 +20,7 @@ func (h *UserProfileHandler) ListProfiles(c *gin.Context) {
 	userID := c.GetString("user_id")
 	profiles, err := h.profileService.ListProfiles(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": profiles})
@@ -34,7 +34,7 @@ func (h *UserProfileHandler) CreateProfile(c *gin.Context) {
 		return
 	}
 	if err := h.profileService.CreateProfile(userID, &profile); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "配置文件已创建", "data": profile})
@@ -58,7 +58,7 @@ func (h *UserProfileHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 	if err := h.profileService.UpdateProfile(profileID, updates); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "配置文件已更新"})
@@ -92,7 +92,7 @@ func (h *UserProfileHandler) GetWatchLogs(c *gin.Context) {
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "7"))
 	logs, err := h.profileService.GetWatchLogs(profileID, days)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": logs})
@@ -103,7 +103,7 @@ func (h *UserProfileHandler) GetDailyUsage(c *gin.Context) {
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
 	usage, err := h.profileService.GetDailyUsage(profileID, days)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": usage})
@@ -159,7 +159,7 @@ func (h *OfflineDownloadHandler) ListDownloads(c *gin.Context) {
 	status := c.Query("status")
 	tasks, err := h.downloadService.GetUserDownloads(userID, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": tasks})
@@ -169,7 +169,7 @@ func (h *OfflineDownloadHandler) GetQueueInfo(c *gin.Context) {
 	userID := c.GetString("user_id")
 	info, err := h.downloadService.GetQueueInfo(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": info})
@@ -225,7 +225,7 @@ type PluginHandler struct {
 func (h *PluginHandler) ListPlugins(c *gin.Context) {
 	plugins, err := h.pluginService.ListPlugins()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": plugins})
@@ -276,7 +276,7 @@ func (h *PluginHandler) UpdatePluginConfig(c *gin.Context) {
 		return
 	}
 	if err := h.pluginService.UpdatePluginConfig(pluginID, config); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "插件配置已更新"})
@@ -285,7 +285,7 @@ func (h *PluginHandler) UpdatePluginConfig(c *gin.Context) {
 func (h *PluginHandler) ScanPlugins(c *gin.Context) {
 	discovered, err := h.pluginService.ScanPluginDir()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": discovered})
@@ -306,7 +306,7 @@ func (h *MusicHandler) ListTracks(c *gin.Context) {
 
 	tracks, total, err := h.musicService.ListTracks(libraryID, page, size, sort)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": tracks, "total": total, "page": page, "size": size})
@@ -319,7 +319,7 @@ func (h *MusicHandler) ListAlbums(c *gin.Context) {
 
 	albums, total, err := h.musicService.ListAlbums(libraryID, page, size)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": albums, "total": total, "page": page, "size": size})
@@ -340,7 +340,7 @@ func (h *MusicHandler) SearchMusic(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	tracks, err := h.musicService.SearchMusic(query, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": tracks})
@@ -377,7 +377,7 @@ func (h *MusicHandler) ScanLibrary(c *gin.Context) {
 	}
 	count, err := h.musicService.ScanMusicLibrary(req.LibraryID, req.Path)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "扫描完成", "count": count})
@@ -387,7 +387,7 @@ func (h *MusicHandler) ListPlaylists(c *gin.Context) {
 	userID := c.GetString("user_id")
 	playlists, err := h.musicService.ListPlaylists(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": playlists})
@@ -404,7 +404,7 @@ func (h *MusicHandler) CreatePlaylist(c *gin.Context) {
 	}
 	playlist, err := h.musicService.CreatePlaylist(userID, req.Name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": playlist})
@@ -430,7 +430,7 @@ func (h *MusicHandler) AddToPlaylist(c *gin.Context) {
 		return
 	}
 	if err := h.musicService.AddToPlaylist(playlistID, req.TrackIDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "已添加到播放列表"})
@@ -458,7 +458,7 @@ func (h *PhotoHandler) ListPhotos(c *gin.Context) {
 
 	photos, total, err := h.photoService.ListPhotos(libraryID, page, size, sort, filters)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": photos, "total": total, "page": page, "size": size})
@@ -478,7 +478,7 @@ func (h *PhotoHandler) ListAlbums(c *gin.Context) {
 	userID := c.GetString("user_id")
 	albums, err := h.photoService.ListAlbums(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": albums})
@@ -496,7 +496,7 @@ func (h *PhotoHandler) CreateAlbum(c *gin.Context) {
 	}
 	album, err := h.photoService.CreateAlbum(userID, req.Name, req.Description)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": album})
@@ -512,7 +512,7 @@ func (h *PhotoHandler) AddPhotosToAlbum(c *gin.Context) {
 		return
 	}
 	if err := h.photoService.AddPhotosToAlbum(albumID, req.PhotoIDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "照片已添加到相册"})
@@ -549,7 +549,7 @@ func (h *PhotoHandler) SearchPhotos(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	photos, err := h.photoService.SearchPhotos(query, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": photos})
@@ -572,7 +572,7 @@ func (h *PhotoHandler) ScanLibrary(c *gin.Context) {
 	}
 	count, err := h.photoService.ScanPhotoLibrary(req.LibraryID, req.Path)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "扫描完成", "count": count})
@@ -588,7 +588,7 @@ type FederationHandler struct {
 func (h *FederationHandler) ListNodes(c *gin.Context) {
 	nodes, err := h.federationService.ListNodes()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": nodes})
@@ -639,7 +639,7 @@ func (h *FederationHandler) SearchSharedMedia(c *gin.Context) {
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
 	media, total, err := h.federationService.SearchSharedMedia(query, page, size)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": media, "total": total})
@@ -658,7 +658,7 @@ func (h *FederationHandler) GetSharedMediaStream(c *gin.Context) {
 func (h *FederationHandler) GetStats(c *gin.Context) {
 	stats, err := h.federationService.GetStats()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": stats})
@@ -668,7 +668,7 @@ func (h *FederationHandler) GetSyncTasks(c *gin.Context) {
 	nodeID := c.Query("node_id")
 	tasks, err := h.federationService.GetSyncTasks(nodeID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": tasks})
@@ -683,7 +683,7 @@ func (h *FederationHandler) Health(c *gin.Context) {
 func (h *FederationHandler) MediaList(c *gin.Context) {
 	media, err := h.federationService.GetLocalMediaList()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": media})
@@ -714,7 +714,7 @@ func (h *ABRHandler) CleanCache(c *gin.Context) {
 	} else {
 		size, err := h.abrService.CleanAllABRCache()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondErr(c, http.StatusInternalServerError, "", err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"message": "所有 ABR 缓存已清理", "freed_bytes": size})

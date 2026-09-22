@@ -202,7 +202,7 @@ func (s *TranscodeService) recoverPendingTasks() {
 	// 此处不阻塞主流程，放 goroutine 中异步执行
 	running, err := s.repo.ListRunning()
 	if err != nil {
-		s.logger.Warnf("恢复转码任务状态失败: %v", err)
+		s.logger.Warnw("恢复转码任务状态失败", "error", err)
 		return
 	}
 	if len(running) == 0 {
@@ -331,7 +331,7 @@ func (s *TranscodeService) StartABRTranscode(media *model.Media, qualities []str
 	tasks := make([]*model.TranscodeTask, 0, len(qualities))
 	for _, q := range qualities {
 		if _, ok := qualityPresets[q]; !ok {
-			s.logger.Warnf("StartABRTranscode: 跳过未知档位 %s", q)
+			s.logger.Warnw("StartABRTranscode: 跳过未知档位", "q", q)
 			continue
 		}
 		task, err := s.startTranscodeInternal(media, q, 0)
@@ -490,7 +490,7 @@ func (s *TranscodeService) processJob(job *TranscodeJob) {
 	// 捕获stderr以解析进度
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		s.logger.Errorf("创建stderr管道失败: %v", err)
+		s.logger.Errorw("创建stderr管道失败", "error", err)
 		cmd.Stderr = os.Stderr
 	}
 
@@ -763,7 +763,7 @@ func (s *TranscodeService) throttleLoop(job *TranscodeJob) {
 					s.logger.Debugf("[throttle] suspend ffmpeg media=%s quality=%s ahead=%.1fs",
 						job.Media.ID, job.Quality, ahead)
 				} else {
-					s.logger.Warnf("[throttle] suspend failed: %v", err)
+					s.logger.Warnw("[throttle] suspend failed", "error", err)
 				}
 			}
 		case wasSuspended && ahead < throttleAheadLowWatermark:
@@ -778,7 +778,7 @@ func (s *TranscodeService) throttleLoop(job *TranscodeJob) {
 					s.logger.Debugf("[throttle] resume ffmpeg media=%s quality=%s ahead=%.1fs",
 						job.Media.ID, job.Quality, ahead)
 				} else {
-					s.logger.Warnf("[throttle] resume failed: %v", err)
+					s.logger.Warnw("[throttle] resume failed", "error", err)
 				}
 			}
 		}
@@ -1103,7 +1103,7 @@ func (s *TranscodeService) DeleteTask(taskID string) error {
 	// 清理输出目录（失败忽略，不影响 DB 删除）
 	if task.OutputDir != "" {
 		if err := os.RemoveAll(task.OutputDir); err != nil {
-			s.logger.Warnf("删除转码输出目录失败 %s: %v", task.OutputDir, err)
+			s.logger.Warnw("删除转码输出目录失败", "OutputDir", task.OutputDir, "error", err)
 		}
 		s.InvalidateCacheDiskUsage()
 	}
@@ -1185,7 +1185,7 @@ func (s *TranscodeService) CleanupOrphanTranscodeCaches() error {
 		}
 		path := filepath.Join(root, dir)
 		if err := os.RemoveAll(path); err != nil {
-			s.logger.Warnf("清理孤儿转码目录失败 %s: %v", path, err)
+			s.logger.Warnw("清理孤儿转码目录失败", "path", path, "error", err)
 			continue
 		}
 		cleaned++
@@ -1249,7 +1249,7 @@ func (s *TranscodeService) BatchDeleteTasks(taskIDs []string) (int64, error) {
 		if t, err := s.repo.FindByID(id); err == nil && t.OutputDir != "" &&
 			t.Status != "running" && t.Status != "pending" {
 			if err := os.RemoveAll(t.OutputDir); err != nil {
-				s.logger.Warnf("删除转码输出目录失败 %s: %v", t.OutputDir, err)
+				s.logger.Warnw("删除转码输出目录失败", "OutputDir", t.OutputDir, "error", err)
 			}
 			cleared = true
 		}

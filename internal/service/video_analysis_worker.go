@@ -126,6 +126,6 @@ func (w *VideoAnalysisWorker) drain(ctx context.Context, slots chan struct{}) er
 
 func (w *VideoAnalysisWorker) logError(message string, err error) {
 	if w.logger != nil {
-		w.logger.Errorf("%s: %v", message, err)
+		w.logger.Errorw("", "message", message, "error", err)
 	}
 }

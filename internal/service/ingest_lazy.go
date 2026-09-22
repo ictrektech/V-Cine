@@ -412,7 +412,7 @@ func (s *LazyIngestService) run(jobID string) {
 
 	job, err := s.loadJob(jobID)
 	if err != nil {
-		s.logger.Errorf("[LazyIngest] 任务不存在 job=%s: %v", jobID, err)
+		s.logger.Errorw("[LazyIngest] 任务不存在 job=", "jobID", jobID, "error", err)
 		return
 	}
 
@@ -646,7 +646,7 @@ func (s *LazyIngestService) run(jobID string) {
 	libIDs, err := s.ensureLibrary(job.SourcePath, job.TargetRoot)
 	if err != nil {
 		// 建库失败但文件已落盘 -> 记入 error_message，但仍标记 completed（用户可手动建库）
-		s.logger.Warnf("[LazyIngest] 建库失败 job=%s: %v", jobID, err)
+		s.logger.Warnw("[LazyIngest] 建库失败 job=", "jobID", jobID, "error", err)
 		_ = s.updateFields(jobID, map[string]interface{}{
 			"error_message": fmt.Sprintf("文件已整理至 %s，但建库失败：%v；请手动添加媒体库", job.TargetRoot, err),
 		})
@@ -658,7 +658,7 @@ func (s *LazyIngestService) run(jobID string) {
 		// 异步扫描即可（LibraryService.Scan 内部已 goroutine）
 		for _, lid := range libIDs {
 			if err := s.library.Scan(lid); err != nil {
-				s.logger.Warnf("[LazyIngest] 触发扫描失败 lib=%s: %v", lid, err)
+				s.logger.Warnw("[LazyIngest] 触发扫描失败 lib=", "lid", lid, "error", err)
 			}
 		}
 	}

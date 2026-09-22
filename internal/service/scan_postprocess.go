@@ -228,7 +228,7 @@ func (s *ScanPostProcessService) EnqueueMedia(mediaID string) {
 	select {
 	case s.queue <- mediaID:
 	default:
-		s.logger.Warnf("[ScanPostProcess] 队列已满，丢弃 media_id=%s", mediaID)
+		s.logger.Warnw("[ScanPostProcess] 队列已满，丢弃 media_id=", "mediaID", mediaID)
 	}
 }
 
@@ -1154,7 +1154,7 @@ func (s *ScanPostProcessService) recalculateSeriesAfterMediaMove(seriesID string
 		return
 	}
 	if removed, err := s.seriesRepo.CleanEmptySeries(); err != nil {
-		s.logger.Warnf("[ScanPostProcess] 清理空剧集合集失败 err=%v", err)
+		s.logger.Warnw("[ScanPostProcess] 清理空剧集合集失败 err=", "error", err)
 	} else if removed > 0 {
 		s.logger.Infof("[ScanPostProcess] 已清理 %d 个空剧集合集", removed)
 	}

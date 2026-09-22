@@ -300,7 +300,7 @@ func (h *WSHub) BroadcastEvent(eventType string, data interface{}) {
 
 	msg, err := json.Marshal(event)
 	if err != nil {
-		h.logger.Warnf("序列化WebSocket事件失败: %v", err)
+		h.logger.Warnw("序列化WebSocket事件失败", "error", err)
 		return
 	}
 

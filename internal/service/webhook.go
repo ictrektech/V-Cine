@@ -105,7 +105,7 @@ func (ws *WebhookService) Emit(eventType string, data interface{}) {
 		Data:      data,
 	}:
 	default:
-		ws.logger.Warnf("Webhook 事件队列已满，丢弃事件: %s", eventType)
+		ws.logger.Warnw("Webhook 事件队列已满，丢弃事件", "eventType", eventType)
 	}
 }
 
@@ -146,7 +146,7 @@ func (ws *WebhookService) matchEvent(hookEvents []string, eventType string) bool
 func (ws *WebhookService) sendWebhook(hook WebhookConfig, event WebhookEvent) {
 	payload, err := json.Marshal(event)
 	if err != nil {
-		ws.logger.Errorf("Webhook 序列化失败: %v", err)
+		ws.logger.Errorw("Webhook 序列化失败", "error", err)
 		return
 	}
 

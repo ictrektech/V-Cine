@@ -139,9 +139,9 @@ func (l *AdultPythonLauncher) Start() error {
 	go safego.Run(func() {
 		if werr := cmd.Wait(); werr != nil {
 			msg := werr.Error()
-			l.logger.Warnf("[adult-python] 子进程退出: %v", werr)
+			l.logger.Warnw("[adult-python] 子进程退出", "werr", werr)
 			if strings.Contains(msg, "9009") {
-				l.logger.Warnf("[adult-python] 提示：exit status 9009 通常是 Windows 应用执行别名问题。请：① 在「设置 → 应用 → 应用执行别名」中关闭 python.exe / python3.exe 的别名；或 ② 在配置 adult_scraper.python_executable 中显式指定完整的 python.exe 路径")
+				l.logger.Warnw("[adult-python] 提示：exit status 9009 通常是 Windows 应用执行别名问题。请：① 在「设置 → 应用 → 应用执行别名」中关闭 python.exe / python3.exe 的别名；或 ② 在配置 adult_scraper.python_executable 中显式指定完整的 python.exe 路径")
 			}
 		} else {
 			l.logger.Infof("[adult-python] 子进程正常退出")
@@ -176,7 +176,7 @@ func (l *AdultPythonLauncher) Stop() {
 	}
 	l.logger.Infof("[adult-python] 正在关闭子进程 pid=%d", l.cmd.Process.Pid)
 	if err := terminateProcess(l.cmd); err != nil {
-		l.logger.Warnf("[adult-python] 关闭子进程失败: %v", err)
+		l.logger.Warnw("[adult-python] 关闭子进程失败", "error", err)
 	}
 	// 最多等待 5 秒
 	done := make(chan struct{})

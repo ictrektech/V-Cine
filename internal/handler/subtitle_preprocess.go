@@ -32,7 +32,7 @@ func (h *SubtitlePreprocessHandler) SubmitMedia(c *gin.Context) {
 
 	task, err := h.subtitlePreprocess.SubmitMedia(req.MediaID, req.TargetLangs, req.ForceRegenerate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -56,7 +56,7 @@ func (h *SubtitlePreprocessHandler) BatchSubmit(c *gin.Context) {
 
 	tasks, err := h.subtitlePreprocess.BatchSubmit(req.MediaIDs, req.TargetLangs, req.ForceRegenerate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (h *SubtitlePreprocessHandler) SubmitLibrary(c *gin.Context) {
 
 	count, err := h.subtitlePreprocess.SubmitLibrary(libraryID, req.TargetLangs, req.ForceRegenerate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -112,7 +112,7 @@ func (h *SubtitlePreprocessHandler) ListTasks(c *gin.Context) {
 
 	tasks, total, err := h.subtitlePreprocess.ListTasks(page, pageSize, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -189,7 +189,7 @@ func (h *SubtitlePreprocessHandler) BatchDeleteTasks(c *gin.Context) {
 
 	deleted, err := h.subtitlePreprocess.BatchDeleteTasks(req.TaskIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -211,7 +211,7 @@ func (h *SubtitlePreprocessHandler) BatchCancelTasks(c *gin.Context) {
 
 	cancelled, err := h.subtitlePreprocess.BatchCancelTasks(req.TaskIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -233,7 +233,7 @@ func (h *SubtitlePreprocessHandler) BatchRetryTasks(c *gin.Context) {
 
 	retried, err := h.subtitlePreprocess.BatchRetryTasks(req.TaskIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -264,7 +264,7 @@ func (h *SubtitlePreprocessHandler) GetMediaStatus(c *gin.Context) {
 func (h *SubtitlePreprocessHandler) RetryAllFailed(c *gin.Context) {
 	count, err := h.subtitlePreprocess.RetryAllFailed()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -288,7 +288,7 @@ func (h *SubtitlePreprocessHandler) DeleteByStatus(c *gin.Context) {
 
 	deleted, err := h.subtitlePreprocess.DeleteByStatus(status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 

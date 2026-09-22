@@ -35,7 +35,7 @@ func (h *AIHandler) SmartSearch(c *gin.Context) {
 
 	intent, err := h.aiService.ParseSearchIntent(query)
 	if err != nil {
-		h.logger.Warnf("AI 智能搜索失败: %v", err)
+		h.logger.Warnw("AI 智能搜索失败", "error", err)
 		c.JSON(http.StatusOK, gin.H{
 			"data": service.SearchIntent{
 				Query:  query,
@@ -63,7 +63,7 @@ func (h *AIHandler) UpdateAIConfig(c *gin.Context) {
 	}
 
 	if err := h.aiService.UpdateConfig(updates); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *AIHandler) EnableAutoPilot(c *gin.Context) {
 	}
 
 	if err := h.aiService.UpdateConfig(updates); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -283,7 +283,7 @@ func (h *AIHandler) ListFailoverLogs(c *gin.Context) {
 	}
 	logs, err := h.failoverLog.List(limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": logs})
@@ -317,7 +317,7 @@ func (h *AIHandler) GetUsageBuckets(c *gin.Context) {
 	}
 	buckets, err := h.usageRepo.AggregateByDay(from, now.Add(time.Minute), provider)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	totals, _ := h.usageRepo.SumByProvider(from, now.Add(time.Minute))
@@ -382,7 +382,7 @@ func (h *AIHandler) AddProvider(c *gin.Context) {
 			Enabled: true,
 		})
 	}); err != nil {
-		h.logger.Errorf("保存供应商配置失败: %v", err)
+		h.logger.Errorw("保存供应商配置失败", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
 	}
@@ -441,7 +441,7 @@ func (h *AIHandler) UpdateProvider(c *gin.Context) {
 			break
 		}
 	}); err != nil {
-		h.logger.Errorf("保存供应商配置失败: %v", err)
+		h.logger.Errorw("保存供应商配置失败", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
 	}
@@ -489,7 +489,7 @@ func (h *AIHandler) DeleteProvider(c *gin.Context) {
 			cfg.ActiveModel = ""
 		}
 	}); err != nil {
-		h.logger.Errorf("保存供应商配置失败: %v", err)
+		h.logger.Errorw("保存供应商配置失败", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
 	}
@@ -524,7 +524,7 @@ func (h *AIHandler) SetActive(c *gin.Context) {
 		activeProvider = cfg.ActiveProvider
 		activeModel = cfg.ActiveModel
 	}); err != nil {
-		h.logger.Errorf("保存 AI 配置失败: %v", err)
+		h.logger.Errorw("保存 AI 配置失败", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
 	}

@@ -22,7 +22,7 @@ func (h *LibraryHandler) BatchMoveMedia(c *gin.Context) {
 	}
 	result, err := h.libService.BatchMoveMedia(req.MediaIDs, req.TargetLibrary)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result})

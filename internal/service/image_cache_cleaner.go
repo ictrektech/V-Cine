@@ -152,7 +152,7 @@ func (c *ImageCacheCleaner) CleanOrphanImageCaches(categories ...string) (*Image
 	// ---- 第二阶段：执行删除 ----
 	for _, cand := range candidates {
 		if err := os.RemoveAll(cand.dir); err != nil {
-			c.logger.Warnf("清理孤儿图片缓存目录失败 %s: %v", cand.dir, err)
+			c.logger.Warnw("清理孤儿图片缓存目录失败", "dir", cand.dir, "error", err)
 			continue
 		}
 		res.Cleaned++
@@ -201,7 +201,7 @@ func (c *ImageCacheCleaner) collectImageRoot(
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			c.logger.Warnf("读取缓存目录失败 %s: %v", root, err)
+			c.logger.Warnw("读取缓存目录失败", "root", root, "error", err)
 		}
 		return
 	}
@@ -287,7 +287,7 @@ func (c *ImageCacheCleaner) readEntityDirs(root string) []os.DirEntry {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			c.logger.Warnf("读取缓存目录失败 %s: %v", root, err)
+			c.logger.Warnw("读取缓存目录失败", "root", root, "error", err)
 		}
 		return nil
 	}

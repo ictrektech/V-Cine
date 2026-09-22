@@ -764,7 +764,7 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 	// P2: 文件路径预加载到内存 Set（避免 N+1 查询）
 	existingPaths, err := s.mediaRepo.GetAllFilePathsByLibrary(library.ID)
 	if err != nil {
-		s.logger.Warnf("预加载文件路径失败，回退到逐个查询: %v", err)
+		s.logger.Warnw("预加载文件路径失败，回退到逐个查询", "error", err)
 		existingPaths = nil
 	} else {
 		s.logger.Infof("预加载 %d 个已有文件路径到内存", len(existingPaths))

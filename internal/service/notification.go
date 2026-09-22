@@ -160,7 +160,7 @@ func (ns *NotificationService) Notify(eventType, title, message string, data int
 		Data:      data,
 	}:
 	default:
-		ns.logger.Warnf("通知事件队列已满，丢弃事件: %s", eventType)
+		ns.logger.Warnw("通知事件队列已满，丢弃事件", "eventType", eventType)
 	}
 }
 
@@ -237,7 +237,7 @@ func (ns *NotificationService) shouldNotify(events NotificationEvents, eventType
 func (ns *NotificationService) sendWebhook(hook WebhookNotifyConfig, event NotificationEvent) {
 	payload, err := json.Marshal(event)
 	if err != nil {
-		ns.logger.Errorf("Webhook 序列化失败: %v", err)
+		ns.logger.Errorw("Webhook 序列化失败", "error", err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (ns *NotificationService) sendEmail(cfg EmailConfig, event NotificationEven
 
 	err := smtp.SendMail(addr, auth, cfg.FromAddr, cfg.Recipients, []byte(msg.String()))
 	if err != nil {
-		ns.logger.Errorf("邮件发送失败: %v", err)
+		ns.logger.Errorw("邮件发送失败", "error", err)
 		return
 	}
 
@@ -355,19 +355,19 @@ func (ns *NotificationService) sendTelegram(cfg TelegramConfig, event Notificati
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		ns.logger.Errorf("Telegram 消息序列化失败: %v", err)
+		ns.logger.Errorw("Telegram 消息序列化失败", "error", err)
 		return
 	}
 
 	resp, err := ns.client.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
-		ns.logger.Errorf("Telegram 发送失败: %v", err)
+		ns.logger.Errorw("Telegram 发送失败", "error", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		ns.logger.Warnf("Telegram 发送异常: HTTP %d", resp.StatusCode)
+		ns.logger.Warnw("Telegram 发送异常: HTTP", "StatusCode", resp.StatusCode)
 		return
 	}
 

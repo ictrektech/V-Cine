@@ -165,7 +165,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		case service.ErrUserNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 		default:
-			h.logger.Errorf("修改密码失败: %v", err)
+			h.logger.Errorw("修改密码失败", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "修改密码失败"})
 		}
 		return

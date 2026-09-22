@@ -344,7 +344,7 @@ func (h *AdultScraperHandler) UpdateConfigExtended(c *gin.Context) {
 	}
 
 	if err := h.cfg.UpdateAdultScraperConfig(func(a *config.AdultScraperConfig) { *a = cfg }); err != nil {
-		h.logger.Warnf("持久化番号刮削扩展配置失败: %v", err)
+		h.logger.Warnw("持久化番号刮削扩展配置失败", "error", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "扩展配置已更新"})

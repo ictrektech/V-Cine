@@ -226,7 +226,7 @@ func (h *AdminHandler) UpdateSystemSettings(c *gin.Context) {
 	}
 
 	if err := h.settingRepo.SetMulti(kvs); err != nil {
-		h.logger.Errorf("更新系统设置失败: %v", err)
+		h.logger.Errorw("更新系统设置失败", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存设置失败"})
 		return
 	}
@@ -422,8 +422,8 @@ func (h *AdminHandler) MergeSeries(c *gin.Context) {
 
 	result, err := h.seriesService.MergeSeries(req.PrimaryID, req.SecondaryIDs)
 	if err != nil {
-		h.logger.Errorf("手动合并剧集失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "合并失败: " + err.Error()})
+		h.logger.Errorw("手动合并剧集失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "合并失败", err)
 		return
 	}
 
@@ -438,8 +438,8 @@ func (h *AdminHandler) MergeSeries(c *gin.Context) {
 func (h *AdminHandler) AutoMergeSeries(c *gin.Context) {
 	results, err := h.seriesService.AutoMergeDuplicates()
 	if err != nil {
-		h.logger.Errorf("自动合并剧集失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "自动合并失败: " + err.Error()})
+		h.logger.Errorw("自动合并剧集失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "自动合并失败", err)
 		return
 	}
 
@@ -463,8 +463,8 @@ func (h *AdminHandler) AutoMergeSeries(c *gin.Context) {
 func (h *AdminHandler) MergeCandidates(c *gin.Context) {
 	candidates, err := h.seriesService.FindMergeCandidates()
 	if err != nil {
-		h.logger.Errorf("获取合并候选列表失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取候选列表失败: " + err.Error()})
+		h.logger.Errorw("获取合并候选列表失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "获取候选列表失败", err)
 		return
 	}
 
@@ -609,7 +609,7 @@ func (h *AdminHandler) ClearAllData(c *gin.Context) {
 	if tx.Error != nil {
 		sysResult.Status = "error"
 		sysResult.Message = tx.Error.Error()
-		h.logger.Errorf("清空系统设置失败: %v", tx.Error)
+		h.logger.Errorw("清空系统设置失败", "Error", tx.Error)
 	} else {
 		sysResult.Cleared = tx.RowsAffected
 		sysResult.Status = "success"
@@ -623,7 +623,7 @@ func (h *AdminHandler) ClearAllData(c *gin.Context) {
 	if tx.Error != nil {
 		userResult.Status = "error"
 		userResult.Message = tx.Error.Error()
-		h.logger.Errorf("清空用户账号失败: %v", tx.Error)
+		h.logger.Errorw("清空用户账号失败", "Error", tx.Error)
 	} else {
 		userResult.Cleared = tx.RowsAffected
 		userResult.Status = "success"

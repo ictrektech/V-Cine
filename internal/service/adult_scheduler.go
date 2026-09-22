@@ -189,7 +189,7 @@ func (s *AdultScheduler) runDailyTask() {
 
 	if err != nil {
 		if s.scraper.logger != nil {
-			s.scraper.logger.Warnf("定时刮削任务启动失败: %v", err)
+			s.scraper.logger.Warnw("定时刮削任务启动失败", "error", err)
 		}
 		return
 	}

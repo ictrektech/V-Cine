@@ -35,7 +35,7 @@ func (h *BookmarkHandler) Create(c *gin.Context) {
 
 	bookmark, err := h.bookmarkService.Create(userID.(string), req.MediaID, req.Title, req.Note, req.Position)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "添加书签失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "添加书签失败", err)
 		return
 	}
 

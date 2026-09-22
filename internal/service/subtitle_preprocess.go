@@ -254,7 +254,7 @@ func (s *SubtitlePreprocessService) BatchSubmit(mediaIDs []string, targetLangs [
 	for _, id := range mediaIDs {
 		task, err := s.SubmitMedia(id, targetLangs, forceRegenerate)
 		if err != nil {
-			s.logger.Warnf("批量提交字幕预处理跳过 %s: %v", id, err)
+			s.logger.Warnw("批量提交字幕预处理跳过", "id", id, "error", err)
 			continue
 		}
 		tasks = append(tasks, task)
@@ -409,7 +409,7 @@ func (s *SubtitlePreprocessService) worker(id int) {
 func (s *SubtitlePreprocessService) processTask(taskID string) {
 	task, err := s.repo.FindByID(taskID)
 	if err != nil {
-		s.logger.Warnf("字幕预处理任务不存在: %s", taskID)
+		s.logger.Warnw("字幕预处理任务不存在", "taskID", taskID)
 		return
 	}
 
@@ -527,7 +527,7 @@ func (s *SubtitlePreprocessService) processTask(taskID string) {
 		cleaner := NewSubtitleCleaner(s.buildCleanConfig(), s.logger)
 		report, err := cleaner.CleanVTT(task.OriginalVTTPath)
 		if err != nil {
-			s.logger.Warnf("字幕清洗失败（不影响后续流程）: %v", err)
+			s.logger.Warnw("字幕清洗失败（不影响后续流程）", "error", err)
 			s.updatePhase(task, "clean", 52, fmt.Sprintf("字幕清洗失败: %v", err))
 		} else {
 			task.CueCount = report.ProcessedCueCount
@@ -713,7 +713,7 @@ func (s *SubtitlePreprocessService) tryExtractSubtitle(media *model.Media) (stri
 			if err == nil {
 				return vttPath, "extracted"
 			}
-			s.logger.Warnf("提取内嵌字幕失败: %v", err)
+			s.logger.Warnw("提取内嵌字幕失败", "error", err)
 		}
 
 		// P3: 如果只有图形字幕，尝试 OCR 提取
@@ -724,7 +724,7 @@ func (s *SubtitlePreprocessService) tryExtractSubtitle(media *model.Media) (stri
 					if err == nil {
 						return vttPath, "ocr_extracted"
 					}
-					s.logger.Warnf("OCR 提取图形字幕失败: %v", err)
+					s.logger.Warnw("OCR 提取图形字幕失败", "error", err)
 					break // 只尝试第一个图形字幕轨道
 				}
 			}
@@ -746,7 +746,7 @@ func (s *SubtitlePreprocessService) tryExtractSubtitle(media *model.Media) (stri
 				if err == nil {
 					return vttPath, "extracted"
 				}
-				s.logger.Warnf("转换外挂字幕失败: %v", err)
+				s.logger.Warnw("转换外挂字幕失败", "error", err)
 			case ".vtt":
 				if _, err := os.Stat(subPath); err == nil {
 					return subPath, "extracted"
@@ -944,7 +944,7 @@ func (s *SubtitlePreprocessService) extractBitmapSubtitleOCR(filePath string, tr
 	// 同时导出时间戳信息（通过 ffprobe 获取字幕帧时间）
 	timestamps, err := s.extractSubtitleTimestamps(supFilePath)
 	if err != nil || len(timestamps) == 0 {
-		s.logger.Warnf("获取字幕时间戳失败: %v", err)
+		s.logger.Warnw("获取字幕时间戳失败", "error", err)
 		return s.extractBitmapSubtitleViaImages(filePath, track, tmpDir, tesseractBin, tesseractLang)
 	}
 
@@ -1254,7 +1254,7 @@ func (s *SubtitlePreprocessService) failTask(task *model.SubtitlePreprocessTask,
 	s.repo.Update(task)
 
 	s.broadcastEvent(EventSubPreFailed, task)
-	s.logger.Warnf("字幕预处理失败: %s - %s", task.MediaTitle, errMsg)
+	s.logger.Warnw("字幕预处理失败", "MediaTitle", task.MediaTitle, "errMsg", errMsg)
 }
 
 func (s *SubtitlePreprocessService) completeTask(task *model.SubtitlePreprocessTask, customMsg string) {

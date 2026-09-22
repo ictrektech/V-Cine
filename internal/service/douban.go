@@ -556,7 +556,7 @@ func (s *DoubanService) ValidateDoubanCookie() (valid bool, username string, err
 			strings.Contains(location, "passport") ||
 			strings.Contains(location, "sec.douban.com") ||
 			strings.Contains(location, "/login") {
-			s.logger.Warnf("[ValidateDoubanCookie] 登录态失效/被风控：重定向到 %s", location)
+			s.logger.Warnw("[ValidateDoubanCookie] 登录态失效/被风控：重定向到", "location", location)
 			return false, "", nil
 		}
 		// 情况 2：跳到 https://www.douban.com/people/{uid}/ → 已登录 ✅
@@ -605,7 +605,7 @@ func (s *DoubanService) ValidateDoubanCookie() (valid bool, username string, err
 
 	// 页面中若包含登录提示视为失效
 	if strings.Contains(html, "passport/login") || strings.Contains(html, "登录豆瓣") {
-		s.logger.Warnf("[ValidateDoubanCookie] 页面中出现登录提示，判定为失效")
+		s.logger.Warnw("[ValidateDoubanCookie] 页面中出现登录提示，判定为失效")
 		return false, "", nil
 	}
 
@@ -621,6 +621,6 @@ func (s *DoubanService) ValidateDoubanCookie() (valid bool, username string, err
 	}
 
 	// 页面返回 200 但提取不到昵称：保守视为有效（避免误杀）
-	s.logger.Warnf("[ValidateDoubanCookie] 200 但未能提取昵称，保守视为有效")
+	s.logger.Warnw("[ValidateDoubanCookie] 200 但未能提取昵称，保守视为有效")
 	return true, "", nil
 }

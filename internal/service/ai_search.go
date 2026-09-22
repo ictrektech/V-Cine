@@ -84,7 +84,7 @@ func (s *AIService) ParseSearchIntent(userQuery string) (*SearchIntent, error) {
 		200,
 	)
 	if err != nil {
-		s.logger.Warnf("AI 搜索意图解析失败，降级为原始查询: %v", err)
+		s.logger.Warnw("AI 搜索意图解析失败，降级为原始查询", "error", err)
 		return &SearchIntent{
 			Query:  userQuery,
 			Parsed: false,

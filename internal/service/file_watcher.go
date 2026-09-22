@@ -90,7 +90,7 @@ func (fw *FileWatcherService) Start() error {
 	// 获取所有媒体库，为启用了文件监控的媒体库注册监听
 	libs, err := fw.libRepo.List()
 	if err != nil {
-		fw.logger.Errorf("获取媒体库列表失败（文件监听初始化）: %v", err)
+		fw.logger.Errorw("获取媒体库列表失败（文件监听初始化）", "error", err)
 	} else {
 		for _, lib := range libs {
 			if lib.EnableFileWatch {
@@ -161,7 +161,7 @@ func (fw *FileWatcherService) WatchLibrary(lib *model.Library) {
 		})
 
 		if err != nil {
-			fw.logger.Errorf("遍历媒体库目录失败: %s - %v", libPath, err)
+			fw.logger.Errorw("遍历媒体库目录失败", "libPath", libPath, "error", err)
 			continue
 		}
 
@@ -223,7 +223,7 @@ func (fw *FileWatcherService) eventLoop() {
 			if !ok {
 				return
 			}
-			fw.logger.Warnf("文件监听错误: %v", err)
+			fw.logger.Warnw("文件监听错误", "error", err)
 		}
 	}
 }
@@ -324,7 +324,7 @@ func (fw *FileWatcherService) debounceScan(libraryID string) {
 func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 	lib, err := fw.libRepo.FindByID(libraryID)
 	if err != nil {
-		fw.logger.Errorf("文件监听触发扫描失败（媒体库不存在）: %s", libraryID)
+		fw.logger.Errorw("文件监听触发扫描失败（媒体库不存在）", "libraryID", libraryID)
 		return
 	}
 
@@ -345,7 +345,7 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 	// 执行扫描（复用已有的扫描逻辑）。增量链路会在 AI 整理/刮削结束后再通知刷新。
 	count, err := fw.scanner.ScanLibraryWithOptions(lib, ScanLibraryOptions{SuppressCompletedEvent: true, SuppressCompletionCallback: true})
 	if err != nil {
-		fw.logger.Errorf("增量扫描失败: %s - %v", lib.Name, err)
+		fw.logger.Errorw("增量扫描失败", "Name", lib.Name, "error", err)
 		return
 	}
 
@@ -359,7 +359,7 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 	// 增量扫描后只处理新增且未整理过的媒体，修正标题并创建硬链接，再进入刮削。
 	if count > 0 && fw.scanPostProcess != nil && lib.AutoOrganizeMode != model.AutoOrganizeOff {
 		if okCount, totalAI, err := fw.scanPostProcess.ProcessUnprocessedLibraryWithProgress(libraryID, nil); err != nil {
-			fw.logger.Warnf("增量 AI 整理失败: %s - %v", lib.Name, err)
+			fw.logger.Warnw("增量 AI 整理失败", "Name", lib.Name, "error", err)
 		} else if totalAI == 0 {
 			fw.logger.Infof("增量扫描无新增待 AI 整理媒体: %s", lib.Name)
 		} else {

@@ -42,7 +42,7 @@ func (h *NotificationHandler) TestNotification(c *gin.Context) {
 	}
 
 	if err := h.notifyService.TestNotification(channel); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *SubtitleSearchHandler) SearchSubtitles(c *gin.Context) {
 		if title != "" {
 			results, err = h.subtitleSearch.SearchByTitle(title, year, language, mediaType)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "字幕搜索失败: " + err.Error()})
+				respondErr(c, http.StatusInternalServerError, "字幕搜索失败", err)
 				return
 			}
 		}
@@ -113,7 +113,7 @@ func (h *SubtitleSearchHandler) DownloadSubtitle(c *gin.Context) {
 
 	result, err := h.subtitleSearch.Download(req.FileID, filePath)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "字幕下载失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "字幕下载失败", err)
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *BatchMetadataHandler) BatchUpdateMedia(c *gin.Context) {
 
 	result, err := h.batchService.BatchUpdateMedia(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -163,7 +163,7 @@ func (h *BatchMetadataHandler) BatchUpdateSeries(c *gin.Context) {
 
 	result, err := h.batchService.BatchUpdateSeries(req.SeriesIDs, req.Updates)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -182,7 +182,7 @@ func (h *BatchMetadataHandler) TestImportConnection(c *gin.Context) {
 	}
 
 	if err := h.importExportSvc.TestConnection(source); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -199,7 +199,7 @@ func (h *BatchMetadataHandler) FetchImportLibraries(c *gin.Context) {
 
 	libraries, err := h.importExportSvc.FetchLibraries(source)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -220,7 +220,7 @@ func (h *BatchMetadataHandler) ImportFromExternal(c *gin.Context) {
 
 	result, err := h.importExportSvc.ImportFromEmby(req.Source, req.LibraryID, req.TargetLibraryID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -236,7 +236,7 @@ func (h *BatchMetadataHandler) ExportLibrary(c *gin.Context) {
 
 	data, err := h.importExportSvc.ExportMediaLibrary(libraryID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -259,7 +259,7 @@ func (h *BatchMetadataHandler) ImportFromExportData(c *gin.Context) {
 
 	result, err := h.importExportSvc.ImportFromExportData(&req.Data, req.TargetLibraryID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 

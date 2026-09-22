@@ -18,7 +18,7 @@ func (h *AdminHandler) DeleteMedia(c *gin.Context) {
 	mediaID := c.Param("mediaId")
 
 	if err := h.libraryService.DeleteMedia(mediaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除影片失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "删除影片失败", err)
 		return
 	}
 
@@ -104,7 +104,7 @@ func (h *AdminHandler) UpdateMediaSTRM(c *gin.Context) {
 	}
 
 	if err := h.libraryService.UpdateMedia(media); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "保存失败", err)
 		return
 	}
 	h.auditFromContext(c, "media.update_strm", "media", mediaID, "")
@@ -275,7 +275,7 @@ func (h *AdminHandler) DeleteSeries(c *gin.Context) {
 	seriesID := c.Param("seriesId")
 
 	if err := h.libraryService.DeleteSeries(seriesID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除剧集失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "删除剧集失败", err)
 		return
 	}
 
@@ -295,7 +295,7 @@ func (h *AdminHandler) SearchTMDbImages(c *gin.Context) {
 
 	result, err := h.metadataService.SearchTMDbImages(mediaType, tmdbID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取图片列表失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "获取图片列表失败", err)
 		return
 	}
 
@@ -346,7 +346,7 @@ func (h *AdminHandler) UploadMediaImage(c *gin.Context) {
 
 	localPath, err := h.metadataService.SaveUploadedImageForMedia(mediaID, data, ext, imageType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存图片失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "保存图片失败", err)
 		return
 	}
 
@@ -395,7 +395,7 @@ func (h *AdminHandler) UploadSeriesImage(c *gin.Context) {
 
 	localPath, err := h.metadataService.SaveUploadedImageForSeries(seriesID, data, ext, imageType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存图片失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "保存图片失败", err)
 		return
 	}
 
@@ -425,7 +425,7 @@ func (h *AdminHandler) SetMediaImageByURL(c *gin.Context) {
 
 	localPath, err := h.metadataService.DownloadURLImageForMedia(mediaID, req.URL, req.ImageType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "下载图片失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "下载图片失败", err)
 		return
 	}
 
@@ -455,7 +455,7 @@ func (h *AdminHandler) SetSeriesImageByURL(c *gin.Context) {
 
 	localPath, err := h.metadataService.DownloadURLImageForSeries(seriesID, req.URL, req.ImageType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "下载图片失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "下载图片失败", err)
 		return
 	}
 
@@ -481,7 +481,7 @@ func (h *AdminHandler) SetMediaImageFromTMDb(c *gin.Context) {
 
 	localPath, err := h.metadataService.DownloadTMDbImageForMedia(mediaID, req.TMDbPath, req.ImageType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "下载图片失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "下载图片失败", err)
 		return
 	}
 
@@ -507,7 +507,7 @@ func (h *AdminHandler) SetSeriesImageFromTMDb(c *gin.Context) {
 
 	localPath, err := h.metadataService.DownloadTMDbImageForSeries(seriesID, req.TMDbPath, req.ImageType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "下载图片失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "下载图片失败", err)
 		return
 	}
 

@@ -58,7 +58,7 @@ func (h *StreamHandler) Direct(c *gin.Context) {
 		vfsFile, err := h.streamService.OpenMediaFile(filePath)
 		if err != nil {
 			h.logger.Warnf("远程打开文件失败: %s, 错误: %v", filePath, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "打开远程文件失败: " + err.Error()})
+			respondErr(c, http.StatusInternalServerError, "打开远程文件失败", err)
 			return
 		}
 		defer vfsFile.Close()
@@ -66,7 +66,7 @@ func (h *StreamHandler) Direct(c *gin.Context) {
 		stat, err := vfsFile.Stat()
 		if err != nil {
 			h.logger.Warnf("WebDAV 获取文件信息失败: %s, 错误: %v", filePath, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件信息失败: " + err.Error()})
+			respondErr(c, http.StatusInternalServerError, "获取文件信息失败", err)
 			return
 		}
 
@@ -121,7 +121,7 @@ func (h *StreamHandler) Segment(c *gin.Context) {
 	if segment == "stream.m3u8" {
 		playlist, err := h.streamService.GetSegmentPlaylist(id, quality)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondErr(c, http.StatusInternalServerError, "", err)
 			return
 		}
 		c.Header("Content-Type", "application/vnd.apple.mpegurl")
@@ -187,7 +187,7 @@ func (h *StreamHandler) Remux(c *gin.Context) {
 	if err := h.streamService.RemuxStream(id, c.Writer, c.Request); err != nil {
 		h.logger.Warnf("Remux 播放失败: %s, 错误: %v", id, err)
 		// 如果还没写入响应头，返回错误
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Remux 播放失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "Remux 播放失败", err)
 	}
 }
 

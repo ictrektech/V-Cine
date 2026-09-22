@@ -404,7 +404,7 @@ func (s *FileManagerService) RenameFolder(folderPath, newName, userID string) er
 		newPrefix += "/"
 	}
 	if err := s.mediaRepo.UpdateFilePathPrefix(oldPrefix, newPrefix); err != nil {
-		s.logger.Warnf("更新文件路径前缀失败: %v", err)
+		s.logger.Warnw("更新文件路径前缀失败", "error", err)
 	}
 
 	s.addOpLog("rename_folder", "", fmt.Sprintf("重命名文件夹: %s → %s", folderPath, newPath), folderPath, newPath, userID)
@@ -451,7 +451,7 @@ func (s *FileManagerService) DeleteFolder(folderPath string, force bool, userID 
 			normalizedPath += "/"
 		}
 		if err := s.mediaRepo.DeleteByPathPrefix(normalizedPath); err != nil {
-			s.logger.Warnf("删除文件夹下的数据库记录失败: %v", err)
+			s.logger.Warnw("删除文件夹下的数据库记录失败", "error", err)
 		}
 	}
 
@@ -867,7 +867,7 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		media.ScrapeSource = recorder.source
 	}
 	if err := s.mediaRepo.Update(media); err != nil {
-		s.logger.Errorf("保存刮削结果失败: %v", err)
+		s.logger.Errorw("保存刮削结果失败", "error", err)
 		scrapeErr = err // 同步到 defer 终态广播：保存失败同样视为刮削失败
 		return
 	}
@@ -1286,7 +1286,7 @@ func (s *FileManagerService) addOpLog(action, mediaID, detail, oldValue, newValu
 			UserID:    userID,
 			CreatedAt: now,
 		}); err != nil {
-			s.logger.Warnf("持久化操作日志失败: %v", err)
+			s.logger.Warnw("持久化操作日志失败", "error", err)
 		}
 		// 定期清理旧日志（每 100 条触发一次，保持 5000 条上限）
 		if action != "" && len(action) > 0 {

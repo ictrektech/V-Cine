@@ -308,7 +308,7 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 	if err := h.cfg.UpdateVideoAnalysisConfig(func(cfg *config.VideoAnalysisConfig) {
 		*cfg = updated
 	}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "保存配置失败", err)
 		return
 	}
 	// 首次经 UI 启用时动态拉起服务。
@@ -320,7 +320,7 @@ func (h *VideoAnalysisHandler) UpdateSettings(c *gin.Context) {
 	// scene_base_url / structure_base_url 支持热更新，保存后立即生效
 	if h.service != nil {
 		if err := h.service.SetBaseURLs(updated.SceneBaseURL, updated.StructureBaseURL); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "热更新服务地址失败: " + err.Error()})
+			respondErr(c, http.StatusInternalServerError, "热更新服务地址失败", err)
 			return
 		}
 		h.service.SetDescribeEnabled(updated.DescribeEnabled)
@@ -426,7 +426,7 @@ func (h *VideoAnalysisHandler) SearchScenes(c *gin.Context) {
 		results, err = h.service.SearchScenesByTextQuery(query, limit)
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "场景搜索失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "场景搜索失败", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": results})
@@ -445,7 +445,7 @@ func (h *VideoAnalysisHandler) ListScenesByTask(c *gin.Context) {
 	}
 	scenes, err := h.service.GetScenesByTaskID(taskID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询场景失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "查询场景失败", err)
 		return
 	}
 	// 列表接口排除 embedding 向量（768维 float32 → ~3KB/个，避免响应过大）
@@ -487,7 +487,7 @@ func (h *VideoAnalysisHandler) GetWorkflow(c *gin.Context) {
 	}
 	workflow, err := h.service.GetWorkflow(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询工作流状态失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "查询工作流状态失败", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": workflow})
@@ -507,7 +507,7 @@ func (h *VideoAnalysisHandler) RunStage(c *gin.Context) {
 		return
 	}
 	if err := h.service.RunStage(c.Request.Context(), c.Param("id"), request.Stage); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "阶段已启动"})
@@ -520,7 +520,7 @@ func (h *VideoAnalysisHandler) RunAll(c *gin.Context) {
 		return
 	}
 	if err := h.service.RunAll(c.Request.Context(), c.Param("id")); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "任务已全部执行完成"})
@@ -533,7 +533,7 @@ func (h *VideoAnalysisHandler) RunMissing(c *gin.Context) {
 		return
 	}
 	if err := h.service.RunMissing(c.Request.Context(), c.Param("id")); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "缺失阶段已补齐"})

@@ -268,7 +268,7 @@ func (s *AdultBatchService) selectMediaList(opts AdultBatchOptions) ([]model.Med
 func (s *AdultBatchService) run(task *AdultBatchTask, mediaList []model.Media, opts AdultBatchOptions) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.scraper.logger.Errorf("批量刮削任务 panic: %v", r)
+			s.scraper.logger.Errorw("批量刮削任务 panic", "r", r)
 			task.Status = BatchStatusFailed
 		}
 		finishedAt := time.Now()

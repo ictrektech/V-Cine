@@ -253,7 +253,7 @@ func (s *CollectionService) AutoMatchCollections() (int, error) {
 	// 第一步：先合并已有的同名重复合集，避免后续匹配时出现歧义
 	merged, err := s.MergeDuplicateCollections()
 	if err != nil {
-		s.logger.Warnf("合并同名合集时出错（继续执行）: %v", err)
+		s.logger.Warnw("合并同名合集时出错（继续执行）", "error", err)
 	} else if merged > 0 {
 		s.logger.Infof("已合并 %d 组同名重复合集", merged)
 	}
@@ -444,7 +444,7 @@ func (s *CollectionService) AutoMatchCollections() (int, error) {
 	// 最后清理空壳合集
 	cleaned, cleanErr := s.CleanupEmptyCollections()
 	if cleanErr != nil {
-		s.logger.Warnf("清理空壳合集时出错: %v", cleanErr)
+		s.logger.Warnw("清理空壳合集时出错", "error", cleanErr)
 	} else if cleaned > 0 {
 		s.logger.Infof("已清理 %d 个空壳合集", cleaned)
 	}
@@ -621,7 +621,7 @@ func (s *CollectionService) ReMatchCollections() (int, error) {
 	// 第一步：清除所有自动匹配合集的电影关联
 	cleared, err := s.collRepo.ClearAutoMatchedAssociations()
 	if err != nil {
-		s.logger.Warnf("清除自动匹配关联时出错: %v", err)
+		s.logger.Warnw("清除自动匹配关联时出错", "error", err)
 	} else if cleared > 0 {
 		s.logger.Infof("已清除 %d 条自动匹配的电影关联", cleared)
 	}
@@ -629,7 +629,7 @@ func (s *CollectionService) ReMatchCollections() (int, error) {
 	// 第二步：删除所有自动匹配的合集记录
 	deleted, err := s.collRepo.DeleteAutoMatchedCollections()
 	if err != nil {
-		s.logger.Warnf("删除自动匹配合集记录时出错: %v", err)
+		s.logger.Warnw("删除自动匹配合集记录时出错", "error", err)
 	} else if deleted > 0 {
 		s.logger.Infof("已删除 %d 个自动匹配合集", deleted)
 	}
@@ -760,13 +760,13 @@ func (s *CollectionService) persistVersionGroups(versionMap map[string]string) {
 		if err := s.mediaRepo.UpdateFields(primaryID, map[string]interface{}{
 			"version_group": primaryID,
 		}); err != nil {
-			s.logger.Warnf("写入主版本 version_group 失败 id=%s: %v", primaryID, err)
+			s.logger.Warnw("写入主版本 version_group 失败 id=", "primaryID", primaryID, "error", err)
 		}
 		for _, cid := range copies {
 			if err := s.mediaRepo.UpdateFields(cid, map[string]interface{}{
 				"version_group": primaryID,
 			}); err != nil {
-				s.logger.Warnf("写入副版本 version_group 失败 id=%s: %v", cid, err)
+				s.logger.Warnw("写入副版本 version_group 失败 id=", "cid", cid, "error", err)
 			}
 		}
 	}

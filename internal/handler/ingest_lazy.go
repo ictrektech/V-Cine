@@ -69,7 +69,7 @@ func (h *LazyIngestHandler) Submit(c *gin.Context) {
 			})
 			return
 		}
-		h.logger.Warnf("[LazyIngest] 创建任务失败: %v", err)
+		h.logger.Warnw("[LazyIngest] 创建任务失败", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -96,7 +96,7 @@ func (h *LazyIngestHandler) ListJobs(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	jobs, err := h.svc.ListJobs(limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": jobs})

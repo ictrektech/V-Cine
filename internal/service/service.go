@@ -126,7 +126,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	fileWatcher := NewFileWatcherService(cfg, logger, repos.Library, repos.Media, repos.Series, scanner, metadata)
 	fileWatcher.SetWSHub(wsHub)
 	if err := fileWatcher.Start(); err != nil {
-		logger.Errorf("文件监听服务启动失败: %v", err)
+		logger.Errorw("文件监听服务启动失败", "error", err)
 	}
 
 	// 注入文件监听到媒体库服务
@@ -142,13 +142,13 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// 创建 WebDAV 存储服务
 	webdavService := NewWebDAVService(cfg, logger, vfsManager)
 	if err := webdavService.Initialize(); err != nil {
-		logger.Warnf("WebDAV 服务初始化失败（可稍后在管理页面重新配置）: %v", err)
+		logger.Warnw("WebDAV 服务初始化失败（可稍后在管理页面重新配置）", "error", err)
 	}
 
 	// V2.3: 创建远程存储统一服务（Alist + S3）
 	remoteStorageService := NewRemoteStorageService(cfg, logger, vfsManager)
 	if err := remoteStorageService.Initialize(); err != nil {
-		logger.Warnf("远程存储服务初始化失败（可稍后在管理页面重新配置）: %v", err)
+		logger.Warnw("远程存储服务初始化失败（可稍后在管理页面重新配置）", "error", err)
 	}
 	// 注入到全局 URL 解析器
 	SetGlobalRemoteStorageService(remoteStorageService)
@@ -416,7 +416,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			nil,
 		)
 		if clientErr != nil {
-			logger.Errorf("视频分析配置无效，功能未启动: client=%v", clientErr)
+			logger.Errorw("视频分析配置无效，功能未启动: client=", "error", clientErr)
 			return nil, nil
 		}
 		// 创建 embedding 客户端（可选，配置了 embedding_ai 才启用）
@@ -428,7 +428,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 				}
 				embeddingClient = ec
 			} else {
-				logger.Warnf("创建 embedding 客户端失败（不影响视频分析）: %v", ecErr)
+				logger.Warnw("创建 embedding 客户端失败（不影响视频分析）", "error", ecErr)
 			}
 		}
 		svcs.VideoAnalysis = NewVideoAnalysisService(
@@ -537,7 +537,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 		if autoPreprocess {
 			count, err := preprocessService.SubmitLibrary(libraryID, 0)
 			if err != nil {
-				logger.Warnf("扫描后自动提交预处理失败: %v", err)
+				logger.Warnw("扫描后自动提交预处理失败", "error", err)
 			} else if count > 0 {
 				logger.Infof("扫描后自动提交 %d 个预处理任务", count)
 			}
@@ -558,7 +558,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			}
 			subCount, err := subtitlePreprocessService.SubmitLibrary(libraryID, targetLangs, false)
 			if err != nil {
-				logger.Warnf("扫描后自动提交字幕预处理失败: %v", err)
+				logger.Warnw("扫描后自动提交字幕预处理失败", "error", err)
 			} else if subCount > 0 {
 				logger.Infof("扫描后自动提交 %d 个字幕预处理任务", subCount)
 			}

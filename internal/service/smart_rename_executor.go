@@ -179,7 +179,7 @@ func (e *renameExecutor) rollbackLocal(ids []uint64) {
 	}
 	journals, err := e.repo.ListJournalByIDs(ids)
 	if err != nil {
-		e.logger.Warnf("[SmartRename] 本条回滚查询 journal 失败 ids=%v: %v", ids, err)
+		e.logger.Warnw("[SmartRename] 本条回滚查询 journal 失败 ids=", "ids", ids, "error", err)
 		// 退化为仅做 DB 标记，避免遗留数据混乱
 		for _, id := range ids {
 			_ = e.repo.MarkJournalReverted(id, "local rollback after item failure (no journal record)")
@@ -205,7 +205,7 @@ func (e *renameExecutor) rollbackLocal(ids []uint64) {
 			_ = os.Remove(j.ToPath)
 		}
 		if revErr != nil {
-			e.logger.Warnf("[SmartRename] 本条回滚失败 journal=%d: %v", j.ID, revErr)
+			e.logger.Warnw("[SmartRename] 本条回滚失败 journal=", "ID", j.ID, "error", revErr)
 		}
 		_ = e.repo.MarkJournalReverted(j.ID, errMsg(revErr))
 	}
@@ -238,7 +238,7 @@ func (e *renameExecutor) rollback(journals []model.RenameJournal) error {
 			_ = os.Remove(j.ToPath)
 		}
 		if err != nil {
-			e.logger.Warnf("[SmartRename] 回滚失败 journal=%d: %v", j.ID, err)
+			e.logger.Warnw("[SmartRename] 回滚失败 journal=", "ID", j.ID, "error", err)
 			if firstErr == nil {
 				firstErr = err
 			}

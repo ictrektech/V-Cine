@@ -188,7 +188,7 @@ func (s *SeriesService) MergeSeries(primaryID string, secondaryIDs []string) (*M
 
 		secondary, err := s.seriesRepo.FindByID(secID)
 		if err != nil {
-			s.logger.Warnf("合并时找不到从属剧集 %s: %v", secID, err)
+			s.logger.Warnw("合并时找不到从属剧集", "secID", secID, "error", err)
 			continue
 		}
 
@@ -293,7 +293,7 @@ func (s *SeriesService) MergeSeries(primaryID string, secondaryIDs []string) (*M
 	if s.mediaPersonRepo != nil {
 		removed, err := s.mediaPersonRepo.DeduplicateBySeriesID(primaryID)
 		if err != nil {
-			s.logger.Warnf("演职人员去重失败: %v", err)
+			s.logger.Warnw("演职人员去重失败", "error", err)
 		} else if removed > 0 {
 			s.logger.Infof("已清理 %d 条重复的演职人员记录 (series_id=%s)", removed, primaryID)
 		}

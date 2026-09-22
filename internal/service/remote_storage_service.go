@@ -56,7 +56,7 @@ func (s *RemoteStorageService) Initialize() error {
 	if s.config.StorageSnapshot().Alist.Enabled {
 		// 启动时不测试连接，避免慢/不可达阻塞启动
 		if err := s.initAlistLocked(false); err != nil {
-			s.logger.Warnf("Alist 初始化失败: %v", err)
+			s.logger.Warnw("Alist 初始化失败", "error", err)
 		}
 	} else {
 		s.logger.Info("Alist 存储未启用")
@@ -66,7 +66,7 @@ func (s *RemoteStorageService) Initialize() error {
 	if s.config.StorageSnapshot().S3.Enabled {
 		// 启动时不测试连接，避免慢/不可达阻塞启动
 		if err := s.initS3Locked(false); err != nil {
-			s.logger.Warnf("S3 初始化失败: %v", err)
+			s.logger.Warnw("S3 初始化失败", "error", err)
 		}
 	} else {
 		s.logger.Info("S3 存储未启用")

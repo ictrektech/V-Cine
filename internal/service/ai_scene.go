@@ -89,7 +89,7 @@ func (s *AISceneService) GenerateChapters(mediaID string) (*model.AIAnalysisTask
 func (s *AISceneService) doGenerateChapters(task *model.AIAnalysisTask, media *model.Media) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.logger.Errorf("章节生成panic: %v", r)
+			s.logger.Errorw("章节生成panic", "r", r)
 			task.Status = "failed"
 			task.Error = fmt.Sprintf("内部错误: %v", r)
 			s.analysisRepo.Update(task)
@@ -120,7 +120,7 @@ func (s *AISceneService) doGenerateChapters(task *model.AIAnalysisTask, media *m
 		ch.MediaID = media.ID
 		ch.Source = "ai"
 		if err := s.chapterRepo.Create(&ch); err != nil {
-			s.logger.Warnf("保存章节失败: %v", err)
+			s.logger.Warnw("保存章节失败", "error", err)
 		}
 	}
 
@@ -343,7 +343,7 @@ func (s *AISceneService) doExtractHighlights(task *model.AIAnalysisTask, media *
 	// 使用FFmpeg分析音频能量峰值（精彩片段通常伴随音量变化）
 	highlights, err := s.analyzeAudioPeaks(media)
 	if err != nil {
-		s.logger.Warnf("音频分析失败: %v", err)
+		s.logger.Warnw("音频分析失败", "error", err)
 	}
 
 	// 删除旧的精彩片段
@@ -354,7 +354,7 @@ func (s *AISceneService) doExtractHighlights(task *model.AIAnalysisTask, media *
 		h.MediaID = media.ID
 		h.Source = "ai"
 		if err := s.highlightRepo.Create(&h); err != nil {
-			s.logger.Warnf("保存精彩片段失败: %v", err)
+			s.logger.Warnw("保存精彩片段失败", "error", err)
 		}
 	}
 
@@ -828,7 +828,7 @@ func (s *AISceneService) doGenerateCoverCandidates(task *model.AIAnalysisTask, m
 	// 保存候选
 	for i := range candidates {
 		if err := s.coverRepo.Create(&candidates[i]); err != nil {
-			s.logger.Warnf("保存封面候选失败: %v", err)
+			s.logger.Warnw("保存封面候选失败", "error", err)
 		}
 	}
 

@@ -48,7 +48,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		case service.ErrUserNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		default:
-			h.logger.Errorf("更新资料失败: %v", err)
+			h.logger.Errorw("更新资料失败", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败"})
 		}
 		return

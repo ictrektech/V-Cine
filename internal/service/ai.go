@@ -687,7 +687,7 @@ func (s *AIService) desensitizeImage(dataURL string) string {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := desensitizeClient(timeout).Do(req)
 	if err != nil {
-		s.logger.Warnf("desensitize image unavailable, passing through: %v", err)
+		s.logger.Warnw("desensitize image unavailable, passing through", "error", err)
 		return dataURL
 	}
 	defer resp.Body.Close()
@@ -697,12 +697,12 @@ func (s *AIService) desensitizeImage(dataURL string) string {
 	}
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		s.logger.Warnf("desensitize image read error, passing through: %v", err)
+		s.logger.Warnw("desensitize image read error, passing through", "error", err)
 		return dataURL
 	}
 	var result respBody
 	if err := json.Unmarshal(respBytes, &result); err != nil {
-		s.logger.Warnf("desensitize image parse error, passing through: %v", err)
+		s.logger.Warnw("desensitize image parse error, passing through", "error", err)
 		return dataURL
 	}
 	if result.ImageBase64 == "" {
@@ -750,7 +750,7 @@ func (s *AIService) desensitizeText(text string) string {
 
 	resp, err := desensitizeClient(cfg.Desensitize.Timeout).Do(req)
 	if err != nil {
-		s.logger.Warnf("desensitize unavailable, passing through: %v", err)
+		s.logger.Warnw("desensitize unavailable, passing through", "error", err)
 		return text
 	}
 	defer resp.Body.Close()
@@ -763,11 +763,11 @@ func (s *AIService) desensitizeText(text string) string {
 	var result desensitizeResp
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		s.logger.Warnf("desensitize read error, passing through: %v", err)
+		s.logger.Warnw("desensitize read error, passing through", "error", err)
 		return text
 	}
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		s.logger.Warnf("desensitize parse error, passing through: %v", err)
+		s.logger.Warnw("desensitize parse error, passing through", "error", err)
 		return text
 	}
 	if len(result.Replaced) > 0 {

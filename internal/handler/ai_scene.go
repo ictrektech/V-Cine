@@ -20,7 +20,7 @@ func (h *AISceneHandler) GenerateChapters(c *gin.Context) {
 
 	task, err := h.sceneService.GenerateChapters(mediaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成章节失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "生成章节失败", err)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (h *AISceneHandler) ExtractHighlights(c *gin.Context) {
 
 	task, err := h.sceneService.ExtractHighlights(mediaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "提取精彩片段失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "提取精彩片段失败", err)
 		return
 	}
 
@@ -72,7 +72,7 @@ func (h *AISceneHandler) GenerateCoverCandidates(c *gin.Context) {
 
 	task, err := h.sceneService.GenerateCoverCandidates(mediaID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成封面候选失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "生成封面候选失败", err)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (h *AISceneHandler) ApplyCover(c *gin.Context) {
 	mediaID := c.Param("id")
 
 	if err := h.sceneService.ApplySelectedCover(mediaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "应用封面失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "应用封面失败", err)
 		return
 	}
 

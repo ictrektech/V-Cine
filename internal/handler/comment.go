@@ -34,7 +34,7 @@ func (h *CommentHandler) Create(c *gin.Context) {
 
 	comment, err := h.commentService.Create(userID.(string), mediaID, req.Content, req.Rating)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "发表评论失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "发表评论失败", err)
 		return
 	}
 

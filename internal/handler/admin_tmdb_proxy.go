@@ -66,7 +66,7 @@ func (h *AdminHandler) UpdateTMDbProxy(c *gin.Context) {
 		{"网络出口代理", networkProxy, h.cfg.SetTMDbNetworkProxy},
 	} {
 		if err := item.set(item.value); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "保存" + item.name + "失败: " + err.Error()})
+			respondErr(c, http.StatusInternalServerError, "保存"+item.name+"失败", err)
 			return
 		}
 	}
@@ -79,7 +79,7 @@ func (h *AdminHandler) UpdateTMDbProxy(c *gin.Context) {
 func (h *AdminHandler) ClearTMDbProxy(c *gin.Context) {
 	for _, setter := range []func(string) error{h.cfg.SetTMDbAPIProxy, h.cfg.SetTMDbImageProxy, h.cfg.SetTMDbNetworkProxy} {
 		if err := setter(""); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "恢复官方直连失败: " + err.Error()})
+			respondErr(c, http.StatusInternalServerError, "恢复官方直连失败", err)
 			return
 		}
 	}

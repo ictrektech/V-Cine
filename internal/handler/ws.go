@@ -31,7 +31,7 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		h.logger.Errorf("WebSocket升级失败: %v", err)
+		h.logger.Errorw("WebSocket升级失败", "error", err)
 		return
 	}
 

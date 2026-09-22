@@ -206,7 +206,7 @@ func NewASRService(appCfg *config.Config, mediaRepo *repository.MediaRepo, logge
 		if _, err := exec.LookPath(s.cfg.WhisperCppPath); err == nil {
 			logger.Infof("本地 whisper.cpp 已检测到: %s", s.cfg.WhisperCppPath)
 		} else {
-			logger.Warnf("本地 whisper.cpp 路径无效: %s", s.cfg.WhisperCppPath)
+			logger.Warnw("本地 whisper.cpp 路径无效", "WhisperCppPath", s.cfg.WhisperCppPath)
 			s.cfg.WhisperCppPath = ""
 		}
 	}

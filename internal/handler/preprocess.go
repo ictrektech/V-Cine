@@ -219,7 +219,7 @@ func (h *PreprocessHandler) BatchDeleteTasks(c *gin.Context) {
 
 	deleted, err := h.preprocessService.BatchDeleteTasks(req.TaskIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -241,7 +241,7 @@ func (h *PreprocessHandler) BatchCancelTasks(c *gin.Context) {
 
 	cancelled, err := h.preprocessService.BatchCancelTasks(req.TaskIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -263,7 +263,7 @@ func (h *PreprocessHandler) BatchRetryTasks(c *gin.Context) {
 
 	retried, err := h.preprocessService.BatchRetryTasks(req.TaskIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -310,7 +310,7 @@ func (h *PreprocessHandler) GetStorageUsage(c *gin.Context) {
 
 	usage, err := h.preprocessService.GetStorageUsage(limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": usage})
@@ -320,7 +320,7 @@ func (h *PreprocessHandler) GetStorageUsage(c *gin.Context) {
 func (h *PreprocessHandler) CleanOrphanCache(c *gin.Context) {
 	cleaned, freed, err := h.preprocessService.CleanOrphanCache()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -340,7 +340,7 @@ func (h *PreprocessHandler) GetCacheUsage(c *gin.Context) {
 	force := c.Query("force") == "1" || c.Query("force") == "true"
 	usage, err := h.preprocessService.GetCacheUsage(force)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": usage})
@@ -375,7 +375,7 @@ func (h *PreprocessHandler) CleanCacheCategory(c *gin.Context) {
 func (h *PreprocessHandler) CleanAllCache(c *gin.Context) {
 	results, totalFreed, totalCount, err := h.preprocessService.CleanAllCleanableCache()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -431,7 +431,7 @@ func (h *PreprocessHandler) PreviewByFilter(c *gin.Context) {
 	}
 	preview, err := h.preprocessService.PreviewFilter(req.toServiceFilter())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": preview})
@@ -458,7 +458,7 @@ func (h *PreprocessHandler) SubmitByFilter(c *gin.Context) {
 		req.toServiceFilter(), req.Priority, req.Force,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -502,7 +502,7 @@ func (h *PreprocessHandler) ListCandidateMedia(c *gin.Context) {
 
 	result, err := h.preprocessService.ListCandidateMedia(params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result})

@@ -123,7 +123,7 @@ func downloadWebDAVToLocal(ctx context.Context, httpURL, cacheDir, mediaID strin
 
 	cleanup := func() {
 		if err := os.Remove(finalPath); err != nil && !os.IsNotExist(err) {
-			logger.Warnf("清理 WebDAV 下载临时文件失败: %s, %v", finalPath, err)
+			logger.Warnw("清理 WebDAV 下载临时文件失败", "finalPath", finalPath, "error", err)
 		}
 	}
 	return finalPath, cleanup, nil

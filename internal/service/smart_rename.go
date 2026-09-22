@@ -337,7 +337,7 @@ func (s *SmartRenameService) Scan(in ScanInput) (*model.RenamePlan, error) {
 		"unsafe_items":   stats.unsafe,
 		"ai_invocations": stats.ai,
 	}); err != nil {
-		s.logger.Warnf("[SmartRename] 更新规划统计失败: %v", err)
+		s.logger.Warnw("[SmartRename] 更新规划统计失败", "error", err)
 	}
 
 	// 重新加载（带 items 返回）
@@ -355,7 +355,7 @@ func (s *SmartRenameService) collectVideoFiles(root string) ([]string, error) {
 	const minVideoBytes = 10 * 1024 * 1024 // 10MB
 	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
-			s.logger.Warnf("[SmartRename] 跳过不可访问路径 %s: %v", p, err)
+			s.logger.Warnw("[SmartRename] 跳过不可访问路径", "p", p, "error", err)
 			return nil
 		}
 		if d.IsDir() {
@@ -556,7 +556,7 @@ func (s *SmartRenameService) buildItem(
 				}
 			}
 		} else if aiErr != nil {
-			s.logger.Warnf("[SmartRename] AI Fallback 失败 file=%s: %v", srcName, aiErr)
+			s.logger.Warnw("[SmartRename] AI Fallback 失败 file=", "srcName", srcName, "error", aiErr)
 		}
 	}
 
@@ -681,7 +681,7 @@ func (s *SmartRenameService) preloadMediaMap(paths []string) map[string]*model.M
 	}
 	m, err := s.mediaRepo.ListByFilePaths(paths)
 	if err != nil {
-		s.logger.Warnf("[SmartRename] 预加载 Media 失败（回退到逐条查询）: %v", err)
+		s.logger.Warnw("[SmartRename] 预加载 Media 失败（回退到逐条查询）", "error", err)
 		return nil
 	}
 	return m

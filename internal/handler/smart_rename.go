@@ -67,8 +67,8 @@ func (h *SmartRenameHandler) Scan(c *gin.Context) {
 		CreatedBy:             uid,
 	})
 	if err != nil {
-		h.logger.Errorf("smart-rename scan 失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.logger.Errorw("smart-rename scan 失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": plan})
@@ -90,7 +90,7 @@ func (h *SmartRenameHandler) Execute(c *gin.Context) {
 		IgnoreSafety: req.IgnoreSafety,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": plan, "dry_run": !req.Confirm})
@@ -101,7 +101,7 @@ func (h *SmartRenameHandler) Rollback(c *gin.Context) {
 	planID := c.Param("planId")
 	plan, err := h.svc.Rollback(planID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": plan})
@@ -124,7 +124,7 @@ func (h *SmartRenameHandler) ListPlans(c *gin.Context) {
 	libraryID := c.Query("library_id")
 	plans, total, err := h.svc.ListPlans(page, size, libraryID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
@@ -168,7 +168,7 @@ func (h *SmartRenameHandler) UpdateItem(c *gin.Context) {
 	}
 	it, err := h.svc.UpdateItemOverride(itemID, req.OverrideName, req.Excluded)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": it})

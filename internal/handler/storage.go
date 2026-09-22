@@ -115,15 +115,15 @@ func (h *StorageHandler) UpdateWebDAVConfig(c *gin.Context) {
 
 	// 更新服务配置
 	if err := h.webdavService.UpdateConfig(newCfg); err != nil {
-		h.logger.Errorf("更新 WebDAV 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新配置失败: " + err.Error()})
+		h.logger.Errorw("更新 WebDAV 配置失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "更新配置失败", err)
 		return
 	}
 
 	// 更新主配置并持久化到 config/storage.yaml
 	if err := h.cfg.UpdateStorage(func(s *config.StorageConfig) { s.WebDAV = newCfg }); err != nil {
-		h.logger.Errorf("持久化 WebDAV 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败: " + err.Error()})
+		h.logger.Errorw("持久化 WebDAV 配置失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "保存失败", err)
 		return
 	}
 

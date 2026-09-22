@@ -641,7 +641,7 @@ func (s *AdultScraperService) ScrapeByCode(code string) (*AdultMetadata, error) 
 		if err == nil && merged != nil {
 			return merged, nil
 		}
-		s.logger.Warnf("聚合刮削失败，降级串行多源刮削: %s - %v", code, err)
+		s.logger.Warnw("聚合刮削失败，降级串行多源刮削", "code", code, "error", err)
 	}
 
 	s.logger.Infof("开始番号刮削: %s", code)

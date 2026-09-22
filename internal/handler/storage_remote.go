@@ -91,13 +91,13 @@ func (h *StorageHandler) UpdateAlistConfig(c *gin.Context) {
 	}
 
 	if err := h.remoteStorageService.UpdateAlistConfig(newCfg); err != nil {
-		h.logger.Errorf("更新 Alist 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败: " + err.Error()})
+		h.logger.Errorw("更新 Alist 配置失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "更新失败", err)
 		return
 	}
 	if err := h.cfg.UpdateStorage(func(s *config.StorageConfig) { s.Alist = newCfg }); err != nil {
-		h.logger.Errorf("持久化 Alist 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败: " + err.Error()})
+		h.logger.Errorw("持久化 Alist 配置失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "保存失败", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Alist 配置已更新"})
@@ -228,13 +228,13 @@ func (h *StorageHandler) UpdateS3Config(c *gin.Context) {
 	}
 
 	if err := h.remoteStorageService.UpdateS3Config(newCfg); err != nil {
-		h.logger.Errorf("更新 S3 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败: " + err.Error()})
+		h.logger.Errorw("更新 S3 配置失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "更新失败", err)
 		return
 	}
 	if err := h.cfg.UpdateStorage(func(s *config.StorageConfig) { s.S3 = newCfg }); err != nil {
-		h.logger.Errorf("持久化 S3 配置失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败: " + err.Error()})
+		h.logger.Errorw("持久化 S3 配置失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "保存失败", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "S3 配置已更新"})

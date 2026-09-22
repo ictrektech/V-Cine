@@ -71,7 +71,7 @@ func (h *ScanPostProcessHandler) List(c *gin.Context) {
 	}
 	items, total, err := h.repo.List(filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
@@ -110,7 +110,7 @@ func (h *ScanPostProcessHandler) Reprocess(c *gin.Context) {
 	if len(req.MediaIDs) > 0 {
 		ok, err := h.svc.ProcessBatch(req.MediaIDs)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondErr(c, http.StatusInternalServerError, "", err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"data": gin.H{
@@ -129,7 +129,7 @@ func (h *ScanPostProcessHandler) Reprocess(c *gin.Context) {
 	}
 	count, err := h.svc.ReprocessLibrary(req.LibraryID, async)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	mode := "library"
@@ -182,7 +182,7 @@ func (h *ScanPostProcessHandler) Clear(c *gin.Context) {
 		count, err = h.repo.DeleteAll()
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	h.logger.Infof("扫描归类记录已清空 library_id=%s count=%d", libraryID, count)
@@ -194,7 +194,7 @@ func (h *ScanPostProcessHandler) Stats(c *gin.Context) {
 	libraryID := c.Query("library_id")
 	stats, err := h.repo.Stats(libraryID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": stats})
@@ -210,7 +210,7 @@ func (h *ScanPostProcessHandler) Cancel(c *gin.Context) {
 	libraryID := c.Query("library_id")
 	res, err := h.svc.Cancel(libraryID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 	h.logger.Infof("扫描归类已停止 library_id=%s drained=%d marked=%d", libraryID, res.Drained, res.Marked)

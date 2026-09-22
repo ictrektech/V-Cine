@@ -109,14 +109,14 @@ func (s *RecommendService) GetRecommendations(userID string, limit int) ([]Recom
 	// 2. 获取最近活跃的用户（采样，最多100个用户，而非全量加载）
 	activeUserIDs, err := s.historyRepo.GetActiveUserIDs(maxSampleUsers)
 	if err != nil {
-		s.logger.Warnf("获取活跃用户失败，降级到内容推荐: %v", err)
+		s.logger.Warnw("获取活跃用户失败，降级到内容推荐", "error", err)
 		return s.getContentBasedRecommendations(userID, userHistory, limit)
 	}
 
 	// 3. 获取这些用户的观看记录（采样而非全量）
 	sampledHistory, err := s.historyRepo.GetHistoryByUserIDs(activeUserIDs)
 	if err != nil {
-		s.logger.Warnf("获取采样观看历史失败，降级到内容推荐: %v", err)
+		s.logger.Warnw("获取采样观看历史失败，降级到内容推荐", "error", err)
 		return s.getContentBasedRecommendations(userID, userHistory, limit)
 	}
 
@@ -318,7 +318,7 @@ func (s *RecommendService) collaborativeFilter(
 
 	mediaList, err := s.mediaRepo.FindByIDs(mediaIDs)
 	if err != nil {
-		s.logger.Warnf("批量查询媒体失败: %v", err)
+		s.logger.Warnw("批量查询媒体失败", "error", err)
 		return nil
 	}
 

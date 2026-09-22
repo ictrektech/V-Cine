@@ -48,8 +48,8 @@ func (h *CastHandler) CastMedia(c *gin.Context) {
 
 	session, err := h.castService.CastMedia(req.DeviceID, req.MediaID, serverAddr)
 	if err != nil {
-		h.logger.Errorf("投屏失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.logger.Errorw("投屏失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -76,8 +76,8 @@ func (h *CastHandler) ControlCast(c *gin.Context) {
 	}
 
 	if err := h.castService.ControlCast(sessionID, req.Action, req.Value); err != nil {
-		h.logger.Errorf("投屏控制失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.logger.Errorw("投屏控制失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 
@@ -108,8 +108,8 @@ func (h *CastHandler) StopSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 
 	if err := h.castService.ControlCast(sessionID, "stop", 0); err != nil {
-		h.logger.Errorf("停止投屏失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.logger.Errorw("停止投屏失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "", err)
 		return
 	}
 

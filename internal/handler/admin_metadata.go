@@ -52,8 +52,8 @@ func (h *AdminHandler) UpdateTMDbConfig(c *gin.Context) {
 	}
 
 	if err := h.cfg.SetTMDbAPIKey(key); err != nil {
-		h.logger.Errorf("保存 TMDb API Key 失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		h.logger.Errorw("保存 TMDb API Key 失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "保存配置失败", err)
 		return
 	}
 
@@ -70,8 +70,8 @@ func (h *AdminHandler) UpdateTMDbConfig(c *gin.Context) {
 // ClearTMDbConfig 清除 TMDb API Key
 func (h *AdminHandler) ClearTMDbConfig(c *gin.Context) {
 	if err := h.cfg.ClearTMDbAPIKey(); err != nil {
-		h.logger.Errorf("清除 TMDb API Key 失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "清除配置失败: " + err.Error()})
+		h.logger.Errorw("清除 TMDb API Key 失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "清除配置失败", err)
 		return
 	}
 
@@ -164,7 +164,7 @@ func (h *AdminHandler) SearchMetadata(c *gin.Context) {
 
 	results, err := h.metadataService.SearchTMDb(mediaType, query, year)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "搜索失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "搜索失败", err)
 		return
 	}
 
@@ -187,7 +187,7 @@ func (h *AdminHandler) MatchMetadata(c *gin.Context) {
 	}
 
 	if err := h.metadataService.MatchMediaWithTMDb(mediaID, req.TMDbID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "关联元数据失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "关联元数据失败", err)
 		return
 	}
 
@@ -199,7 +199,7 @@ func (h *AdminHandler) UnmatchMetadata(c *gin.Context) {
 	mediaID := c.Param("mediaId")
 
 	if err := h.metadataService.UnmatchMedia(mediaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "解除匹配失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "解除匹配失败", err)
 		return
 	}
 
@@ -221,7 +221,7 @@ func (h *AdminHandler) MatchSeriesMetadata(c *gin.Context) {
 	}
 
 	if err := h.metadataService.MatchSeriesWithTMDb(seriesID, req.TMDbID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "匹配失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "匹配失败", err)
 		return
 	}
 
@@ -233,7 +233,7 @@ func (h *AdminHandler) UnmatchSeriesMetadata(c *gin.Context) {
 	seriesID := c.Param("seriesId")
 
 	if err := h.metadataService.UnmatchSeries(seriesID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "解除匹配失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "解除匹配失败", err)
 		return
 	}
 
@@ -245,7 +245,7 @@ func (h *AdminHandler) ScrapeSeriesMetadata(c *gin.Context) {
 	seriesID := c.Param("seriesId")
 
 	if err := h.metadataService.ScrapeSeries(seriesID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "刷新元数据失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "刷新元数据失败", err)
 		return
 	}
 
@@ -265,7 +265,7 @@ func (h *AdminHandler) SearchDouban(c *gin.Context) {
 
 	results, err := h.metadataService.SearchDouban(query, year)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "豆瓣搜索失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "豆瓣搜索失败", err)
 		return
 	}
 
@@ -285,7 +285,7 @@ func (h *AdminHandler) MatchMediaDouban(c *gin.Context) {
 	}
 
 	if err := h.metadataService.MatchMediaWithDouban(mediaID, req.DoubanID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "关联豆瓣元数据失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "关联豆瓣元数据失败", err)
 		return
 	}
 
@@ -305,7 +305,7 @@ func (h *AdminHandler) MatchSeriesDouban(c *gin.Context) {
 	}
 
 	if err := h.metadataService.MatchSeriesWithDouban(seriesID, req.DoubanID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "关联豆瓣元数据失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "关联豆瓣元数据失败", err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *AdminHandler) SearchTheTVDB(c *gin.Context) {
 
 	results, err := h.metadataService.SearchTheTVDB(query, year)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "TheTVDB 搜索失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "TheTVDB 搜索失败", err)
 		return
 	}
 
@@ -345,7 +345,7 @@ func (h *AdminHandler) MatchSeriesTheTVDB(c *gin.Context) {
 	}
 
 	if err := h.metadataService.MatchSeriesWithTheTVDB(seriesID, req.TVDBID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "关联 TheTVDB 元数据失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "关联 TheTVDB 元数据失败", err)
 		return
 	}
 
@@ -371,7 +371,7 @@ func (h *AdminHandler) SearchBangumi(c *gin.Context) {
 
 	results, err := h.metadataService.SearchBangumi(query, subjectType, year)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "搜索失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "搜索失败", err)
 		return
 	}
 
@@ -388,7 +388,7 @@ func (h *AdminHandler) GetBangumiSubject(c *gin.Context) {
 
 	subject, err := h.metadataService.GetBangumiSubjectDetail(subjectID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取条目详情失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "获取条目详情失败", err)
 		return
 	}
 
@@ -408,7 +408,7 @@ func (h *AdminHandler) MatchMediaBangumi(c *gin.Context) {
 	}
 
 	if err := h.metadataService.MatchMediaWithBangumi(mediaID, req.BangumiID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "关联 Bangumi 元数据失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "关联 Bangumi 元数据失败", err)
 		return
 	}
 
@@ -428,7 +428,7 @@ func (h *AdminHandler) MatchSeriesBangumi(c *gin.Context) {
 	}
 
 	if err := h.metadataService.MatchSeriesWithBangumi(seriesID, req.BangumiID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "关联 Bangumi 元数据失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "关联 Bangumi 元数据失败", err)
 		return
 	}
 
@@ -467,8 +467,8 @@ func (h *AdminHandler) UpdateBangumiConfig(c *gin.Context) {
 	}
 
 	if err := h.cfg.SetBangumiAccessToken(req.AccessToken); err != nil {
-		h.logger.Errorf("持久化 Bangumi Access Token 失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败: " + err.Error()})
+		h.logger.Errorw("持久化 Bangumi Access Token 失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "保存失败", err)
 		return
 	}
 	h.logger.Info("Bangumi Access Token 已更新")
@@ -484,8 +484,8 @@ func (h *AdminHandler) UpdateBangumiConfig(c *gin.Context) {
 // ClearBangumiConfig 清除 Bangumi Access Token
 func (h *AdminHandler) ClearBangumiConfig(c *gin.Context) {
 	if err := h.cfg.ClearBangumiAccessToken(); err != nil {
-		h.logger.Errorf("持久化 Bangumi Access Token 清除失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "清除失败: " + err.Error()})
+		h.logger.Errorw("持久化 Bangumi Access Token 清除失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "清除失败", err)
 		return
 	}
 	h.logger.Info("Bangumi Access Token 已清除")
@@ -540,8 +540,8 @@ func (h *AdminHandler) UpdateDoubanConfig(c *gin.Context) {
 	}
 
 	if err := h.cfg.SetDoubanCookie(cookie); err != nil {
-		h.logger.Errorf("保存豆瓣 Cookie 失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		h.logger.Errorw("保存豆瓣 Cookie 失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "保存配置失败", err)
 		return
 	}
 
@@ -558,8 +558,8 @@ func (h *AdminHandler) UpdateDoubanConfig(c *gin.Context) {
 // ClearDoubanConfig 清除豆瓣 Cookie
 func (h *AdminHandler) ClearDoubanConfig(c *gin.Context) {
 	if err := h.cfg.ClearDoubanCookie(); err != nil {
-		h.logger.Errorf("清除豆瓣 Cookie 失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "清除配置失败: " + err.Error()})
+		h.logger.Errorw("清除豆瓣 Cookie 失败", "error", err)
+		respondErr(c, http.StatusInternalServerError, "清除配置失败", err)
 		return
 	}
 
@@ -587,7 +587,7 @@ func (h *AdminHandler) ValidateDoubanConfig(c *gin.Context) {
 
 	valid, username, err := h.metadataService.ValidateDoubanCookie()
 	if err != nil {
-		h.logger.Warnf("校验豆瓣 Cookie 失败: %v", err)
+		h.logger.Warnw("校验豆瓣 Cookie 失败", "error", err)
 		c.JSON(http.StatusOK, gin.H{
 			"data": gin.H{
 				"valid":   false,
@@ -668,7 +668,7 @@ func cleanupExpiredDoubanImportTokens() {
 func (h *AdminHandler) CreateDoubanImportToken(c *gin.Context) {
 	token, err := generateSecureToken(24)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成 token 失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "生成 token 失败", err)
 		return
 	}
 
@@ -809,16 +809,16 @@ func (h *AdminHandler) ImportDoubanCookie(c *gin.Context) {
 
 	// 保存配置
 	if err := h.cfg.SetDoubanCookie(cookie); err != nil {
-		h.logger.Errorf("保存豆瓣 Cookie 失败: %v", err)
+		h.logger.Errorw("保存豆瓣 Cookie 失败", "error", err)
 		h.markDoubanImportResult(token, false, "", "保存配置失败: "+err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "保存配置失败", err)
 		return
 	}
 
 	// 异步校验 Cookie 是否真的有效 + 获取用户名（不阻塞返回）
 	valid, username, verr := h.metadataService.ValidateDoubanCookie()
 	if verr != nil {
-		h.logger.Warnf("懒人版导入后校验豆瓣 Cookie 异常: %v", verr)
+		h.logger.Warnw("懒人版导入后校验豆瓣 Cookie 异常", "verr", verr)
 	}
 
 	msg := "Cookie 已导入"

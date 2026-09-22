@@ -109,7 +109,7 @@ func (s *LibraryService) SetScanPostProcessService(spp *ScanPostProcessService) 
 func (s *LibraryService) CleanOrphanedData() {
 	libs, err := s.repo.List()
 	if err != nil {
-		s.logger.Errorf("清理孤立数据失败（获取媒体库列表出错）: %v", err)
+		s.logger.Errorw("清理孤立数据失败（获取媒体库列表出错）", "error", err)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (s *LibraryService) CleanOrphanedData() {
 	// 清理孤立的 Media 记录
 	mediaCount, err := s.mediaRepo.CleanOrphanedByLibraryIDs(validIDs)
 	if err != nil {
-		s.logger.Errorf("清理孤立媒体数据失败: %v", err)
+		s.logger.Errorw("清理孤立媒体数据失败", "error", err)
 	} else if mediaCount > 0 {
 		s.logger.Infof("已清理 %d 条孤立媒体记录", mediaCount)
 	}
@@ -130,7 +130,7 @@ func (s *LibraryService) CleanOrphanedData() {
 	// 清理幽灵 Media 记录（library_id 为空的无主记录，由豆瓣刮削 Series 时误创建）
 	ghostCount, err := s.mediaRepo.CleanGhostMedia()
 	if err != nil {
-		s.logger.Errorf("清理幽灵媒体数据失败: %v", err)
+		s.logger.Errorw("清理幽灵媒体数据失败", "error", err)
 	} else if ghostCount > 0 {
 		s.logger.Infof("已清理 %d 条幽灵媒体记录（library_id 为空）", ghostCount)
 	}
@@ -138,7 +138,7 @@ func (s *LibraryService) CleanOrphanedData() {
 	// 清理孤立的 Series 记录
 	seriesCount, err := s.seriesRepo.CleanOrphanedByLibraryIDs(validIDs)
 	if err != nil {
-		s.logger.Errorf("清理孤立剧集合集数据失败: %v", err)
+		s.logger.Errorw("清理孤立剧集合集数据失败", "error", err)
 	} else if seriesCount > 0 {
 		s.logger.Infof("已清理 %d 条孤立剧集合集记录", seriesCount)
 	}
@@ -146,7 +146,7 @@ func (s *LibraryService) CleanOrphanedData() {
 	// 清理空合集（episode_count 为 0 的合集记录，通常是文件被删除后的残留）
 	emptyCount, err := s.seriesRepo.CleanEmptySeries()
 	if err != nil {
-		s.logger.Errorf("清理空合集数据失败: %v", err)
+		s.logger.Errorw("清理空合集数据失败", "error", err)
 	} else if emptyCount > 0 {
 		s.logger.Infof("已清理 %d 条空合集记录（episode_count = 0）", emptyCount)
 	}
@@ -159,7 +159,7 @@ func (s *LibraryService) CleanOrphanedData() {
 	if s.favRepo != nil {
 		favCount, err := s.favRepo.CleanOrphaned()
 		if err != nil {
-			s.logger.Errorf("清理孤立收藏数据失败: %v", err)
+			s.logger.Errorw("清理孤立收藏数据失败", "error", err)
 		} else if favCount > 0 {
 			s.logger.Infof("已清理 %d 条孤立收藏记录", favCount)
 		}
@@ -169,7 +169,7 @@ func (s *LibraryService) CleanOrphanedData() {
 	if s.historyRepo != nil {
 		historyCount, err := s.historyRepo.CleanOrphaned()
 		if err != nil {
-			s.logger.Errorf("清理孤立观看历史数据失败: %v", err)
+			s.logger.Errorw("清理孤立观看历史数据失败", "error", err)
 		} else if historyCount > 0 {
 			s.logger.Infof("已清理 %d 条孤立观看历史记录", historyCount)
 		}
@@ -681,7 +681,7 @@ func (s *LibraryService) cleanOrganizeOutputDir(lib *model.Library) {
 	}
 	for _, p := range lib.AllPaths() {
 		if pathEqual(outputDir, p) {
-			s.logger.Warnf("跳过清理硬链接输出目录：输出目录与媒体源目录相同 path=%s", outputDir)
+			s.logger.Warnw("跳过清理硬链接输出目录：输出目录与媒体源目录相同 path=", "outputDir", outputDir)
 			return
 		}
 	}

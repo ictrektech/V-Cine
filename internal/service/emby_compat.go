@@ -528,7 +528,7 @@ func (s *EmbyCompatService) scanEmbyMovieFolder(folderPath string) []EmbyScanned
 
 	entries, err := os.ReadDir(folderPath)
 	if err != nil {
-		s.logger.Warnf("读取电影目录失败: %s, %v", folderPath, err)
+		s.logger.Warnw("读取电影目录失败", "folderPath", folderPath, "error", err)
 		return items
 	}
 
@@ -625,7 +625,7 @@ func (s *EmbyCompatService) scanEmbyTVShowFolder(folderPath string) []EmbyScanne
 
 	entries, err := os.ReadDir(folderPath)
 	if err != nil {
-		s.logger.Warnf("读取电视剧目录失败: %s, %v", folderPath, err)
+		s.logger.Warnw("读取电视剧目录失败", "folderPath", folderPath, "error", err)
 		return items
 	}
 
@@ -944,7 +944,7 @@ func (s *EmbyCompatService) importEmbyTVShow(item EmbyScannedItem, req EmbyImpor
 			s.scanner.ProbeMediaInfo(media)
 
 			if err := s.mediaRepo.Create(media); err != nil {
-				s.logger.Warnf("保存剧集失败: %s, %v", videoFile, err)
+				s.logger.Warnw("保存剧集失败", "videoFile", videoFile, "error", err)
 				continue
 			}
 			importedCount++
@@ -987,7 +987,7 @@ func (s *EmbyCompatService) importEmbyTVShow(item EmbyScannedItem, req EmbyImpor
 		s.scanner.ProbeMediaInfo(media)
 
 		if err := s.mediaRepo.Create(media); err != nil {
-			s.logger.Warnf("保存剧集失败: %s, %v", videoFile, err)
+			s.logger.Warnw("保存剧集失败", "videoFile", videoFile, "error", err)
 			continue
 		}
 		importedCount++

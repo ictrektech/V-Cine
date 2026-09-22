@@ -42,42 +42,42 @@ func (s *PulseService) GetDashboard() (*DashboardData, error) {
 
 	overview, err := s.pulseRepo.GetDashboardOverview()
 	if err != nil {
-		s.logger.Warnf("获取仪表盘概览失败: %v", err)
+		s.logger.Warnw("获取仪表盘概览失败", "error", err)
 	} else {
 		data.Overview = overview
 	}
 
 	trends, err := s.pulseRepo.GetPlayTrends(30)
 	if err != nil {
-		s.logger.Warnf("获取播放趋势失败: %v", err)
+		s.logger.Warnw("获取播放趋势失败", "error", err)
 	} else {
 		data.Trends = trends
 	}
 
 	topContent, err := s.pulseRepo.GetTopContent(30, 10)
 	if err != nil {
-		s.logger.Warnf("获取热门内容失败: %v", err)
+		s.logger.Warnw("获取热门内容失败", "error", err)
 	} else {
 		data.TopContent = topContent
 	}
 
 	topUsers, err := s.pulseRepo.GetTopUsers(30, 10)
 	if err != nil {
-		s.logger.Warnf("获取用户排行失败: %v", err)
+		s.logger.Warnw("获取用户排行失败", "error", err)
 	} else {
 		data.TopUsers = topUsers
 	}
 
 	recentPlays, err := s.pulseRepo.GetRecentPlays(20)
 	if err != nil {
-		s.logger.Warnf("获取最近播放失败: %v", err)
+		s.logger.Warnw("获取最近播放失败", "error", err)
 	} else {
 		data.RecentPlays = recentPlays
 	}
 
 	hourlyDist, err := s.pulseRepo.GetHourlyDistribution(30)
 	if err != nil {
-		s.logger.Warnf("获取时段分布失败: %v", err)
+		s.logger.Warnw("获取时段分布失败", "error", err)
 	} else {
 		data.HourlyDist = hourlyDist
 	}
@@ -143,35 +143,35 @@ func (s *PulseService) GetAnalytics() (*AnalyticsData, error) {
 
 	genreDist, err := s.pulseRepo.GetGenreDistribution()
 	if err != nil {
-		s.logger.Warnf("获取类型分布失败: %v", err)
+		s.logger.Warnw("获取类型分布失败", "error", err)
 	} else {
 		data.GenreDist = genreDist
 	}
 
 	resDist, err := s.pulseRepo.GetResolutionDistribution()
 	if err != nil {
-		s.logger.Warnf("获取画质分布失败: %v", err)
+		s.logger.Warnw("获取画质分布失败", "error", err)
 	} else {
 		data.ResolutionDist = resDist
 	}
 
 	codecDist, err := s.pulseRepo.GetCodecDistribution()
 	if err != nil {
-		s.logger.Warnf("获取编码分布失败: %v", err)
+		s.logger.Warnw("获取编码分布失败", "error", err)
 	} else {
 		data.CodecDist = codecDist
 	}
 
 	libStats, err := s.pulseRepo.GetLibraryStats()
 	if err != nil {
-		s.logger.Warnf("获取媒体库统计失败: %v", err)
+		s.logger.Warnw("获取媒体库统计失败", "error", err)
 	} else {
 		data.LibraryStats = libStats
 	}
 
 	growth, err := s.pulseRepo.GetMediaGrowth(12)
 	if err != nil {
-		s.logger.Warnf("获取增长趋势失败: %v", err)
+		s.logger.Warnw("获取增长趋势失败", "error", err)
 	} else {
 		data.Growth = growth
 	}

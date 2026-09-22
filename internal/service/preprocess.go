@@ -261,7 +261,7 @@ func (s *PreprocessService) BatchSubmit(mediaIDs []string, priority int, force b
 	for _, id := range mediaIDs {
 		task, err := s.SubmitMedia(id, priority, force)
 		if err != nil {
-			s.logger.Warnf("批量提交跳过 %s: %v", id, err)
+			s.logger.Warnw("批量提交跳过", "id", id, "error", err)
 			continue
 		}
 		tasks = append(tasks, task)
@@ -1231,7 +1231,7 @@ func (s *PreprocessService) GetCacheUsage(force bool) (*CacheUsage, error) {
 		dir := filepath.Join(rootDir, name)
 		size, count, werr := dirSizeAndCount(dir)
 		if werr != nil {
-			s.logger.Warnf("统计缓存子目录失败 %s: %v", dir, werr)
+			s.logger.Warnw("统计缓存子目录失败", "dir", dir, "werr", werr)
 			continue
 		}
 
@@ -1352,7 +1352,7 @@ func (s *PreprocessService) GetStorageUsage(limit int) (*PreprocessStorageUsage,
 	allTasks, err := s.repo.ListAllForUsage()
 	if err != nil {
 		// DB 出错不阻塞磁盘统计，只是丢失 task 信息
-		s.logger.Warnf("查询预处理任务列表失败: %v", err)
+		s.logger.Warnw("查询预处理任务列表失败", "error", err)
 	}
 	taskByMedia := make(map[string]*model.PreprocessTask, len(allTasks))
 	for i := range allTasks {
@@ -1372,7 +1372,7 @@ func (s *PreprocessService) GetStorageUsage(limit int) (*PreprocessStorageUsage,
 		dir := filepath.Join(rootDir, mediaID)
 		size, err := dirSize(dir)
 		if err != nil {
-			s.logger.Warnf("统计预处理目录占用失败 %s: %v", dir, err)
+			s.logger.Warnw("统计预处理目录占用失败", "dir", dir, "error", err)
 			continue
 		}
 		if size == 0 {
@@ -1426,7 +1426,7 @@ func (s *PreprocessService) CleanOrphanCache() (int, int64, error) {
 			continue
 		}
 		if err := os.RemoveAll(it.OutputDir); err != nil {
-			s.logger.Warnf("清理孤儿目录失败 %s: %v", it.OutputDir, err)
+			s.logger.Warnw("清理孤儿目录失败", "OutputDir", it.OutputDir, "error", err)
 			continue
 		}
 		freed += it.Size
@@ -1460,7 +1460,7 @@ func (s *PreprocessService) CleanPreprocessAll() (cleaned int, freed int64, skip
 			continue
 		}
 		if rmErr := os.RemoveAll(it.OutputDir); rmErr != nil {
-			s.logger.Warnf("清理预处理目录失败 %s: %v", it.OutputDir, rmErr)
+			s.logger.Warnw("清理预处理目录失败", "OutputDir", it.OutputDir, "error", rmErr)
 			continue
 		}
 		freed += it.Size
@@ -1477,7 +1477,7 @@ func (s *PreprocessService) CleanPreprocessAll() (cleaned int, freed int64, skip
 				task.Phase = ""
 				task.Message = "缓存已清理，等待重新处理"
 				if uErr := s.repo.Update(task); uErr != nil {
-					s.logger.Warnf("重置任务状态失败 media=%s: %v", it.MediaID, uErr)
+					s.logger.Warnw("重置任务状态失败 media=", "MediaID", it.MediaID, "error", uErr)
 				}
 			}
 		}
@@ -1600,7 +1600,7 @@ func (s *PreprocessService) CleanCacheCategory(key string, mode string) (*CleanC
 	}
 	// 重建空目录，方便后续写入
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		s.logger.Warnf("重建分类目录失败 %s: %v", dir, err)
+		s.logger.Warnw("重建分类目录失败", "dir", dir, "error", err)
 	}
 
 	s.logger.Infof("已清空缓存分类 %s（%s），释放 %d 字节，%d 个文件", key, meta.Label, size, count)
@@ -1749,7 +1749,7 @@ func (s *PreprocessService) shouldYieldToHigherPriority(currentTaskID string) bo
 func (s *PreprocessService) processTask(taskID string) {
 	task, err := s.repo.FindByID(taskID)
 	if err != nil {
-		s.logger.Warnf("预处理任务不存在: %s", taskID)
+		s.logger.Warnw("预处理任务不存在", "taskID", taskID)
 		return
 	}
 
@@ -1824,17 +1824,17 @@ func (s *PreprocessService) processTask(taskID string) {
 	phase23Wg.Wait()
 
 	if thumbnailErr != nil {
-		s.logger.Warnf("封面提取失败（非致命）: %v", thumbnailErr)
+		s.logger.Warnw("封面提取失败（非致命）", "error", thumbnailErr)
 	} else {
 		task.ThumbnailPath = thumbnailPath
 	}
 	if keyframesErr != nil {
-		s.logger.Warnf("关键帧提取失败（非致命）: %v", keyframesErr)
+		s.logger.Warnw("关键帧提取失败（非致命）", "error", keyframesErr)
 	} else {
 		task.KeyframesDir = keyframesDir
 	}
 	if spriteErr != nil {
-		s.logger.Warnf("雪碧图生成失败（非致命）: %v", spriteErr)
+		s.logger.Warnw("雪碧图生成失败（非致命）", "error", spriteErr)
 	} else {
 		task.SpritePath = spritePath
 		task.SpriteVTTPath = vttPath
@@ -2410,7 +2410,7 @@ func (s *PreprocessService) transcodeWithFallback(
 		// 解析进度
 		stderrPipe, err := cmd.StderrPipe()
 		if err != nil {
-			s.logger.Warnf("创建 stderr 管道失败: %v", err)
+			s.logger.Warnw("创建 stderr 管道失败", "error", err)
 			continue
 		}
 
@@ -2432,7 +2432,7 @@ func (s *PreprocessService) transcodeWithFallback(
 			defer close(progressDone)
 			defer func() {
 				if r := recover(); r != nil {
-					s.logger.Errorf("进度解析 panic: %v", r)
+					s.logger.Errorw("进度解析 panic", "r", r)
 				}
 			}()
 			lastLines := s.parseFFmpegProgressWithStderr(stderrPipe, task.SourceDuration, onProgress)
@@ -2640,7 +2640,7 @@ func (s *PreprocessService) failTask(task *model.PreprocessTask, errMsg string) 
 	s.repo.Update(task)
 
 	s.broadcastEvent(EventPreprocessFailed, task)
-	s.logger.Warnf("预处理失败: %s - %s", task.MediaTitle, errMsg)
+	s.logger.Warnw("预处理失败", "MediaTitle", task.MediaTitle, "errMsg", errMsg)
 }
 
 func (s *PreprocessService) broadcastEvent(eventType string, task *model.PreprocessTask) {

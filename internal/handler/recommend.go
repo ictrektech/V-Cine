@@ -26,7 +26,7 @@ func (h *RecommendHandler) GetRecommendations(c *gin.Context) {
 
 	recommendations, err := h.recommendService.GetRecommendations(userID.(string), limit)
 	if err != nil {
-		h.logger.Errorf("获取推荐列表失败: %v", err)
+		h.logger.Errorw("获取推荐列表失败", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取推荐失败"})
 		return
 	}
@@ -45,7 +45,7 @@ func (h *RecommendHandler) GetSimilarMedia(c *gin.Context) {
 
 	recommendations, err := h.recommendService.GetSimilarMedia(mediaID, limit)
 	if err != nil {
-		h.logger.Errorf("获取相关推荐失败: %v", err)
+		h.logger.Errorw("获取相关推荐失败", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取相关推荐失败"})
 		return
 	}

@@ -224,7 +224,7 @@ func (h *AdultScraperHandler) UpdateConfig(c *gin.Context) {
 			a.CookieFC2Hub = *req.CookieFC2Hub
 		}
 	}); err != nil {
-		h.logger.Warnf("持久化番号刮削配置失败: %v", err)
+		h.logger.Warnw("持久化番号刮削配置失败", "error", err)
 	}
 
 	// 按需拉起 / 回收 Python 子进程
@@ -238,7 +238,7 @@ func (h *AdultScraperHandler) UpdateConfig(c *gin.Context) {
 		case !oldEnabled && nowEnabled && nowAutoStart:
 			h.logger.Infof("番号刮削已启用，尝试拉起 Python 微服务子进程...")
 			if err := h.pythonLauncher.Start(); err != nil {
-				h.logger.Warnf("拉起 Python 微服务失败: %v", err)
+				h.logger.Warnw("拉起 Python 微服务失败", "error", err)
 			}
 		case oldEnabled && !nowEnabled:
 			h.logger.Infof("番号刮削已禁用，回收 Python 微服务子进程")
@@ -246,7 +246,7 @@ func (h *AdultScraperHandler) UpdateConfig(c *gin.Context) {
 		case nowEnabled && !oldAutoStart && nowAutoStart:
 			// 用户在运行时打开了自动启动开关
 			if err := h.pythonLauncher.Start(); err != nil {
-				h.logger.Warnf("拉起 Python 微服务失败: %v", err)
+				h.logger.Warnw("拉起 Python 微服务失败", "error", err)
 			}
 		}
 	}

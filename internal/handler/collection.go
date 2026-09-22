@@ -119,7 +119,7 @@ func (h *CollectionHandler) SearchCollections(c *gin.Context) {
 func (h *CollectionHandler) AutoMatch(c *gin.Context) {
 	count, err := h.collectionService.AutoMatchCollections()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "自动匹配失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "自动匹配失败", err)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (h *CollectionHandler) CreateCollection(c *gin.Context) {
 
 	coll, err := h.collectionService.CreateCollection(req.Name, req.MediaIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建合集失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "创建合集失败", err)
 		return
 	}
 
@@ -164,7 +164,7 @@ func (h *CollectionHandler) UpdateCollection(c *gin.Context) {
 	}
 
 	if err := h.collectionService.UpdateCollection(collectionID, req.Name, req.Overview); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "更新失败", err)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *CollectionHandler) UpdateCollection(c *gin.Context) {
 func (h *CollectionHandler) DeleteCollection(c *gin.Context) {
 	collectionID := c.Param("id")
 	if err := h.collectionService.DeleteCollection(collectionID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "删除失败", err)
 		return
 	}
 
@@ -196,7 +196,7 @@ func (h *CollectionHandler) AddMedia(c *gin.Context) {
 	}
 
 	if err := h.collectionService.AddMediaToCollection(collectionID, req.MediaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "添加失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "添加失败", err)
 		return
 	}
 
@@ -293,7 +293,7 @@ const collectionPosterPlaceholderSVG = `<svg xmlns="http://www.w3.org/2000/svg" 
 func (h *CollectionHandler) MergeDuplicates(c *gin.Context) {
 	merged, err := h.collectionService.MergeDuplicateCollections()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "合并失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "合并失败", err)
 		return
 	}
 
@@ -308,7 +308,7 @@ func (h *CollectionHandler) MergeDuplicates(c *gin.Context) {
 func (h *CollectionHandler) CleanupEmpty(c *gin.Context) {
 	cleaned, err := h.collectionService.CleanupEmptyCollections()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "清理失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "清理失败", err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *CollectionHandler) CleanupEmpty(c *gin.Context) {
 func (h *CollectionHandler) Rematch(c *gin.Context) {
 	created, err := h.collectionService.ReMatchCollections()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "重新匹配失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "重新匹配失败", err)
 		return
 	}
 
@@ -340,7 +340,7 @@ func (h *CollectionHandler) Rematch(c *gin.Context) {
 func (h *CollectionHandler) DuplicateStats(c *gin.Context) {
 	stats, err := h.collectionService.GetDuplicateCollectionStats()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取统计失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "获取统计失败", err)
 		return
 	}
 
@@ -357,7 +357,7 @@ func (h *CollectionHandler) RemoveMedia(c *gin.Context) {
 	mediaID := c.Param("mediaId")
 
 	if err := h.collectionService.RemoveMediaFromCollection(collectionID, mediaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "移除失败: " + err.Error()})
+		respondErr(c, http.StatusInternalServerError, "移除失败", err)
 		return
 	}
 

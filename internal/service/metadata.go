@@ -2598,7 +2598,7 @@ func (s *MetadataService) ScrapeAllSeries(libraryID string) (int, int) {
 
 	seriesList, err := s.seriesRepo.ListByLibraryID(libraryID)
 	if err != nil {
-		s.logger.Errorf("获取剧集列表失败: %v", err)
+		s.logger.Errorw("获取剧集列表失败", "error", err)
 		return 0, 0
 	}
 
