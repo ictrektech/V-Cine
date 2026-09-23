@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import type { CreateLibraryRequest, LibraryAdvancedSettings } from '@/types'
+import type { CreateLibraryRequest, LibraryAdvancedSettings, Library } from '@/types'
 import { adminApi, adultScraperApi } from '@/api'
 import {
   X,
@@ -19,6 +19,8 @@ import {
   Trash2,
   Sparkles,
   Info,
+  ScanLine,
+  CheckCircle2,
   HardDrive,
   Cloud,
   Server,
@@ -27,6 +29,7 @@ import {
 import FileBrowser from './FileBrowser'
 import { type StorageType, REMOTE_SCHEMES, joinRemotePath, pathPlaceholder } from '@/lib/storageSchemes'
 import { Modal } from '@/components/ui/modal'
+import { Button } from '@/components/ui/button'
 
 
 // 内容类型配置
@@ -159,7 +162,9 @@ function buildMetadataSourceTooltip(tmdbApiURL: string, tmdbImageURL: string, ad
 interface CreateLibraryModalProps {
   open: boolean
   onClose: () => void
-  onCreate: (data: CreateLibraryRequest) => Promise<void>
+  onCreate: (data: CreateLibraryRequest) => Promise<Library | null>
+  /** 创建成功面板中「立即扫描入库」回调（由父组件触发扫描并维护进度状态） */
+  onScan: (lib: Library) => Promise<void>
 }
 
 // ===== 可复用的 Toggle 开关组件 =====
@@ -198,7 +203,7 @@ function ToggleSwitch({
   )
 }
 
-export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLibraryModalProps) {
+export default function CreateLibraryModal({ open, onClose, onCreate, onScan }: CreateLibraryModalProps) {
   const [selectedType, setSelectedType] = useState<CreateLibraryRequest['type']>('movie')
   const [storageType, setStorageType] = useState<StorageType>('local')
   const [name, setName] = useState('')
@@ -209,6 +214,9 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
   const [showLangDropdown, setShowLangDropdown] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  // 创建成功后的媒体库（非空时显示「立即扫描入库」引导面板）
+  const [created, setCreated] = useState<Library | null>(null)
+  const [startingScan, setStartingScan] = useState(false)
   // 当前打开文件浏览器的路径索引，null 表示未打开
   const [browsingIndex, setBrowsingIndex] = useState<number | null>(null)
   const [metadataSourceTooltip, setMetadataSourceTooltip] = useState(DEFAULT_METADATA_SOURCE_TOOLTIP)
@@ -226,6 +234,8 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
       setAdvanced({ ...DEFAULT_ADVANCED })
       setShowLangDropdown(false)
       setError('')
+      setCreated(null)
+      setStartingScan(false)
       setTimeout(() => nameInputRef.current?.focus(), 100)
     }
   }, [open])
@@ -296,19 +306,38 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
     setError('')
     setSubmitting(true)
     try {
-      await onCreate({
+      const lib = await onCreate({
         name: name.trim(),
         paths: dedup,
         type: selectedType,
         // 高级设置
         ...advanced,
       })
-      onClose()
+      if (lib) {
+        setCreated(lib)
+      } else {
+        onClose()
+      }
     } catch (err: any) {
       const serverMsg = err?.response?.data?.error
       setError(serverMsg || '创建媒体库失败，请检查路径是否正确')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // 「立即扫描入库」：复用父组件扫描流程（维护 scanning 状态 + WS 进度 + 失败提示）
+  const handleStartScan = async () => {
+    if (!created) return
+    setStartingScan(true)
+    setError('')
+    try {
+      await onScan(created)
+      onClose()
+    } catch {
+      // 扫描启动失败：留在引导面板，允许重试
+      setError('扫描启动失败，请稍后在列表中重试')
+      setStartingScan(false)
     }
   }
 
@@ -356,6 +385,44 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
 
           {/* 内容区域 */}
           <div className="px-6 pb-6 space-y-5">
+            {created ? (
+              /* ===== 创建成功引导面板 ===== */
+              <div className="flex flex-col items-center py-10 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
+                  <CheckCircle2 size={28} className="text-emerald-400" />
+                </div>
+                <h3 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                  媒体库「{created.name}」创建成功
+                </h3>
+                <p className="mt-2 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                  立即扫描，让文件入库并自动刮削元数据
+                </p>
+                {error && (
+                  <p className="mt-3 text-sm" style={{ color: '#EF4444' }}>
+                    {error}
+                  </p>
+                )}
+                <div className="mt-7 flex items-center gap-3">
+                  <Button size="lg" onClick={handleStartScan} disabled={startingScan}>
+                    {startingScan ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        启动中...
+                      </>
+                    ) : (
+                      <>
+                        <ScanLine size={16} />
+                        立即扫描
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="lg" onClick={onClose} disabled={startingScan}>
+                    稍后再说
+                  </Button>
+                </div>
+              </div>
+            ) : (
+            <>
             {/* ===== 内容类型选择 ===== */}
             <div>
               <label
@@ -1044,9 +1111,12 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
                 {error}
               </div>
             )}
+            </>
+            )}
           </div>
 
           {/* 底部按钮 */}
+          {!created && (
           <div
             className="flex items-center justify-end gap-3 px-6 py-4 sticky bottom-0"
             style={{
@@ -1054,22 +1124,10 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
               background: 'var(--bg-elevated)',
             }}
           >
-            <button
-              onClick={onClose}
-              className="rounded-xl px-6 py-2.5 text-sm font-medium transition-all"
-              style={{
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-default)',
-                background: 'transparent',
-              }}
-            >
+            <Button variant="outline" onClick={onClose}>
               取消
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="btn-primary gap-2 px-6 py-2.5 text-sm"
-            >
+            </Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
               {submitting ? (
                 <>
                   <Loader2 size={14} className="animate-spin" />
@@ -1078,8 +1136,9 @@ export default function CreateLibraryModal({ open, onClose, onCreate }: CreateLi
               ) : (
                 '确认创建'
               )}
-            </button>
+            </Button>
           </div>
+          )}
         </div>
       </div>
 

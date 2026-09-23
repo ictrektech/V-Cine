@@ -8,6 +8,8 @@ import { useToast } from './Toast'
 import { useDialog } from './Dialog'
 import CreateLibraryModal from './CreateLibraryModal'
 import EditLibraryModal from './EditLibraryModal'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   FolderPlus,
   RefreshCw,
@@ -34,6 +36,21 @@ const TYPE_CONFIG: Record<string, { label: string; icon: typeof Film; color: str
   tvshow: { label: '电视节目', icon: Tv, color: 'var(--neon-purple)', bg: 'var(--neon-purple-8)' },
   mixed: { label: '混合影片', icon: Layers, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)' },
   other: { label: '其他视频', icon: Video, color: '#10B981', bg: 'rgba(16, 185, 129, 0.08)' },
+}
+
+// 扫描按钮三态样式与文案（running 扫描中 / done 已扫描 / pending 未扫描）
+type ScanState = 'running' | 'done' | 'pending'
+const SCAN_BUTTON: Record<ScanState, { className: string; title: string }> = {
+  running: { className: 'text-neon', title: '扫描中...' },
+  done: {
+    className: 'text-[var(--text-tertiary)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--text-primary)]',
+    title: '扫描媒体文件',
+  },
+  pending: {
+    className:
+      'group gap-1.5 border border-amber-500/40 bg-amber-500/10 text-xs font-semibold text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.15)] transition-all hover:bg-amber-500/20 hover:text-amber-300 hover:shadow-[0_0_14px_rgba(245,158,11,0.35)]',
+    title: '尚未扫描，点击开始入库',
+  },
 }
 
 interface LibraryManagerProps {
@@ -87,9 +104,10 @@ function LibraryManager({
   })
 
   const handleCreate = async (data: CreateLibraryRequest) => {
-    await libraryApi.create(data)
+    const created = (await libraryApi.create(data)).data?.data
     const res = await libraryApi.list()
     setLibraries(res.data.data || [])
+    return created ?? null
   }
 
   const handleScan = async (id: string) => {
@@ -265,7 +283,7 @@ function LibraryManager({
           <div
             className="grid gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wider rounded-t-xl"
             style={{
-              gridTemplateColumns: '2fr 2fr 1fr 1.5fr 120px',
+              gridTemplateColumns: '2fr 2fr 1fr 1.5fr 150px',
               borderBottom: '1px solid var(--border-default)',
               color: 'var(--text-tertiary)',
               background: 'var(--nav-hover-bg)',
@@ -301,6 +319,9 @@ function LibraryManager({
             const typeConfig = TYPE_CONFIG[lib.type] || TYPE_CONFIG.movie
             const TypeIcon = typeConfig.icon
             const isScanning = scanning.has(lib.id)
+            // 扫描按钮三态：先按是否扫描过取基线，扫描中覆盖为 running
+            let scanState: ScanState = lib.last_scan ? 'done' : 'pending'
+            if (isScanning) scanState = 'running'
             const progress = scanProgress[lib.id]
             const scrape = scrapeProgress[lib.id]
             const phase = scanPhase[lib.id]
@@ -338,7 +359,7 @@ function LibraryManager({
                 <div
                   className="grid items-center gap-4 px-5 py-4 transition-colors duration-200"
                   style={{
-                    gridTemplateColumns: '2fr 2fr 1fr 1.5fr 120px',
+                    gridTemplateColumns: '2fr 2fr 1fr 1.5fr 150px',
                     borderBottom: '1px solid var(--border-default)',
                   }}
                   onMouseEnter={(e) => {
@@ -412,29 +433,42 @@ function LibraryManager({
                   </div>
 
                   {/* 更新时间 */}
-                  <div className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                    <Calendar size={13} className="flex-shrink-0" />
-                    <span>{formatDate(lib.last_scan)}</span>
-                  </div>
+                  {lib.last_scan ? (
+                    <div className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                      <Calendar size={13} className="flex-shrink-0" />
+                      <span>{formatDate(lib.last_scan)}</span>
+                    </div>
+                  ) : !isScanning && (
+                    <Badge
+                      variant="outline"
+                      className="w-fit gap-1.5 border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-500"
+                      title="点击右侧扫描按钮入库"
+                    >
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                      未扫描
+                    </Badge>
+                  )}
 
                   {/* 操作按钮 */}
                   <div className="flex items-center justify-center gap-1">
-                    {/* 扫描 */}
-                    <button
+                    {/* 扫描 —— 未扫描时高亮引导，鼓励点击 */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleScan(lib.id)}
                       disabled={isScanning}
-                      className="rounded-lg p-2 transition-all hover:bg-[var(--nav-hover-bg)] disabled:opacity-40"
-                      style={{ color: 'var(--text-tertiary)' }}
-                      title="扫描媒体文件"
+                      className={clsx('h-8 px-2.5', SCAN_BUTTON[scanState].className)}
+                      title={SCAN_BUTTON[scanState].title}
                     >
                       <RefreshCw
-                        size={16}
+                        size={14}
                         className={clsx(
-                          'transition-all',
-                          isScanning && 'animate-spin text-neon'
+                          scanState === 'running' && 'animate-spin text-neon',
+                          scanState === 'pending' && 'transition-transform duration-300 group-hover:-rotate-180'
                         )}
                       />
-                    </button>
+                      {scanState === 'pending' && '去扫描'}
+                    </Button>
 
                     {/* 删除 */}
                     <button
@@ -614,6 +648,7 @@ function LibraryManager({
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={handleCreate}
+        onScan={(lib) => handleScan(lib.id)}
       />
 
       {/* ===== 编辑媒体库弹窗 ===== */}
