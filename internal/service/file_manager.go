@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -739,6 +740,10 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		searchTitle = media.OrigTitle
 	}
 
+	// 进搜索前做轻量清洗（可信标题原样 > 规则重解析 > AI 清洗），只影响搜索词。
+	searchTitle = s.ensureCleanSearchTitle(media, searchTitle)
+	titleBefore := media.Title // 供成功后"缺海报回查"判断标题是否被刮削改写
+
 	// 自动模式（auto/空）走完整多源降级链：Adult → TMDb → 豆瓣 → TheTVDB/Bangumi → Fanart → AI；
 	// 显式指定数据源时保持"单源 + AI 兜底"的旧行为。
 	isAutoMode := source == "" || source == "auto"
@@ -853,6 +858,21 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		return
 	}
 
+	// 回查海报：刮削改写了标题却没拿到海报时，用新标题回查豆瓣补齐（best-effort，
+	// 内存模式不落库，由下方 Update 一并持久化）。
+	// 新标题 == searchTitle 时跳过：豆瓣参与链路时已搜过该词（AI 不认识作品时会回显输入标题）。
+	hasFreshTitle := media.Title != titleBefore && media.Title != searchTitle
+	if strings.TrimSpace(media.PosterPath) == "" && hasFreshTitle {
+		s.logger.Debugw("刮削缺海报，用新标题回查豆瓣", "title", media.Title)
+		recorder.onStep(ScrapeChainStep{Provider: "豆瓣(回查)", Status: "trying"})
+		s.metadata.douban.ApplyDoubanData(media, media.Title, media.Year)
+		if strings.TrimSpace(media.PosterPath) == "" {
+			recorder.onStep(ScrapeChainStep{Provider: "豆瓣(回查)", Status: "failed", Error: errors.New("未获取到海报")})
+		} else {
+			recorder.onStep(ScrapeChainStep{Provider: "豆瓣(回查)", Status: "success"})
+		}
+	}
+
 	// 根据结果精确判定 scrape_status：海报和overview都齐才算 scraped，否则 partial。
 	// 判定前先校验本地图片指针：nfo/jpg 可能已被外部删除，失效指针不算有效资产。
 	validateLocalImagePaths(media)
@@ -871,6 +891,10 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		scrapeErr = err // 同步到 defer 终态广播：保存失败同样视为刮削失败
 		return
 	}
+
+	// 自动生成同名 NFO（best-effort，失败不影响刮削结果）。
+	// 番号内容 Adult 源已写入的 .nfo 按 skip 策略保留，不会被覆盖。
+	s.metadata.writeNFOAfterScrape(media.ID, media.ScrapeStatus)
 
 	newJSON, _ := json.Marshal(media)
 	s.addOpLog("scrape", media.ID, fmt.Sprintf("刮削完成(%s): %s", media.ScrapeStatus, media.Title), string(oldJSON), string(newJSON), userID)
@@ -893,6 +917,57 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 		"poster_path":   media.PosterPath,
 		"backdrop_path": media.BackdropPath,
 	})
+}
+
+// ensureCleanSearchTitle 保证进搜索的标题尽量干净。
+// 优先级：可信标题原样 > 规则重解析（ParseMovieFilename 剥站点标签/广告/编码噪声）> AI 清洗。
+// 只影响本次搜索词，不改写 DB：清洗后刮削成功时 TMDb 等结果会覆盖 title。
+func (s *FileManagerService) ensureCleanSearchTitle(media *model.Media, searchTitle string) string {
+	if searchTitle == "" {
+		return searchTitle
+	}
+	// 可信标题（已刮削/有外部 ID/无明显脏标记）且不含中缀脏分隔（如 "素材--xxx"）时直接用
+	if isTrustedMediaTitle(searchTitle, media) && !strings.Contains(searchTitle, "--") {
+		return searchTitle
+	}
+
+	// 规则重解析：只有解析结果与当前标题不同（说明确实剥掉了脏内容）且更干净时才采用
+	if base := filepath.Base(media.FilePath); media.FilePath != "" {
+		if parsed := ParseMovieFilename(base); parsed.Title != "" && parsed.Title != searchTitle {
+			isSameAsMediaTitle := parsed.Title == media.Title
+			isTrustedParsed := isTrustedMediaTitle(parsed.Title, nil)
+			hasCJK := containsCJK(parsed.Title)
+			if isSameAsMediaTitle || isTrustedParsed || hasCJK {
+				return parsed.Title
+			}
+		}
+	}
+
+	// AI 清洗（轻量：只生成干净标题，不做完整刮削）。
+	// 规则解析清不掉的典型如"素材--经典肖申克的救赎: 重获新生 哔哩哔哩"
+	// （pickFirstChineseSegment 从首个汉字连续累积，会原样返回）。
+	if s.ai != nil && s.ai.IsEnabled() {
+		systemPrompt := "你是影视文件名清洗器。根据你对影视作品的知识，从脏文件名输出作品的官方标准标题：" +
+			"去掉站点前缀、广告推广、技术标签；冒号后内容属于官方标题则保留，是平台视频的演绎副标题则去掉；" +
+			"不认识该作品时只去标签、保留原标题，不要猜测截断。只输出标题本身，不要任何解释。"
+		userPrompt := fmt.Sprintf("清洗以下文件名为干净的影视标题: %s", filepath.Base(media.FilePath))
+		title, err := s.ai.ChatCompletion(
+			systemPrompt,
+			userPrompt,
+			0.2,
+			100,
+		)
+		if err != nil {
+			s.logger.Debugw("AI 清洗失败，使用原搜索词", "error", err)
+		} else if t := strings.TrimSpace(title); t != "" && len([]rune(t)) <= 200 {
+			return t
+		} else {
+			s.logger.Debug("AI 清洗输出不可用，使用原搜索词")
+		}
+	}
+
+	// 兜底：原样返回
+	return searchTitle
 }
 
 // scrapeFromTMDb 从TMDb刮削元数据

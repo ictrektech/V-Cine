@@ -10,6 +10,7 @@ import (
 
 // AIMetadataResult AI 生成的元数据
 type AIMetadataResult struct {
+	Title    string `json:"title"`    // 官方标准标题（识别结果，可与输入标题不同）
 	Overview string `json:"overview"` // 简介
 	Genres   string `json:"genres"`   // 类型标签（逗号分隔）
 	Year     int    `json:"year"`     // 年份（如果能推断）
@@ -22,6 +23,7 @@ const metadataEnhanceSystemPrompt = `你是一个电影/电视剧元数据专家
 
 请严格返回以下 JSON 格式（不要包含任何其他文字）：
 {
+  "title": "该作品的官方标准标题",
   "overview": "作品简介（100-200字，中文）",
   "genres": "类型标签（逗号分隔，如：动作,科幻,冒险）",
   "year": 0,
@@ -35,7 +37,8 @@ const metadataEnhanceSystemPrompt = `你是一个电影/电视剧元数据专家
 3. year 如果标题中包含年份信息则提取，否则根据你的知识填写，不确定则填 0
 4. country 不确定则留空
 5. tagline 简短有力的宣传语，不确定则留空
-6. 如果你完全不认识这部作品，仍然要根据标题中的线索（如关键词、语言等）做出合理推测`
+6. 如果你完全不认识这部作品，仍然要根据标题中的线索（如关键词、语言等）做出合理推测
+7. title 输出你所知该作品的官方标准标题（正式上映/发行用名）；不认识时原样返回输入标题，不要猜测改写`
 
 // metadataEnhanceSchema AIMetadataResult 的结构化输出 schema（json_schema + strict）。
 // 与 scan_postprocess 的做法一致：用解码层语法约束保证 JSON 形状，避免模型
@@ -46,13 +49,14 @@ var metadataEnhanceSchema = `{
   "schema": {
     "type": "object",
     "properties": {
+      "title": {"type": "string"},
       "overview": {"type": "string"},
       "genres": {"type": "string"},
       "year": {"type": "integer"},
       "country": {"type": "string"},
       "tagline": {"type": "string"}
     },
-    "required": ["overview", "genres", "year", "country", "tagline"],
+    "required": ["title", "overview", "genres", "year", "country", "tagline"],
     "additionalProperties": false
   }
 }`
@@ -130,8 +134,16 @@ func (s *AIService) EnrichMetadata(media *model.Media, searchTitle string) error
 	return nil
 }
 
-// applyAIMetadata 将 AI 生成的元数据应用到媒体（只补充缺失字段，不覆盖已有数据）
+// applyAIMetadata 将 AI 生成的元数据应用到媒体（除 Title 外只补充缺失字段；
+// Title 仅在现有标题不可信时改写为 AI 识别的官方标题）
 func (s *AIService) applyAIMetadata(media *model.Media, result *AIMetadataResult) {
+	// 官方标题：仅当现有标题不可信（脏标记/无外部 ID 确认）时改写，可信标题保持不动。
+	isCurrentTitleTrusted := isTrustedMediaTitle(media.Title, media) && !strings.Contains(media.Title, "--")
+	newTitle := strings.TrimSpace(result.Title)
+	shouldAdoptTitle := newTitle != "" && !isCurrentTitleTrusted
+	if shouldAdoptTitle && newTitle != media.Title {
+		media.Title = newTitle
+	}
 	if media.Overview == "" && result.Overview != "" {
 		media.Overview = result.Overview
 	}

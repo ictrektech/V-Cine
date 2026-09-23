@@ -889,7 +889,7 @@ func isTrustedMediaTitle(title string, media *model.Media) bool {
 		return true
 	}
 	lower := strings.ToLower(t)
-	noiseTokens := []string{"dbd-raws", "bdrip", "webrip", "web-dl", "hevc", "x264", "x265", "flac", "1080p", "720p", "2160p", "全集", "简繁", "外挂"}
+	noiseTokens := []string{"dbd-raws", "bdrip", "webrip", "web-dl", "hevc", "x264", "x265", "flac", "1080p", "720p", "480p", "2160p", "全集", "简繁", "外挂"}
 	for _, token := range noiseTokens {
 		if strings.Contains(lower, token) {
 			return false

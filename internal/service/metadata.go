@@ -922,6 +922,8 @@ func (r *chainRecorder) broadcastFinal(status, message string) {
 	})
 }
 
+// writeNFOAfterScrape 刮削成功后自动生成同名 NFO（媒体库刮削与文件列表刮削共用）。
+// best-effort：失败只记 Debug 日志，不影响刮削结果。
 func (s *MetadataService) writeNFOAfterScrape(mediaID, status string) {
 	if s.nfoService == nil || status == "failed" {
 		return

@@ -96,24 +96,24 @@ func (s *DoubanService) applyDoubanAuth(req *http.Request) {
 func (s *DoubanService) ScrapeMedia(media *model.Media, searchTitle string, year int) error {
 	s.logger.Debugf("豆瓣刮削: %s (year=%d)", searchTitle, year)
 
-	// 搜索豆瓣
-	results, err := s.searchDouban(searchTitle, year)
+	results, err := s.searchWithYearRetry(searchTitle, year)
 	if err != nil {
 		return fmt.Errorf("豆瓣搜索失败: %w", err)
 	}
 
+	// 冒号前缀安全网：全标题（带/不带年份）都无结果且标题含冒号时，用冒号前的主标题再试一次。
 	if len(results) == 0 {
-		// 不带年份重试
-		if year > 0 {
-			randomDelay(3000, 6000) // 重试前等待 3-6 秒
-			results, err = s.searchDouban(searchTitle, 0)
+		if prefix, ok := splitColonPrefix(searchTitle); ok {
+			s.logger.Debugw("豆瓣全标题未命中，冒号前缀重试", "query", prefix)
+			randomDelay(3000, 6000)
+			results, err = s.searchWithYearRetry(prefix, year)
 			if err != nil {
 				return fmt.Errorf("豆瓣搜索失败: %w", err)
 			}
 		}
-		if len(results) == 0 {
-			return fmt.Errorf("豆瓣未找到匹配: %s", searchTitle)
-		}
+	}
+	if len(results) == 0 {
+		return fmt.Errorf("豆瓣未找到匹配: %s", searchTitle)
 	}
 
 	best := results[0]
@@ -129,18 +129,10 @@ func (s *DoubanService) ScrapeMedia(media *model.Media, searchTitle string, year
 func (s *DoubanService) ApplyDoubanData(media *model.Media, searchTitle string, year int) {
 	s.logger.Debugf("豆瓣数据补充（内存模式）: %s (year=%d)", searchTitle, year)
 
-	results, err := s.searchDouban(searchTitle, year)
+	results, err := s.searchWithYearRetry(searchTitle, year)
 	if err != nil {
 		s.logger.Debugf("豆瓣搜索失败: %v", err)
 		return
-	}
-
-	if len(results) == 0 && year > 0 {
-		randomDelay(3000, 6000) // 重试前等待 3-6 秒
-		results, err = s.searchDouban(searchTitle, 0)
-		if err != nil {
-			return
-		}
 	}
 
 	if len(results) == 0 {
@@ -149,6 +141,33 @@ func (s *DoubanService) ApplyDoubanData(media *model.Media, searchTitle string, 
 	}
 
 	s.applyDoubanResult(media, &results[0])
+}
+
+// searchWithYearRetry 带年份容错的搜索：先带年份过滤，空结果且 year>0 时去掉年份重试一次。
+func (s *DoubanService) searchWithYearRetry(query string, year int) ([]DoubanSearchResult, error) {
+	results, err := s.searchDouban(query, year)
+	if err != nil || len(results) > 0 {
+		return results, err
+	}
+	if year <= 0 {
+		return results, nil
+	}
+	randomDelay(3000, 6000) // 重试前等待 3-6 秒
+	return s.searchDouban(query, 0)
+}
+
+// splitColonPrefix 提取冒号（全/半角）前的主标题，用于搜索失败后的前缀重试。
+// 冒号位于开头、或前缀不足 2 个字符时视为无有效前缀（过宽的词会打偏豆瓣搜索）。
+func splitColonPrefix(title string) (string, bool) {
+	idx := strings.IndexAny(title, "：:")
+	if idx < 0 {
+		return "", false
+	}
+	prefix := strings.TrimSpace(title[:idx])
+	if len([]rune(prefix)) < 2 {
+		return "", false
+	}
+	return prefix, true
 }
 
 // applyDoubanResult 将豆瓣结果应用到媒体（仅补充缺失字段）
