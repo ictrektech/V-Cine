@@ -1226,9 +1226,11 @@ html[data-runtime="tauri"] #root {
   --light-text-emerald-200: #047857;
   --light-text-emerald-300: #047857;
   --light-text-emerald-400: #047857;
+  --light-text-emerald-500: #047857;
   --light-text-amber-200: #b45309;
   --light-text-amber-300: #b45309;
   --light-text-amber-400: #b45309;
+  --light-text-amber-500: #b45309;
   --light-text-sky-200: #0369a1;
   --light-text-sky-300: #0369a1;
   --light-text-sky-400: #0369a1;
@@ -1337,6 +1339,10 @@ html[data-runtime="tauri"] #root {
 [data-theme="light"] .text-blue-100    { color: var(--light-text-blue-100) !important; }
 [data-theme="light"] .text-red-100     { color: var(--light-text-red-100) !important; }
 [data-theme="light"] .text-amber-100   { color: var(--light-text-amber-100) !important; }
+[data-theme="light"] .text-amber-500   { color: var(--light-text-amber-500) !important; }
+[data-theme="light"] .text-emerald-500 { color: var(--light-text-emerald-500) !important; }
+[data-theme="light"] .text-red-500     { color: var(--light-text-red-500) !important; }
+[data-theme="light"] .text-blue-500    { color: var(--light-text-blue-500) !important; }
 
 [data-theme="light"] .text-amber-300\/80 { color: var(--light-text-amber-200) !important; opacity: 0.92; }
 [data-theme="light"] .text-emerald-300\/80 { color: var(--light-text-emerald-200) !important; opacity: 0.92; }

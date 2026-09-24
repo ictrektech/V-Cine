@@ -80,13 +80,23 @@ export const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
   system: Settings2,
 }
 
+/** 通知类型中文标签（用于在通知条上直观标识任务类型） */
+export const TYPE_LABELS: Record<NotificationType, string> = {
+  scrape: '刮削',
+  scan: '媒体库扫描',
+  transcode: '转码',
+  subtitle: '字幕',
+  analysis: '视频分析',
+  system: '系统任务',
+}
+
 /** 状态徽标文案与配色 */
 export const STATUS_META: Record<string, { label: string; className: string }> = {
   running: { label: '进行中', className: 'bg-amber-500/15 text-amber-500 border-transparent' },
   success: { label: '成功', className: 'bg-emerald-500/15 text-emerald-500 border-transparent' },
   failed: { label: '失败', className: 'bg-red-500/15 text-red-500 border-transparent' },
   partial: { label: '部分完成', className: 'bg-blue-500/15 text-blue-500 border-transparent' },
-  info: { label: '通知', className: 'bg-muted text-muted-foreground border-transparent' },
+  info: { label: '通知', className: 'bg-muted text-[var(--text-tertiary)] border-transparent' },
 }
 
 interface NotificationCenterState {

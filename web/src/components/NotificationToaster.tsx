@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Loader2, X } from 'lucide-react'
-import { useNotificationCenterStore, TYPE_ICONS, STATUS_META, type NotificationItem } from '@/stores/notificationCenter'
+import { useNotificationCenterStore, TYPE_ICONS, TYPE_LABELS, STATUS_META, type NotificationItem } from '@/stores/notificationCenter'
 import { cn } from '@/lib/utils'
 
 // ==================== 右上角通知弹窗（紧凑版，自动消失） ====================
@@ -92,20 +92,21 @@ export default function NotificationToaster() {
             }}
             className="animate-in fade-in slide-in-from-top-2 zoom-in-95 duration-200 motion-reduce:animate-none pointer-events-auto flex w-80 cursor-pointer items-start gap-2.5 rounded-lg border border-border bg-background p-3 shadow-lg transition-shadow hover:shadow-xl"
           >
-            {/* 类型图标 */}
-            <span className="mt-0.5 flex-shrink-0 text-muted-foreground">
-              {(() => { const Icon = TYPE_ICONS[item.type]; return <Icon size={13} /> })()}
-            </span>
-
-            {/* 内容 */}
+            {/* 类型标签 + 标题 */}
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-xs font-medium text-foreground">{item.title}</p>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)]">
+                    {(() => { const Icon = TYPE_ICONS[item.type]; return <Icon size={10} /> })()}
+                    {TYPE_LABELS[item.type]}
+                  </span>
+                  <p className="truncate text-xs font-medium text-[var(--text-secondary)]">{item.title}</p>
+                </div>
                 <StatusBadge status={item.status} />
               </div>
-              <p className="truncate text-[11px] text-muted-foreground">{item.message}</p>
+              <p className="line-clamp-2 text-sm leading-snug text-[var(--text-primary)]">{item.message}</p>
               {source && (
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] text-[var(--text-secondary)]">
                   来源: <span className="font-medium text-emerald-500">{source}</span>
                 </p>
               )}
@@ -116,7 +117,7 @@ export default function NotificationToaster() {
                 e.stopPropagation()
                 dismiss(item.id)
               }}
-              className="flex-shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+              className="flex-shrink-0 rounded p-0.5 text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
               title="关闭"
             >
               <X size={12} />

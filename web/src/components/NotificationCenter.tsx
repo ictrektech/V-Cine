@@ -10,7 +10,7 @@ import {
   XCircle,
   Minus,
 } from 'lucide-react'
-import { useNotificationCenterStore, selectUnreadCount, selectHasRunning, TYPE_ICONS, STATUS_META, type NotificationItem, type NotificationStep, type NotificationPlanStep } from '@/stores/notificationCenter'
+import { useNotificationCenterStore, selectUnreadCount, selectHasRunning, TYPE_ICONS, TYPE_LABELS, STATUS_META, type NotificationItem, type NotificationStep, type NotificationPlanStep } from '@/stores/notificationCenter'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -58,8 +58,8 @@ function StepBadge({ step }: { step: NotificationStep }) {
         (step.status === 'trying' || isDisabled) && 'border-amber-500/30 bg-amber-500/10 text-amber-500',
         step.status === 'failed' && 'border-red-500/30 bg-red-500/10 text-red-500',
         (step.status === 'success' || isSource) && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
-        isSkipped && 'border-border bg-muted/40 text-muted-foreground',
-        isPending && 'border-dashed border-border/70 text-muted-foreground/60',
+        isSkipped && 'border-border bg-muted/40 text-[var(--text-secondary)]',
+        isPending && 'border-dashed border-border/70 text-[var(--text-tertiary)]',
       )}
       title={title}
     >
@@ -201,9 +201,9 @@ export default function NotificationCenter() {
               sorted.map((item) => <NotificationRow key={item.id} item={item} onRemove={remove} />)
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <Bell size={36} className="mb-3 text-muted-foreground/50" />
-                <p className="text-sm text-foreground">暂无通知</p>
-                <p className="mt-1 text-xs text-muted-foreground">刮削、扫描、转码、视频分析等任务的通知会显示在这里</p>
+                <Bell size={36} className="mb-3 text-[var(--text-tertiary)]/50" />
+                <p className="text-sm text-[var(--text-primary)]">暂无通知</p>
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">刮削、扫描、转码、视频分析等任务的通知会显示在这里</p>
               </div>
             )}
           </div>
@@ -217,7 +217,7 @@ export default function NotificationCenter() {
                 <CheckCheck size={13} />
                 全部已读
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-red-500" onClick={clear}>
+              <Button variant="ghost" size="sm" className="text-[var(--text-tertiary)] hover:text-red-500" onClick={clear}>
                 <Trash2 size={13} />
                 清空
               </Button>
@@ -268,11 +268,12 @@ function NotificationRow({ item, onRemove }: { item: NotificationItem; onRemove:
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex-shrink-0 text-muted-foreground">
-            {(() => { const Icon = TYPE_ICONS[item.type]; return <Icon size={14} /> })()}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="inline-flex flex-shrink-0 items-center gap-1 rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)]">
+            {(() => { const Icon = TYPE_ICONS[item.type]; return <Icon size={10} /> })()}
+            {TYPE_LABELS[item.type]}
           </span>
-          <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
+          <p className="truncate text-xs font-medium text-[var(--text-secondary)]">{item.title}</p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-1">
           <Badge variant="outline" className={cn('px-1.5 text-[10px]', statusMeta.className)}>
@@ -285,7 +286,7 @@ function NotificationRow({ item, onRemove }: { item: NotificationItem; onRemove:
               e.stopPropagation()
               onRemove(item.id)
             }}
-            className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+            className="rounded p-0.5 text-[var(--text-tertiary)] opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
             title="删除"
           >
             <X size={11} />
@@ -293,7 +294,7 @@ function NotificationRow({ item, onRemove }: { item: NotificationItem; onRemove:
         </div>
       </div>
 
-      <p className="line-clamp-2 text-xs text-muted-foreground">{item.message}</p>
+      <p className="line-clamp-3 text-sm leading-snug text-[var(--text-primary)]">{item.message}</p>
 
       {/* 完整刮削链路：成功/失败/跳过/未执行 一目了然 */}
       {chain.length > 0 && (
@@ -312,13 +313,9 @@ function NotificationRow({ item, onRemove }: { item: NotificationItem; onRemove:
       )}
 
       {/* 底部元信息：来源 / 失败数 / 时间 */}
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
         <span>
-          {item.source ? (
-            <>来源: <span className="font-medium text-emerald-500">{item.source}</span></>
-          ) : (
-            item.type
-          )}
+          {item.source && <>来源: <span className="font-medium text-emerald-500">{item.source}</span></>}
           {failedCount > 0 && <span className="ml-2 text-red-500">{failedCount} 个源失败</span>}
         </span>
         <span>{timeAgo(item.timestamp)}</span>
