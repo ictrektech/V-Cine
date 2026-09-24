@@ -88,6 +88,18 @@ cache:
   auto_cleanup: false
   cleanup_interval_min: 60
 
+# ==================== AI 与 Embedding ====================
+# embedding 后端（地址即开关，留空 / 注释掉即禁用）：
+# 后端：V-Router → ML Server（模型带 ml-server/ 来源前缀即自动走 v-router 协议）
+#   api_base: http://v-router:8080/v1
+#   model: ml-server/ViT-B-16-SigLIP2__webli
+#   api_key: ""   # 可选：REQUIRE_KEY 开启且无 VOS 登录态时填网关 Key
+ai:
+  embedding_ai:
+    api_base: ""
+    model: ""
+    api_key: ""
+
 # ==================== 视频分析（场景检测与结构化）====================
 # 默认关闭。Scene 和 Structure 通过媒体源地址从 nowen-video 拉取媒体流，
 # 不再依赖宿主路径映射，也不需要两侧共享文件系统。

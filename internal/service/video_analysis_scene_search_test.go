@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/testutil"
@@ -18,24 +19,25 @@ import (
 // sceneTestDim 测试用 embedding 维度（与生产 768 维对齐）
 const sceneTestDim = 768
 
-// newFakeEmbeddingServer 返回固定查询向量的假 emb_server：
+// newFakeEmbeddingServer 返回固定查询向量的假 V-Router（/v1/models + /v1/embeddings）：
 // 任意文本 query 都返回 e0（第 0 维 = 1 的单位向量），验证文本向量被送入检索。
 func newFakeEmbeddingServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	queryVec := make([]float64, sceneTestDim)
 	queryVec[0] = 1
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/embed" {
+		switch r.URL.Path {
+		case "/v1/models":
+			_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": []map[string]string{{"id": "ml-server/ViT-B-16-SigLIP2__webli"}}})
+		case "/v1/embeddings":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"object": "list",
+				"data":   []map[string]any{{"object": "embedding", "embedding": queryVec, "index": 0}},
+			})
+		default:
 			http.NotFound(w, r)
-			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"embeddings": [][]float64{queryVec},
-			"dim":        sceneTestDim,
-			"model":      "vit-b-16-siglip2__webli",
-			"modality":   "text",
-		})
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -49,7 +51,7 @@ func sceneUnitVector(pos int) pgvector.Vector {
 }
 
 // setupSceneSearchService 构建带真实 sceneRepo + 假 embedding 服务的 VideoAnalysisService
-func setupSceneSearchService(t *testing.T, embServer *httptest.Server) (*VideoAnalysisService, *repository.VideoAnalysisTaskRepo, string) {
+func setupSceneSearchService(t *testing.T, fakeVRouter *httptest.Server) (*VideoAnalysisService, *repository.VideoAnalysisTaskRepo, string) {
 	t.Helper()
 	db := testutil.NewTestDB(t)
 	if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}, &model.Scene{}); err != nil {
@@ -65,7 +67,10 @@ func setupSceneSearchService(t *testing.T, embServer *httptest.Server) (*VideoAn
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	embClient, err := NewEmbeddingClient(embServer.URL, "vit-b-16-siglip2__webli")
+	embClient, err := NewEmbeddingProvider(config.EmbeddingAIConfig{
+		APIBase: fakeVRouter.URL,
+		Model:   "ml-server/ViT-B-16-SigLIP2__webli",
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +159,7 @@ func TestVideoAnalysisServiceSceneSearchEmbeddingUnavailable(t *testing.T) {
 
 // TestVideoAnalysisServiceSceneSearchSceneRepoUnavailable 验证 sceneRepo 不可用时报错
 func TestVideoAnalysisServiceSceneSearchSceneRepoUnavailable(t *testing.T) {
-	svc := &VideoAnalysisService{embeddingClient: &EmbeddingClient{}}
+	svc := &VideoAnalysisService{embeddingProvider: &vRouterClient{}}
 	if _, err := svc.SearchScenesByTextToImage("q", 10); err == nil {
 		t.Fatal("expected error when scene repo unavailable, got nil")
 	}

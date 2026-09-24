@@ -149,3 +149,39 @@ V-Router 是**云模型网关**不是本地推理。默认 APIBase 不命中本�
 - **VOS token 转发**：用量按 VOS 用户归集（需 auth service 保留 accessToken）。
 - **模型元数据**：拉取 `/api/v1/models`（含 `qualified`/`kind`/`capabilities`），前端按能力过滤（chat/image/embedding）。
 - **一键配置**：vrouter 版 QuickConfig（当前种子已使之一键即用，暂无必要）。
+
+---
+
+# 附：Embedding 接入（CLIP 图片/文本向量 → V-Router → ML Server）
+
+> 实现见 `tasks/embedding-vrouter/`。目标：场景向量的 embedding 后端统一经 V-Router 调用 ML Server 的 SigLIP2（`ml-server/ViT-B-16-SigLIP2__webli`）。原直连 emb_server 的代码已全部删除。
+
+## A. 协议约束（从 v-router 源码核实的硬约束）
+
+| 项 | 约束 |
+|---|---|
+| 模型名 | 必须用完整限定名 `ml-server/ViT-B-16-SigLIP2__webli`（`AcquireFor` 精确匹配，大小写敏感） |
+| 文本向量 | `POST /v1/embeddings`（OpenAI 兼容）。**只支持文本**；v-router 内部转 ML Server `entries.clip.textual`，响应 `data[].embedding`，无 usage |
+| 图片向量 | 只能走扩展 `POST /v1/ml/predictions`（multipart：`model` + `image` 文件）；响应透传 ML Server `{"clip": "[序列化数组]", ...}` |
+| 模型发现 | `GET /v1/models` 返回 `data[].id`；ML Server 每 30s 自动发现，未运行则模型不在列表 |
+| 鉴权 | `REQUIRE_KEY=false`（默认）匿名可用；开启时用网关 Key 或 VOS token |
+
+## B. 本仓库实现
+
+- **接口抽象**（`internal/service/embedding_provider.go`）：`EmbeddingProvider` 接口（图片/文本计算 + `IsAvailable` + `Probe`），工厂 `NewEmbeddingProvider` 按 model 是否带 `/` 前缀自动选择后端；后续新增后端 = 新文件 + 工厂分支。
+- **唯一后端**（`embedding_vrouter.go`）：v-router 协议已内置；`EmbeddingProvider` 接口 + `NewEmbeddingProvider` 工厂保留，供未来接入其他 embedding 后端（新增实现文件 + 工厂分发，消费方零改动）。
+- **协议约束**（`embedding_vrouter.go`）：
+  - 文本 → `POST {base}/embeddings`（OpenAI 格式解析）
+  - 图片 → dataURL →脱敏→ 还原字节 → multipart `POST {base}/ml/predictions`，解析 `clip` 字段
+  - 调用前探测 `GET {base}/models`（30s TTL 缓存）：模型不在列表 / 网关不可达 / 鉴权失败均给出可读中文错误（“获取不到就提示”）
+- **配置**（`ai.embedding_ai`）：`api_base` 指向 v-router（地址即开关），`model` 用限定名，可选 `api_key`。
+
+```yaml
+embedding_ai:
+  api_base: http://v-router:8080/v1
+  model: ml-server/ViT-B-16-SigLIP2__webli
+  api_key: ""
+```
+
+- **健康展示**：`VideoAnalysisHealthInfo` 新增 `embedding_mode/model/available/error`，系统设置 → 视频分析抽屉展示。
+- 与存量向量的兼容：新旧两后端同为 ViT-B-16-SigLIP2__webli 权重、768 维、同一 CLIP 空间，DB 存量向量无需重建。

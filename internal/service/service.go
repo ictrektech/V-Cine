@@ -419,20 +419,20 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			logger.Errorw("视频分析配置无效，功能未启动: client=", "error", clientErr)
 			return nil, nil
 		}
-		// 创建 embedding 客户端（可选，配置了 embedding_ai 才启用）
-		var embeddingClient *EmbeddingClient
+		// 创建 embedding 后端（可选，配置了 embedding_ai 才启用）
+		// 经 V-Router 调用 ML Server SigLIP2（模型带 ml-server/ 前缀即走 v-router 协议）
+		var embeddingProvider EmbeddingProvider
 		if cfg.AI.EmbeddingAI.APIBase != "" {
-			if ec, ecErr := NewEmbeddingClient(cfg.AI.EmbeddingAI.APIBase, cfg.AI.EmbeddingAI.Model); ecErr == nil {
-				ec.DesensitizeImage = func(v string) string {
-					return aiService.DesensitizeImageForScope(v, config.DesensitizeImageScopeEmbedding)
-				}
-				embeddingClient = ec
+			if ec, ecErr := NewEmbeddingProvider(cfg.AI.EmbeddingAI, func(v string) string {
+				return aiService.DesensitizeImageForScope(v, config.DesensitizeImageScopeEmbedding)
+			}); ecErr == nil {
+				embeddingProvider = ec
 			} else {
-				logger.Warnw("创建 embedding 客户端失败（不影响视频分析）", "error", ecErr)
+				logger.Warnw("创建 embedding 后端失败（不影响视频分析）", "error", ecErr)
 			}
 		}
 		svcs.VideoAnalysis = NewVideoAnalysisService(
-			repos.VideoAnalysis, repos.Media, analysisClient, repos.Scene, embeddingClient,
+			repos.VideoAnalysis, repos.Media, analysisClient, repos.Scene, embeddingProvider,
 			cfg.VideoAnalysis.AssetDir,
 			cfg.VideoAnalysis.DescribeEnabled, wsHub, logger,
 			time.Duration(cfg.VideoAnalysis.PollIntervalSeconds)*time.Second,

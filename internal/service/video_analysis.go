@@ -85,17 +85,17 @@ type VideoAnalysisBatchResult struct {
 }
 
 type VideoAnalysisService struct {
-	tasks            *repository.VideoAnalysisTaskRepo
-	media            *repository.MediaRepo
-	client           videoAnalysisExternalClient
-	vfsMgr           *VFSManager
-	sceneRepo        *repository.SceneRepo
-	embeddingClient  *EmbeddingClient
-	assetDir         string
-	describeEnabled  bool
-	enabled          bool
-	sceneBaseURL     string
-	structureBaseURL string
+	tasks             *repository.VideoAnalysisTaskRepo
+	media             *repository.MediaRepo
+	client            videoAnalysisExternalClient
+	vfsMgr            *VFSManager
+	sceneRepo         *repository.SceneRepo
+	embeddingProvider EmbeddingProvider
+	assetDir          string
+	describeEnabled   bool
+	enabled           bool
+	sceneBaseURL      string
+	structureBaseURL  string
 
 	mu sync.RWMutex
 	// cleanupMu 串行化 structure 目录清理与 claim 搬移，避免清理误删新 claim 的目录。
@@ -115,7 +115,7 @@ func NewVideoAnalysisService(
 	media *repository.MediaRepo,
 	client videoAnalysisExternalClient,
 	sceneRepo *repository.SceneRepo,
-	embeddingClient *EmbeddingClient,
+	embeddingProvider EmbeddingProvider,
 	assetDir string,
 	describeEnabled bool,
 	wsHub *WSHub,
@@ -130,7 +130,7 @@ func NewVideoAnalysisService(
 		jobTimeout = 2 * time.Hour
 	}
 	s := &VideoAnalysisService{
-		tasks: tasks, media: media, client: client, sceneRepo: sceneRepo, embeddingClient: embeddingClient,
+		tasks: tasks, media: media, client: client, sceneRepo: sceneRepo, embeddingProvider: embeddingProvider,
 		assetDir:        strings.TrimSpace(assetDir),
 		describeEnabled: describeEnabled, wsHub: wsHub, logger: logger, pollInterval: pollInterval, jobTimeout: jobTimeout,
 		appCfg: appCfg,
@@ -240,6 +240,11 @@ type VideoAnalysisHealthInfo struct {
 	Structure        *VideoAnalysisHealth `json:"structure,omitempty"`
 	SceneError       string               `json:"scene_error,omitempty"`
 	StructureError   string               `json:"structure_error,omitempty"`
+	// Embedding 后端健康（V-Router → ML Server），未配置时为零值
+	EmbeddingMode      string `json:"embedding_mode,omitempty"`
+	EmbeddingModel     string `json:"embedding_model,omitempty"`
+	EmbeddingAvailable bool   `json:"embedding_available"`
+	EmbeddingError     string `json:"embedding_error,omitempty"`
 }
 
 // GetHealth 返回 Scene / Structure 服务健康状态与关键配置（只读诊断）。
@@ -257,6 +262,16 @@ func (s *VideoAnalysisService) GetHealth(ctx context.Context) VideoAnalysisHealt
 	info.StructureBaseURL = s.structureBaseURL
 	info.AssetDir = s.assetDir
 	s.mu.RUnlock()
+
+	// embedding 后端健康：独立于视频分析主服务展示（配有 embeddingProvider 才探测），
+	// 放在 Available 早退之前，保证服务不可用时诊断仍可见。未配置时保持零值。
+	if s.embeddingProvider != nil {
+		p := s.embeddingProvider.Probe(ctx)
+		info.EmbeddingMode = p.Mode
+		info.EmbeddingModel = p.Model
+		info.EmbeddingAvailable = p.Available
+		info.EmbeddingError = p.Error
+	}
 	if !info.Available {
 		return info
 	}
@@ -315,10 +330,10 @@ func (s *VideoAnalysisService) SearchScenesByTextToImage(q string, limit int) ([
 
 // textToEmbeddingVector 文本 → CLIP 文本向量（float32），文搜文/文搜图共用
 func (s *VideoAnalysisService) textToEmbeddingVector(q string) ([]float32, error) {
-	if s.embeddingClient == nil || !s.embeddingClient.IsAvailable() {
+	if s.embeddingProvider == nil || !s.embeddingProvider.IsAvailable() {
 		return nil, errors.New("embedding service is not available")
 	}
-	emb, err := s.embeddingClient.ComputeTextEmbedding(context.Background(), q)
+	emb, err := s.embeddingProvider.ComputeTextEmbedding(context.Background(), q)
 	if err != nil {
 		return nil, err
 	}
@@ -903,7 +918,7 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 			}
 		}
 
-		// Phase 3b: 计算描述文本的 CLIP embedding（本地调用 emb_server）
+		// Phase 3b: 计算描述文本的 CLIP embedding（经 V-Router 调用 ML Server）
 		if err := s.computeDescriptionEmbeddings(task); err != nil {
 			if s.logger != nil {
 				s.logger.Warnw("Video analysis compute description embeddings failed (non-fatal)",
@@ -1551,10 +1566,10 @@ func (s *VideoAnalysisService) saveScenesFromStructure(task *model.VideoAnalysis
 	return nil
 }
 
-// computeSceneEmbeddings 遍历场景九宫格图片，调用 emb_server 计算 CLIP embedding 并回写。
+// computeSceneEmbeddings 遍历场景九宫格图片，调用 embedding 后端（V-Router → ML Server）计算 CLIP embedding 并回写。
 // 图片路径按搬移后的 <asset_dir>/<hash>/grids/ 解析，须在 claim 之后调用。
 func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisTask) error {
-	if s.embeddingClient == nil || s.sceneRepo == nil {
+	if s.embeddingProvider == nil || s.sceneRepo == nil {
 		return nil
 	}
 	result, err := decodeVideoAnalysisStructureResult(task)
@@ -1581,7 +1596,7 @@ func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisT
 			continue
 		}
 
-		emb, err := s.embeddingClient.ComputeImageEmbedding(context.Background(), gridPath)
+		emb, err := s.embeddingProvider.ComputeImageEmbedding(context.Background(), gridPath)
 		if err != nil {
 			if log != nil {
 				log.Warnw("Compute scene embedding failed",
@@ -1627,9 +1642,9 @@ func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisT
 }
 
 // computeDescriptionEmbeddings 计算场景描述的文本 CLIP embedding 并回写
-// 在描述写入 DB 后调用，读取描述文本并调用 emb_server 计算文本 embedding
+// 在描述写入 DB 后调用，读取描述文本并调用 embedding 后端（V-Router → ML Server）计算文本 embedding
 func (s *VideoAnalysisService) computeDescriptionEmbeddings(task *model.VideoAnalysisTask) error {
-	if s.embeddingClient == nil || !s.embeddingClient.IsAvailable() || s.sceneRepo == nil {
+	if s.embeddingProvider == nil || !s.embeddingProvider.IsAvailable() || s.sceneRepo == nil {
 		return nil
 	}
 
@@ -1648,7 +1663,7 @@ func (s *VideoAnalysisService) computeDescriptionEmbeddings(task *model.VideoAna
 			continue
 		}
 
-		emb, err := s.embeddingClient.ComputeTextEmbedding(context.Background(), scene.Description)
+		emb, err := s.embeddingProvider.ComputeTextEmbedding(context.Background(), scene.Description)
 		if err != nil {
 			if s.logger != nil {
 				s.logger.Warnw("Compute description embedding failed",

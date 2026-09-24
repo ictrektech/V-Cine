@@ -21,23 +21,24 @@ import (
 // sceneHandlerDim 测试 embedding 维度
 const sceneHandlerDim = 768
 
-// newHandlerFakeEmbeddingServer 任意文本 query 返回 e0（第 0 维=1）的假 emb_server
+// newHandlerFakeEmbeddingServer 任意文本 query 返回 e0（第 0 维=1）的假 V-Router
 func newHandlerFakeEmbeddingServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	queryVec := make([]float64, sceneHandlerDim)
 	queryVec[0] = 1
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/embed" {
+		switch r.URL.Path {
+		case "/v1/models":
+			_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": []map[string]string{{"id": "ml-server/ViT-B-16-SigLIP2__webli"}}})
+		case "/v1/embeddings":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"object": "list",
+				"data":   []map[string]any{{"object": "embedding", "embedding": queryVec, "index": 0}},
+			})
+		default:
 			http.NotFound(w, r)
-			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"embeddings": [][]float64{queryVec},
-			"dim":        sceneHandlerDim,
-			"model":      "vit-b-16-siglip2__webli",
-			"modality":   "text",
-		})
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -67,7 +68,10 @@ func setupSceneSearchHandler(t *testing.T) (*VideoAnalysisHandler, *repository.V
 	if err := repos.Media.Create(media); err != nil {
 		t.Fatal(err)
 	}
-	embClient, err := service.NewEmbeddingClient(newHandlerFakeEmbeddingServer(t).URL, "vit-b-16-siglip2__webli")
+	embClient, err := service.NewEmbeddingProvider(config.EmbeddingAIConfig{
+		APIBase: newHandlerFakeEmbeddingServer(t).URL,
+		Model:   "ml-server/ViT-B-16-SigLIP2__webli",
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

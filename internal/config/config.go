@@ -214,12 +214,15 @@ func (p *AIProviderEntry) ViewMap(activeID string) map[string]interface{} {
 }
 
 // AIConfig AI 功能配置
-// EmbeddingAIConfig 图片/文本 embedding 服务配置
-// 对接 emb_server，计算 CLIP 图片 embedding 用于向量检索。
+// EmbeddingAIConfig 图片/文本 embedding 服务配置，计算 CLIP 图片/文本向量用于向量检索。
+// 后端为 V-Router 网关：图片走 POST /v1/ml/predictions，文本走标准 POST /v1/embeddings。
 // 启用语义：APIBase 非空即启用（地址即开关），不再有独立 enabled 开关。
 type EmbeddingAIConfig struct {
 	APIBase string `mapstructure:"api_base" yaml:"api_base"`
 	Model   string `mapstructure:"model" yaml:"model"`
+	// APIKey 仅 V-Router 模式使用（可选）：V-Router 开启 REQUIRE_KEY 且无 VOS 登录态时兜底；
+	// 留空则走匿名内网调用或自动转发当前 VOS accessToken。
+	APIKey string `mapstructure:"api_key" yaml:"api_key" enc:"true"`
 }
 
 // SceneDescribeAIConfig 场景描述视觉模型配置
@@ -288,7 +291,7 @@ type AIConfig struct {
 	// WarningThresholdPct 用量预警阈值（百分比，0~100）。默认 80。
 	WarningThresholdPct int `mapstructure:"warning_threshold_pct" yaml:"warning_threshold_pct,omitempty"`
 
-	// ==================== Embedding 服务配置（emb_server） ====================
+	// ==================== Embedding 服务配置（V-Router → ML Server） ====================
 	EmbeddingAI EmbeddingAIConfig `mapstructure:"embedding_ai" yaml:"embedding_ai"`
 
 	// ==================== 场景描述视觉模型配置 ====================
@@ -899,10 +902,10 @@ func setDefaults() {
 	// 免费档 60 QPM 上限，避免 429。用户可在前端 AI 高级设置里手动调高。
 	viper.SetDefault("ai.max_concurrent", 1)
 	viper.SetDefault("ai.request_interval_ms", 1100)
-	// embedding 地址即开关：默认连宿主 emb_server（172.17.0.1:18005），
+	// embedding 地址即开关：默认连 V-Router 网关（容器网络内 http://v-router:8080/v1），
 	// VOS 留空才禁用，改地址即改连接目标。
-	viper.SetDefault("ai.embedding_ai.api_base", "http://172.17.0.1:18005")
-	viper.SetDefault("ai.embedding_ai.model", "vit-b-16-siglip2__webli")
+	viper.SetDefault("ai.embedding_ai.api_base", "http://v-router:8080/v1")
+	viper.SetDefault("ai.embedding_ai.model", "ml-server/ViT-B-16-SigLIP2__webli")
 	viper.SetDefault("ai.scene_describe_ai.provider_id", "")
 	viper.SetDefault("ai.scene_describe_ai.model", "")
 	viper.SetDefault("ai.desensitize.enabled", false)
