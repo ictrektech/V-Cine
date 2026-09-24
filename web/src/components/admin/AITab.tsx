@@ -392,6 +392,15 @@ export default function AITab() {
     }
   }
 
+  // 无可用模型时，禁止开启任何需要调用 AI 的功能
+  const requireModel = (v: boolean, set: (v: boolean) => void) => {
+    if (v && !status?.active_model) {
+      toast.error('请先在供应商设置中选择/启用一个模型')
+      return
+    }
+    set(v)
+  }
+
   const handleSaveFeatures = async () => {
     setSavingFeatures(true)
     try {
@@ -451,8 +460,10 @@ export default function AITab() {
   const handleToggleAutoPilot = async (enable: boolean) => {
     if (autoPilotBusy) return
     if (enable) {
-      setShowAutoPilotWarning(true)
-      setAutoPilotCountdown(3)
+      requireModel(true, () => {
+        setShowAutoPilotWarning(true)
+        setAutoPilotCountdown(3)
+      })
       return
     }
     await performToggleAutoPilot(false)
@@ -742,7 +753,7 @@ export default function AITab() {
             </div>
             <Switch
               checked={editEnabled}
-              onCheckedChange={setEditEnabled}
+              onCheckedChange={(v) => requireModel(v, setEditEnabled)}
               aria-label="启用 AI 功能"
             />
           </div>
@@ -791,7 +802,7 @@ export default function AITab() {
                   </div>
                   <Switch
                     checked={item.value}
-                    onCheckedChange={item.setter}
+                    onCheckedChange={(v) => requireModel(v, item.setter)}
                     aria-label={item.label}
                   />
                 </div>
@@ -1032,19 +1043,15 @@ export default function AITab() {
                 <div className="space-y-2">
                   {providerForm.models.map((m, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      {/* 默认模型单选 */}
-                      <button
-                        type="button"
-                        onClick={() => {
+                      {/* 默认模型选中框：打勾即设为默认模型（仅一个，不可取消） */}
+                      <Checkbox
+                        checked={m.is_default}
+                        onCheckedChange={() => {
                           if (m.is_default) return // 已是默认，不允许取消
                           const newModels = providerForm.models.map((item, i) => ({ ...item, is_default: i === idx }))
                           setProviderForm({ ...providerForm, models: newModels })
                         }}
-                        className={`h-4 w-4 rounded-full border-2 shrink-0 transition-colors ${
-                          m.is_default
-                            ? 'border-neon bg-neon/20 cursor-default'
-                            : 'border-surface-500 hover:border-surface-400 cursor-pointer'
-                        }`}
+                        aria-label={m.is_default ? '默认模型' : '设为默认模型'}
                         title={m.is_default ? '默认模型' : '设为默认模型'}
                       />
                       <input
@@ -1086,9 +1093,8 @@ export default function AITab() {
                           }
                           setProviderForm({ ...providerForm, models: newModels })
                         }}
-                        disabled={providerForm.models.length === 1}
-                        className="text-surface-500 hover:text-red-400 transition-colors p-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title={providerForm.models.length === 1 ? '至少保留一个模型' : '删除模型'}
+                        className="text-surface-500 hover:text-red-400 transition-colors p-1"
+                        title="删除模型"
                       >
                         <X size={14} />
                       </button>
@@ -1190,7 +1196,7 @@ export default function AITab() {
                     </div>
                   </div>
                 )}
-                <p className="mt-1 text-xs text-theme-muted">● 默认模型 · 标记为「视觉」的模型可用于场景描述</p>
+                <p className="mt-1 text-xs text-theme-muted">☑ 默认模型 · 标记为「视觉」的模型可用于场景描述</p>
               </div>
             </div>
 
