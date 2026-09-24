@@ -1,10 +1,10 @@
 import type { LucideIcon } from 'lucide-react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Film, Rss, Clapperboard, Subtitles, Settings2 } from 'lucide-react'
+import { Film, Rss, Clapperboard, Subtitles, Settings2, ScanLine } from 'lucide-react'
 
 // ==================== 通知中心全局状态 ====================
-// 所有后台任务的实时进度与结果通知（刮削/扫描/转码/字幕等），
+// 所有后台任务的实时进度与结果通知（刮削/扫描/转码/字幕/视频分析等），
 // 通过 WS 事件桥接写入，localStorage 持久化，刷新页面不丢失。
 
 export type NotificationType =
@@ -12,6 +12,7 @@ export type NotificationType =
   | 'scan'      // 媒体库扫描
   | 'transcode' // 转码
   | 'subtitle'  // 字幕（ASR/翻译）
+  | 'analysis'  // 视频结构化分析
   | 'system'    // 系统级（批量汇总等）
 
 export type NotificationStatus =
@@ -60,6 +61,8 @@ export interface NotificationItem {
   plan?: NotificationPlanStep[]
   /** 批量进度（可选） */
   progress?: { current: number; total: number; success: number; failed: number }
+  /** 点击跳转的任务处理页路径：非空时通知条可点击直达 */
+  link?: string
   timestamp: number
   read: boolean
 }
@@ -73,6 +76,7 @@ export const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
   scan: Rss,
   transcode: Clapperboard,
   subtitle: Subtitles,
+  analysis: ScanLine,
   system: Settings2,
 }
 
