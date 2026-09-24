@@ -114,6 +114,10 @@ export interface VideoAnalysisHealthInfo {
   structure?: VideoAnalysisHealth | null
   scene_error?: string
   structure_error?: string
+  embedding_mode?: string
+  embedding_model?: string
+  embedding_available?: boolean
+  embedding_error?: string
 }
 
 export interface VideoAnalysisWarning {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Layers, Loader2, RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -18,6 +18,12 @@ interface VideoAnalysisDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onNavigateToAI: () => void
+}
+
+// embeddingModeLabel 后端类型 → 显示名
+const embeddingModeLabel = (mode: string): string => {
+  const labels: Record<string, string> = { vrouter: 'V-Router' }
+  return labels[mode] ?? mode
 }
 
 function ServiceBadge({ ok, okText = '在线', failText = '离线' }: { ok: boolean | null; okText?: string; failText?: string }) {
@@ -94,6 +100,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
 
   const sceneOk = health ? (health.available ? health.scene?.status === 'ok' : false) : null
   const structureOk = health ? (health.available ? health.structure?.status === 'ok' : false) : null
+  const embeddingOk = health ? (health.available ? health.embedding_available === true : false) : null
   const visionModels = (aiStatus?.providers || []).flatMap(p =>
     p.models.filter(m => m.is_vision).map(m => ({ providerID: p.id, providerName: p.name, model: m.name }))
   )
@@ -146,29 +153,63 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                 <Switch checked={settings.enabled} onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })} />
               </div>
 
-              {/* 服务地址：状态徽章内联到分组标题 */}
+              {/* 服务地址 + V-Router 视觉嵌入：分组卡片，简洁 shadcn 样式 */}
               <section aria-disabled={gated} className={cn('space-y-3 transition-opacity', gated && 'pointer-events-none opacity-50')}>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">服务地址</h3>
-                <div className="space-y-3">
-                  <div>
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">Scene 场景检测地址</span>
-                      <ServiceBadge ok={sceneOk} />
+                <div className="rounded-lg border p-5">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">服务地址</h3>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">Scene 场景检测地址</span>
+                        <ServiceBadge ok={sceneOk} />
+                      </div>
+                      <Input value={settings.scene_base_url} onChange={(e) => setSettings({ ...settings, scene_base_url: e.target.value })} disabled={gated} placeholder="http://scene-detection:8910" />
                     </div>
-                    <Input value={settings.scene_base_url} onChange={(e) => setSettings({ ...settings, scene_base_url: e.target.value })} disabled={gated} placeholder="http://scene-detection:8910" />
-                  </div>
-                  <div>
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">Structure 结构分析地址</span>
-                      <ServiceBadge ok={structureOk} />
+                    <div>
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">Structure 结构分析地址</span>
+                        <ServiceBadge ok={structureOk} />
+                      </div>
+                      <Input value={settings.structure_base_url} onChange={(e) => setSettings({ ...settings, structure_base_url: e.target.value })} disabled={gated} placeholder="http://structure:8911" />
                     </div>
-                    <Input value={settings.structure_base_url} onChange={(e) => setSettings({ ...settings, structure_base_url: e.target.value })} disabled={gated} placeholder="http://structure:8911" />
+                    {health?.scene_error && (
+                      <p className="break-all text-xs text-red-400">Scene：{health.scene_error}</p>
+                    )}
+                    {health?.structure_error && (
+                      <p className="break-all text-xs text-red-400">Structure：{health.structure_error}</p>
+                    )}
                   </div>
-                  {health?.scene_error && (
-                    <p className="break-all text-xs text-red-400">Scene：{health.scene_error}</p>
-                  )}
-                  {health?.structure_error && (
-                    <p className="break-all text-xs text-red-400">Structure：{health.structure_error}</p>
+                </div>
+
+                {/* V-Router 视觉嵌入：突出模型标识，仅表明探测可达性 */}
+                <div className="rounded-lg border bg-muted/40 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Layers className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <p className="text-sm font-medium text-foreground">V-Router 视觉嵌入模型</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <code className="rounded bg-muted px-2 py-0.5 font-mono text-sm text-foreground">
+                          {health?.embedding_model || '-'}
+                        </code>
+                        {health?.embedding_mode && (
+                          <span className="inline-flex items-center rounded-md border bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                            {embeddingModeLabel(health.embedding_mode)} 路由 · 768 维向量
+                          </span>
+                        )}
+                      </div>
+                      <p className="max-w-xl pt-1 text-xs leading-relaxed text-muted-foreground">
+                        为场景检测的场景帧与场景描述生成向量，支撑场景向量检索（文搜图 / 文搜文）
+                      </p>
+                    </div>
+                    <ServiceBadge ok={embeddingOk} okText="可用" failText="不可用" />
+                  </div>
+                  {health?.embedding_error && !embeddingOk && (
+                    <p className="mt-2 flex items-start gap-1.5 break-all text-xs text-red-400">
+                      <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                      {health.embedding_error}
+                    </p>
                   )}
                 </div>
               </section>
