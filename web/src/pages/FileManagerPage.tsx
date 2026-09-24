@@ -63,15 +63,15 @@ export default function FileManagerPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  // Tab 状态（支持从URL参数读取，如 /files?tab=scrape&tab=adult）
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
+  // 当前激活 Tab，由 URL 的 tab 参数决定
+  const activeTab: TabType = (() => {
     const tab = searchParams.get('tab')
     if (tab === 'library') return 'library'
     if (tab === 'analysis') return 'analysis'
     if (tab === 'adult') return 'adult'
     if (tab === 'preprocess') return 'preprocess'
     return 'files'
-  })
+  })()
 
   // 预处理子 Tab：视频 / 字幕（URL 参数 pre=subtitle，兼容旧 /preprocess/subtitle 深链）
   const [preSub, setPreSub] = useState<'video' | 'subtitle'>(() =>
@@ -80,7 +80,6 @@ export default function FileManagerPage() {
 
   // 切换Tab时同步URL参数
   const handleTabChange = useCallback((tab: TabType) => {
-    setActiveTab(tab)
     if (tab === 'files') {
       searchParams.delete('tab')
     } else {
@@ -559,7 +558,6 @@ export default function FileManagerPage() {
         await showVideoAnalysisBatchIssues('部分视频分析提交失败', result.errors, 'error')
       }
       if (result.created > 0 || result.reused > 0) {
-        setActiveTab('analysis')
         const nextParams = new URLSearchParams(searchParams)
         nextParams.set('tab', 'analysis')
         if ((result.skipped_errors?.length || 0) > 0) {
@@ -612,7 +610,6 @@ export default function FileManagerPage() {
       if (res.data.reused) toast.success('已复用现有视频分析任务')
       else if (includeDescriptions) toast.success(force ? '已重新提交“分析并生成描述”任务' : '已提交“分析并生成描述”任务')
       else toast.success(force ? '已重新提交视频分析任务' : '视频分析任务已提交')
-      setActiveTab('analysis')
       const nextParams = new URLSearchParams(searchParams)
       nextParams.set('tab', 'analysis')
       setSearchParams(nextParams, { replace: true })
@@ -624,7 +621,6 @@ export default function FileManagerPage() {
   const handleRetryAnalysisTask = useCallback(async (taskId: string) => {
     try {
       await videoAnalysisApi.retryTask(taskId)
-      setActiveTab('analysis')
       const nextParams = new URLSearchParams(searchParams)
       nextParams.set('tab', 'analysis')
       nextParams.set('analysisTaskId', taskId)
@@ -1068,7 +1064,6 @@ export default function FileManagerPage() {
               nextParams.delete('analysisResultTaskId')
             }
             setSearchParams(nextParams, { replace: true })
-            setActiveTab('analysis')
             setActiveDialog('none')
           }}
       />
