@@ -90,7 +90,7 @@ export default function NotificationToaster() {
               setOpen(true)
               dismiss(item.id)
             }}
-            className="pointer-events-auto flex w-80 cursor-pointer items-start gap-2.5 rounded-lg border border-border bg-background p-3 shadow-lg transition-shadow hover:shadow-xl"
+            className="animate-in fade-in slide-in-from-top-2 zoom-in-95 duration-200 motion-reduce:animate-none pointer-events-auto flex w-80 cursor-pointer items-start gap-2.5 rounded-lg border border-border bg-background p-3 shadow-lg transition-shadow hover:shadow-xl"
           >
             {/* 类型图标 */}
             <span className="mt-0.5 flex-shrink-0 text-muted-foreground">

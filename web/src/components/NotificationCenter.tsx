@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   Check,
@@ -202,7 +203,7 @@ export default function NotificationCenter() {
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <Bell size={36} className="mb-3 text-muted-foreground/50" />
                 <p className="text-sm text-foreground">暂无通知</p>
-                <p className="mt-1 text-xs text-muted-foreground">刮削、扫描、转码等任务的通知会显示在这里</p>
+                <p className="mt-1 text-xs text-muted-foreground">刮削、扫描、转码、视频分析等任务的通知会显示在这里</p>
               </div>
             )}
           </div>
@@ -231,6 +232,8 @@ export default function NotificationCenter() {
 /** 通知中心抽屉内的一行通知 */
 function NotificationRow({ item, onRemove }: { item: NotificationItem; onRemove: (id: string) => void }) {
   const statusMeta = STATUS_META[item.status] || STATUS_META.info
+  const navigate = useNavigate()
+  const setOpen = useNotificationCenterStore((s) => s.setOpen)
   // 完整链路：计划中的每一步都会展示（未执行到=灰虚线，跳过=灰实心）
   const chain = buildChain(item)
   const failedCount = chain.filter((s) => s.status === 'failed').length
@@ -241,10 +244,27 @@ function NotificationRow({ item, onRemove }: { item: NotificationItem; onRemove:
 
   return (
     <div
+      role={item.link ? 'button' : undefined}
+      tabIndex={item.link ? 0 : undefined}
+      onClick={() => {
+        // 无跳转目标则静默
+        if (!item.link) return
+        navigate(item.link)
+        setOpen(false)
+      }}
+      onKeyDown={(e) => {
+        if (!item.link) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          navigate(item.link)
+          setOpen(false)
+        }
+      }}
       className={cn(
         'group relative space-y-1.5 rounded-lg border border-border bg-card px-3 py-2 transition-colors hover:bg-accent/50',
         item.status === 'failed' && 'border-red-500/25 bg-red-500/5',
         !item.read && 'border-amber-500/40 bg-amber-500/10',
+        item.link && 'cursor-pointer',
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -261,7 +281,10 @@ function NotificationRow({ item, onRemove }: { item: NotificationItem; onRemove:
           </Badge>
           {!item.read && <span className="h-2 w-2 flex-shrink-0 rounded-full bg-amber-500" title="未读" />}
           <button
-            onClick={() => onRemove(item.id)}
+            onClick={(e) => {
+              e.stopPropagation()
+              onRemove(item.id)
+            }}
             className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
             title="删除"
           >

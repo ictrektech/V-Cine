@@ -184,7 +184,6 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
     setRetrying(task.id)
     try {
       await videoAnalysisApi.retryTask(task.id)
-      toast.success('已从失败阶段重新排队')
       await load(true)
       if (expandedMedia) loadHistory(expandedMedia, true)
     } catch {

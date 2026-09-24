@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
+import { routes } from '@/lib/routes'
 import { libraryApi } from '@/api'
 import type { Library, CreateLibraryRequest } from '@/types'
 import { getLibraryPaths } from '@/types'
@@ -143,6 +144,7 @@ function LibraryManager({
         title: '媒体库扫描',
         message: `已启动 ${toScan.length} 个媒体库扫描`,
         status: 'running',
+        link: routes.tasks.library,
       })
     } finally {
       setScanAllLoading(false)

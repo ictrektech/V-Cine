@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
-import type { VideoAnalysisBatchIssue, VideoAnalysisBatchResult } from '@/types/videoAnalysis'
+import type { VideoAnalysisBatchIssue } from '@/types/videoAnalysis'
 import { aiApi, adultScraperApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { extractErrMsg } from '@/utils/error'
 import { toAppUrl } from '@/lib/appUrl'
@@ -398,6 +398,7 @@ export default function FileManagerPage() {
       title: files.find((f) => f.id === id)?.title || '刮削任务',
       message: '刮削已启动，正在刮削...',
       status: 'running',
+      link: routes.tasks.files,
     }, { restart: true })
   }
 
@@ -493,31 +494,6 @@ export default function FileManagerPage() {
     await dialog.alert({ title, message, variant })
   }, [dialog])
 
-  const showVideoAnalysisResultToast = useCallback(async (result: VideoAnalysisBatchResult) => {
-    const parts: string[] = []
-    const skippedReasonCount = result.skipped_errors?.length || 0
-    if (result.created) parts.push(`新建 ${result.created}`)
-    if (result.reused) parts.push(`复用 ${result.reused}`)
-    if (result.skipped) parts.push(`跳过 ${result.skipped}`)
-    if (skippedReasonCount) parts.push(`含原因 ${skippedReasonCount}`)
-    if (result.errors.length) parts.push(`失败 ${result.errors.length}`)
-    if (parts.length === 0) {
-      toast.info('没有可提交的视频分析任务')
-      return
-    }
-    const summary = `视频分析：${parts.join('，')}`
-    if (result.created > 0 || result.reused > 0) toast.success(summary)
-    else if (result.errors.length > 0 || skippedReasonCount > 0) toast.warning(summary)
-    else toast.info(summary)
-
-    if (result.skipped_errors?.length) {
-      await showVideoAnalysisBatchIssues('部分视频已跳过', result.skipped_errors, 'warning')
-    }
-    if (result.errors.length) {
-      await showVideoAnalysisBatchIssues('部分视频分析提交失败', result.errors, 'error')
-    }
-  }, [dialog, showVideoAnalysisBatchIssues, toast])
-
   const checkVideoAnalysisHealth = useCallback(async (includeDescriptions: boolean): Promise<string | null> => {
     try {
       const h = (await videoAnalysisApi.getHealth()).data.data
@@ -557,7 +533,31 @@ export default function FileManagerPage() {
     try {
       const res = await videoAnalysisApi.batchSubmit({ media_ids: Array.from(selectedIds), force, include_descriptions: includeDescriptions })
       const result = res.data.data
-      await showVideoAnalysisResultToast(result)
+      const skippedReasonCount = result.skipped_errors?.length || 0
+      if (result.created === 0 && result.reused === 0 && result.skipped === 0 && result.errors.length === 0) {
+        toast.info('没有可提交的视频分析任务')
+      } else {
+        const parts: string[] = []
+        if (result.created) parts.push(`新建 ${result.created}`)
+        if (result.reused) parts.push(`复用 ${result.reused}`)
+        if (result.skipped) parts.push(`跳过 ${result.skipped}`)
+        if (skippedReasonCount) parts.push(`含原因 ${skippedReasonCount}`)
+        if (result.errors.length) parts.push(`失败 ${result.errors.length}`)
+        useNotificationCenterStore.getState().push({
+          id: 'batch:analysis',
+          type: 'analysis',
+          title: '批量视频分析',
+          message: parts.join('，'),
+          status: result.errors.length > 0 || skippedReasonCount > 0 ? 'partial' : 'success',
+          link: routes.tasks.analysis(),
+        })
+      }
+      if (result.skipped_errors?.length) {
+        await showVideoAnalysisBatchIssues('部分视频已跳过', result.skipped_errors, 'warning')
+      }
+      if (result.errors.length) {
+        await showVideoAnalysisBatchIssues('部分视频分析提交失败', result.errors, 'error')
+      }
       if (result.created > 0 || result.reused > 0) {
         setActiveTab('analysis')
         const nextParams = new URLSearchParams(searchParams)
@@ -577,7 +577,7 @@ export default function FileManagerPage() {
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '批量视频分析提交失败')
     }
-  }, [checkVideoAnalysisHealth, selectedIds, showHealthWarning, showVideoAnalysisResultToast, searchParams, setSearchParams, toast])
+  }, [checkVideoAnalysisHealth, selectedIds, showHealthWarning, showVideoAnalysisBatchIssues, searchParams, setSearchParams, toast])
 
   const handleBatchAnalyze = useCallback(async () => {
     if (selectedIds.size === 0) return
@@ -624,7 +624,6 @@ export default function FileManagerPage() {
   const handleRetryAnalysisTask = useCallback(async (taskId: string) => {
     try {
       await videoAnalysisApi.retryTask(taskId)
-      toast.success('已从失败阶段重新排队视频分析任务')
       setActiveTab('analysis')
       const nextParams = new URLSearchParams(searchParams)
       nextParams.set('tab', 'analysis')
