@@ -102,8 +102,8 @@ configs:
     default: info
     enum: [debug, info, warn, error]
 
-  # ---- Embedding 向量检索（依赖独立部署的 emb_server）----
-  # 地址即开关：默认连宿主 emb_server（http://172.17.0.1:18005），改地址即改
+  # ---- Embedding 向量检索（经 V-Router → ML Server）----
+  # 地址即开关：默认连平台容器网 v-router（http://v-router:8080/v1），改地址即改
   # 连接目标；留空则禁用（视频分析不受影响，只是不计算场景向量）。
   - name: VCINE_AI_EMBEDDING_AI_API_BASE
     type: string
@@ -111,9 +111,9 @@ configs:
       zh-CN: Embedding 服务地址
       en: Embedding Server URL
     description:
-      zh-CN: emb_server 服务地址。默认 http://172.17.0.1:18005（VOS 主机同机部署）；留空禁用场景向量检索。
-      en: emb_server base URL. Default http://172.17.0.1:18005 (same-host deployment); leave empty to disable scene vector search.
-    default: http://172.17.0.1:18005
+      zh-CN: V-Router 服务地址。默认 http://v-router:8080/v1（平台容器网内）；留空禁用场景向量检索。
+      en: V-Router base URL. Default http://v-router:8080/v1 (in-platform container network); leave empty to disable scene vector search.
+    default: http://v-router:8080/v1
 
   # ---- 视频分析 Scene（detect）/ Structure 外部服务地址 ----
   # 仅作为安装初始值；运行期修改请到 V-Cine 管理后台「视频分析设置」。
