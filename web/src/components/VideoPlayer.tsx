@@ -954,6 +954,10 @@ export default function VideoPlayer({
   // 键盘快捷键
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
+      // 焦点在输入控件内时不劫持按键（字幕搜索框等）；Esc 例外——浮层关闭依赖下面的分支
+      const editable = e.target instanceof HTMLElement &&
+        e.target.closest('input, textarea, select, [contenteditable="true"]')
+      if (editable && e.key !== 'Escape') return
       switch (e.key) {
         case ' ':
         case 'k':
