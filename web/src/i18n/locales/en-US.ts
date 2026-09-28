@@ -247,6 +247,7 @@ const enUS: Record<string, string> = {
   'notFound.hint': 'This link may be outdated, or the address was mistyped.',
   'notFound.home': 'Back to home',
   'admin.noAccess': 'This page is only available to administrators',
+  'common.retry': 'Retry',
   'auth.usernamePlaceholder': 'Enter username',
   'auth.passwordPlaceholder': 'Enter password',
   'auth.switchToLogin': 'Already have an account? Sign in',

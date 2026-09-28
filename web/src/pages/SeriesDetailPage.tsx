@@ -4,7 +4,8 @@ import { seriesApi, userApi, streamApi, playlistApi, adminApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/components/Toast'
 import EditMetadataModal from '@/components/EditMetadataModal'
-import { CastGrid } from '@/components/media'
+import { BackButton, CastGrid, PlaylistMenu } from '@/components/media'
+import { useTranslation } from '@/i18n'
 import Pagination from '@/components/Pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { formatErrMsg } from '@/utils/error'
@@ -46,15 +47,19 @@ export default function SeriesDetailPage() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const toast = useToast()
+  const { t } = useTranslation()
   const [series, setSeries] = useState<Series | null>(null)
   const [seasons, setSeasons] = useState<SeasonInfo[]>([])
   const [activeSeason, setActiveSeason] = useState<number>(1)
   const [loading, setLoading] = useState(true)
+  // E3：加载失败就地显示错误态与重试，不再直接跳首页丢上下文
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const [viewMode, setViewMode] = useState<'season' | 'all'>('season')
   const [seasonDisplayMode, setSeasonDisplayMode] = useState<'slide' | 'list'>('slide')
   const slideContainerRef = useRef<HTMLDivElement>(null)
   const [isFavorited, setIsFavorited] = useState(false)
-  const [, setPlaylists] = useState<Playlist[]>([])
+  const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [overviewExpanded, setOverviewExpanded] = useState(false)
@@ -86,6 +91,7 @@ export default function SeriesDetailPage() {
     if (!id) return
     setLoading(true)
     setImgLoaded(false)
+    setLoadFailed(false)
     Promise.all([
       seriesApi.detail(id),
       seriesApi.seasons(id),
@@ -101,8 +107,7 @@ export default function SeriesDetailPage() {
         setPlaylists(playlistRes.data.data || [])
       })
       .catch(() => {
-        toast.error('加载剧集详情失败')
-        navigate('/')
+        setLoadFailed(true)
       })
       .finally(() => setLoading(false))
 
@@ -121,7 +126,7 @@ export default function SeriesDetailPage() {
     }).catch(() => {
       setPersons([])
     })
-  }, [id, navigate])
+  }, [id, reloadKey])
 
   const activeSeasonData = seasons.find((s) => s.season_num === activeSeason)
 
@@ -164,6 +169,20 @@ export default function SeriesDetailPage() {
       }
     } catch {
       toast.error('收藏操作失败')
+    }
+  }
+
+  // 加入列表：与「播放」「收藏」一致，作用于剧集的第一集（剧集维度语义见 F2）
+  const handleAddToPlaylist = async (playlistId: string) => {
+    if (!firstEpisode) return
+    try {
+      await playlistApi.addItem(playlistId, firstEpisode.id)
+      toast.success(t('mediaDetail.addToPlaylistSuccess'))
+      setShowPlaylistMenu(false)
+      // 重新拉取播放列表，让菜单里的「已加入」标记立即生效
+      playlistApi.list().then((res) => setPlaylists(res.data.data || [])).catch(() => {})
+    } catch {
+      toast.error(t('mediaDetail.addToPlaylistFailed'))
     }
   }
 
@@ -351,6 +370,21 @@ export default function SeriesDetailPage() {
     }
   }
 
+  if (loadFailed) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>加载剧集详情失败</p>
+        <button
+          onClick={() => setReloadKey((n) => n + 1)}
+          className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 text-sm"
+        >
+          <RefreshCw size={14} />
+          {t('common.retry')}
+        </button>
+      </div>
+    )
+  }
+
   if (loading || !series) {
     return (
       <AnimatePresence mode="wait">
@@ -391,6 +425,9 @@ export default function SeriesDetailPage() {
           英雄区 —— 全宽背景图 + 海报 + 信息（与电影详情页一致）
           ============================================================ */}
       <div className="relative">
+        {/* 常驻返回按钮（左上角），与电影详情页一致 */}
+        <BackButton />
+
         {/* 背景图 */}
         <div className="relative h-[360px] overflow-hidden sm:h-[420px]">
           <div className="absolute inset-0" style={{ background: 'var(--bg-surface)' }}>
@@ -519,6 +556,24 @@ export default function SeriesDetailPage() {
                 >
                   {isFavorited ? <Heart size={20} fill="currentColor" /> : <Heart size={20} />}
                 </button>
+
+                {/* 加入列表：与「播放」「收藏」一致，作用于第一集（剧集维度语义见 F2） */}
+                {firstEpisode && (
+                  <PlaylistMenu
+                    playlists={playlists}
+                    mediaId={firstEpisode.id}
+                    open={showPlaylistMenu}
+                    onOpenChange={(next) => { setShowPlaylistMenu(next); setShowMoreMenu(false) }}
+                    onAdd={handleAddToPlaylist}
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-300 hover:scale-105"
+                    style={{
+                      background: 'var(--nav-hover-bg)',
+                      border: '1px solid var(--border-default)',
+                      backdropFilter: 'blur(12px)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  />
+                )}
 
                 {/* 更多操作 */}
                 <div className="relative">

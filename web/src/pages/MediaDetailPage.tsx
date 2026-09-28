@@ -4,7 +4,7 @@ import { mediaApi, userApi, streamApi, playlistApi, recommendApi, adminApi } fro
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/components/Toast'
 import type { Media, MediaPlayInfo, Playlist, RecommendedMedia, MediaPerson, WatchHistory, TechSpecs, FileDetail, LibraryInfo, PlaybackStatsInfo } from '@/types'
-import { HeroSection, MediaInfoSection, MediaTechSpecs, RecommendationCarousel, TrailerModal, CastGrid, CollectionCarousel } from '@/components/media'
+import { BackButton, HeroSection, MediaInfoSection, MediaTechSpecs, RecommendationCarousel, TrailerModal, CastGrid, CollectionCarousel } from '@/components/media'
 import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
 import CommentSection from '@/components/CommentSection'
@@ -17,7 +17,7 @@ import { parseDirectMatchId } from '@/utils/parseDirectMatchId'
 import { invalidateMediaListCaches } from '@/utils/invalidateMediaCaches'
 import { motion, AnimatePresence } from 'framer-motion'
 import { easeSmooth, durations } from '@/lib/motion'
-import { ArrowLeft } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 
 export default function MediaDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -38,6 +38,9 @@ export default function MediaDetailPage() {
   const [isFavorited, setIsFavorited] = useState(false)
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [watchProgress, setWatchProgress] = useState<WatchHistory | null>(null)
+  // E3：加载失败就地显示错误态与重试，不再直接跳首页丢上下文
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   // 附加数据
   const [recommendations, setRecommendations] = useState<RecommendedMedia[]>([])
@@ -81,6 +84,7 @@ export default function MediaDetailPage() {
     setLoading(true)
     setPersons([])
     setWatchProgress(null)
+    setLoadFailed(false)
 
     Promise.all([
       mediaApi.detail(id),
@@ -130,13 +134,12 @@ export default function MediaDetailPage() {
       })
       .catch(() => {
         if (abortController.signal.aborted) return
-        toast.error(t('mediaDetail.loadFailed'))
-        navigate('/')
+        setLoadFailed(true)
       })
       .finally(() => { if (!abortController.signal.aborted) setLoading(false) })
 
     return () => abortController.abort()
-  }, [id, navigate, toast, offlineTypes])
+  }, [id, offlineTypes, reloadKey])
 
   // ==================== 事件处理 ====================
   const handleFavorite = async () => {
@@ -175,6 +178,8 @@ export default function MediaDetailPage() {
     try {
       await playlistApi.addItem(playlistId, id)
       toast.success(t('mediaDetail.addToPlaylistSuccess'))
+      // 重新拉取播放列表，让菜单里的「已加入」标记立即生效
+      playlistApi.list().then((res) => setPlaylists(res.data.data || [])).catch(() => {})
     } catch {
       toast.error(t('mediaDetail.addToPlaylistFailed'))
     }
@@ -404,6 +409,21 @@ export default function MediaDetailPage() {
   }
 
   // ==================== 骨架屏 / 内容 — AnimatePresence 平滑过渡 ====================
+  if (loadFailed) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('mediaDetail.loadFailed')}</p>
+        <button
+          onClick={() => setReloadKey((n) => n + 1)}
+          className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 text-sm"
+        >
+          <RefreshCw size={14} />
+          {t('common.retry')}
+        </button>
+      </div>
+    )
+  }
+
   if (loading || !media) {
     return (
       <AnimatePresence mode="wait">
@@ -443,22 +463,7 @@ export default function MediaDetailPage() {
       className="relative -mx-4 -mt-6 sm:-mx-6 lg:-mx-8"
     >
       {/* 常驻返回按钮（左上角） */}
-      <button
-        onClick={() => {
-          // 如果有历史栈就后退，否则回首页（避免直接外链打开时按返回卡住）
-          if (window.history.length > 1) {
-            navigate(-1)
-          } else {
-            navigate('/')
-          }
-        }}
-        aria-label="返回"
-        title="返回"
-        className="absolute left-4 top-4 z-30 flex h-9 w-9 items-center justify-center rounded-full text-white backdrop-blur-md transition-all hover:scale-105"
-        style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid var(--neon-blue-15)' }}
-      >
-        <ArrowLeft size={18} />
-      </button>
+      <BackButton />
 
       {/* 英雄区 */}
       <HeroSection

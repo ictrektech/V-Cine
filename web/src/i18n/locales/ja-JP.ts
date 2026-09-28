@@ -247,6 +247,7 @@ const jaJP: Record<string, string> = {
   'notFound.hint': 'リンクが無効か、アドレスが間違っている可能性があります。',
   'notFound.home': 'ホームに戻る',
   'admin.noAccess': 'このページは管理者のみアクセスできます',
+  'common.retry': '再試行',
   'auth.usernamePlaceholder': 'ユーザー名を入力',
   'auth.passwordPlaceholder': 'パスワードを入力',
   'auth.switchToLogin': 'アカウントをお持ちの方はログイン',

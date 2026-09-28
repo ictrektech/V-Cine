@@ -16,8 +16,6 @@ import {
   Film,
   Star,
   RefreshCw,
-  ListPlus,
-  Check,
   MoreHorizontal,
   Copy,
   Share2,
@@ -30,6 +28,7 @@ import {
   Zap,
 } from 'lucide-react'
 import clsx from 'clsx'
+import PlaylistMenu from './PlaylistMenu'
 
 interface HeroSectionProps {
   media: Media
@@ -265,50 +264,14 @@ export default function HeroSection({
                 </button>
 
                 {/* 添加到列表 */}
-                <div className="relative">
-                  <button
-                    onClick={() => { setShowPlaylistMenu(!showPlaylistMenu); setShowMoreMenu(false) }}
-                    className="btn-icon"
-                    title={t('hero.addToPlaylist')}
-                    aria-label={t('hero.addToPlaylist')}
-                    aria-expanded={showPlaylistMenu}
-                    aria-haspopup="true"
-                  >
-                    <ListPlus size={20} />
-                  </button>
-
-                  {showPlaylistMenu && (
-                    <div className="absolute left-0 top-full z-20 mt-2 min-w-[220px] rounded-xl py-1 shadow-2xl animate-scale-in"
-                      style={{
-                        background: 'var(--bg-elevated)',
-                        border: '1px solid var(--glass-border)',
-                        backdropFilter: 'blur(20px)',
-                      }}
-                      role="menu"
-                      aria-label={t('hero.playlists')}
-                    >
-                    <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('hero.playlists')}</div>
-                      {playlists.length === 0 ? (
-                        <div className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{t('hero.noPlaylists')}</div>
-                      ) : (
-                        playlists.map((pl) => (
-                          <button
-                            key={pl.id}
-                            onClick={() => handleAddToPlaylist(pl.id)}
-                            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-neon-blue/5"
-                            style={{ color: 'var(--text-secondary)' }}
-                          >
-                            <ListPlus size={14} />
-                            {pl.name}
-                            {pl.items?.some(item => item.media_id === media.id) && (
-                              <Check size={14} className="ml-auto text-neon" />
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
+                <PlaylistMenu
+                  playlists={playlists}
+                  mediaId={media.id}
+                  open={showPlaylistMenu}
+                  onOpenChange={(next) => { setShowPlaylistMenu(next); setShowMoreMenu(false) }}
+                  onAdd={handleAddToPlaylist}
+                  className="btn-icon"
+                />
 
                 {/* 更多操作 */}
                 <div className="relative">
@@ -451,7 +414,7 @@ export default function HeroSection({
                   ))}
                   {media.resolution && <span className="badge-neon font-bold">{media.resolution}</span>}
                   {media.video_codec && <span className="badge-neon">{media.video_codec}</span>}
-                  {playInfo && (
+                  {playInfo && isAdmin && (
                     <span className={clsx(
                       'rounded-lg px-2.5 py-1 text-xs font-semibold',
                       playInfo.is_strm

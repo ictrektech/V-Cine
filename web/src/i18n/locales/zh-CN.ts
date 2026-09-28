@@ -245,6 +245,7 @@ const zhCN: Record<string, string> = {
   'notFound.hint': '链接可能已失效，或地址输错了。',
   'notFound.home': '返回首页',
   'admin.noAccess': '该页面仅管理员可访问',
+  'common.retry': '重试',
   'auth.usernamePlaceholder': '请输入用户名',
   'auth.passwordPlaceholder': '请输入密码',
   'auth.switchToLogin': '已有账号？去登录',
