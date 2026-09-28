@@ -275,6 +275,25 @@ const jaJP: Record<string, string> = {
   'empty.libraryAdminHint': 'このライブラリにはまだ動画がありません。メディアライブラリ管理からスキャンできます',
   'empty.manageLibraries': 'メディアライブラリ管理',
 
+  // ==================== 初回ガイド ====================
+  'onboard.trigger': '使い方ガイド',
+  'onboard.dismissForever': '自動表示しない',
+  'onboard.next': '次へ',
+  'onboard.prev': '戻る',
+  'onboard.finish': 'はじめる',
+  'onboard.hintAuto': 'ヒントに従って操作すると自動で進みます',
+  'onboard.strayed': 'ガイドを一時停止しました：この手順の対象が現在のページにありません。戻ると自動で再開します。',
+  'onboard.task.openManager.title': 'メディアライブラリ管理を開く',
+  'onboard.task.openManager.desc': '左側の「メディアライブラリ管理」をクリックします。ここで最初のライブラリを追加します',
+  'onboard.task.createLibrary.title': 'ライブラリを新規作成',
+  'onboard.task.createLibrary.desc': '「新規ライブラリ」をクリックして、動画の保存場所を指定します',
+  'onboard.task.fillForm.title': '入力して作成',
+  'onboard.task.fillForm.desc': '名前を入力し、動画のフォルダを選択して「作成」をクリックします',
+  'onboard.task.scan.title': 'スキャンを開始',
+  'onboard.task.scan.desc': '「今すぐスキャン」をクリックすると、ファイルを読み込んで作品情報を自動取得します',
+  'onboard.task.done.title': 'スキャン完了',
+  'onboard.task.done.desc': '完了すると動画がライブラリに表示されます。確認してみましょう',
+
   // ==================== 検索（追加） ====================
   'search.searchFailed': '検索に失敗しました。後でもう一度お試しください',
   'search.searchPlaceholder': '映画、エピソードを検索...',

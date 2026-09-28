@@ -324,6 +324,25 @@ const zhCN: Record<string, string> = {
   'empty.libraryAdminHint': '该媒体库尚未扫描到影片，可在媒体库管理中执行扫描',
   'empty.manageLibraries': '媒体库管理',
 
+  // ==================== 首次引导 ====================
+  'onboard.trigger': '使用引导',
+  'onboard.dismissForever': '不再自动显示',
+  'onboard.next': '下一步',
+  'onboard.prev': '上一步',
+  'onboard.finish': '开始使用',
+  'onboard.hintAuto': '按提示操作后自动继续',
+  'onboard.strayed': '引导已暂停：当前页面没有这一步要高亮的元素。回到对应页面会自动继续。',
+  'onboard.task.openManager.title': '进入媒体库管理',
+  'onboard.task.openManager.desc': '点击左侧的「媒体库管理」，我们在这里添加你的第一个媒体库',
+  'onboard.task.createLibrary.title': '新建媒体库',
+  'onboard.task.createLibrary.desc': '点击「新增媒体库」，把存放影片的文件夹告诉系统',
+  'onboard.task.fillForm.title': '填写并创建',
+  'onboard.task.fillForm.desc': '填一个名称、选择影片所在的文件夹，然后点「确认创建」',
+  'onboard.task.scan.title': '开始扫描',
+  'onboard.task.scan.desc': '点「立即扫描」，系统会读取文件并自动获取影片信息',
+  'onboard.task.done.title': '扫描完成',
+  'onboard.task.done.desc': '完成后影片就会出现在影视库里，可以去看看了',
+
   // ==================== 搜索（补充） ====================
   'search.searchFailed': '搜索失败，请稍后重试',
   'search.searchPlaceholder': '搜索电影、剧集...',

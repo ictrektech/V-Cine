@@ -11,6 +11,8 @@ import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { bumpPosterVersion } from '@/stores/mediaRefresh'
 import LanguageSwitcher from './LanguageSwitcher'
 import { useTranslation } from '@/i18n'
+import { useOnboardingStore } from '@/stores/onboarding'
+import { ANCHORS } from '@/lib/onboarding/anchors'
 import {
   Home,
   Search,
@@ -26,6 +28,7 @@ import {
   UserRound,
   FolderOpen as FolderOpenIcon,
   Library as LibraryIcon,
+  HelpCircle,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -79,6 +82,8 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   const { pathname } = useLocation()
   const [collapsed, setCollapsed] = useState(false)
   const { on, off } = useWebSocket()
+  // 手动唤起使用引导（入口仅管理员可见，与导览同一可见范围）
+  const requestOnboarding = useOnboardingStore((s) => s.requestOpen)
 
   // 媒体库数量（"影视库"入口的计数徽章）；增删库/扫描完成后刷新
   const queryClient = useQueryClient()
@@ -177,6 +182,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
         <NavLink
           to="/browse"
+          data-onboarding={ANCHORS.browseNav}
           className={({ isActive }) => clsx('nav-item', isActive && 'active')}
           onClick={onMobileClose}
         >
@@ -247,6 +253,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
             <NavLink
               to="/files?tab=library"
+              data-onboarding={ANCHORS.libraryManagerNav}
               className={({ isActive }) => clsx('nav-item', isActive && 'active')}
               onClick={onMobileClose}
             >
@@ -308,6 +315,18 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
           {/* 通知中心 */}
           <NotificationBell />
+
+          {/* 使用引导（仅管理员；导览只对管理员展示） */}
+          {user?.role === 'admin' && (
+            <button
+              onClick={requestOnboarding}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-surface-400 transition-all hover:text-neon hover:bg-neon-blue/5"
+              title={t('onboard.trigger')}
+              aria-label={t('onboard.trigger')}
+            >
+              <HelpCircle size={17} />
+            </button>
+          )}
 
           {/* 登出 */}
           <button

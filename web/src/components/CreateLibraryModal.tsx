@@ -30,6 +30,7 @@ import FileBrowser from './FileBrowser'
 import { type StorageType, REMOTE_SCHEMES, joinRemotePath, pathPlaceholder } from '@/lib/storageSchemes'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
+import { ANCHORS } from '@/lib/onboarding/anchors'
 
 
 // 内容类型配置
@@ -347,6 +348,7 @@ export default function CreateLibraryModal({ open, onClose, onCreate, onScan }: 
   return (
     <Modal open={open} onClose={onClose} className="max-w-xl">
       <div
+        data-onboarding={ANCHORS.createLibraryDialog}
         className="relative -m-4 rounded-2xl overflow-hidden"
         style={{
           background: 'var(--bg-elevated)',
@@ -403,7 +405,7 @@ export default function CreateLibraryModal({ open, onClose, onCreate, onScan }: 
                   </p>
                 )}
                 <div className="mt-7 flex items-center gap-3">
-                  <Button size="lg" onClick={handleStartScan} disabled={startingScan}>
+                  <Button size="lg" data-onboarding={ANCHORS.scanNowButton} onClick={handleStartScan} disabled={startingScan}>
                     {startingScan ? (
                       <>
                         <Loader2 size={16} className="animate-spin" />

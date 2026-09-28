@@ -275,6 +275,25 @@ const enUS: Record<string, string> = {
   'empty.libraryAdminHint': 'No videos found in this library yet. You can run a scan in Media Library Management',
   'empty.manageLibraries': 'Media Library Management',
 
+  // ==================== Onboarding ====================
+  'onboard.trigger': 'Getting started guide',
+  'onboard.dismissForever': 'Don\'t show automatically',
+  'onboard.next': 'Next',
+  'onboard.prev': 'Back',
+  'onboard.finish': 'Get started',
+  'onboard.hintAuto': 'Follow the hint — it continues automatically',
+  'onboard.strayed': 'Guide paused: this step\'s target is not on the current page. It resumes when you go back.',
+  'onboard.task.openManager.title': 'Open Media Library Management',
+  'onboard.task.openManager.desc': 'Click "Media Library Management" on the left — this is where we add your first library',
+  'onboard.task.createLibrary.title': 'Create a library',
+  'onboard.task.createLibrary.desc': 'Click "Add library" and tell the system where your videos live',
+  'onboard.task.fillForm.title': 'Fill in and create',
+  'onboard.task.fillForm.desc': 'Give it a name, pick the folder that holds your videos, then click "Create"',
+  'onboard.task.scan.title': 'Start scanning',
+  'onboard.task.scan.desc': 'Click "Scan now" — the system will read the files and fetch movie info automatically',
+  'onboard.task.done.title': 'Scan finished',
+  'onboard.task.done.desc': 'Your videos will now show up in the library — go take a look',
+
   // ==================== Search (extra) ====================
   'search.searchFailed': 'Search failed, please try again later',
   'search.searchPlaceholder': 'Search movies, episodes...',
