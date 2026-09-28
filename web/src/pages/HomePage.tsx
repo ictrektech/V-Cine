@@ -8,11 +8,13 @@ import { usePageCache } from '@/hooks/usePageCache'
 import { formatProgress } from '@/utils/format'
 import type { WatchHistory, RecommendedMedia, MixedItem } from '@/types'
 import MediaGrid from '@/components/MediaGrid'
+import ManageLibrariesLink from '@/components/ManageLibrariesLink'
 import { Play, Clock, Sparkles, ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import { streamApi } from '@/api'
 import { motion } from 'framer-motion'
 import { staggerContainerVariants, staggerItemVariants } from '@/lib/motion'
 import { routes } from '@/lib/routes'
+import { useAuthStore } from '@/stores/auth'
 import { usePosterVersion } from '@/stores/mediaRefresh'
 import HeroCarousel from '@/components/HeroCarousel'
 
@@ -29,6 +31,8 @@ export default function HomePage() {
   // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
   const { t } = useTranslation()
+  // 空状态引导按钮仅管理员可见（普通用户无媒体库管理入口）
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 跨页面共享缓存：返回首页命中缓存 → 零 loading；过期则后台静默刷新
@@ -270,8 +274,9 @@ export default function HomePage() {
             {t('home.noContent')}
           </h3>
           <p className="mt-2 text-sm text-theme-muted">
-            {t('home.noContentHint')}
+            {isAdmin ? t('empty.adminHint') : t('empty.userHint')}
           </p>
+          {isAdmin && <ManageLibrariesLink />}
         </div>
       )}
     </div>

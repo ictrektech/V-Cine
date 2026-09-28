@@ -317,7 +317,12 @@ const zhCN: Record<string, string> = {
   'home.viewDetail': '查看详情',
   'home.play': '播放',
   'home.noContent': '暂无媒体内容',
-  'home.noContentHint': '前往管理页面添加媒体库并扫描文件',
+
+  // ==================== 空状态引导 ====================
+  'empty.adminHint': '添加媒体库并扫描后，影片会出现在这里',
+  'empty.userHint': '媒体库还没有添加影片，请联系管理员',
+  'empty.libraryAdminHint': '该媒体库尚未扫描到影片，可在媒体库管理中执行扫描',
+  'empty.manageLibraries': '媒体库管理',
 
   // ==================== 搜索（补充） ====================
   'search.searchFailed': '搜索失败，请稍后重试',

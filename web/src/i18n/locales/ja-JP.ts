@@ -268,7 +268,12 @@ const jaJP: Record<string, string> = {
   'home.viewDetail': '詳細を見る',
   'home.play': '再生',
   'home.noContent': 'メディアコンテンツなし',
-  'home.noContentHint': '管理ページでメディアライブラリを追加してスキャンしてください',
+
+  // ==================== 空状態のガイド ====================
+  'empty.adminHint': 'メディアライブラリを追加してスキャンすると、ここに表示されます',
+  'empty.userHint': 'まだ動画が追加されていません。管理者にお問い合わせください',
+  'empty.libraryAdminHint': 'このライブラリにはまだ動画がありません。メディアライブラリ管理からスキャンできます',
+  'empty.manageLibraries': 'メディアライブラリ管理',
 
   // ==================== 検索（追加） ====================
   'search.searchFailed': '検索に失敗しました。後でもう一度お試しください',

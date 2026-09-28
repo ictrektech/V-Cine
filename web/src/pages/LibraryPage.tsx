@@ -9,6 +9,9 @@ import Pagination from '@/components/Pagination'
 import RemoteOfflineBanner from '@/components/RemoteOfflineBanner'
 import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
 import { storageTypeFromPath, type StorageType } from '@/lib/storageSchemes'
+import ManageLibrariesLink from '@/components/ManageLibrariesLink'
+import { useAuthStore } from '@/stores/auth'
+import { useTranslation } from '@/i18n'
 import {
   Tv,
   Film,
@@ -71,6 +74,9 @@ export default function LibraryPage() {
   const [filterGenre, setFilterGenre] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const toast = useToast()
+  const { t } = useTranslation()
+  // 空状态引导按钮仅管理员可见（普通用户无媒体库管理入口）
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
 
   // ===== 远程存储离线状态（管理员可见；状态未知时不标记） =====
   const offlineTypes = useOfflineRemoteTypes()
@@ -607,6 +613,14 @@ export default function LibraryPage() {
               <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
                 {searchQuery || filterGenre ? '没有找到匹配的内容' : '此媒体库暂无内容'}
               </p>
+              {!searchQuery && !filterGenre && isAdmin && (
+                <>
+                  <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {t('empty.libraryAdminHint')}
+                  </p>
+                  <ManageLibrariesLink />
+                </>
+              )}
             </div>
           )}
         </>

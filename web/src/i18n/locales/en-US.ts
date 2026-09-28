@@ -268,7 +268,12 @@ const enUS: Record<string, string> = {
   'home.viewDetail': 'View Details',
   'home.play': 'Play',
   'home.noContent': 'No media content',
-  'home.noContentHint': 'Go to admin page to add media libraries and scan files',
+
+  // ==================== Empty state guidance ====================
+  'empty.adminHint': 'Add a media library and scan it, then your videos will show up here',
+  'empty.userHint': 'No videos have been added yet, please contact your administrator',
+  'empty.libraryAdminHint': 'No videos found in this library yet. You can run a scan in Media Library Management',
+  'empty.manageLibraries': 'Media Library Management',
 
   // ==================== Search (extra) ====================
   'search.searchFailed': 'Search failed, please try again later',

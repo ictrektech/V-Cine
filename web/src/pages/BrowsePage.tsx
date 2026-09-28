@@ -13,6 +13,9 @@ import SegmentedTabs from '@/components/ui/segmented-tabs'
 import RemoteOfflineBanner from '@/components/RemoteOfflineBanner'
 import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
 import { storageTypeFromPath, type StorageType } from '@/lib/storageSchemes'
+import ManageLibrariesLink from '@/components/ManageLibrariesLink'
+import { useAuthStore } from '@/stores/auth'
+import { useTranslation } from '@/i18n'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   pageVariants,
@@ -94,6 +97,9 @@ export default function BrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const toast = useToast()
   const { on, off } = useWebSocket()
+  const { t } = useTranslation()
+  // 空状态引导按钮仅管理员可见（普通用户无媒体库管理入口）
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ===== 数据状态 =====
@@ -964,16 +970,18 @@ export default function BrowsePage() {
                 {searchQuery || activeFilterCount > 0 ? '没有找到匹配的内容' : '影视库暂无内容'}
               </h3>
               <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                {searchQuery || activeFilterCount > 0 ? '尝试调整筛选条件或使用其他关键词' : '前往管理页面添加媒体库并扫描文件'}
+                {searchQuery || activeFilterCount > 0
+                  ? '尝试调整筛选条件或使用其他关键词'
+                  : isAdmin ? t('empty.adminHint') : t('empty.userHint')}
               </p>
-              {(searchQuery || activeFilterCount > 0) && (
+              {(searchQuery || activeFilterCount > 0) ? (
                 <button
                   onClick={clearAllFilters}
                   className="mt-3 text-sm text-neon hover:text-neon/80 transition-colors"
                 >
                   清除所有筛选
                 </button>
-              )}
+              ) : isAdmin && <ManageLibrariesLink />}
             </motion.div>
           ) : viewMode === 'grid' ? (
             // 网格视图
