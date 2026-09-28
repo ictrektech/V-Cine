@@ -237,6 +237,15 @@ const enUS: Record<string, string> = {
   // ==================== VOS integration ====================
   'vos.login.title': 'Signing in to V-Cine with your VOS account',
   'vos.login.retry': 'Reconnect to VOS',
+
+  // ==================== Error and fallback pages ====================
+  'errorBoundary.title': 'Something went wrong',
+  'errorBoundary.hint': 'The last action hit a frontend error. Go back home to recover.',
+  'errorBoundary.home': 'Back to home',
+  'notFound.title': 'Page not found',
+  'notFound.hint': 'This link may be outdated, or the address was mistyped.',
+  'notFound.home': 'Back to home',
+  'admin.noAccess': 'This page is only available to administrators',
   'auth.usernamePlaceholder': 'Enter username',
   'auth.passwordPlaceholder': 'Enter password',
   'auth.switchToLogin': 'Already have an account? Sign in',

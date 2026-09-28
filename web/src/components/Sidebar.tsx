@@ -79,7 +79,10 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
     ? `${t('nav.themeAuto')}（${theme === 'dark' ? t('nav.darkMode') : t('nav.lightMode')}）`
     : theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  // 「媒体库管理」入口只在建库 Tab 高亮：/files 的其它 Tab 属不同功能区
+  const libraryManagerActive =
+    pathname === '/files' && new URLSearchParams(search).get('tab') === 'library'
   const [collapsed, setCollapsed] = useState(false)
   const { on, off } = useWebSocket()
   // 手动唤起使用引导（入口仅管理员可见，与导览同一可见范围）
@@ -254,7 +257,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             <NavLink
               to="/files?tab=library"
               data-onboarding={ANCHORS.libraryManagerNav}
-              className={({ isActive }) => clsx('nav-item', isActive && 'active')}
+              className={clsx('nav-item', libraryManagerActive && 'active')}
               onClick={onMobileClose}
             >
               <FolderOpenIcon size={18} />

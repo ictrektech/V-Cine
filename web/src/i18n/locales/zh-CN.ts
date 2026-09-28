@@ -235,6 +235,15 @@ const zhCN: Record<string, string> = {
   // ==================== VOS 集成 ====================
   'vos.login.title': '正在使用 VOS 账户登录 V-Cine',
   'vos.login.retry': '重新连接 VOS',
+
+  // ==================== 错误与兜底页面 ====================
+  'errorBoundary.title': '页面出错了',
+  'errorBoundary.hint': '刚才的操作触发了前端异常，返回首页即可恢复。',
+  'errorBoundary.home': '返回首页',
+  'notFound.title': '页面不存在',
+  'notFound.hint': '链接可能已失效，或地址输错了。',
+  'notFound.home': '返回首页',
+  'admin.noAccess': '该页面仅管理员可访问',
   'auth.usernamePlaceholder': '请输入用户名',
   'auth.passwordPlaceholder': '请输入密码',
   'auth.switchToLogin': '已有账号？去登录',

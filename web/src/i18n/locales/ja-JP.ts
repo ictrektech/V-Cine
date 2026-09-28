@@ -237,6 +237,15 @@ const jaJP: Record<string, string> = {
   // ==================== VOS 連携 ====================
   'vos.login.title': 'VOS アカウントで V-Cine にログインしています',
   'vos.login.retry': 'VOS に再接続',
+
+  // ==================== エラー・フォールバック画面 ====================
+  'errorBoundary.title': 'ページでエラーが発生しました',
+  'errorBoundary.hint': '直前の操作でフロントエンドの例外が発生しました。ホームに戻ると復帰できます。',
+  'errorBoundary.home': 'ホームに戻る',
+  'notFound.title': 'ページが見つかりません',
+  'notFound.hint': 'リンクが無効か、アドレスが間違っている可能性があります。',
+  'notFound.home': 'ホームに戻る',
+  'admin.noAccess': 'このページは管理者のみアクセスできます',
   'auth.usernamePlaceholder': 'ユーザー名を入力',
   'auth.passwordPlaceholder': 'パスワードを入力',
   'auth.switchToLogin': 'アカウントをお持ちの方はログイン',

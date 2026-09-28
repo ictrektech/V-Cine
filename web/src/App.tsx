@@ -7,6 +7,8 @@ import { DialogProvider } from '@/components/Dialog'
 import { getBasePath } from '@/lib/basePath'
 import { Toaster } from 'react-hot-toast'
 import Layout from '@/components/Layout'
+import AdminRoute from '@/components/AdminRoute'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import TitleBar from '@/components/TitleBar'
 import NotificationCenter from '@/components/NotificationCenter'
 import NotificationToaster from '@/components/NotificationToaster'
@@ -22,6 +24,7 @@ import LibraryPage from '@/pages/LibraryPage'
 import MediaDetailPage from '@/pages/MediaDetailPage'
 import PlayerPage from '@/pages/PlayerPage'
 import SearchPage from '@/pages/SearchPage'
+import NotFoundPage from '@/pages/NotFoundPage'
 import FavoritesPage from '@/pages/FavoritesPage'
 import HistoryPage from '@/pages/HistoryPage'
 import PlaylistsPage from '@/pages/PlaylistsPage'
@@ -106,6 +109,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <DialogProvider>
+      <ErrorBoundary>
       <Toaster position="top-right" />
       <BrowserRouter basename={getBasePath() || '/'}>
         {/* 桌面端：首次启动"服务器地址"引导（仅在默认端口探活失败时出现） */}
@@ -162,8 +166,8 @@ export default function App() {
                 <Route path="stats" element={<StatsPage />} />
               </Route>
               <Route path="mine" element={<Navigate to="/favorites" replace />} />
-              <Route path="admin" element={<AdminPage />} />
-              <Route path="files" element={<FileManagerPage />} />
+              <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+              <Route path="files" element={<AdminRoute><FileManagerPage /></AdminRoute>} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="pulse" element={<Navigate to="/admin?tab=pulse" replace />} />
               {/* 兼容旧预处理独立页 —— 重定向到媒体库管理预处理 Tab */}
@@ -176,14 +180,15 @@ export default function App() {
               <Route path="collections/:id" element={<CollectionDetailPage />} />
               <Route path="person/:id" element={<PersonDetailPage />} />
               {/* 智能重命名独立页已下线；AI 整理随媒体库扫描/重建索引自动执行。 */}
+              {/* 未匹配路由：渲染在布局内，保留侧栏导航 */}
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
 
-            {/* 未匹配路由 */}
-            <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
         </div>
       </BrowserRouter>
+      </ErrorBoundary>
         </DialogProvider>
       </ToastProvider>
     </QueryClientProvider>
