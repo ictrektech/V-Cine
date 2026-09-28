@@ -115,6 +115,7 @@ const jaJP: Record<string, string> = {
   'player.gestureVolume': '音量',
   'player.gestureBrightness': '明るさ',
   'player.gestureSeek': 'シーク',
+  'player.resumedFrom': '{time} から再生を再開しました',
 
   // ==================== 字幕 ====================
   'subtitle.embedded': '内蔵字幕',

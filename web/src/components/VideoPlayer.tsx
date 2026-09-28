@@ -23,6 +23,7 @@ import {
   PictureInPicture2,
   Sparkles,
   Loader2,
+  RefreshCw,
   Languages,
   Search,
   MessageCircle,
@@ -31,6 +32,9 @@ import clsx from 'clsx'
 import CastPanel from './CastPanel'
 import SubtitleSearchPanel from './SubtitleSearchPanel'
 import SubtitleContentSearch from './SubtitleContentSearch'
+
+/** HLS 网络/媒体错误的自愈重试上限，超过后交给错误 UI 让用户手动重试 */
+const HLS_MAX_SELF_HEAL = 3
 
 interface VideoPlayerProps {
   src: string
@@ -81,6 +85,8 @@ export default function VideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null)
   const controlsTimerRef = useRef<number>(0)
   const progressReportRef = useRef<number>(0)
+  // 最近一次可写库的播放位置：卸载后拿不到 video 元素，退出时靠它补写观看历史
+  const lastProgressRef = useRef({ position: 0, duration: 0 })
 
   const {
     isPlaying,
@@ -106,6 +112,17 @@ export default function VideoPlayer({
   const [qualities, setQualities] = useState<{ index: number; label: string; bitrate?: number; height?: number }[]>([])
   const [currentQuality, setCurrentQuality] = useState(-1)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // 缓冲反馈：等待数据时显示 spinner（网络抖动、转码追赶都靠它给出反馈）
+  const [buffering, setBuffering] = useState(false)
+  // 手动重试：自增即触发 source effect 重建播放器
+  const [retryTick, setRetryTick] = useState(0)
+  const hlsRetryRef = useRef(0)
+
+  const handleRetry = useCallback(() => {
+    hlsRetryRef.current = 0
+    setLoadError(null)
+    setRetryTick((n) => n + 1)
+  }, [])
 
   // 实时转码/带宽状态（Settings 面板展示）
   const [currentBitrate, setCurrentBitrate] = useState(0) // 当前播放档位码率 bit/s
@@ -600,20 +617,17 @@ export default function VideoPlayer({
         }
         hls.on(Hls.Events.FRAG_LOADED, reportBandwidth)
         hls.on(Hls.Events.ERROR, (_event, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                hls.startLoad()
-                break
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                hls.recoverMediaError()
-                break
-              default:
-                setLoadError('转码播放失败，请稍后重试')
-                hls.destroy()
-                break
-            }
+          if (!data.fatal) return
+          const recoverable = data.type === Hls.ErrorTypes.NETWORK_ERROR || data.type === Hls.ErrorTypes.MEDIA_ERROR
+          // 网络/媒体错误交给 hls.js 自愈，但必须有次数上限，否则会无限重试且用户看不到任何反馈
+          if (recoverable && hlsRetryRef.current < HLS_MAX_SELF_HEAL) {
+            hlsRetryRef.current += 1
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad()
+            else hls.recoverMediaError()
+            return
           }
+          setLoadError('转码播放失败，请稍后重试')
+          hls.destroy()
         })
         hlsRef.current = hls
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -628,14 +642,23 @@ export default function VideoPlayer({
       hlsRef.current?.destroy()
       hlsRef.current = null
     }
-  }, [src, mode, startPosition, reset, onRemuxFallback])
+  }, [src, mode, startPosition, reset, onRemuxFallback, retryTick])
 
   // 视频事件监听
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
     const onPlay = () => setPlaying(true)
-    const onPause = () => setPlaying(false)
+    const onPause = () => {
+      setPlaying(false)
+      setBuffering(false)
+    }
+    // 缓冲反馈：等待数据时显示 spinner，恢复播放即隐藏，并重置 HLS 自愈计数
+    const onWaiting = () => setBuffering(true)
+    const onPlaying = () => {
+      setBuffering(false)
+      hlsRetryRef.current = 0
+    }
     // Remux 模式下，video.currentTime 是从 seek 点开始的相对时间，需要加上偏移量
     const onTimeUpdate = () => setCurrentTime(video.currentTime + remuxOffsetRef.current)
     const onDurationChange = () => setDuration(video.duration)
@@ -660,6 +683,8 @@ export default function VideoPlayer({
     }
     video.addEventListener('play', onPlay)
     video.addEventListener('pause', onPause)
+    video.addEventListener('waiting', onWaiting)
+    video.addEventListener('playing', onPlaying)
     video.addEventListener('timeupdate', onTimeUpdate)
     video.addEventListener('durationchange', onDurationChange)
     video.addEventListener('volumechange', onVolumeChange)
@@ -668,6 +693,8 @@ export default function VideoPlayer({
     return () => {
       video.removeEventListener('play', onPlay)
       video.removeEventListener('pause', onPause)
+      video.removeEventListener('waiting', onWaiting)
+      video.removeEventListener('playing', onPlaying)
       video.removeEventListener('timeupdate', onTimeUpdate)
       video.removeEventListener('durationchange', onDurationChange)
       video.removeEventListener('volumechange', onVolumeChange)
@@ -697,10 +724,12 @@ export default function VideoPlayer({
     let tick = 0
     progressReportRef.current = window.setInterval(() => {
       const video = videoRef.current
-      if (!video || video.paused || video.currentTime <= 0) return
+      if (!video || video.currentTime <= 0) return
       // Remux 模式下 video.currentTime 是相对 seek 点的时间，需要加上偏移
       const actualTime = video.currentTime + remuxOffsetRef.current
       const actualDuration = displayDuration > 0 ? displayDuration : video.duration
+      lastProgressRef.current = { position: actualTime, duration: actualDuration }
+      if (video.paused) return
       // 驱动后端节流（高频）
       streamApi.reportPlayback(mediaId, actualTime).catch(() => {})
       // 写观看历史（低频，每 5 次 = 15s）
@@ -709,7 +738,15 @@ export default function VideoPlayer({
         userApi.updateProgress(mediaId, actualTime, actualDuration).catch(() => {})
       }
     }, 3000)
-    return () => clearInterval(progressReportRef.current)
+    return () => {
+      clearInterval(progressReportRef.current)
+      // 退出播放（路由切换会卸载组件）时补写一次：原来只在播放满 15s 时写库，
+      // "看了一段就退出"会整条历史都不存在，续播自然无从谈起
+      const { position, duration } = lastProgressRef.current
+      if (position > 0 && duration > 0) {
+        userApi.updateProgress(mediaId, position, duration).catch(() => {})
+      }
+    }
   }, [mediaId, displayDuration])
 
   // 全屏变化监听
@@ -1186,6 +1223,13 @@ export default function VideoPlayer({
         </div>
       )}
 
+      {/* 缓冲反馈：等待数据时给出 spinner（网络抖动、seek 到未转码区间都会命中） */}
+      {buffering && !loadError && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-white/80" />
+        </div>
+      )}
+
       {/* 加载错误提示 */}
       {loadError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm">
@@ -1194,13 +1238,22 @@ export default function VideoPlayer({
             border: '1px solid rgba(239, 68, 68, 0.2)',
           }}>
             <p className="text-lg font-medium text-red-400">{loadError}</p>
-            <button
-              onClick={onBack}
-              className="btn-ghost mt-4 rounded-xl px-5 py-2.5 text-sm"
-              style={{ border: '1px solid var(--neon-blue-15)' }}
-            >
-              返回
-            </button>
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <button
+                onClick={handleRetry}
+                className="btn-primary inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm"
+              >
+                <RefreshCw size={14} />
+                重试
+              </button>
+              <button
+                onClick={onBack}
+                className="btn-ghost rounded-xl px-5 py-2.5 text-sm"
+                style={{ border: '1px solid var(--neon-blue-15)' }}
+              >
+                返回
+              </button>
+            </div>
           </div>
         </div>
       )}

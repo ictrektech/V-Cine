@@ -113,6 +113,7 @@ const zhCN: Record<string, string> = {
   'player.gestureVolume': '音量',
   'player.gestureBrightness': '亮度',
   'player.gestureSeek': '快进/快退',
+  'player.resumedFrom': '已从 {time} 继续播放',
 
   // ==================== 字幕 ====================
   'subtitle.embedded': '内嵌字幕',

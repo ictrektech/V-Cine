@@ -115,6 +115,7 @@ const enUS: Record<string, string> = {
   'player.gestureVolume': 'Volume',
   'player.gestureBrightness': 'Brightness',
   'player.gestureSeek': 'Seek',
+  'player.resumedFrom': 'Resumed from {time}',
 
   // ==================== Subtitle ====================
   'subtitle.embedded': 'Embedded',
