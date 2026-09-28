@@ -16,6 +16,7 @@ import ForceChangePasswordPage from '@/pages/ForceChangePasswordPage'
 import { DesktopEventBinder, DesktopServerPicker, UpdateBanner } from '@/desktop'
 import { authApi } from '@/api/auth'
 import { acquireVOSAccessToken } from '@/utils/vos-oidc'
+import { useTranslation } from '@/i18n'
 import HomePage from '@/pages/HomePage'
 import LibraryPage from '@/pages/LibraryPage'
 import MediaDetailPage from '@/pages/MediaDetailPage'
@@ -75,6 +76,7 @@ function NotificationBridge() {
 export default function App() {
   const setAuth = useAuthStore((s) => s.setAuth)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const { t } = useTranslation()
   const isVOSFrame = typeof window !== 'undefined' && window.parent !== window
   const [vosLoginError, setVOSLoginError] = useState(false)
   const [vosLoginAttempt, setVOSLoginAttempt] = useState(0)
@@ -95,8 +97,8 @@ export default function App() {
   if (isVOSFrame && !isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-slate-100">
-        <div className="text-lg font-semibold">正在使用 VOS 账户登录 V-Cine</div>
-        {vosLoginError && <button className="rounded bg-cyan-500 px-4 py-2 text-slate-950" onClick={() => setVOSLoginAttempt((attempt) => attempt + 1)}>重新连接 VOS</button>}
+        <div className="text-lg font-semibold">{t('vos.login.title')}</div>
+        {vosLoginError && <button className="rounded bg-cyan-500 px-4 py-2 text-slate-950" onClick={() => setVOSLoginAttempt((attempt) => attempt + 1)}>{t('vos.login.retry')}</button>}
       </div>
     )
   }
