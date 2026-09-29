@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { mediaApi, streamApi, seriesApi } from '@/api'
+import { mediaApi, streamApi, seriesApi, userApi } from '@/api'
 import type { Media, MediaPlayInfo } from '@/types'
 import { routes } from '@/lib/routes'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
+import { formatTime } from '@/utils/format'
+import { t } from '@/i18n'
 import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
 import VideoPlayer from '@/components/VideoPlayer'
 import WebCodecsPlayerShell from '@/components/WebCodecsPlayerShell'
@@ -35,6 +37,9 @@ function canPlayHEVC(): boolean {
     return false
   }
 }
+
+/** 进度回读的超时上限：接口卡住时不能一直挡住播放器渲染 */
+const PROGRESS_READ_TIMEOUT = 3000
 
 export default function PlayerPage() {
   const { id } = useParams<{ id: string }>()
@@ -133,6 +138,39 @@ export default function PlayerPage() {
 
   // 预处理完成回调：后台静默刷新播放信息，自动切换到预处理流（无缝、无感知）
   const [switchPosition, setSwitchPosition] = useState<number | undefined>(undefined)
+
+  // 续播起点：站内入口大多不带 ?start=，无显式起点时回读后端观看进度
+  const [resumePosition, setResumePosition] = useState<number | undefined>(undefined)
+  // 进度回读完成前不渲染播放器，否则会先从头起播、拿到进度后再重建一次播放器
+  const [resumeChecked, setResumeChecked] = useState(false)
+  useEffect(() => {
+    if (!id) return
+    // 换集时先清掉上一集的起点，避免沿用到新的一集
+    setResumePosition(undefined)
+    if (searchParams.get('start')) {
+      setResumeChecked(true)
+      return
+    }
+    let cancelled = false
+    setResumeChecked(false)
+    // 超时兜底：进度接口出错或长时间无响应都要放行，不能让渲染门一直关着
+    const timeout = new Promise<null>((resolve) => { setTimeout(() => resolve(null), PROGRESS_READ_TIMEOUT) })
+    Promise.race([userApi.getProgress(id).catch(() => null), timeout])
+      .then((res) => {
+        const record = res?.data.data
+        if (cancelled || !record) return
+        // 开头几秒与已看完（≥95%）都不续播，避免"一进来就播到片尾"
+        if (record.position <= 15) return
+        if (record.duration > 0 && record.position / record.duration >= 0.95) return
+        setResumePosition(record.position)
+        toast.info(t('player.resumedFrom', { time: formatTime(record.position) }))
+      })
+      .finally(() => { if (!cancelled) setResumeChecked(true) })
+    return () => { cancelled = true }
+  }, [id, searchParams, toast])
+
+  // 播放起点优先级：预处理无缝切换 > URL 显式指定 > 后端历史进度
+  const resolvedStartPosition = switchPosition ?? initialStartPosition ?? resumePosition
   const handlePreprocessReady = useCallback(() => {
     if (!id) return
     streamApi.getPlayInfo(id).then((res) => {
@@ -206,7 +244,7 @@ export default function PlayerPage() {
     )
   }
 
-  if (loading || !media || !playInfo || !id) {
+  if (loading || !media || !playInfo || !id || !resumeChecked) {
     return (
       <div className="flex h-screen items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-3">
@@ -417,7 +455,7 @@ export default function PlayerPage() {
             title={playerTitle}
             playOptions={{
               title: playerTitle,
-              start_time: switchPosition ?? initialStartPosition,
+              start_time: resolvedStartPosition,
             }}
             onBack={handleBack}
             className="h-full w-full"
@@ -427,7 +465,7 @@ export default function PlayerPage() {
             src={src}
             mediaId={id}
             title={playerTitle}
-            startPosition={switchPosition ?? initialStartPosition}
+            startPosition={resolvedStartPosition}
             knownDuration={playInfo.duration}
             onBack={handleBack}
             onNext={nextEpisode ? handleNext : undefined}
@@ -444,7 +482,7 @@ export default function PlayerPage() {
             isStrm={playInfo.is_strm}
             isPreprocessed={!!isPreprocessed}
             knownDuration={playInfo.duration}
-            startPosition={switchPosition ?? initialStartPosition}
+            startPosition={resolvedStartPosition}
             spriteVttUrl={playInfo.sprite_vtt_url ? streamApi.withTokenUrl(playInfo.sprite_vtt_url) : undefined}
             onPreprocessReady={handlePreprocessReady}
             onRemuxFallback={mode === 'remux' ? handleRemuxFallback : undefined}

@@ -115,6 +115,7 @@ const enUS: Record<string, string> = {
   'player.gestureVolume': 'Volume',
   'player.gestureBrightness': 'Brightness',
   'player.gestureSeek': 'Seek',
+  'player.resumedFrom': 'Resumed from {time}',
 
   // ==================== Subtitle ====================
   'subtitle.embedded': 'Embedded',
@@ -214,6 +215,39 @@ const enUS: Record<string, string> = {
   'auth.processing': 'Processing...',
   'auth.enterDeepSpace': 'Enter Deep Space',
   'auth.operationFailed': 'Operation failed, please retry',
+  'auth.invalidCredentials': 'Incorrect username or password',
+  'auth.accountDisabled': 'This account has been disabled, please contact your administrator',
+  'auth.networkError': 'Cannot reach the server, please check your network',
+  'auth.serverError': 'Server error, please try again later',
+
+  // ==================== Force change password ====================
+  'forceChange.title': 'First sign-in — please change your password',
+  'forceChange.subtitle': 'For account security, you must change the initial password before continuing',
+  'forceChange.currentPassword': 'Current password',
+  'forceChange.newPassword': 'New password',
+  'forceChange.confirmPassword': 'Confirm new password',
+  'forceChange.submit': 'Change password and continue',
+  'forceChange.submitting': 'Processing...',
+  'forceChange.logout': 'Sign out',
+  'forceChange.errTooShort': 'New password must be at least 6 characters',
+  'forceChange.errMismatch': 'The two new passwords do not match',
+  'forceChange.errSameAsOld': 'New password cannot be the same as the current one',
+  'forceChange.errSessionRefresh': 'Password changed, but the session could not be refreshed. Please sign out and log in with the new password',
+  'forceChange.errFailed': 'Failed to change password',
+
+  // ==================== VOS integration ====================
+  'vos.login.title': 'Signing in to V-Cine with your VOS account',
+  'vos.login.retry': 'Reconnect to VOS',
+
+  // ==================== Error and fallback pages ====================
+  'errorBoundary.title': 'Something went wrong',
+  'errorBoundary.hint': 'The last action hit a frontend error. Go back home to recover.',
+  'errorBoundary.home': 'Back to home',
+  'notFound.title': 'Page not found',
+  'notFound.hint': 'This link may be outdated, or the address was mistyped.',
+  'notFound.home': 'Back to home',
+  'admin.noAccess': 'This page is only available to administrators',
+  'common.retry': 'Retry',
   'auth.usernamePlaceholder': 'Enter username',
   'auth.passwordPlaceholder': 'Enter password',
   'auth.switchToLogin': 'Already have an account? Sign in',
@@ -245,7 +279,31 @@ const enUS: Record<string, string> = {
   'home.viewDetail': 'View Details',
   'home.play': 'Play',
   'home.noContent': 'No media content',
-  'home.noContentHint': 'Go to admin page to add media libraries and scan files',
+
+  // ==================== Empty state guidance ====================
+  'empty.adminHint': 'Add a media library and scan it, then your videos will show up here',
+  'empty.userHint': 'No videos have been added yet, please contact your administrator',
+  'empty.libraryAdminHint': 'No videos found in this library yet. You can run a scan in Media Library Management',
+  'empty.manageLibraries': 'Media Library Management',
+
+  // ==================== Onboarding ====================
+  'onboard.trigger': 'Getting started guide',
+  'onboard.dismissForever': 'Don\'t show automatically',
+  'onboard.next': 'Next',
+  'onboard.prev': 'Back',
+  'onboard.finish': 'Get started',
+  'onboard.hintAuto': 'Follow the hint — it continues automatically',
+  'onboard.strayed': 'Guide paused: this step\'s target is not on the current page. It resumes when you go back.',
+  'onboard.task.openManager.title': 'Open Media Library Management',
+  'onboard.task.openManager.desc': 'Click "Media Library Management" on the left — this is where we add your first library',
+  'onboard.task.createLibrary.title': 'Create a library',
+  'onboard.task.createLibrary.desc': 'Click "Add library" and tell the system where your videos live',
+  'onboard.task.fillForm.title': 'Fill in and create',
+  'onboard.task.fillForm.desc': 'Give it a name, pick the folder that holds your videos, then click "Create"',
+  'onboard.task.scan.title': 'Start scanning',
+  'onboard.task.scan.desc': 'Click "Scan now" — the system will read the files and fetch movie info automatically',
+  'onboard.task.done.title': 'Scan finished',
+  'onboard.task.done.desc': 'Your videos will now show up in the library — go take a look',
 
   // ==================== Search (extra) ====================
   'search.searchFailed': 'Search failed, please try again later',

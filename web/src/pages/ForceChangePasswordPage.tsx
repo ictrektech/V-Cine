@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import { useTranslation } from '@/i18n'
 import { KeyRound, Loader2 } from 'lucide-react'
 
 /**
@@ -12,6 +13,7 @@ export default function ForceChangePasswordPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
   const logout = useAuthStore((s) => s.logout)
+  const { t } = useTranslation()
   const [oldPwd, setOldPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [newPwd2, setNewPwd2] = useState('')
@@ -21,9 +23,9 @@ export default function ForceChangePasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (newPwd.length < 6) { setError('新密码至少 6 位'); return }
-    if (newPwd !== newPwd2) { setError('两次输入的新密码不一致'); return }
-    if (newPwd === oldPwd) { setError('新密码不能与当前密码相同'); return }
+    if (newPwd.length < 6) { setError(t('forceChange.errTooShort')); return }
+    if (newPwd !== newPwd2) { setError(t('forceChange.errMismatch')); return }
+    if (newPwd === oldPwd) { setError(t('forceChange.errSameAsOld')); return }
 
     setLoading(true)
     try {
@@ -33,7 +35,7 @@ export default function ForceChangePasswordPage() {
       // 后端改密后会吊销旧 Token。只有拿到新 Token 才能视为完整成功，
       // 避免响应异常时仍跳转首页，给用户造成“密码已经修改”的假象。
       if (!tokenData?.token || !tokenData.user) {
-        setError(res.data.message || '密码已修改，但登录状态刷新失败，请退出后使用新密码重新登录')
+        setError(res.data.message || t('forceChange.errSessionRefresh'))
         return
       }
 
@@ -42,7 +44,7 @@ export default function ForceChangePasswordPage() {
       setAuth(tokenData.token, { ...tokenData.user, must_change_pwd: false })
       navigate('/', { replace: true })
     } catch (err: any) {
-      setError(err?.response?.data?.error || '修改密码失败')
+      setError(err?.response?.data?.error || t('forceChange.errFailed'))
     } finally {
       setLoading(false)
     }
@@ -60,9 +62,9 @@ export default function ForceChangePasswordPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
             <KeyRound size={26} className="text-white" />
           </div>
-          <h1 className="font-display text-xl font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>首次登录 — 请修改密码</h1>
+          <h1 className="font-display text-xl font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>{t('forceChange.title')}</h1>
           <p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            为了账号安全，您必须先修改初始密码才能进入系统
+            {t('forceChange.subtitle')}
           </p>
         </div>
 
@@ -74,7 +76,7 @@ export default function ForceChangePasswordPage() {
           )}
 
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>当前密码</label>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{t('forceChange.currentPassword')}</label>
             <input
               type="password"
               name="current-password"
@@ -87,7 +89,7 @@ export default function ForceChangePasswordPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>新密码</label>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{t('forceChange.newPassword')}</label>
             <input
               type="password"
               name="new-password"
@@ -101,7 +103,7 @@ export default function ForceChangePasswordPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>确认新密码</label>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{t('forceChange.confirmPassword')}</label>
             <input
               type="password"
               name="confirm-password"
@@ -116,11 +118,11 @@ export default function ForceChangePasswordPage() {
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-            {loading ? <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" />处理中...</span> : '修改密码并继续'}
+            {loading ? <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" />{t('forceChange.submitting')}</span> : t('forceChange.submit')}
           </button>
 
           <button type="button" onClick={handleLogout} className="block w-full text-center text-xs transition-colors hover:text-neon" style={{ color: 'var(--text-muted)' }}>
-            退出登录
+            {t('forceChange.logout')}
           </button>
         </form>
       </div>

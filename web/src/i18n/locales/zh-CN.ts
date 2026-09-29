@@ -113,6 +113,7 @@ const zhCN: Record<string, string> = {
   'player.gestureVolume': '音量',
   'player.gestureBrightness': '亮度',
   'player.gestureSeek': '快进/快退',
+  'player.resumedFrom': '已从 {time} 继续播放',
 
   // ==================== 字幕 ====================
   'subtitle.embedded': '内嵌字幕',
@@ -212,6 +213,39 @@ const zhCN: Record<string, string> = {
   'auth.processing': '处理中...',
   'auth.enterDeepSpace': '进入深空',
   'auth.operationFailed': '操作失败，请重试',
+  'auth.invalidCredentials': '账号或密码错误',
+  'auth.accountDisabled': '账号已被禁用，请联系管理员',
+  'auth.networkError': '无法连接服务器，请检查网络',
+  'auth.serverError': '服务异常，请稍后重试',
+
+  // ==================== 强制修改密码页 ====================
+  'forceChange.title': '首次登录 — 请修改密码',
+  'forceChange.subtitle': '为了账号安全，您必须先修改初始密码才能进入系统',
+  'forceChange.currentPassword': '当前密码',
+  'forceChange.newPassword': '新密码',
+  'forceChange.confirmPassword': '确认新密码',
+  'forceChange.submit': '修改密码并继续',
+  'forceChange.submitting': '处理中...',
+  'forceChange.logout': '退出登录',
+  'forceChange.errTooShort': '新密码至少 6 位',
+  'forceChange.errMismatch': '两次输入的新密码不一致',
+  'forceChange.errSameAsOld': '新密码不能与当前密码相同',
+  'forceChange.errSessionRefresh': '密码已修改，但登录状态刷新失败，请退出后使用新密码重新登录',
+  'forceChange.errFailed': '修改密码失败',
+
+  // ==================== VOS 集成 ====================
+  'vos.login.title': '正在使用 VOS 账户登录 V-Cine',
+  'vos.login.retry': '重新连接 VOS',
+
+  // ==================== 错误与兜底页面 ====================
+  'errorBoundary.title': '页面出错了',
+  'errorBoundary.hint': '刚才的操作触发了前端异常，返回首页即可恢复。',
+  'errorBoundary.home': '返回首页',
+  'notFound.title': '页面不存在',
+  'notFound.hint': '链接可能已失效，或地址输错了。',
+  'notFound.home': '返回首页',
+  'admin.noAccess': '该页面仅管理员可访问',
+  'common.retry': '重试',
   'auth.usernamePlaceholder': '请输入用户名',
   'auth.passwordPlaceholder': '请输入密码',
   'auth.switchToLogin': '已有账号？去登录',
@@ -294,7 +328,31 @@ const zhCN: Record<string, string> = {
   'home.viewDetail': '查看详情',
   'home.play': '播放',
   'home.noContent': '暂无媒体内容',
-  'home.noContentHint': '前往管理页面添加媒体库并扫描文件',
+
+  // ==================== 空状态引导 ====================
+  'empty.adminHint': '添加媒体库并扫描后，影片会出现在这里',
+  'empty.userHint': '媒体库还没有添加影片，请联系管理员',
+  'empty.libraryAdminHint': '该媒体库尚未扫描到影片，可在媒体库管理中执行扫描',
+  'empty.manageLibraries': '媒体库管理',
+
+  // ==================== 首次引导 ====================
+  'onboard.trigger': '使用引导',
+  'onboard.dismissForever': '不再自动显示',
+  'onboard.next': '下一步',
+  'onboard.prev': '上一步',
+  'onboard.finish': '开始使用',
+  'onboard.hintAuto': '按提示操作后自动继续',
+  'onboard.strayed': '引导已暂停：当前页面没有这一步要高亮的元素。回到对应页面会自动继续。',
+  'onboard.task.openManager.title': '进入媒体库管理',
+  'onboard.task.openManager.desc': '点击左侧的「媒体库管理」，我们在这里添加你的第一个媒体库',
+  'onboard.task.createLibrary.title': '新建媒体库',
+  'onboard.task.createLibrary.desc': '点击「新增媒体库」，把存放影片的文件夹告诉系统',
+  'onboard.task.fillForm.title': '填写并创建',
+  'onboard.task.fillForm.desc': '填一个名称、选择影片所在的文件夹，然后点「确认创建」',
+  'onboard.task.scan.title': '开始扫描',
+  'onboard.task.scan.desc': '点「立即扫描」，系统会读取文件并自动获取影片信息',
+  'onboard.task.done.title': '扫描完成',
+  'onboard.task.done.desc': '完成后影片就会出现在影视库里，可以去看看了',
 
   // ==================== 搜索（补充） ====================
   'search.searchFailed': '搜索失败，请稍后重试',

@@ -115,6 +115,7 @@ const jaJP: Record<string, string> = {
   'player.gestureVolume': '音量',
   'player.gestureBrightness': '明るさ',
   'player.gestureSeek': 'シーク',
+  'player.resumedFrom': '{time} から再生を再開しました',
 
   // ==================== 字幕 ====================
   'subtitle.embedded': '内蔵字幕',
@@ -214,6 +215,39 @@ const jaJP: Record<string, string> = {
   'auth.processing': '処理中...',
   'auth.enterDeepSpace': 'ディープスペースへ',
   'auth.operationFailed': '操作に失敗しました。再試行してください',
+  'auth.invalidCredentials': 'ユーザー名またはパスワードが違います',
+  'auth.accountDisabled': 'このアカウントは無効化されています。管理者にお問い合わせください',
+  'auth.networkError': 'サーバーに接続できません。ネットワークをご確認ください',
+  'auth.serverError': 'サーバーエラーです。しばらくしてからお試しください',
+
+  // ==================== パスワード変更の強制 ====================
+  'forceChange.title': '初回ログイン — パスワードを変更してください',
+  'forceChange.subtitle': 'アカウントの安全のため、初期パスワードを変更するまでご利用いただけません',
+  'forceChange.currentPassword': '現在のパスワード',
+  'forceChange.newPassword': '新しいパスワード',
+  'forceChange.confirmPassword': '新しいパスワード（確認）',
+  'forceChange.submit': 'パスワードを変更して続行',
+  'forceChange.submitting': '処理中...',
+  'forceChange.logout': 'ログアウト',
+  'forceChange.errTooShort': '新しいパスワードは6文字以上にしてください',
+  'forceChange.errMismatch': '新しいパスワードが一致しません',
+  'forceChange.errSameAsOld': '新しいパスワードは現在のものと同一にできません',
+  'forceChange.errSessionRefresh': 'パスワードは変更されましたが、ログイン状態の更新に失敗しました。ログアウトして新しいパスワードでログインしてください',
+  'forceChange.errFailed': 'パスワードの変更に失敗しました',
+
+  // ==================== VOS 連携 ====================
+  'vos.login.title': 'VOS アカウントで V-Cine にログインしています',
+  'vos.login.retry': 'VOS に再接続',
+
+  // ==================== エラー・フォールバック画面 ====================
+  'errorBoundary.title': 'ページでエラーが発生しました',
+  'errorBoundary.hint': '直前の操作でフロントエンドの例外が発生しました。ホームに戻ると復帰できます。',
+  'errorBoundary.home': 'ホームに戻る',
+  'notFound.title': 'ページが見つかりません',
+  'notFound.hint': 'リンクが無効か、アドレスが間違っている可能性があります。',
+  'notFound.home': 'ホームに戻る',
+  'admin.noAccess': 'このページは管理者のみアクセスできます',
+  'common.retry': '再試行',
   'auth.usernamePlaceholder': 'ユーザー名を入力',
   'auth.passwordPlaceholder': 'パスワードを入力',
   'auth.switchToLogin': 'アカウントをお持ちの方はログイン',
@@ -245,7 +279,31 @@ const jaJP: Record<string, string> = {
   'home.viewDetail': '詳細を見る',
   'home.play': '再生',
   'home.noContent': 'メディアコンテンツなし',
-  'home.noContentHint': '管理ページでメディアライブラリを追加してスキャンしてください',
+
+  // ==================== 空状態のガイド ====================
+  'empty.adminHint': 'メディアライブラリを追加してスキャンすると、ここに表示されます',
+  'empty.userHint': 'まだ動画が追加されていません。管理者にお問い合わせください',
+  'empty.libraryAdminHint': 'このライブラリにはまだ動画がありません。メディアライブラリ管理からスキャンできます',
+  'empty.manageLibraries': 'メディアライブラリ管理',
+
+  // ==================== 初回ガイド ====================
+  'onboard.trigger': '使い方ガイド',
+  'onboard.dismissForever': '自動表示しない',
+  'onboard.next': '次へ',
+  'onboard.prev': '戻る',
+  'onboard.finish': 'はじめる',
+  'onboard.hintAuto': 'ヒントに従って操作すると自動で進みます',
+  'onboard.strayed': 'ガイドを一時停止しました：この手順の対象が現在のページにありません。戻ると自動で再開します。',
+  'onboard.task.openManager.title': 'メディアライブラリ管理を開く',
+  'onboard.task.openManager.desc': '左側の「メディアライブラリ管理」をクリックします。ここで最初のライブラリを追加します',
+  'onboard.task.createLibrary.title': 'ライブラリを新規作成',
+  'onboard.task.createLibrary.desc': '「新規ライブラリ」をクリックして、動画の保存場所を指定します',
+  'onboard.task.fillForm.title': '入力して作成',
+  'onboard.task.fillForm.desc': '名前を入力し、動画のフォルダを選択して「作成」をクリックします',
+  'onboard.task.scan.title': 'スキャンを開始',
+  'onboard.task.scan.desc': '「今すぐスキャン」をクリックすると、ファイルを読み込んで作品情報を自動取得します',
+  'onboard.task.done.title': 'スキャン完了',
+  'onboard.task.done.desc': '完了すると動画がライブラリに表示されます。確認してみましょう',
 
   // ==================== 検索（追加） ====================
   'search.searchFailed': '検索に失敗しました。後でもう一度お試しください',

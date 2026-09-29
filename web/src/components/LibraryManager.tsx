@@ -11,6 +11,7 @@ import CreateLibraryModal from './CreateLibraryModal'
 import EditLibraryModal from './EditLibraryModal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ANCHORS } from '@/lib/onboarding/anchors'
 import {
   FolderPlus,
   RefreshCw,
@@ -223,6 +224,7 @@ function LibraryManager({
         <div className="ml-auto flex items-center gap-2">
           {/* 新增媒体库按钮 — 主要操作 */}
           <button
+            data-onboarding={ANCHORS.createLibraryButton}
             onClick={() => setShowCreateModal(true)}
             className="btn-primary gap-1.5 px-4 py-2 text-sm"
           >
@@ -636,6 +638,7 @@ function LibraryManager({
             添加媒体库后系统将自动扫描并索引您的视频文件
           </p>
           <button
+            data-onboarding={ANCHORS.createLibraryButton}
             onClick={() => setShowCreateModal(true)}
             className="btn-primary gap-1.5 px-5 py-2.5 text-sm"
           >

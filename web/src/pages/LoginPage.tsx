@@ -65,8 +65,25 @@ export default function LoginPage() {
       )
       navigate(mustChange ? '/force-change-password' : '/', { replace: true })
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: string } } }
-      setError(axiosErr.response?.data?.error || t('auth.operationFailed'))
+      const axiosErr = err as {
+        response?: { status?: number; data?: { error?: string } }
+        code?: string
+      }
+      const status = axiosErr.response?.status
+      const serverMsg = axiosErr.response?.data?.error
+      if (status === 401) {
+        setError(t('auth.invalidCredentials'))
+      } else if (status === 403) {
+        setError(serverMsg || t('auth.accountDisabled'))
+      } else if (status && status >= 500) {
+        setError(t('auth.serverError'))
+      } else if (axiosErr.code === 'ERR_NETWORK' || axiosErr.code === 'ECONNABORTED') {
+        setError(t('auth.networkError'))
+      } else if (serverMsg) {
+        setError(serverMsg)
+      } else {
+        setError(t('auth.operationFailed'))
+      }
     } finally {
       setLoading(false)
     }
