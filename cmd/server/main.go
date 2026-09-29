@@ -336,6 +336,8 @@ func main() {
 
 		// 海报/缩略图（不做权限校验：海报属于媒体元信息，不可播放）
 		api.GET("/media/:id/poster", handlers.Stream.Poster)
+		// 横版背景图（首页"继续观看"、分集卡、Pulse 等横版槽位，Android 端亦请求此路由）
+		api.GET("/media/:id/backdrop", handlers.Stream.Backdrop)
 
 		_ = guardByMediaIDParam // 单保留变量供下文使用
 

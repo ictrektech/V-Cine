@@ -124,6 +124,24 @@ type LoggingConfig struct {
 	MaxBackups int `mapstructure:"max_backups"`
 }
 
+// ArtworkConfig 派生 Artwork（海报兜底图）配置
+type ArtworkConfig struct {
+	Fallback ArtworkFallbackConfig `mapstructure:"fallback"`
+}
+
+// ArtworkFallbackConfig 海报兜底图生成配置。
+// 兜底图仅通过本服务对外可见（写入 cache，不写 media.PosterPath、不写用户媒体目录）。
+type ArtworkFallbackConfig struct {
+	// 是否启用。默认 true：刮不到海报时自动用视频封面兜底；抽帧有 CPU/IO 开销，可设为 false 关闭
+	Enabled bool `mapstructure:"enabled"`
+	// 是否允许视频抽帧（默认 true）
+	Frame bool `mapstructure:"frame"`
+	// 是否允许直接使用视频内嵌封面（默认 true，优先级高于抽帧）
+	Embedded bool `mapstructure:"embedded"`
+	// 同时进行的生成任务上限（默认 2）
+	Concurrency int `mapstructure:"concurrency"`
+}
+
 // CacheConfig 缓存配置参数
 type CacheConfig struct {
 	// 转码缓存目录，默认 ./cache
@@ -673,6 +691,7 @@ type Config struct {
 	App           AppConfig           `mapstructure:"app"`
 	Logging       LoggingConfig       `mapstructure:"logging"`
 	Cache         CacheConfig         `mapstructure:"cache"`
+	Artwork       ArtworkConfig       `mapstructure:"artwork"`
 	VideoAnalysis VideoAnalysisConfig `mapstructure:"video_analysis"`
 	AI            AIConfig            `mapstructure:"ai"`
 	Registration  RegistrationConfig  `mapstructure:"registration"`
@@ -946,6 +965,15 @@ func setDefaults() {
 	viper.SetDefault("cache.ttl_hours", 0)
 	viper.SetDefault("cache.auto_cleanup", false)
 	viper.SetDefault("cache.cleanup_interval_min", 60)
+
+	// ---- 派生海报兜底（artwork fallback）----
+	// 默认开启（用户可配置关闭）。批量抽帧的负载由三重约束兜住：
+	// 并发上限（concurrency）、nice 19 低优先级、产物存在即跳过（幂等）；
+	// 且只在"刮削未取得海报"时才触发，STRM 远程流与文件缺失的条目直接跳过。
+	viper.SetDefault("artwork.fallback.enabled", true)
+	viper.SetDefault("artwork.fallback.frame", true)
+	viper.SetDefault("artwork.fallback.embedded", true)
+	viper.SetDefault("artwork.fallback.concurrency", 2)
 
 	// ---- 注册控制 ----
 	viper.SetDefault("registration.enabled", false)

@@ -101,6 +101,10 @@ type StreamService struct {
 	logger      *zap.SugaredLogger
 	vfsMgr      *VFSManager // V2.1: VFS 管理器，支持 webdav:// 路径
 
+	// artwork 图片解析链（海报 / 背景图），实现见 artwork_resolver.go；
+	// 对外通过下面的薄委托方法（GetPosterPath / GetBackdropPath）暴露。
+	artwork *ArtworkResolver
+
 	// remoteDirectPlayCache 缓存远程文件头嗅探结果，避免每次 GetMediaPlayInfo 都远程读文件头。
 	remoteDirectPlayCache sync.Map
 }
@@ -118,12 +122,23 @@ func NewStreamService(
 		transcoder: transcoder,
 		cfg:        cfg,
 		logger:     logger,
+		artwork:    NewArtworkResolver(mediaRepo, seriesRepo, cfg),
 	}
 }
 
 // SetVFSManager 设置 VFS 管理器（V2.1）
+// 必须一并转发给图片解析链：海报 / 背景图的解析（含同目录 sidecar）同样要 stat 远程路径，
+// 漏传会让 webdav:// 等远程库的图片全部退化为占位图。
 func (s *StreamService) SetVFSManager(vfsMgr *VFSManager) {
 	s.vfsMgr = vfsMgr
+	s.artwork.SetVFSManager(vfsMgr)
+}
+
+// ArtworkResolver 暴露内部图片解析器，供兜底生成侧复用同一条解析链
+// 判断"是否已有可展示的海报"（见 ArtworkFallbackService.SetArtworkProbe）。
+// 只读用途，调用方不得修改其状态。
+func (s *StreamService) ArtworkResolver() *ArtworkResolver {
+	return s.artwork
 }
 
 // SetSettingRepo 注入系统设置仓储，用于读取播放偏好设置。
@@ -522,67 +537,16 @@ func vfsDir(p string) string {
 }
 
 // GetPosterPath 获取海报文件路径
-// 对于剧集（episode），如果自身没有海报，会自动 fallback 到所属 Series 的海报
+// 对于剧集（episode），如果自身没有海报，会自动 fallback 到所属 Series 的海报；
+// 仍无则回退到派生兜底图（内嵌封面 / 抽帧）。
+// 实际解析在 ArtworkResolver（artwork_resolver.go），这里只做委托。
 func (s *StreamService) GetPosterPath(mediaID string) (string, error) {
-	media, err := s.mediaRepo.FindByID(mediaID)
-	if err != nil {
-		return "", ErrMediaNotFound
-	}
+	return s.artwork.PosterPath(mediaID)
+}
 
-	// 优先查找媒体自身的海报路径
-	if media.PosterPath != "" {
-		if _, err := s.statMediaFile(media.PosterPath); err == nil {
-			return media.PosterPath, nil
-		}
-	}
-
-	// 查找同目录下的海报文件
-	dir := vfsDir(media.FilePath)
-	base := strings.TrimSuffix(filepath.Base(media.FilePath), filepath.Ext(media.FilePath))
-
-	posterExts := []string{".jpg", ".jpeg", ".png", ".webp"}
-	posterNames := []string{
-		base,     // 同名
-		"poster", // poster.jpg
-		"cover",  // cover.jpg
-		"folder", // folder.jpg
-	}
-
-	for _, name := range posterNames {
-		for _, ext := range posterExts {
-			candidate := vfsJoinPath(dir, name+ext)
-			if _, err := s.statMediaFile(candidate); err == nil {
-				return candidate, nil
-			}
-		}
-	}
-
-	// Fallback：如果是剧集（episode）且自身没有海报，尝试使用所属 Series 的海报
-	if media.SeriesID != "" && s.seriesRepo != nil {
-		series, err := s.seriesRepo.FindByIDOnly(media.SeriesID)
-		if err == nil {
-			// 检查 Series 数据库中的海报路径
-			if series.PosterPath != "" {
-				if _, err := s.statMediaFile(series.PosterPath); err == nil {
-					return series.PosterPath, nil
-				}
-			}
-			// 查找 Series 根目录下的海报文件
-			if series.FolderPath != "" {
-				seriesPosterNames := []string{"poster", "cover", "folder", "show"}
-				for _, name := range seriesPosterNames {
-					for _, ext := range posterExts {
-						candidate := vfsJoinPath(series.FolderPath, name+ext)
-						if _, err := s.statMediaFile(candidate); err == nil {
-							return candidate, nil
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return "", nil
+// GetBackdropPath 获取横版背景图路径。解析链见 ArtworkResolver.BackdropPath。
+func (s *StreamService) GetBackdropPath(mediaID string) (string, error) {
+	return s.artwork.BackdropPath(mediaID)
 }
 
 // GetMasterPlaylist 获取HLS主播放列表（多码率自适应）

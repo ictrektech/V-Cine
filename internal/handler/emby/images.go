@@ -109,20 +109,13 @@ func (h *Handler) resolvePrimaryImage(uuid string) string {
 }
 
 // resolveBackdropImage 解析背景图路径。
+// Media 复用 StreamService.GetBackdropPath（真背景图 → 同目录 fanart/backdrop → 剧集回退
+// → 派生兜底图），与原生 /media/:id/backdrop 端点共用同一条解析链。
 func (h *Handler) resolveBackdropImage(uuid string) string {
 	// Media
-	if m, err := h.mediaRepo.FindByID(uuid); err == nil {
-		if m.BackdropPath != "" {
-			if _, err := os.Stat(m.BackdropPath); err == nil {
-				return m.BackdropPath
-			}
-		}
-		// 同目录下的 fanart.jpg
-		if m.FilePath != "" {
-			candidate := filepath.Join(filepath.Dir(m.FilePath), "fanart.jpg")
-			if _, err := os.Stat(candidate); err == nil {
-				return candidate
-			}
+	if path, err := h.stream.GetBackdropPath(uuid); err == nil && path != "" {
+		if _, err := os.Stat(path); err == nil {
+			return path
 		}
 	}
 	// Series

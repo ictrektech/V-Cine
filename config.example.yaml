@@ -88,6 +88,21 @@ cache:
   auto_cleanup: false
   cleanup_interval_min: 60
 
+# 派生海报兜底：刮削不到海报时，用视频内嵌封面 / 抽帧生成一张兜底图。
+# 兜底图只写入 cache（不写 media.PosterPath、不写用户片库目录），随媒体删除自动回收。
+# 展示优先级：刮削/手工海报 → 同目录图片 → 剧集海报 → 内嵌封面 → 抽帧 → 占位图
+artwork:
+  fallback:
+    # 默认开启。触发时机仅限"刮削未取得海报"，且并发受限、低优先级运行、产物存在即跳过；
+    # 若不想让程序生成封面（例如片库追求纯净），设为 false 关闭
+    enabled: true
+    # 允许使用视频内嵌封面（attached_pic，发布方提供的封面，优先于抽帧）
+    embedded: true
+    # 允许视频抽帧（10 点采样 → 黑帧/纯色过滤 → 按亮度与细节选优 → 裁成 2:3 竖版）
+    frame: true
+    # 同时进行的生成任务上限；抽帧以 nice 19 低优先级运行，不与播放转码抢资源
+    concurrency: 2
+
 # ==================== AI 与 Embedding ====================
 # embedding 后端（地址即开关，留空 / 注释掉即禁用）：
 # 后端：V-Router → ML Server（模型带 ml-server/ 来源前缀即自动走 v-router 协议）
