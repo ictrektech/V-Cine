@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nowen-video/nowen-video/internal/config"
+	"github.com/nowen-video/nowen-video/internal/model"
 	"github.com/nowen-video/nowen-video/internal/service"
 	"go.uber.org/zap"
 )
@@ -14,7 +15,17 @@ import (
 type FileManagerHandler struct {
 	fileService *service.FileManagerService
 	cfg         *config.Config
-	logger      *zap.SugaredLogger
+	// artwork 图片解析链：用于标注"封面为程序生成"
+	artwork *service.ArtworkResolver
+	logger  *zap.SugaredLogger
+}
+
+// annotatePosterOrigins 给列表补封面来源（poster_origin），供前端标注"封面为程序生成"。
+// 只探测本地 cache 里的派生图，不跑完整解析链（见 ArtworkResolver.DerivedPosterSource）。
+func (h *FileManagerHandler) annotatePosterOrigins(files []model.Media) {
+	for i := range files {
+		files[i].PosterOrigin = string(h.artwork.DerivedPosterSource(&files[i]))
+	}
 }
 
 // ==================== 文件列表与查询 ====================
@@ -48,6 +59,7 @@ func (h *FileManagerHandler) ListFiles(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件列表失败"})
 		return
 	}
+	h.annotatePosterOrigins(files)
 
 	c.JSON(http.StatusOK, gin.H{
 		"data":  files,
@@ -115,6 +127,7 @@ func (h *FileManagerHandler) ListFilesByFolder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件列表失败"})
 		return
 	}
+	h.annotatePosterOrigins(files)
 
 	c.JSON(http.StatusOK, gin.H{
 		"data":        files,

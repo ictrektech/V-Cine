@@ -273,14 +273,17 @@ func (mc *MovieCollection) BeforeCreate(tx *gorm.DB) error {
 
 // Media 媒体项（电影/剧集）
 type Media struct {
-	ID           string  `json:"id" gorm:"primaryKey;type:text"`
-	LibraryID    string  `json:"library_id" gorm:"index;type:text;not null"`
-	Title        string  `json:"title" gorm:"index;type:text;not null"`
-	OrigTitle    string  `json:"orig_title" gorm:"type:text"` // 原始标题
-	Year         int     `json:"year" gorm:"index"`
-	Overview     string  `json:"overview" gorm:"type:text"`
-	PosterPath   string  `json:"poster_path" gorm:"type:text"`   // 海报图片路径
-	BackdropPath string  `json:"backdrop_path" gorm:"type:text"` // 背景图路径
+	ID           string `json:"id" gorm:"primaryKey;type:text"`
+	LibraryID    string `json:"library_id" gorm:"index;type:text;not null"`
+	Title        string `json:"title" gorm:"index;type:text;not null"`
+	OrigTitle    string `json:"orig_title" gorm:"type:text"` // 原始标题
+	Year         int    `json:"year" gorm:"index"`
+	Overview     string `json:"overview" gorm:"type:text"`
+	PosterPath   string `json:"poster_path" gorm:"type:text"`   // 海报图片路径
+	BackdropPath string `json:"backdrop_path" gorm:"type:text"` // 背景图路径
+	// PosterOrigin 海报来源（embedded / frame，空 = 非程序生成）：仅当封面是从视频生成的派生图时置值。
+	// 由接口在读取时填充，不落库（写入 DB 会与真实图片状态不一致）。
+	PosterOrigin string  `json:"poster_origin,omitempty" gorm:"-"`
 	Rating       float64 `json:"rating"`
 	Runtime      int     `json:"runtime"`                             // 时长（分钟）
 	Genres       string  `json:"genres" gorm:"type:text"`             // 逗号分隔的类型

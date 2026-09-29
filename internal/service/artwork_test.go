@@ -153,6 +153,37 @@ func TestResolveBackdropForMediaPriority(t *testing.T) {
 	}
 }
 
+// 封面来源判定只回答"是不是程序生成的"：碰 DB 指针就跳过，无指针才探测派生图。
+func TestDerivedPosterSource(t *testing.T) {
+	cache := t.TempDir()
+	svc := &ArtworkResolver{cfg: &config.Config{Cache: config.CacheConfig{CacheDir: cache}}}
+	media := &model.Media{ID: "m1", FilePath: "/nonexistent/movie.mkv"}
+
+	if src := svc.DerivedPosterSource(nil); src != "" {
+		t.Fatalf("nil media 应返回空, got %q", src)
+	}
+	if src := svc.DerivedPosterSource(media); src != "" {
+		t.Fatalf("无派生产物时应返回空, got %q", src)
+	}
+
+	derived := derivedArtworkPath(cache, "m1", ArtworkSourceFrame)
+	if err := os.MkdirAll(filepath.Dir(derived), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(derived, []byte("f"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if src := svc.DerivedPosterSource(media); src != ArtworkSourceFrame {
+		t.Fatalf("命中抽帧派生图应报告 frame, got %q", src)
+	}
+
+	// 有 DB 指针即视为刮削/手工来源：即使文件不存在也不再回退探测（不做额外 stat）
+	media.PosterPath = filepath.Join(t.TempDir(), "missing.jpg")
+	if src := svc.DerivedPosterSource(media); src != "" {
+		t.Fatalf("有 DB 指针时不应报告派生来源, got %q", src)
+	}
+}
+
 // 海报解析链优先级：派生图只在真海报全部缺席时生效，且绝不写回 media.PosterPath。
 func TestResolvePosterForMediaPriority(t *testing.T) {
 	cache := t.TempDir()

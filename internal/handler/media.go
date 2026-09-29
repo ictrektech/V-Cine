@@ -19,7 +19,9 @@ type MediaHandler struct {
 	mediaService    *service.MediaService
 	personRepo      *repository.PersonRepo
 	mediaPersonRepo *repository.MediaPersonRepo
-	logger          *zap.SugaredLogger
+	// artwork 图片解析链：用于判断封面是不是程序从视频生成的
+	artwork *service.ArtworkResolver
+	logger  *zap.SugaredLogger
 }
 
 // List 获取媒体列表
@@ -57,6 +59,8 @@ func (h *MediaHandler) Detail(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "媒体不存在"})
 		return
 	}
+	// 海报来源（poster_origin）：只对程序生成的封面置值，前端据此提示"封面为自动生成"
+	media.PosterOrigin = string(h.artwork.DerivedPosterSource(media))
 	c.JSON(http.StatusOK, gin.H{"data": media})
 }
 

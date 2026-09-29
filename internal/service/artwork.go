@@ -26,7 +26,7 @@ import (
 //   - 派生图仅通过本服务对外可见（原生 /poster 端点与 Emby 兼容层共用 GetPosterPath），
 //     不写用户媒体目录，因此 Kodi 等直读本地文件的客户端不会看到它。
 
-// ArtworkSource 兜底图的派生来源。
+// ArtworkSource 兜底图的派生来源，同时也是接口对外暴露的 poster_origin 取值（空串 = 非派生）。
 type ArtworkSource string
 
 const (
@@ -47,19 +47,26 @@ func derivedArtworkPath(cacheDir, mediaID string, src ArtworkSource) string {
 	return filepath.Join(cacheDir, "images", mediaID, "poster-"+string(src)+".jpg")
 }
 
-// resolveDerivedPoster 按优先级探测已生成的兜底海报，均未命中返回空串。
-// 只做 stat，不读文件内容、不解码：内容校验由生成侧在落盘后完成（见 image_validate.go）。
-func resolveDerivedPoster(cacheDir, mediaID string) string {
+// resolveDerivedArtwork 按注册表优先级探测已生成的派生图，返回命中路径与其来源
+// （均未命中返回空串与空来源）。只做 stat，不读文件内容、不解码：
+// 内容校验由生成侧在落盘后完成（见 image_validate.go）。
+func resolveDerivedArtwork(cacheDir, mediaID string) (string, ArtworkSource) {
 	if cacheDir == "" || mediaID == "" {
-		return ""
+		return "", ""
 	}
 	for _, spec := range artworkSourceRegistry {
 		path := derivedArtworkPath(cacheDir, mediaID, spec.Source)
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return path
+			return path, spec.Source
 		}
 	}
-	return ""
+	return "", ""
+}
+
+// resolveDerivedPoster 派生图路径（来源见 resolveDerivedArtwork）。
+func resolveDerivedPoster(cacheDir, mediaID string) string {
+	path, _ := resolveDerivedArtwork(cacheDir, mediaID)
+	return path
 }
 
 // ArtworkGenerator 兜底海报生成器。
@@ -135,20 +142,15 @@ func extractArtworkImage(ctx context.Context, cfg *config.Config, req artworkExt
 	return nil
 }
 
-// summarizeFFmpegOutput 把 ffmpeg 输出压成单行摘要（取首个非空行）并截断到固定长度，
-// 供拼进 error 使用。
+// summarizeFFmpegOutput 把 ffmpeg 输出压成单行摘要（首个非空行、限长），供拼进 error 使用。
 func summarizeFFmpegOutput(output []byte) string {
-	text := strings.TrimSpace(string(output))
-	if i := strings.IndexByte(text, '\n'); i >= 0 {
-		text = strings.TrimSpace(text[:i])
-	}
+	line, _, _ := strings.Cut(strings.TrimSpace(string(output)), "\n")
 
 	const maxLen = 200
-	runes := []rune(text)
-	if len(runes) <= maxLen {
-		return text
+	if len(line) <= maxLen {
+		return line
 	}
-	return string(runes[:maxLen]) + "..."
+	return line[:maxLen] + "..."
 }
 
 // isDecodableJPEG 判断文件能否解码为 JPEG。

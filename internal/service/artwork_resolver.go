@@ -102,12 +102,18 @@ func (r *ArtworkResolver) seriesArtwork(
 	return r.findFirstImage(series.FolderPath, names)
 }
 
-// derivedPoster 派生兜底图（只探测不生成）。cfg 缺失时安全返回空串。
+// derivedPoster 派生兜底图路径（只探测不生成）。cfg 缺失时安全返回空串。
 func (r *ArtworkResolver) derivedPoster(mediaID string) string {
+	path, _ := r.derivedPosterWithSource(mediaID)
+	return path
+}
+
+// derivedPosterWithSource 同上，并给出派生来源（embedded / frame）。
+func (r *ArtworkResolver) derivedPosterWithSource(mediaID string) (string, ArtworkSource) {
 	if r.cfg == nil {
-		return ""
+		return "", ""
 	}
-	return resolveDerivedPoster(r.cfg.Cache.CacheDir, mediaID)
+	return resolveDerivedArtwork(r.cfg.Cache.CacheDir, mediaID)
 }
 
 // PosterPath 获取海报文件路径
@@ -119,6 +125,17 @@ func (r *ArtworkResolver) PosterPath(mediaID string) (string, error) {
 		return "", mediaLookupError(err)
 	}
 	return r.ResolvePoster(media), nil
+}
+
+// DerivedPosterSource 回答"这张封面是不是程序生成的"：命中派生图时返回其来源
+// （embedded / frame），刮削海报、同目录图、剧集海报一律返回空串。
+// 只探测本地 cache，不跑 sidecar / 剧集回退——列表逐条调用，禁止引入远程 stat。
+func (r *ArtworkResolver) DerivedPosterSource(media *model.Media) ArtworkSource {
+	if media == nil || strings.TrimSpace(media.PosterPath) != "" {
+		return ""
+	}
+	_, src := r.derivedPosterWithSource(media.ID)
+	return src
 }
 
 // BackdropPath 获取横版背景图路径。
