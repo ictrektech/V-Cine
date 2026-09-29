@@ -107,7 +107,17 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	transcoder := NewTranscodeService(repos.Transcode, repos.Media, cfg, logger)
 	transcoder.SetSettingRepo(repos.SystemSetting)
 	scanner := NewScannerService(repos.Media, repos.Series, cfg, logger)
-	metadata := NewMetadataService(repos.Media, repos.Series, repos.Person, repos.MediaPerson, cfg, logger)
+	// 派生海报兜底：先于 metadata 构造，作为其必填依赖注入（刮削落 partial 时触发）
+	artworkFallbackService := NewArtworkFallbackService(cfg, repos.Media, logger)
+	metadata := NewMetadataService(
+		repos.Media,
+		repos.Series,
+		repos.Person,
+		repos.MediaPerson,
+		cfg,
+		logger,
+		artworkFallbackService,
+	)
 
 	// 创建WebSocket Hub
 	wsHub := NewWSHub(logger)
@@ -525,6 +535,10 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	svcs.Stream.SetVFSManager(vfsManager)
 	preprocessService.SetVFSManager(vfsManager)
 	nfoService.SetVFSManager(vfsManager)
+
+	// 兜底海报生成复用同一条图片解析链判断"是否已有可展示的海报"（侧车图 / 剧集海报），
+	// 避免对已经有图的条目白跑探测与抽帧。延迟注入：解析器由 StreamService 持有。
+	artworkFallbackService.SetArtworkProbe(svcs.Stream.ArtworkResolver())
 
 	// 延迟注入：扫描完成后自动触发预处理（受系统设置控制）
 	scanner.SetOnScanComplete(func(libraryID string) {

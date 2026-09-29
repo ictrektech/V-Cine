@@ -40,9 +40,21 @@ type MetadataService struct {
 	providerChain   *ProviderChain  // 多数据源调度链（第三阶段）
 	thetvdb         *TheTVDBService // TheTVDB 剧集增强源
 	nfoService      *NFOService     // 刮削成功后自动生成同名 NFO
+
+	// artworkFallback 刮削未取得海报（partial）时的兜底生成入口，构造时注入（必填）。
+	// 所有刮削路径统一通过 SubmitArtworkFallback 触发。
+	artworkFallback *ArtworkFallbackService
 }
 
-func NewMetadataService(mediaRepo *repository.MediaRepo, seriesRepo *repository.SeriesRepo, personRepo *repository.PersonRepo, mediaPersonRepo *repository.MediaPersonRepo, cfg *config.Config, logger *zap.SugaredLogger) *MetadataService {
+func NewMetadataService(
+	mediaRepo *repository.MediaRepo,
+	seriesRepo *repository.SeriesRepo,
+	personRepo *repository.PersonRepo,
+	mediaPersonRepo *repository.MediaPersonRepo,
+	cfg *config.Config,
+	logger *zap.SugaredLogger,
+	artworkFallback *ArtworkFallbackService,
+) *MetadataService {
 	s := &MetadataService{
 		mediaRepo:       mediaRepo,
 		seriesRepo:      seriesRepo,
@@ -53,8 +65,25 @@ func NewMetadataService(mediaRepo *repository.MediaRepo, seriesRepo *repository.
 		client:          buildTMDbHTTPClient(cfg, logger),
 		douban:          NewDoubanService(mediaRepo, cfg, logger),
 		bangumi:         NewBangumiService(mediaRepo, seriesRepo, cfg, logger),
+		artworkFallback: artworkFallback,
 	}
 	return s
+}
+
+// SubmitArtworkFallback 投递一次兜底海报生成（异步，由 ArtworkFallbackService 自行限流）。
+//
+// 所有"刮削结束但仍没有海报"的入口都必须调用它。目前有两处：
+//  1. 本文件 ScrapeMedia 的 partial 分支（含 TMDb ID 直连 / 多数据源链 / 旧版兼容三条路径）；
+//  2. FileManagerService.executeScrapeFile —— 文件管理页的单个/批量刮削走 providerChain，
+//     不经过 ScrapeMedia，必须单独触发，否则该路径上的条目永远拿不到兜底图。
+//
+// 派生图不写 PosterPath，因此调用它不影响 partial 语义与后续重试。
+func (s *MetadataService) SubmitArtworkFallback(mediaID string) {
+	if !s.artworkFallback.Submit(mediaID) {
+		s.logger.Debugw("兜底海报未投递（未开启 / 在途 / 并发已满），交由下一轮刮削重试",
+			"media", mediaID,
+		)
+	}
 }
 
 // buildTMDbHTTPClient 构建专用于 TMDb 的 HTTP 客户端
@@ -559,6 +588,9 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 				return saveErr
 			}
 			s.writeNFOAfterScrape(media.ID, media.ScrapeStatus)
+			if media.ScrapeStatus == "partial" {
+				s.SubmitArtworkFallback(media.ID)
+			}
 			recorder.addStep(ScrapeChainStep{Provider: "TMDb", Status: "source"})
 			s.logger.Infof("TMDb ID 直连刮削成功 (status=%s): %s", media.ScrapeStatus, media.Title)
 			randomDelay(1500, 3000)
@@ -602,6 +634,9 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 			s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{"scrape_status": finalStatus})
 		}
 		s.writeNFOAfterScrape(media.ID, finalStatus)
+		if finalStatus == "partial" {
+			s.SubmitArtworkFallback(media.ID)
+		}
 		s.logger.Infof("元数据刮削完成 (多数据源, status=%s, source=%s): %s", finalStatus, recorder.source, media.Title)
 		randomDelay(1500, 3000) // 单次刮削完成后等待 1.5-3 秒，防止限流
 		return nil
@@ -704,6 +739,9 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 		"scrape_status": finalStatus,
 	})
 	s.writeNFOAfterScrape(media.ID, finalStatus)
+	if finalStatus == "partial" {
+		s.SubmitArtworkFallback(media.ID)
+	}
 
 	// 等待一下避免限流（随机 1.5-3 秒）
 	randomDelay(1500, 3000)

@@ -896,6 +896,12 @@ func (s *FileManagerService) executeScrapeFile(media *model.Media, source, userI
 	// 番号内容 Adult 源已写入的 .nfo 按 skip 策略保留，不会被覆盖。
 	s.metadata.writeNFOAfterScrape(media.ID, media.ScrapeStatus)
 
+	// 刮完仍没有海报 → 投递兜底海报生成（内嵌封面 / 抽帧）。
+	// 这条路径直连 providerChain、不经过 MetadataService.ScrapeMedia，必须在此单独触发。
+	if strings.TrimSpace(media.PosterPath) == "" {
+		s.metadata.SubmitArtworkFallback(media.ID)
+	}
+
 	newJSON, _ := json.Marshal(media)
 	s.addOpLog("scrape", media.ID, fmt.Sprintf("刮削完成(%s): %s", media.ScrapeStatus, media.Title), string(oldJSON), string(newJSON), userID)
 
