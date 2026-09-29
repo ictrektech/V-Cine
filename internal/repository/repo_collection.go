@@ -129,6 +129,18 @@ func (r *MovieCollectionRepo) MergeCollections(targetID string, sourceIDs []stri
 	return r.UpdateMediaCount(targetID)
 }
 
+// RecountAndPruneIfEmpty 重算单个合集的计数，成员清空时删除该空壳合集，返回是否已删除。
+func (r *MovieCollectionRepo) RecountAndPruneIfEmpty(collectionID string) (bool, error) {
+	if err := r.UpdateMediaCount(collectionID); err != nil {
+		return false, fmt.Errorf("recounting collection %s: %w", collectionID, err)
+	}
+	result := r.db.Where("id = ? AND media_count = 0", collectionID).Delete(&model.MovieCollection{})
+	if result.Error != nil {
+		return false, fmt.Errorf("pruning empty collection %s: %w", collectionID, result.Error)
+	}
+	return result.RowsAffected > 0, nil
+}
+
 // CleanupEmptyCollections 清理所有 media_count 为 0 的空壳合集
 // 返回被清理的合集数量
 func (r *MovieCollectionRepo) CleanupEmptyCollections() (int64, error) {

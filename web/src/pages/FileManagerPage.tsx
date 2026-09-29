@@ -5,6 +5,7 @@ import type { Media, Library, FileManagerStats, FolderNode } from '@/types'
 import type { VideoAnalysisBatchIssue } from '@/types/videoAnalysis'
 import { aiApi, adultScraperApi, fileManagerApi, libraryApi, videoAnalysisApi } from '@/api'
 import { extractErrMsg } from '@/utils/error'
+import { invalidateMediaListCaches } from '@/utils/invalidateMediaCaches'
 import { toAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
@@ -366,6 +367,7 @@ export default function FileManagerPage() {
       await fileManagerApi.deleteFile(id)
       toast.success('文件记录已删除')
       setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
+      invalidateMediaListCaches()
       fetchFiles(); fetchStats()
     } catch (err: any) {
       toast.error(err?.response?.data?.error || '删除失败')
@@ -385,6 +387,7 @@ export default function FileManagerPage() {
       const res = await fileManagerApi.batchDeleteFiles(Array.from(selectedIds))
       toast.success(`已删除 ${res.data.deleted} 个文件记录`)
       setSelectedIds(new Set())
+      invalidateMediaListCaches()
       fetchFiles(); fetchStats()
     } catch { toast.error('批量删除失败') }
   }

@@ -533,6 +533,12 @@ func (s *LibraryService) Delete(id string) error {
 	if err := s.seriesRepo.DeleteByLibraryID(id); err != nil {
 		s.logger.Errorw("删除媒体库的剧集合集数据失败", "libName", libName, "error", err)
 	}
+	// 媒体删完后重算所有合集的计数，成员清光的空壳合集在这里被清掉
+	if s.collectionService != nil {
+		if _, err := s.collectionService.CleanupEmptyCollections(); err != nil {
+			s.logger.Errorw("删除媒体库后清理空壳合集失败", "libName", libName, "error", err)
+		}
+	}
 
 	// 删除媒体库记录本身
 	if err := s.repo.Delete(id); err != nil {
@@ -592,6 +598,11 @@ func (s *LibraryService) DeleteMedia(mediaID string) error {
 
 	if err := s.mediaRepo.DeleteByID(mediaID); err != nil {
 		return err
+	}
+
+	// 同步所属合集：计数随成员减少，最后一个成员被删掉时合集本身也要一起消失
+	if s.collectionService != nil {
+		s.collectionService.SyncAfterMediaRemoved(media.CollectionID)
 	}
 
 	// 删除媒体记录后清理相关转码/预处理/ABR 缓存（best-effort）

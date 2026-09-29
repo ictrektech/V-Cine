@@ -499,6 +499,22 @@ func (s *CollectionService) MergeDuplicateCollections() (int, error) {
 	return mergedGroups, nil
 }
 
+// SyncAfterMediaRemoved 媒体记录被删除后重算其所属合集的计数，合集空了就删掉空壳。
+// best-effort：失败只记日志，不影响调用方的删除结果。
+func (s *CollectionService) SyncAfterMediaRemoved(collectionID string) {
+	if collectionID == "" {
+		return
+	}
+	deleted, err := s.collRepo.RecountAndPruneIfEmpty(collectionID)
+	if err != nil {
+		s.logger.Warnw("删除媒体后同步合集失败", "collection_id", collectionID, "error", err)
+		return
+	}
+	if deleted {
+		s.logger.Infow("已删除空壳合集", "collection_id", collectionID)
+	}
+}
+
 // CleanupEmptyCollections 清理所有无关联电影的空壳合集
 // 返回被清理的合集数量
 func (s *CollectionService) CleanupEmptyCollections() (int64, error) {

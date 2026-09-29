@@ -35,6 +35,8 @@ type FileManagerService struct {
 	videoAnalysis *VideoAnalysisService
 	// 删除媒体时清理转码/预处理/ABR 缓存（可选注入）
 	cacheCleaner *MediaCacheCleaner
+	// 合集服务（可选注入）
+	collectionService *CollectionService
 
 	// 内存缓存（只读快缓存，为了兼容旧 API）
 	opLogMu sync.Mutex
@@ -140,6 +142,11 @@ func (s *FileManagerService) SetVideoAnalysisService(va *VideoAnalysisService) {
 // SetCacheCleaner 设置删除媒体时的缓存清理器（延迟注入）。
 func (s *FileManagerService) SetCacheCleaner(cleaner *MediaCacheCleaner) {
 	s.cacheCleaner = cleaner
+}
+
+// SetCollectionService 设置合集服务（延迟注入，用于删除媒体后同步合集计数、清理空壳合集）
+func (s *FileManagerService) SetCollectionService(cs *CollectionService) {
+	s.collectionService = cs
 }
 
 // ==================== 文件列表与查询 ====================
@@ -637,6 +644,11 @@ func (s *FileManagerService) deleteFile(mediaID, userID string, cleanOrphanStruc
 	// 仅删除数据库记录
 	if err := s.mediaRepo.DeleteByID(mediaID); err != nil {
 		return fmt.Errorf("删除失败: %w", err)
+	}
+
+	// 同步所属合集：计数随成员减少，最后一个成员被删掉时合集本身也要一起消失
+	if s.collectionService != nil {
+		s.collectionService.SyncAfterMediaRemoved(media.CollectionID)
 	}
 
 	// 清理关联的视频分析任务记录（best-effort，不阻塞媒体删除）

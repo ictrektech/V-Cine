@@ -495,6 +495,9 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// 延迟注入：LibraryService 需要 CollectionService（用于扫描+刮削后自动匹配电影系列合集）
 	svcs.Library.SetCollectionService(svcs.Collection)
 
+	// 延迟注入：FileManagerService 需要 CollectionService（删除媒体记录后同步合集计数、清理空壳合集）
+	svcs.FileManager.SetCollectionService(svcs.Collection)
+
 	// 延迟注入：LibraryService / FileWatcher 需要 ScanPostProcessService（用于扫描后同步执行 AI 自动整理）
 	svcs.Library.SetScanPostProcessService(svcs.ScanPostProcess)
 	fileWatcher.SetScanPostProcessService(svcs.ScanPostProcess)

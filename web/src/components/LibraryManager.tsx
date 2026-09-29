@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { routes } from '@/lib/routes'
 import { libraryApi } from '@/api'
+import { invalidateMediaListCaches } from '@/utils/invalidateMediaCaches'
 import type { Library, CreateLibraryRequest } from '@/types'
 import { getLibraryPaths } from '@/types'
 import type { ScanProgressData, ScrapeProgressData, ScanPhaseData } from '@/hooks/useWebSocket'
@@ -163,6 +164,7 @@ function LibraryManager({
     try {
       await libraryApi.delete(id)
       setLibraries((libs) => libs.filter((l) => l.id !== id))
+      invalidateMediaListCaches()
     } catch {
       toast.error('删除失败')
     }
