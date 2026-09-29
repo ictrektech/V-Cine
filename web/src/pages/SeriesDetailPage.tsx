@@ -1245,17 +1245,18 @@ function EpisodeCard({ episode: ep, seriesTitle, historyRecord, posterVersion }:
     >
       {/* 缩略图区域 */}
       <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-lg" style={{ background: 'var(--bg-surface)' }}>
-        {ep.poster_path ? (
-          <img
-            src={streamApi.getPosterUrl(ep.id, posterVersion)}
-            alt={ep.title}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center" style={{ color: 'var(--text-muted)' }}>
-            <Play size={20} />
-          </div>
-        )}
+        {/* 常驻占位层：图片加载失败时露出 */}
+        <div className="absolute inset-0 flex items-center justify-center" style={{ color: 'var(--text-muted)' }}>
+          <Play size={20} />
+        </div>
+        {/* 始终请求：海报还可能是派生兜底图或剧集海报
+            （见 internal/service/artwork*.go，派生图刻意不写 DB 指针） */}
+        <img
+          src={streamApi.getPosterUrl(ep.id, posterVersion)}
+          alt={ep.title}
+          className="relative h-full w-full object-cover"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
           <Play size={20} className="text-white" fill="white" />
         </div>
@@ -1356,17 +1357,18 @@ function EpisodeSlideCard({ episode: ep, seriesTitle, historyRecord, posterVersi
     >
       {/* 缩略图区域 - 16:9 比例 */}
       <div className="relative aspect-video w-full overflow-hidden" style={{ background: 'var(--bg-surface)' }}>
-        {ep.poster_path ? (
-          <img
-            src={streamApi.getPosterUrl(ep.id, posterVersion)}
-            alt={ep.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center" style={{ color: 'var(--text-muted)' }}>
-            <Play size={28} />
-          </div>
-        )}
+        {/* 常驻占位层：图片加载失败时露出 */}
+        <div className="absolute inset-0 flex items-center justify-center" style={{ color: 'var(--text-muted)' }}>
+          <Play size={28} />
+        </div>
+        {/* 始终请求：海报还可能是派生兜底图或剧集海报
+            （见 internal/service/artwork*.go，派生图刻意不写 DB 指针） */}
+        <img
+          src={streamApi.getPosterUrl(ep.id, posterVersion)}
+          alt={ep.title}
+          className="relative h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
         {/* 悬停播放按钮 */}
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <div

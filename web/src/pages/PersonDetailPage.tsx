@@ -354,7 +354,6 @@ export default function PersonDetailPage() {
                       year={media.year}
                       rating={media.rating}
                       genres={media.genres}
-                      hasPoster={!!media.poster_path}
                       posterUrl={streamApi.getPosterUrl(media.id)}
                       type="movie"
                       linkTo={`/media/${media.id}`}
@@ -427,7 +426,7 @@ function WorkCard({
   year,
   rating,
   genres,
-  hasPoster,
+  hasPoster = true,
   posterUrl,
   type,
   linkTo,
@@ -437,7 +436,10 @@ function WorkCard({
   year: number
   rating: number
   genres: string
-  hasPoster: boolean
+  // hasPoster=false 时跳过请求、直接显示占位图标。
+  // 媒体条目用默认值 true：海报还可能是派生兜底图（见 internal/service/artwork*.go），
+  // 而 poster_path 只表示"刮削/手工来源的海报"。剧集条目按 series.poster_path 传入。
+  hasPoster?: boolean
   posterUrl: string
   type: 'movie' | 'series'
   linkTo: string

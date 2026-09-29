@@ -559,21 +559,21 @@ function TopContentList({ items }: { items: PulseTopContentItem[] }) {
           >
             {i + 1}
           </span>
-          <div className="h-10 w-7 flex-shrink-0 overflow-hidden rounded-md" style={{ background: 'var(--bg-card)' }}>
-            {item.poster_path ? (
-              <img
-                src={item.media_type === 'series'
-                  ? streamApi.getSeriesPosterUrl(item.media_id)
-                  : streamApi.getPosterUrl(item.media_id)}
-                alt={item.title}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <Film size={12} className="text-surface-700" />
-              </div>
-            )}
+          <div className="relative h-10 w-7 flex-shrink-0 overflow-hidden rounded-md" style={{ background: 'var(--bg-card)' }}>
+            {/* 常驻占位层：图片加载失败时露出 */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Film size={12} className="text-surface-700" />
+            </div>
+            {/* 始终请求：海报还可能是派生兜底图（见 internal/service/artwork*.go） */}
+            <img
+              src={item.media_type === 'series'
+                ? streamApi.getSeriesPosterUrl(item.media_id)
+                : streamApi.getPosterUrl(item.media_id)}
+              alt={item.title}
+              className="relative h-full w-full object-cover"
+              loading="lazy"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</p>

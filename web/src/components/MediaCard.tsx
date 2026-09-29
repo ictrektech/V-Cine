@@ -92,15 +92,10 @@ export default function MediaCard({ media, series }: MediaCardProps) {
       ? streamApi.getSeriesPosterUrl(media!.series_id)
       : streamApi.getPosterUrl(media!.id)
 
-  // 检查是否有真实海报（poster_path 非空）
-  // 对于 episode 或未加载 series 关联的场景，我们也允许尝试加载：
-  //   - 后端 Poster handler 会自动 fallback 到 series 海报或 sidecar 文件
-  //   - 仅在 media.poster_path 与 series.poster_path 都为空且不是剧集时，才直接显示占位
-  const hasPoster = series
-    ? !!series.poster_path
-    : media!.series_id
-      ? !!(media!.series?.poster_path) || !!media!.poster_path
-      : !!media!.poster_path
+  // 无论 poster_path 是否为空都请求海报：它只表示"刮削/手工来源的海报"，
+  // 而海报还可能是派生兜底图（视频内嵌封面 / 抽帧，见 internal/service/artwork*.go，
+  // 这类图刻意不写 DB 指针）。由后端决定返回真海报、兜底图还是 SVG 占位；
+  // 加载失败时 onError 隐藏 img，露出隐藏在后面的占位层。
 
   // 该卡片对应的远程存储是否断连（本地媒体永远不在离线集合中）
   const sourceOffline = series
@@ -142,19 +137,17 @@ export default function MediaCard({ media, series }: MediaCardProps) {
           <div className="relative aspect-[2/3] overflow-hidden rounded-t-xl bg-theme-bg-surface isolate"
             style={{ transform: 'translateZ(0)' }}
           >
-            {hasPoster ? (
-              <img
-                src={posterUrl}
-                alt={title}
-                className={sourceOffline
-                  ? 'h-full w-full object-cover opacity-50 grayscale transition-all duration-500'
-                  : 'h-full w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110'}
-                loading="lazy"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none'
-                }}
-              />
-            ) : null}
+            <img
+              src={posterUrl}
+              alt={title}
+              className={sourceOffline
+                ? 'h-full w-full object-cover opacity-50 grayscale transition-all duration-500'
+                : 'h-full w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110'}
+              loading="lazy"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none'
+              }}
+            />
             {/* 占位（无海报或海报加载失败时可见） */}
             <div className="absolute inset-0 -z-10 flex flex-col items-center justify-center gap-2"
               style={{

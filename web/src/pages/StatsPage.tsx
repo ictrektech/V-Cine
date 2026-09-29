@@ -171,20 +171,20 @@ export default function StatsPage() {
             {stats.most_watched.map((item) => (
               <div key={item.media_id} className="text-center">
                 <div className="relative mx-auto aspect-[2/3] w-full overflow-hidden rounded-xl" style={{ background: 'var(--bg-surface)' }}>
-                  {item.poster_path ? (
-                    <img
-                      src={item.media_type === 'series'
-                        ? streamApi.getSeriesPosterUrl(item.media_id)
-                        : streamApi.getPosterUrl(item.media_id)}
-                      alt={item.title as string}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <Film size={32} className="text-surface-700" />
-                    </div>
-                  )}
+                  {/* 常驻占位层：图片加载失败时露出 */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Film size={32} className="text-surface-700" />
+                  </div>
+                  {/* 始终请求：海报可能是派生兜底图（见 internal/service/artwork*.go） */}
+                  <img
+                    src={item.media_type === 'series'
+                      ? streamApi.getSeriesPosterUrl(item.media_id)
+                      : streamApi.getPosterUrl(item.media_id)}
+                    alt={item.title as string}
+                    className="relative h-full w-full object-cover"
+                    loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
                 </div>
                 <h4 className="mt-2 truncate text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
                   {item.title as string}

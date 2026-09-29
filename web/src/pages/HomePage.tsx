@@ -363,19 +363,19 @@ function ContinueWatchingRow({
                 >
                   {/* 封面（16:9 横图，更贴近"继续观看"场景） */}
                   <div className="relative aspect-video overflow-hidden rounded-xl bg-theme-bg-surface">
-                    {item.media.poster_path ? (
-                      <img
-                        src={streamApi.getPosterUrl(item.media_id)}
-                        alt={item.media.title}
-                        className="h-full w-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:brightness-110"
-                        loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-surface-700">
-                        <Play size={36} />
-                      </div>
-                    )}
+                    {/* 常驻占位层：图片加载失败时露出 */}
+                    <div className="absolute inset-0 flex items-center justify-center text-surface-700">
+                      <Play size={36} />
+                    </div>
+                    {/* 始终请求背景图：后端依次给出真背景图、竖版兜底图（裁切显示）
+                        或横版占位图，见 internal/handler/imagery.go Backdrop */}
+                    <img
+                      src={streamApi.getMediaBackdropUrl(item.media_id)}
+                      alt={item.media.title}
+                      className="relative h-full w-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:brightness-110"
+                      loading="lazy"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
                     {/* 悬停遮罩 + 播放按钮 */}
                     <div className="gradient-overlay opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                       <div className="absolute bottom-2 left-2 flex items-center gap-2">

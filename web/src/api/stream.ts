@@ -107,6 +107,10 @@ export const streamApi = {
   getSeriesPosterUrl: (seriesId: string, version?: number) =>
     withPosterVersion(`/api/series/${seriesId}/poster`, version),
 
+  // 横版背景图：后端按"真背景图 → 同目录 fanart → 剧集 → 横版派生图 → 竖版派生图 → 占位"解析
+  getMediaBackdropUrl: (mediaId: string, version?: number) =>
+    withPosterVersion(`/api/media/${mediaId}/backdrop`, version),
+
   getSeriesBackdropUrl: (seriesId: string, version?: number) =>
     withPosterVersion(`/api/series/${seriesId}/backdrop`, version),
 
