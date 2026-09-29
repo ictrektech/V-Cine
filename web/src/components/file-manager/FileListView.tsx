@@ -347,14 +347,28 @@ export default function FileListView({
                   </TableCell>
                   <TableCell className="sticky left-10 z-10 max-w-[160px] md:max-w-[280px] px-2.5 py-2" style={{ background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>
                     <div className="flex items-center gap-3">
-                      <img
-                        src={streamApi.getPosterUrl(file.id)}
-                        alt=""
-                        className="w-8 h-12 rounded object-cover flex-shrink-0"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
-                      />
-                      <div className="w-8 h-12 rounded bg-surface-800 items-center justify-center flex-shrink-0 hidden">
-                        <FileVideo size={16} className="text-surface-500" />
+                      <div className="relative flex-shrink-0">
+                        <img
+                          src={streamApi.getPosterUrl(file.id)}
+                          alt=""
+                          className="w-8 h-12 rounded object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
+                        />
+                        <div className="w-8 h-12 rounded bg-surface-800 items-center justify-center hidden">
+                          <FileVideo size={16} className="text-surface-500" />
+                        </div>
+                        {/* 封面来源提示：海报由程序从视频生成，不是刮削或手工来源 */}
+                        {file.poster_origin && (
+                          <span
+                            className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-bl-md rounded-tr"
+                            style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid rgba(251,191,36,0.35)' }}
+                            title={file.poster_origin === 'frame'
+                              ? '封面为自动生成（视频抽帧）'
+                              : '封面为自动生成（视频内嵌封面）'}
+                          >
+                            <Sparkles size={10} className="text-amber-400" />
+                          </span>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">

@@ -28,6 +28,7 @@ import {
   Unlink,
   Trash2,
   Zap,
+  Sparkles,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -74,7 +75,7 @@ export default function HeroSection({
   isAdmin,
   posterVersion,
   onFavorite,
-  onScrape: _onScrape,
+  onScrape,
   onAddToPlaylist,
   onShowTrailer,
   onManualMatch,
@@ -91,6 +92,9 @@ export default function HeroSection({
   const [posterFailed, setPosterFailed] = useState(false)
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
+
+  // 海报不是刮削/手工来源，而是程序从视频里生成的（embedded=内嵌封面，frame=抽帧）
+  const derivedPosterOrigin = media.poster_origin || null
 
   const copyFilePath = () => {
     if (media.file_path) {
@@ -215,6 +219,29 @@ export default function HeroSection({
 
               {/* 分隔线 */}
               <div className="my-3 h-px w-24 bg-border" />
+
+              {/* 派生封面提示：封面是程序从视频生成的（非刮削/手工来源），管理员可就地重新刮削 */}
+              {derivedPosterOrigin && (
+                <div className="mb-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Sparkles size={12} />
+                    {derivedPosterOrigin === 'frame'
+                      ? t('hero.derivedPosterFrame')
+                      : t('hero.derivedPosterEmbedded')}
+                  </span>
+                  {isAdmin && onScrape && (
+                    <button
+                      onClick={onScrape}
+                      disabled={scraping}
+                      className="inline-flex items-center gap-1 font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+                      style={{ color: 'var(--neon-blue)' }}
+                    >
+                      <RefreshCw size={12} className={clsx(scraping && 'animate-spin')} />
+                      {scraping ? t('hero.refreshing') : t('hero.rescrapeForPoster')}
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* 操作按钮组 */}
               <div className="mb-4 flex flex-wrap items-center gap-3">

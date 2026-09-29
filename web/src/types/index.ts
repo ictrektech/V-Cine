@@ -206,6 +206,9 @@ export interface Media {
   scrape_status?: 'pending' | 'scraped' | 'partial' | 'failed' | 'manual' | ''
   scrape_attempts?: number
   last_scrape_at?: string | null
+  // 封面来源：仅当海报是程序从视频生成的派生图时置值，embedded=内嵌封面，frame=抽帧；
+  // 空/缺省表示刮削、手工上传、同目录图或占位图，均非程序生成
+  poster_origin?: 'embedded' | 'frame' | ''
   // NFO 完整建模字段（方案 B）
   num: string
   sort_title: string
