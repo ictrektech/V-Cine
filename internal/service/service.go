@@ -106,7 +106,9 @@ type Services struct {
 func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap.SugaredLogger) *Services {
 	transcoder := NewTranscodeService(repos.Transcode, repos.Media, cfg, logger)
 	transcoder.SetSettingRepo(repos.SystemSetting)
-	scanner := NewScannerService(repos.Media, repos.Series, cfg, logger)
+	// 创建智能通知服务
+	notificationService := NewNotificationService(logger)
+	scanner := NewScannerService(repos.Media, repos.Series, cfg, logger, notificationService)
 	// 派生海报兜底：先于 metadata 构造，作为其必填依赖注入（刮削落 partial 时触发）
 	artworkFallbackService := NewArtworkFallbackService(cfg, repos.Media, logger)
 	metadata := NewMetadataService(
@@ -219,9 +221,6 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 		repos.Media, repos.Series, logger,
 	)
 	aiAssistant.SetWSHub(wsHub)
-
-	// 创建智能通知服务
-	notificationService := NewNotificationService(logger)
 
 	// 创建字幕在线搜索服务
 	subtitleSearchService := NewSubtitleSearchService("", cfg.Cache.CacheDir, logger)

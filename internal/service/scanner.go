@@ -408,23 +408,31 @@ func isBitmapSubtitle(codec string) bool {
 
 // ScannerService 媒体文件扫描服务
 type ScannerService struct {
-	mediaRepo      *repository.MediaRepo
-	seriesRepo     *repository.SeriesRepo
-	cfg            *config.Config
-	logger         *zap.SugaredLogger
-	wsHub          *WSHub                 // WebSocket事件广播
-	nfoService     *NFOService            // NFO 本地元数据解析服务
-	onScanComplete func(libraryID string) // 扫描完成回调（用于触发预处理）
-	vfsMgr         *VFSManager            // V2.1: VFS 管理器（支持 webdav:// 路径）
+	mediaRepo       *repository.MediaRepo
+	seriesRepo      *repository.SeriesRepo
+	cfg             *config.Config
+	logger          *zap.SugaredLogger
+	wsHub           *WSHub                 // WebSocket事件广播
+	nfoService      *NFOService            // NFO 本地元数据解析服务
+	onScanComplete  func(libraryID string) // 扫描完成回调（用于触发预处理）
+	vfsMgr          *VFSManager            // V2.1: VFS 管理器（支持 webdav:// 路径）
+	notificationSvc *NotificationService   // 扫描汇总通知服务
 }
 
-func NewScannerService(mediaRepo *repository.MediaRepo, seriesRepo *repository.SeriesRepo, cfg *config.Config, logger *zap.SugaredLogger) *ScannerService {
+func NewScannerService(
+	mediaRepo *repository.MediaRepo,
+	seriesRepo *repository.SeriesRepo,
+	cfg *config.Config,
+	logger *zap.SugaredLogger,
+	notificationSvc *NotificationService,
+) *ScannerService {
 	return &ScannerService{
-		mediaRepo:  mediaRepo,
-		seriesRepo: seriesRepo,
-		cfg:        cfg,
-		logger:     logger,
-		nfoService: NewNFOService(logger),
+		mediaRepo:       mediaRepo,
+		seriesRepo:      seriesRepo,
+		cfg:             cfg,
+		logger:          logger,
+		nfoService:      NewNFOService(logger),
+		notificationSvc: notificationSvc,
 	}
 }
 
@@ -691,9 +699,48 @@ func (s *ScannerService) NotifyScanComplete(libraryID string) {
 	}
 }
 
+// scanSummaryMessage 组装扫描汇总消息：计数 + 前 N 条标题样本，超出样本以“等”收尾
+func scanSummaryMessage(count int, sample []string) string {
+	msg := fmt.Sprintf("新增 %d 个媒体", count)
+	if len(sample) == 0 {
+		return msg
+	}
+	msg += ": " + strings.Join(sample, "、")
+	if count > len(sample) {
+		msg += "等"
+	}
+	return msg
+}
+
+// notifyScanSummary 发送一次扫描的汇总通知（scan.complete）。
+// 无新增或通知服务未注入时不发。
+func (s *ScannerService) notifyScanSummary(libraryID, libraryName string, count int, startedAt time.Time) {
+	if s.notificationSvc == nil || count <= 0 {
+		return
+	}
+	all, err := s.mediaRepo.ListByLibraryCreatedSince(libraryID, startedAt)
+	if err != nil {
+		s.logger.Warnw("获取扫描新增标题样本失败", "library_id", libraryID, "error", err)
+	}
+	var sample []string
+	for _, m := range all {
+		if m.Title != "" {
+			sample = append(sample, m.Title)
+			if len(sample) == 10 {
+				break
+			}
+		}
+	}
+	s.notificationSvc.Notify(NotifyEventScanComplete,
+		"扫描完成: "+libraryName,
+		scanSummaryMessage(count, sample),
+		nil)
+}
+
 // ScanLibraryWithOptions 扫描媒体库目录，可由多阶段调用方控制是否广播最终扫描完成事件。
 func (s *ScannerService) ScanLibraryWithOptions(library *model.Library, opts ScanLibraryOptions) (int, error) {
 	s.logger.Infof("开始扫描媒体库: %s (路径数: %d)", library.Name, len(library.AllPaths()))
+	scanStartedAt := time.Now()
 
 	// 发送扫描开始事件
 	s.broadcastScanEvent(EventScanStarted, &ScanProgressData{
@@ -732,6 +779,7 @@ func (s *ScannerService) ScanLibraryWithOptions(library *model.Library, opts Sca
 			NewFound:    count,
 			Message:     fmt.Sprintf("扫描完成: %s, 新增 %d 个媒体", library.Name, count),
 		})
+		s.notifyScanSummary(library.ID, library.Name, count, scanStartedAt)
 	}
 
 	s.logger.Infof("扫描完成: %s, 新增 %d 个媒体", library.Name, count)

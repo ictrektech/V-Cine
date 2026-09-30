@@ -511,3 +511,16 @@ func TestSeasonZeroSupport(t *testing.T) {
 		})
 	}
 }
+
+// 汇总通知消息：计数 + 前 N 条标题样本
+func TestScanSummaryMessage(t *testing.T) {
+	if got := scanSummaryMessage(3, []string{"甲片", "乙片", "丙片"}); got != "新增 3 个媒体: 甲片、乙片、丙片" {
+		t.Fatalf("全量样本不应带“等”, got %q", got)
+	}
+	if got := scanSummaryMessage(25, []string{"甲片", "乙片"}); got != "新增 25 个媒体: 甲片、乙片等" {
+		t.Fatalf("超出样本应以“等”收尾, got %q", got)
+	}
+	if got := scanSummaryMessage(0, nil); got != "新增 0 个媒体" {
+		t.Fatalf("无样本时只报计数, got %q", got)
+	}
+}

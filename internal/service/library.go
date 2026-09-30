@@ -462,6 +462,7 @@ func (s *LibraryService) Scan(id string) error {
 			s.wsHub.BroadcastEvent(EventScanCompleted, completed)
 		}
 		s.logger.Infof("%s", completedMessage)
+		s.scanner.notifyScanSummary(id, lib.Name, count, scanStartedAt)
 		s.scanner.NotifyScanComplete(id)
 	})
 

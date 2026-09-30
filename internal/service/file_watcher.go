@@ -415,6 +415,7 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 				fw.wsHub.BroadcastEvent(EventScanCompleted, completed)
 			}
 			fw.logger.Infof("%s", completedMessage)
+			fw.scanner.notifyScanSummary(libraryID, lib.Name, count, scanStartedAt)
 			fw.scanner.NotifyScanComplete(libraryID)
 		})
 	} else {
