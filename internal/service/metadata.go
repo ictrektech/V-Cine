@@ -523,9 +523,14 @@ type TMDbCrewMember struct {
 // ==================== 核心方法 ====================
 
 // ScrapeMedia 为单个媒体项刮削元数据。
+func (s *MetadataService) ScrapeMedia(mediaID string) error {
+	return s.scrapeMedia(mediaID, true)
+}
+
+// scrapeMedia 为单个媒体项刮削元数据。
 // 终态广播收敛到入口 defer：无论内部走直连/搜索链/旧版 fallback 哪条路径，
 // 恰好广播一次 scrape_chain 终态（新增路径无需再手动广播，通知中心必收到结果）。
-func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
+func (s *MetadataService) scrapeMedia(mediaID string, emitChain bool) (scrapeErr error) {
 	media, err := s.mediaRepo.FindByID(mediaID)
 	if err != nil {
 		return ErrMediaNotFound
@@ -559,7 +564,7 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 		plan = s.providerChain.buildPlanFor(media.MediaType, IsAnimeContent(media),
 			media.MediaType == "episode" || media.SeriesID != "", IsAdultContent(media))
 	}
-	recorder := newChainRecorder(s.BroadcastScrapeChain, media.ID, media.Title, plan)
+	recorder := newChainRecorder(s.chainBroadcast(emitChain), media.ID, media.Title, plan)
 	defer func() {
 		if scrapeErr != nil {
 			recorder.broadcastFinal("failed", scrapeErr.Error())
@@ -627,11 +632,13 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 		}
 		media.ScrapeStatus = finalStatus
 		// 持久化刮削来源（链路上第一个成功的主数据源）
+		fields := map[string]interface{}{"scrape_status": finalStatus}
 		if recorder.source != "" {
 			media.ScrapeSource = recorder.source
-			s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{"scrape_status": finalStatus, "scrape_source": recorder.source})
-		} else {
-			s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{"scrape_status": finalStatus})
+			fields["scrape_source"] = recorder.source
+		}
+		if err := s.mediaRepo.UpdateFields(media.ID, fields); err != nil {
+			s.logger.Warnw("持久化刮削状态失败", "media_id", media.ID, "error", err)
 		}
 		s.writeNFOAfterScrape(media.ID, finalStatus)
 		if finalStatus == "partial" {
@@ -709,15 +716,19 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 							s.logger.Infof("AI 元数据增强成功: %s", media.Title)
 							updated.ScrapeStatus = "scraped" // P3: AI 增强成功
 							media.ScrapeStatus = "scraped"   // 同步到入口 defer 终态广播读取的 media
-							s.mediaRepo.Update(updated)
+							if updErr := s.mediaRepo.Update(updated); updErr != nil {
+								s.logger.Warnw("持久化 AI 增强结果失败", "media_id", updated.ID, "error", updErr)
+							}
 							s.writeNFOAfterScrape(updated.ID, updated.ScrapeStatus)
 							return nil
 						}
 					}
 					// P3: 所有数据源都失败，标记为 failed
-					s.mediaRepo.UpdateFields(mediaID, map[string]interface{}{
+					if ferr := s.mediaRepo.UpdateFields(mediaID, map[string]interface{}{
 						"scrape_status": "failed",
-					})
+					}); ferr != nil {
+						s.logger.Warnw("标记刮削失败状态失败", "media_id", mediaID, "error", ferr)
+					}
 					return tmdbErr
 				}
 			}
@@ -735,9 +746,11 @@ func (s *MetadataService) ScrapeMedia(mediaID string) (scrapeErr error) {
 		finalStatus = "partial"
 	}
 	media.ScrapeStatus = finalStatus // 同步到入口 defer 终态广播读取的 media
-	s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{
+	if err := s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{
 		"scrape_status": finalStatus,
-	})
+	}); err != nil {
+		s.logger.Warnw("持久化刮削状态失败", "media_id", media.ID, "error", err)
+	}
 	s.writeNFOAfterScrape(media.ID, finalStatus)
 	if finalStatus == "partial" {
 		s.SubmitArtworkFallback(media.ID)
@@ -815,12 +828,14 @@ func (s *MetadataService) ScrapeLibrary(libraryID string, mediaList []model.Medi
 			defer wg.Done()
 			for idx := range jobs {
 				media := needScrape[idx]
-				if err := s.ScrapeMedia(media.ID); err != nil {
+				if err := s.scrapeMedia(media.ID, false); err != nil {
 					s.logger.Debugf("刮削失败: %s - %v", media.Title, err)
 					// P3: 标记刮削失败状态
-					s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{
+					if ferr := s.mediaRepo.UpdateFields(media.ID, map[string]interface{}{
 						"scrape_status": "failed",
-					})
+					}); ferr != nil {
+						s.logger.Warnw("标记刮削失败状态失败", "media_id", media.ID, "error", ferr)
+					}
 					atomic.AddInt32(&failed, 1)
 				} else {
 					atomic.AddInt32(&success, 1)
@@ -843,6 +858,7 @@ func (s *MetadataService) ScrapeLibrary(libraryID string, mediaList []model.Medi
 					MediaTitle: media.Title,
 					Message:    fmt.Sprintf("刮削进度: [%d/%d] %s", currentProcessed, total, media.Title),
 				})
+				s.broadcastScrapeChainSummary(total, currentProcessed, currentSuccess, currentFailed, "running")
 
 				// TMDb限速保护：每个 worker 内部间隔 2-5 秒随机化
 				randomDelay(2000, 5000)
@@ -870,6 +886,7 @@ func (s *MetadataService) ScrapeLibrary(libraryID string, mediaList []model.Medi
 		Message:   fmt.Sprintf("元数据刮削完成: 成功 %d, 失败 %d", finalSuccess, finalFailed),
 	})
 
+	s.broadcastScrapeChainSummary(total, total, finalSuccess, finalFailed, "completed")
 	s.logger.Infof("元数据刮削完成: 成功 %d, 失败 %d (并发 %d workers)", finalSuccess, finalFailed, workerCount)
 	return finalSuccess, finalFailed
 }
@@ -886,6 +903,30 @@ func (s *MetadataService) BroadcastScrapeChain(data ScrapeChainData) {
 	if s.wsHub != nil {
 		s.wsHub.BroadcastEvent("scrape_chain", data)
 	}
+}
+
+// chainBroadcast enabled 为 false 时返回空操作函数，不产生任何广播
+func (s *MetadataService) chainBroadcast(enabled bool) func(data ScrapeChainData) {
+	if !enabled {
+		return func(data ScrapeChainData) {}
+	}
+	return s.BroadcastScrapeChain
+}
+
+// broadcastScrapeChainSummary 广播批量刮削汇总卡
+func (s *MetadataService) broadcastScrapeChainSummary(total, current, success, failed int, status string) {
+	msg := fmt.Sprintf("刮削进度: [%d/%d] 成功 %d, 失败 %d", current, total, success, failed)
+	if status == "completed" {
+		msg = fmt.Sprintf("刮削完成: 成功 %d, 失败 %d", success, failed)
+	}
+	s.BroadcastScrapeChain(ScrapeChainData{
+		Current: current,
+		Total:   total,
+		Success: success,
+		Failed:  failed,
+		Status:  status,
+		Message: msg,
+	})
 }
 
 // chainRecorder 刮削链路记录器：维护每步状态并实时广播 scrape_chain 事件。
@@ -2213,9 +2254,14 @@ func (s *MetadataService) DownloadURLImageForSeries(seriesID string, imageURL st
 	return s.SaveUploadedImageForSeries(seriesID, imageData, ext, imageType)
 }
 
-// ScrapeSeries 为剧集合集刮削元数据（以合集名称搜索，并将元数据同步到合集和各集）。
+// ScrapeSeries 为剧集合集刮削元数据。
+func (s *MetadataService) ScrapeSeries(seriesID string) error {
+	return s.scrapeSeries(seriesID, true)
+}
+
+// scrapeSeries 以合集名称搜索并将元数据同步到合集和各集。
 // 终态广播收敛到入口 defer：无论内部走搜索链/旧版 fallback 哪条路径，恰好广播一次。
-func (s *MetadataService) ScrapeSeries(seriesID string) (scrapeErr error) {
+func (s *MetadataService) scrapeSeries(seriesID string, emitChain bool) (scrapeErr error) {
 	if s.seriesRepo == nil {
 		return fmt.Errorf("剧集仓储未初始化")
 	}
@@ -2246,7 +2292,7 @@ func (s *MetadataService) ScrapeSeries(seriesID string) (scrapeErr error) {
 		// 完整调度计划：前端据此渲染"完整链路 + 未执行/跳过"状态
 		plan = s.providerChain.buildPlanFor("tvshow", IsAnimeContentFromSeries(series), true, false)
 	}
-	recorder := newChainRecorder(s.BroadcastScrapeChain, series.ID, series.Title, plan)
+	recorder := newChainRecorder(s.chainBroadcast(emitChain), series.ID, series.Title, plan)
 	defer func() {
 		if scrapeErr != nil {
 			recorder.broadcastFinal("failed", scrapeErr.Error())
@@ -2573,7 +2619,9 @@ func (s *MetadataService) syncSeriesToEpisodes(seriesID string, series *model.Se
 			updated = true
 		}
 		if updated {
-			s.mediaRepo.Update(&ep)
+			if err := s.mediaRepo.Update(&ep); err != nil {
+				s.logger.Warnw("同步剧集字段失败", "episode_id", ep.ID, "error", err)
+			}
 		}
 	}
 
@@ -2661,17 +2709,20 @@ func (s *MetadataService) ScrapeAllSeries(libraryID string) (int, int) {
 	}
 
 	success, failed := 0, 0
-	for _, series := range needScrape {
-		if err := s.ScrapeSeries(series.ID); err != nil {
+	total := len(needScrape)
+	for i, series := range needScrape {
+		if err := s.scrapeSeries(series.ID, false); err != nil {
 			s.logger.Debugf("剧集刮削失败: %s - %v", series.Title, err)
 			failed++
 		} else {
 			success++
 		}
+		s.broadcastScrapeChainSummary(total, i+1, success, failed, "running")
 
 		// 限速保护（剧集间隔 3-6 秒随机化）
 		randomDelay(3000, 6000)
 	}
+	s.broadcastScrapeChainSummary(total, total, success, failed, "completed")
 
 	return success, failed
 }
