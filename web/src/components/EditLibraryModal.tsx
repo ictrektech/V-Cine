@@ -25,13 +25,14 @@ import {
 import FileBrowser from './FileBrowser'
 import { storageTypeFromPath, joinRemotePath, pathPlaceholder, STORAGE_TYPE_LABELS } from '@/lib/storageSchemes'
 import { Modal } from '@/components/ui/modal'
+import { useTranslation, type TFunc } from '@/i18n'
 
-// 内容类型配置
+// 内容类型配置（文案走 i18n）
 const LIBRARY_TYPES = [
   {
     value: 'movie' as const,
-    label: '电影',
-    desc: '各种类型电影',
+    labelKey: 'createLib.typeMovie',
+    descKey: 'createLib.typeMovieDesc',
     icon: Film,
     color: 'var(--neon-blue)',
     bg: 'var(--neon-blue-8)',
@@ -39,8 +40,8 @@ const LIBRARY_TYPES = [
   },
   {
     value: 'tvshow' as const,
-    label: '电视节目',
-    desc: '电视剧、综艺等',
+    labelKey: 'createLib.typeTvshow',
+    descKey: 'createLib.typeTvshowDesc',
     icon: Tv,
     color: 'var(--neon-purple)',
     bg: 'var(--neon-purple-8)',
@@ -48,8 +49,8 @@ const LIBRARY_TYPES = [
   },
   {
     value: 'mixed' as const,
-    label: '混合影片',
-    desc: '电影和电视节目',
+    labelKey: 'createLib.typeMixed',
+    descKey: 'createLib.typeMixedDesc',
     icon: Layers,
     color: '#F59E0B',
     bg: 'rgba(245, 158, 11, 0.08)',
@@ -57,8 +58,8 @@ const LIBRARY_TYPES = [
   },
   {
     value: 'other' as const,
-    label: '其他视频',
-    desc: '个人视频、课程等',
+    labelKey: 'createLib.typeOther',
+    descKey: 'createLib.typeOtherDesc',
     icon: Video,
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.08)',
@@ -67,9 +68,9 @@ const LIBRARY_TYPES = [
 ]
 
 // 元数据语言选项
-const METADATA_LANG_OPTIONS = [
-  { value: 'zh-CN', label: '中文简体' },
-  { value: 'zh-TW', label: '中文繁體' },
+const METADATA_LANG_OPTIONS: { value: string; label?: string; labelKey?: string }[] = [
+  { value: 'zh-CN', labelKey: 'createLib.metadataLangZhCN' },
+  { value: 'zh-TW', labelKey: 'createLib.metadataLangZhTW' },
   { value: 'en-US', label: 'English' },
   { value: 'ja', label: '日本語' },
   { value: 'ko', label: '한국어' },
@@ -78,27 +79,29 @@ const METADATA_LANG_OPTIONS = [
   { value: 'es', label: 'Español' },
 ]
 
-const DEFAULT_METADATA_SOURCE_TOOLTIP = [
-  '当前元数据来源链接：',
-  '• TMDb API：https://api.themoviedb.org',
-  '• TMDb 图片：https://image.tmdb.org',
-  '• 成人番号数据源：以「系统设置 → 番号刮削配置」中启用的链接为准',
-  '说明：此开关只决定搜索/下载元数据时是否允许成人结果。',
-].join('\n')
+function buildDefaultMetadataSourceTooltip(t: TFunc): string {
+  return [
+    t('createLib.metaSourceHeader'),
+    t('createLib.metaSourceTmdbApi', { url: 'https://api.themoviedb.org' }),
+    t('createLib.metaSourceTmdbImage', { url: 'https://image.tmdb.org' }),
+    t('createLib.metaSourceAdultDefault'),
+    t('createLib.metaSourceNote'),
+  ].join('\n')
+}
 
-function buildMetadataSourceTooltip(tmdbApiURL: string, tmdbImageURL: string, adultSourceLines: string[], adultEnabled: boolean) {
+function buildMetadataSourceTooltip(t: TFunc, tmdbApiURL: string, tmdbImageURL: string, adultSourceLines: string[], adultEnabled: boolean) {
   const lines = [
-    '当前元数据来源链接：',
-    `• TMDb API：${tmdbApiURL}`,
-    `• TMDb 图片：${tmdbImageURL}`,
+    t('createLib.metaSourceHeader'),
+    t('createLib.metaSourceTmdbApi', { url: tmdbApiURL }),
+    t('createLib.metaSourceTmdbImage', { url: tmdbImageURL }),
   ]
   if (adultEnabled && adultSourceLines.length > 0) {
-    lines.push('• 成人番号数据源：')
+    lines.push(t('createLib.metaSourceAdultHeader'))
     adultSourceLines.forEach((line) => lines.push(`  - ${line}`))
   } else {
-    lines.push('• 成人番号数据源：未启用或未配置')
+    lines.push(t('createLib.metaSourceAdultDisabled'))
   }
-  lines.push('说明：此开关只决定搜索/下载元数据时是否允许成人结果。')
+  lines.push(t('createLib.metaSourceNote'))
   return lines.join('\n')
 }
 
@@ -146,6 +149,7 @@ function ToggleSwitch({
 }
 
 export default function EditLibraryModal({ open, library: libraryProp, onClose, onUpdate }: EditLibraryModalProps) {
+  const { t } = useTranslation()
   // 关闭时保留最后一次非空 library，让退出动画期间内容仍在（否则 Radix 无法播放关闭动画）
   const [library, setLibraryShadow] = useState<Library | null>(libraryProp)
   useEffect(() => {
@@ -173,7 +177,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [browsingIndex, setBrowsingIndex] = useState<number | null>(null)
-  const [metadataSourceTooltip, setMetadataSourceTooltip] = useState(DEFAULT_METADATA_SOURCE_TOOLTIP)
+  const [metadataSourceTooltip, setMetadataSourceTooltip] = useState(() => buildDefaultMetadataSourceTooltip(t))
   const [nsfwEnabled, setNsfwEnabled] = useState(true)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
@@ -226,6 +230,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
         : []
 
       setMetadataSourceTooltip(buildMetadataSourceTooltip(
+        t,
         tmdb?.api_proxy || 'https://api.themoviedb.org',
         tmdb?.image_proxy || 'https://image.tmdb.org',
         adultSourceLines,
@@ -234,7 +239,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
     }
 
     loadMetadataSourceTooltip().catch(() => {
-      if (!cancelled) setMetadataSourceTooltip(DEFAULT_METADATA_SOURCE_TOOLTIP)
+      if (!cancelled) setMetadataSourceTooltip(buildDefaultMetadataSourceTooltip(t))
     })
     return () => { cancelled = true }
   }, [open])
@@ -250,18 +255,18 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
   const handleSubmit = async () => {
     if (!library) return
     if (!name.trim()) {
-      setError('请输入媒体库名称')
+      setError(t('createLib.nameRequired'))
       nameInputRef.current?.focus()
       return
     }
     const cleanedPaths = paths.map((p) => p.trim()).filter((p) => p.length > 0)
     if (cleanedPaths.length === 0) {
-      setError('请至少添加一个媒体文件夹路径')
+      setError(t('createLib.pathRequired'))
       return
     }
     const dedup = Array.from(new Set(cleanedPaths))
     if (dedup.length !== cleanedPaths.length) {
-      setError('存在重复的路径，请删除重复项')
+      setError(t('createLib.duplicatePath'))
       return
     }
     setError('')
@@ -276,7 +281,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
       onUpdate(res.data.data)
       onClose()
     } catch (err: any) {
-      const msg = err?.response?.data?.error || '更新媒体库失败'
+      const msg = err?.response?.data?.error || t('editLib.updateFailed')
       setError(msg)
     } finally {
       setSubmitting(false)
@@ -287,7 +292,10 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
   const mainStorageType = storageTypeFromPath(paths[0] || '')
 
   const selectedLangLabel =
-    METADATA_LANG_OPTIONS.find((l) => l.value === advanced.metadata_lang)?.label || advanced.metadata_lang
+    (() => {
+    const langOpt = METADATA_LANG_OPTIONS.find((l) => l.value === advanced.metadata_lang)
+    return langOpt?.labelKey ? t(langOpt.labelKey) : (langOpt?.label || advanced.metadata_lang)
+  })()
 
   return (
     <Modal open={open} onClose={onClose} className="max-w-xl">
@@ -318,7 +326,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
               className="font-display text-lg font-bold tracking-wide"
               style={{ color: 'var(--text-primary)' }}
             >
-              编辑媒体库
+              {t('editLib.title')}
             </h2>
             <button
               onClick={onClose}
@@ -337,7 +345,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                 className="mb-3 block text-sm font-semibold"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                内容类型
+                {t('createLib.contentType')}
               </label>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {LIBRARY_TYPES.map((type) => {
@@ -374,13 +382,13 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                           className="text-sm font-semibold transition-colors"
                           style={{ color: isSelected ? type.color : 'var(--text-primary)' }}
                         >
-                          {type.label}
+                          {t(type.labelKey)}
                         </p>
                         <p
                           className="mt-0.5 text-[11px] leading-tight"
                           style={{ color: 'var(--text-tertiary)' }}
                         >
-                          {type.desc}
+                          {t(type.descKey)}
                         </p>
                       </div>
                     </button>
@@ -395,7 +403,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                 className="mb-2 block text-sm font-semibold"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                媒体库名称
+                {t('createLib.name')}
               </label>
               <div className="relative">
                 <input
@@ -409,7 +417,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                     }
                   }}
                   className="input pr-16"
-                  placeholder="请输入媒体库名称"
+                  placeholder={t('createLib.namePlaceholder')}
                   onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                 />
                 <span
@@ -429,7 +437,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                     className="text-sm font-semibold"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    媒体文件夹
+                    {t('createLib.mediaFolders')}
                   </label>
                   <span
                     className="rounded-md px-2 py-0.5 text-xs font-medium"
@@ -443,17 +451,17 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                   onClick={() => setPaths((prev) => [...prev, ''])}
                   className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors hover:bg-[var(--nav-hover-bg)]"
                   style={{ color: 'var(--neon-blue)' }}
-                  title="添加另一个文件夹"
+                  title={t('createLib.addFolderTitle')}
                 >
                   <Plus size={14} />
-                  添加文件夹
+                  {t('createLib.addFolder')}
                 </button>
               </div>
               <p
                 className="mb-2.5 text-xs leading-relaxed"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                修改路径后建议重新扫描媒体库以更新索引。第一个路径为主路径。
+                {t('editLib.rescanHint')}
               </p>
               <div className="space-y-2">
                 {paths.map((p, idx) => (
@@ -466,7 +474,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                         border: '1.5px dashed var(--border-hover)',
                         color: 'var(--text-tertiary)',
                       }}
-                      title={storageTypeFromPath(p) === 'local' ? '浏览服务器目录' : '浏览远程目录'}
+                      title={storageTypeFromPath(p) === 'local' ? t('createLib.browseLocal') : t('createLib.browseRemote')}
                     >
                       <FolderPlus size={18} />
                     </button>
@@ -491,7 +499,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                         }}
                         className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-red-500/5"
                         style={{ color: 'var(--text-tertiary)' }}
-                        title="移除该路径"
+                        title={t('createLib.removePath')}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -509,7 +517,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                 style={{ color: 'var(--text-secondary)' }}
               >
                 {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                高级设置
+                {t('createLib.advanced')}
               </button>
 
               {showAdvanced && (
@@ -519,10 +527,10 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        优先读取本地 NFO 和图片
+                        {t('createLib.advancedPreferNfo')}
                       </h4>
                       <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                        优先读取本地 NFO 文件中的信息和本地图片，仅从互联网上获取缺失的信息。
+                        {t('createLib.advancedPreferNfoHint')}
                       </p>
                     </div>
                     <ToggleSwitch
@@ -536,7 +544,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                   {/* ———— 2. 文件过滤 ———— */}
                   <div>
                     <h4 className="text-sm font-semibold mb-2.5" style={{ color: 'var(--text-primary)' }}>
-                      文件过滤
+                      {t('createLib.advancedFileFilter')}
                     </h4>
                     <div className="flex items-center gap-3">
                       <button
@@ -557,7 +565,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                           </svg>
                         )}
                       </button>
-                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>排除小于</span>
+                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('createLib.excludeSmaller')}</span>
                       <input
                         type="number"
                         value={advanced.min_file_size}
@@ -570,7 +578,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                         min={0}
                         max={999}
                       />
-                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>MB 的视频文件</span>
+                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('createLib.mbVideoFile')}</span>
                     </div>
                   </div>
 
@@ -579,10 +587,10 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                   {/* ———— 3. 媒体元数据下载语言 ———— */}
                   <div>
                     <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      媒体元数据下载语言
+                      {t('createLib.advancedMetadataLang')}
                     </h4>
                     <p className="mt-1 mb-3 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                      优先使用首选语言下载元数据，如影片信息、演员信息、海报等。
+                      {t('createLib.advancedMetadataLangHint')}
                     </p>
                     <div className="relative">
                       <button
@@ -628,7 +636,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                                     : undefined,
                                 }}
                               >
-                                {lang.label}
+                                {lang.labelKey ? t(lang.labelKey) : lang.label}
                               </button>
                             ))}
                           </div>
@@ -645,12 +653,12 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                       <div className="flex-1">
                         <div className="flex items-center gap-1.5">
                           <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            媒体元数据允许成人内容
+                            {t('createLib.advancedAdult')}
                           </h4>
                           <button
                             type="button"
                             title={metadataSourceTooltip}
-                            aria-label="查看元数据来源链接"
+                            aria-label={t('createLib.viewSourceLinks')}
                             className="inline-flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-[var(--nav-hover-bg)]"
                             style={{ color: 'var(--text-tertiary)' }}
                           >
@@ -658,7 +666,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                           </button>
                         </div>
                         <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                          从第三方公开数据库搜索、下载元数据时，允许成人内容。悬停信息图标可查看当前使用的元数据链接。
+                          {t('createLib.advancedAdultHint')}
                         </p>
                       </div>
                       <ToggleSwitch
@@ -674,10 +682,10 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        自动下载字幕
+                        {t('createLib.advancedAutoSub')}
                       </h4>
                       <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                        对未内嵌字幕的媒体文件，自动从互联网上下载字幕。
+                        {t('createLib.advancedAutoSubHint')}
                       </p>
                     </div>
                     <ToggleSwitch
@@ -694,11 +702,11 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                       <div className="flex items-center gap-2">
                         <Search size={16} style={{ color: '#06B6D4' }} />
                         <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          扫描后自动刮削元数据
+                          {t('createLib.advancedAutoScrape')}
                         </h4>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                        扫描媒体库后自动从 TMDb、豆瓣等数据源识别并下载影片信息。关闭后需手动触发刮削。
+                        {t('editLib.autoScrapeHint')}
                       </p>
                     </div>
                     <ToggleSwitch
@@ -715,11 +723,11 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                       <div className="flex items-center gap-2">
                         <Sparkles size={16} style={{ color: 'var(--neon-blue)' }} />
                         <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          扫描后自动视频分析
+                          {t('createLib.advancedAutoAnalyze')}
                         </h4>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                        新视频入库后自动提交视频分析任务，按顺序执行场景检测与结构分析。关闭后仍可在媒体库管理中手动发起分析。
+                        {t('createLib.advancedAutoAnalyzeHint')}
                       </p>
                     </div>
                     <ToggleSwitch
@@ -736,17 +744,17 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                       <Sparkles size={16} style={{ color: 'var(--neon-purple)', marginTop: 2 }} />
                       <div className="flex-1">
                         <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          AI 自动整理
+                          {t('createLib.aiOrganize')}
                         </h4>
                         <p
                           className="mt-1 text-xs leading-relaxed"
                           style={{ color: 'var(--text-tertiary)' }}
                         >
-                          扫描入库后自动执行：智能识别 → 虚拟归类 → Jellyfin/Emby 风格命名建议。
+                          {t('createLib.aiOrganizeHint1')}
                           <span className="font-medium" style={{ color: 'var(--neon-green)' }}>
-                            所有结果仅写入数据库
+                            {t('createLib.aiOrganizeHintDbOnly')}
                           </span>
-                          ，绝不修改任何磁盘文件。可选配置输出目录以自动创建硬链接。
+                          {t('createLib.aiOrganizeHint2')}
                         </p>
                       </div>
                     </div>
@@ -756,23 +764,23 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                         [
                           {
                             value: 'ai_assisted' as const,
-                            title: 'AI 辅助',
-                            tag: '推荐',
-                            desc: '规则识别 + 低置信度时调用 AI 兜底',
+                            titleKey: 'createLib.aiModeAssisted',
+                            tagKey: 'createLib.aiModeAssistedTag',
+                            descKey: 'createLib.aiModeAssistedDesc',
                             color: 'var(--neon-purple)',
                           },
                           {
                             value: 'rule_only' as const,
-                            title: '仅规则',
-                            tag: '半自动',
-                            desc: '只做规则识别与命名建议，不调用 AI',
+                            titleKey: 'createLib.aiModeRuleOnly',
+                            tagKey: 'createLib.aiModeRuleOnlyTag',
+                            descKey: 'createLib.aiModeRuleOnlyDesc',
                             color: '#06B6D4',
                           },
                           {
                             value: 'off' as const,
-                            title: '关闭',
-                            tag: '手动',
-                            desc: '扫描后不做任何自动整理',
+                            titleKey: 'createLib.aiModeOff',
+                            tagKey: 'createLib.aiModeOffTag',
+                            descKey: 'createLib.aiModeOffDesc',
                             color: 'var(--text-tertiary)',
                           },
                         ]
@@ -794,7 +802,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                                 className="text-sm font-semibold"
                                 style={{ color: active ? opt.color : 'var(--text-primary)' }}
                               >
-                                {opt.title}
+                                {t(opt.titleKey)}
                               </span>
                               <span
                                 className="rounded px-1.5 py-0.5 text-[10px]"
@@ -803,14 +811,14 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                                   color: active ? opt.color : 'var(--text-tertiary)',
                                 }}
                               >
-                                {opt.tag}
+                                {t(opt.tagKey)}
                               </span>
                             </div>
                             <p
                               className="mt-1 text-xs leading-relaxed"
                               style={{ color: 'var(--text-tertiary)' }}
                             >
-                              {opt.desc}
+                              {t(opt.descKey)}
                             </p>
                           </button>
                         )
@@ -821,7 +829,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                         className="rounded-md px-2.5 py-1.5 text-[11px]"
                         style={{ background: 'var(--bg-secondary)', color: 'var(--text-tertiary)' }}
                       >
-                        关闭后扫描完全不触发后处理。后续如需启用，可重新切换为"AI 辅助"或"仅规则"。
+                        {t('editLib.aiOffHint')}
                       </p>
                     )}
                     {advanced.auto_organize_mode === 'rule_only' && (
@@ -829,7 +837,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                         className="rounded-md px-2.5 py-1.5 text-[11px]"
                         style={{ background: 'var(--bg-secondary)', color: 'var(--text-tertiary)' }}
                       >
-                        将仅使用规则解析做识别与命名建议，不会产生任何 AI 调用费用。
+                        {t('createLib.aiRuleHint')}
                       </p>
                     )}
 
@@ -839,22 +847,21 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                         <div className="flex items-center gap-2">
                           <FolderPlus size={14} style={{ color: 'var(--neon-green)' }} />
                           <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                            虚拟化目录（硬链接输出）
+                            {t('createLib.virtualDir')}
                           </span>
                         </div>
                         <p
                           className="text-[11px] leading-relaxed"
                           style={{ color: 'var(--text-tertiary)' }}
                         >
-                          配置后将按分类结果在此目录下创建硬链接目录树（如：电影/华语/2020s/科幻/片名.mkv）。
-                          源文件不变，零额外空间占用。留空则不创建硬链接。
+                          {t('createLib.virtualDirHint')}
                         </p>
                         <input
                           type="text"
                           value={advanced.organize_output_dir}
                           onChange={(e) => updateAdvanced('organize_output_dir', e.target.value)}
                           className="input w-full text-sm"
-                          placeholder="如: /media/organized 或 D:\Media\Organized（留空=仅写数据库）"
+                          placeholder={t('createLib.virtualDirPlaceholder')}
                         />
                         {advanced.organize_output_dir && (
                           <p
@@ -862,7 +869,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                             style={{ background: 'rgba(16, 185, 129, 0.08)', color: 'var(--neon-green)' }}
                           >
                             <span>✓</span>
-                            AI 整理完成后将在该目录下自动创建硬链接，文件按虚拟分类路径组织。
+                            {t('createLib.virtualDirActiveHint')}
                           </p>
                         )}
                       </div>
@@ -877,11 +884,11 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                       <div className="flex items-center gap-2">
                         <Eye size={16} style={{ color: 'var(--neon-purple)' }} />
                         <h4 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          实时文件监控
+                          {t('createLib.fileWatch')}
                         </h4>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-                        实时监控媒体文件夹的变化，自动检测并同步新增、修改或删除的媒体文件。
+                        {t('createLib.fileWatchHint')}
                       </p>
                     </div>
                     <ToggleSwitch
@@ -926,7 +933,7 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
                 background: 'transparent',
               }}
             >
-              取消
+              {t('common.cancel')}
             </button>
             <button
               onClick={handleSubmit}
@@ -936,12 +943,12 @@ export default function EditLibraryModal({ open, library: libraryProp, onClose, 
               {submitting ? (
                 <>
                   <Loader2 size={14} className="animate-spin" />
-                  保存中...
+                  {t('editLib.saving')}
                 </>
               ) : (
                 <>
                   <Save size={14} />
-                  保存修改
+                  {t('editLib.saveBtn')}
                 </>
               )}
             </button>

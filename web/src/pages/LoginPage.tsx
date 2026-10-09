@@ -51,7 +51,7 @@ export default function LoginPage() {
 
       const { token, user } = res.data
       if (!token || !user) {
-        setError('登录响应缺少认证信息，请刷新页面后重试')
+        setError(t('auth.missingAuthInfo'))
         return
       }
 
@@ -217,14 +217,14 @@ export default function LoginPage() {
             {isRegister && initialized && inviteRequired && (
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  邀请码
+                  {t('auth.inviteCode')}
                 </label>
                 <input
                   type="text"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                   className="input"
-                  placeholder="请输入管理员下发的邀请码"
+                  placeholder={t('auth.inviteCodePlaceholder')}
                   required
                 />
               </div>

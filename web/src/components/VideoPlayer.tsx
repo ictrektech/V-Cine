@@ -28,6 +28,7 @@ import {
   Search,
   MessageCircle,
 } from 'lucide-react'
+import { useTranslation } from '@/i18n'
 import clsx from 'clsx'
 import CastPanel from './CastPanel'
 import SubtitleSearchPanel from './SubtitleSearchPanel'
@@ -80,6 +81,7 @@ export default function VideoPlayer({
   onRemuxFallback,
   spriteVttUrl,
 }: VideoPlayerProps) {
+  const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -392,28 +394,28 @@ export default function VideoPlayer({
     // 选择了具体字幕，清除用户禁用标志
     userDisabledSubtitleRef.current = false
     let subtitleUrl = ''
-    let label = '字幕'
+    let label = t('vid.labelSubtitle')
     if (type === 'embedded') {
       const index = parseInt(id)
       subtitleUrl = subtitleApi.getExtractUrl(mediaId, index)
       const track = embeddedSubs.find(s => s.index === index)
-      label = track?.title || track?.language || `轨道 ${index}`
+      label = track?.title || track?.language || t('vid.trackN', { n: index })
     } else if (type === 'external') {
       subtitleUrl = subtitleApi.getExternalUrl(id)
       const sub = externalSubs.find(s => s.path === id)
-      label = sub?.language || sub?.filename || '外挂字幕'
+      label = sub?.language || sub?.filename || t('vid.externalSub')
     } else if (type === 'ai') {
       subtitleUrl = subtitleApi.getAISubtitleUrl(mediaId)
-      label = 'AI 生成字幕'
+      label = t('vid.aiSubtitle')
     } else if (type === 'translated') {
       // Phase 4: 翻译字幕
       subtitleUrl = subtitleApi.getTranslatedSubtitleUrl(mediaId, id)
       const langNames: Record<string, string> = {
-        zh: '中文', en: '英文', ja: '日文', ko: '韩文',
-        fr: '法文', de: '德文', es: '西班牙文', pt: '葡萄牙文',
-        ru: '俄文', it: '意大利文', ar: '阿拉伯文', th: '泰文',
+        zh: t('vid.langZh'), en: t('vid.langEn'), ja: t('vid.langJa'), ko: t('vid.langKo'),
+        fr: t('vid.langFr'), de: t('vid.langDe'), es: t('vid.langEs'), pt: t('vid.langPt'),
+        ru: t('vid.langRu'), it: t('vid.langIt'), ar: t('vid.langAr'), th: t('vid.langTh'),
       }
-      label = `翻译字幕（${langNames[id] || id}）`
+      label = t('vid.translatedSub', { lang: langNames[id] || id })
     }
     if (subtitleUrl) {
       // 使用 fetch + addTextTrack 代替 <track> 元素，避免跨域和 HLS.js 干扰
@@ -529,7 +531,7 @@ export default function VideoPlayer({
           onRemuxFallback()
           return
         }
-        setLoadError(`播放失败: ${err?.message || '未知错误'}`)
+        setLoadError(t('vid.playFailed', { msg: err?.message || t('vid.unknownError') }))
       }, { once: true })
     } else {
       if (Hls.isSupported()) {
@@ -564,7 +566,7 @@ export default function VideoPlayer({
             bitrate: level.bitrate,
             height: level.height,
           }))
-          setQualities([{ index: -1, label: '自动' }, ...levels])
+          setQualities([{ index: -1, label: t('vid.auto') }, ...levels])
           if (startPosition > 0) video.currentTime = startPosition
           video.play().catch(() => {})
         })
@@ -576,10 +578,10 @@ export default function VideoPlayer({
         })
         // 多音轨支持
         hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_event, data) => {
-          const tracks = data.audioTracks.map((t, i) => ({
+          const tracks = data.audioTracks.map((trk, i) => ({
             id: i,
-            name: t.name || `音轨 ${i + 1}`,
-            lang: t.lang || '',
+            name: (trk as any).name || t('vid.audioTrackN', { n: i + 1 }),
+            lang: trk.lang || '',
           }))
           setAudioTracks(tracks)
           setCurrentAudioTrack(hls.audioTrack)
@@ -626,7 +628,7 @@ export default function VideoPlayer({
             else hls.recoverMediaError()
             return
           }
-          setLoadError('转码播放失败，请稍后重试')
+          setLoadError(t('vid.transcodeFailed'))
           hls.destroy()
         })
         hlsRef.current = hls
@@ -635,7 +637,7 @@ export default function VideoPlayer({
         if (startPosition > 0) video.currentTime = startPosition
         video.play().catch(() => {})
       } else {
-        setLoadError('当前浏览器不支持HLS播放')
+        setLoadError(t('vid.hlsUnsupported'))
       }
     }
     return () => {
@@ -909,7 +911,7 @@ export default function VideoPlayer({
     setShowSpeedMenu(false)
     // 显示倍速切换提示
     clearTimeout(seekHintTimer.current)
-    setSeekHint({ text: rate === 1 ? '正常速度' : `${rate}x 倍速`, visible: true })
+    setSeekHint({ text: rate === 1 ? t('vid.normalSpeed') : t('vid.speedX', { rate }), visible: true })
     seekHintTimer.current = window.setTimeout(() => {
       setSeekHint(prev => ({ ...prev, visible: false }))
     }, 800)
@@ -1244,14 +1246,14 @@ export default function VideoPlayer({
                 className="btn-primary inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm"
               >
                 <RefreshCw size={14} />
-                重试
+                {t('vid.retry')}
               </button>
               <button
                 onClick={onBack}
                 className="btn-ghost rounded-xl px-5 py-2.5 text-sm"
                 style={{ border: '1px solid var(--neon-blue-15)' }}
               >
-                返回
+                {t('vid.back')}
               </button>
             </div>
           </div>
@@ -1267,8 +1269,8 @@ export default function VideoPlayer({
             backdropFilter: 'blur(12px)',
           }}>
             <p className="text-xs text-surface-400 mb-1">
-              {gestureOverlay.type === 'seek' ? '⏩ 进度' :
-               gestureOverlay.type === 'volume' ? '🔊 音量' : '☀️ 亮度'}
+              {gestureOverlay.type === 'seek' ? t('vid.gestureSeek') :
+               gestureOverlay.type === 'volume' ? t('vid.gestureVolume') : t('vid.gestureBrightness')}
             </p>
             <p className="font-display text-xl font-bold text-white">{gestureOverlay.value}</p>
           </div>
@@ -1306,7 +1308,7 @@ export default function VideoPlayer({
             </div>
 
             <div>
-              <p className="text-sm text-surface-400">即将播放下一集</p>
+              <p className="text-sm text-surface-400">{t('vid.nextEpisodeSoon')}</p>
               {nextTitle && (
                 <p className="mt-1 font-display text-base font-medium text-white">{nextTitle}</p>
               )}
@@ -1321,7 +1323,7 @@ export default function VideoPlayer({
                   border: '1px solid rgba(255,255,255,0.1)',
                 }}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => { setNextCountdown(null); onNext() }}
@@ -1332,7 +1334,7 @@ export default function VideoPlayer({
                   color: 'var(--text-on-neon)',
                 }}
               >
-                立即播放
+                {t('vid.playNow')}
               </button>
             </div>
           </div>
@@ -1392,7 +1394,7 @@ export default function VideoPlayer({
               {title}
             </h2>
             <span className="badge-neon text-[10px]">
-              {isStrm ? 'STRM远程流' : mode === 'direct' ? '直接播放' : mode === 'remux' ? 'Remux播放' : `HLS${isPreprocessed ? '' : '转码'}${hlsResolution ? ` · ${hlsResolution}` : ''}`}
+              {isStrm ? t('vid.strmStream') : mode === 'direct' ? t('vid.directPlay') : mode === 'remux' ? t('vid.remuxPlay') : `${isPreprocessed ? 'HLS' : t('vid.hlsTranscode')}${hlsResolution ? ` · ${hlsResolution}` : ''}`}
             </span>
             {playbackRate !== 1 && (
               <span className="badge-neon text-[10px]">{playbackRate}x</span>
@@ -1478,10 +1480,10 @@ export default function VideoPlayer({
             <button
               onClick={() => { setNextCountdown(null); onNext() }}
               className="flex items-center gap-1 rounded-lg px-2 py-2 text-white/70 transition-all hover:text-white hover:bg-white/5"
-              title={nextTitle ? `下一集: ${nextTitle}` : '下一集'}
+              title={nextTitle ? t('vid.nextEpisodeTitle', { title: nextTitle }) : t('vid.nextEpisode')}
             >
               <ChevronRight size={18} />
-              <span className="hidden text-xs sm:inline">下一集</span>
+              <span className="hidden text-xs sm:inline">{t('vid.nextEpisode')}</span>
             </button>
           )}
 
@@ -1530,7 +1532,7 @@ export default function VideoPlayer({
                 'rounded-lg px-2 py-2 text-xs font-semibold transition-all hover:bg-white/5',
                 playbackRate !== 1 ? 'text-neon-blue' : 'text-white/70 hover:text-white'
               )}
-              title="播放速度"
+              title={t('vid.playbackSpeed')}
             >
               {playbackRate !== 1 ? `${playbackRate}x` : <Gauge size={18} />}
             </button>
@@ -1552,7 +1554,7 @@ export default function VideoPlayer({
                       onClick={() => changeSpeed(1)}
                       className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm text-neon-blue transition-colors hover:bg-neon-blue/10"
                     >
-                      <span>恢复正常</span>
+                      <span>{t('vid.restoreNormal')}</span>
                       <span className="text-[10px] text-surface-500">Backspace</span>
                     </button>
                     <div className="mx-3 my-0.5 border-t border-neon-blue/10" />
@@ -1570,12 +1572,12 @@ export default function VideoPlayer({
                     )}
                     style={speed === playbackRate ? { background: 'var(--neon-blue-6)' } : {}}
                   >
-                    {speed === 1 ? '正常' : `${speed}x`}
+                    {speed === 1 ? t('vid.normal') : `${speed}x`}
                   </button>
                 ))}
                 <div className="mx-3 my-0.5 border-t border-neon-blue/10" />
                 <div className="px-4 py-1.5 text-[10px] text-surface-500">
-                  快捷键: &lt; 减速 &gt; 加速
+                  {t('vid.speedShortcut')}
                 </div>
               </div>
             )}
@@ -1589,7 +1591,7 @@ export default function VideoPlayer({
                 'rounded-lg p-2 transition-all hover:bg-white/5',
                 danmakuEnabled ? 'text-neon-blue' : 'text-white/70 hover:text-white'
               )}
-              title={danmakuEnabled ? '关闭短评弹幕' : '开启短评弹幕'}
+              title={danmakuEnabled ? t('vid.danmakuOff') : t('vid.danmakuOn')}
             >
               <MessageCircle size={18} />
             </button>
@@ -1608,7 +1610,7 @@ export default function VideoPlayer({
                   'rounded-lg p-2 transition-all hover:bg-white/5',
                   activeSubtitle ? 'text-neon-blue' : 'text-white/70 hover:text-white'
                 )}
-                title="字幕"
+                title={t('vid.labelSubtitle')}
               >
                 <Subtitles size={18} />
               </button>
@@ -1629,13 +1631,13 @@ export default function VideoPlayer({
                     )}
                     style={!activeSubtitle ? { background: 'var(--neon-blue-6)' } : {}}
                   >
-                    关闭字幕
+                    {t('vid.closeSubtitles')}
                   </button>
 
                   {embeddedSubs.length > 0 && (
                     <>
                       <div className="mx-3 my-1 border-t border-neon-blue/10" />
-                      <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-neon-blue/40">内嵌字幕</div>
+                      <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-neon-blue/40">{t('subtitle.embedded')}</div>
                       {embeddedSubs.map((sub) => (
                         <button
                           key={sub.index}
@@ -1654,12 +1656,12 @@ export default function VideoPlayer({
                                 : 'text-surface-300 hover:text-white hover:bg-neon-blue/5'
                           )}
                           style={activeSubtitle === `embedded:${sub.index}` && !sub.bitmap ? { background: 'var(--neon-blue-6)' } : {}}
-                          title={sub.bitmap ? '图形字幕无法在浏览器中显示' : undefined}
+                          title={sub.bitmap ? t('vid.bitmapUnsupported') : undefined}
                         >
-                          {sub.title || sub.language || `轨道 ${sub.index}`}
+                          {sub.title || sub.language || t('vid.trackN', { n: sub.index })}
                           {sub.codec && <span className="ml-2 text-xs text-surface-600">[{sub.codec}]</span>}
-                          {sub.bitmap && <span className="ml-1 text-xs text-red-400/60">不可用</span>}
-                          {!sub.bitmap && sub.default && <span className="ml-1 text-xs text-neon-blue/60">默认</span>}
+                          {sub.bitmap && <span className="ml-1 text-xs text-red-400/60">{t('vid.unavailable')}</span>}
+                          {!sub.bitmap && sub.default && <span className="ml-1 text-xs text-neon-blue/60">{t('vid.defaultBadge')}</span>}
                         </button>
                       ))}
                     </>
@@ -1668,7 +1670,7 @@ export default function VideoPlayer({
                   {externalSubs.length > 0 && (
                     <>
                       <div className="mx-3 my-1 border-t border-neon-blue/10" />
-                      <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-neon-blue/40">外挂字幕</div>
+                      <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-neon-blue/40">{t('subtitle.external')}</div>
                   {externalSubs.map((sub) => (
                         <button
                           key={sub.path}
@@ -1693,7 +1695,7 @@ export default function VideoPlayer({
                     <>
                   <div className="mx-3 my-1 border-t border-neon-blue/10" />
                   <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-neon-blue/40">
-                    <Sparkles size={10} className="inline mr-1" />AI 字幕
+                    <Sparkles size={10} className="inline mr-1" />{t('vid.aiSubs')}
                   </div>
 
                   {aiSubtitleStatus?.status === 'completed' ? (
@@ -1708,14 +1710,14 @@ export default function VideoPlayer({
                       style={activeSubtitle === 'ai:' ? { background: 'var(--neon-blue-6)' } : {}}
                     >
                       <Sparkles size={12} className="inline mr-1.5" />
-                      AI 生成字幕
-                      <span className="ml-2 text-xs text-emerald-400/60">✓ 已就绪</span>
+                      {t('vid.aiSubtitle')}
+                      <span className="ml-2 text-xs text-emerald-400/60">{t('vid.ready')}</span>
                     </button>
                   ) : aiGenerating ? (
                     <div className="flex items-center gap-2 px-4 py-2.5 text-sm text-surface-400">
                       <Loader2 size={14} className="animate-spin text-neon-blue" />
                       <div className="flex-1">
-                        <div className="text-xs">{aiSubtitleStatus?.message || '正在生成...'}</div>
+                        <div className="text-xs">{aiSubtitleStatus?.message || t('vid.generating')}</div>
                         {aiSubtitleStatus?.progress != null && aiSubtitleStatus.progress > 0 && (
                           <div className="mt-1 h-1 w-full rounded-full bg-surface-700">
                             <div
@@ -1734,7 +1736,7 @@ export default function VideoPlayer({
                       <Loader2 size={14} className="animate-spin text-yellow-400" />
                       <div className="flex-1">
                         <div className="text-xs">
-                          {subtitlePreprocessStatus.status === 'pending' ? '字幕预处理排队中...' : (subtitlePreprocessStatus.message || '字幕预处理中...')}
+                          {subtitlePreprocessStatus.status === 'pending' ? t('vid.subprePending') : (subtitlePreprocessStatus.message || t('vid.subpreRunning'))}
                         </div>
                         {subtitlePreprocessStatus.progress > 0 && (
                           <div className="mt-1 h-1 w-full rounded-full bg-surface-700">
@@ -1758,15 +1760,15 @@ export default function VideoPlayer({
                     <>
                   <div className="mx-3 my-1 border-t border-neon-blue/10" />
                   <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-neon-blue/40">
-                    <Languages size={10} className="inline mr-1" />字幕翻译
+                    <Languages size={10} className="inline mr-1" />{t('vid.subtitleTranslate')}
                   </div>
 
                   {/* 已翻译的字幕列表 */}
                   {translatedSubs.map((sub) => {
                     const langNames: Record<string, string> = {
-                      zh: '中文', en: '英文', ja: '日文', ko: '韩文',
-                      fr: '法文', de: '德文', es: '西班牙文', pt: '葡萄牙文',
-                      ru: '俄文', it: '意大利文', ar: '阿拉伯文', th: '泰文',
+                      zh: t('vid.langZh'), en: t('vid.langEn'), ja: t('vid.langJa'), ko: t('vid.langKo'),
+                      fr: t('vid.langFr'), de: t('vid.langDe'), es: t('vid.langEs'), pt: t('vid.langPt'),
+                      ru: t('vid.langRu'), it: t('vid.langIt'), ar: t('vid.langAr'), th: t('vid.langTh'),
                     }
                     return (
                       <button
@@ -1792,7 +1794,7 @@ export default function VideoPlayer({
                     <div className="flex items-center gap-2 px-4 py-2.5 text-sm text-surface-400">
                       <Loader2 size={14} className="animate-spin text-neon-blue" />
                       <div className="flex-1">
-                        <div className="text-xs">{translateStatus.message || '正在翻译...'}</div>
+                        <div className="text-xs">{translateStatus.message || t('vid.translating')}</div>
                         {translateStatus.progress > 0 && (
                           <div className="mt-1 h-1 w-full rounded-full bg-surface-700">
                             <div
@@ -1816,7 +1818,7 @@ export default function VideoPlayer({
                         className="block w-full px-4 py-2.5 text-left text-sm text-surface-300 hover:text-white hover:bg-neon-blue/5 transition-colors"
                       >
                         <Languages size={12} className="inline mr-1.5" />
-                        翻译为其他语言...
+                        {t('vid.translateToOther')}
                       </button>
 
                       {showTranslateMenu && (
@@ -1825,14 +1827,14 @@ export default function VideoPlayer({
                           border: '1px solid var(--neon-blue-6)',
                         }}>
                           {[
-                            { code: 'zh', name: '中文' },
-                            { code: 'en', name: '英文' },
-                            { code: 'ja', name: '日文' },
-                            { code: 'ko', name: '韩文' },
-                            { code: 'fr', name: '法文' },
-                            { code: 'de', name: '德文' },
-                            { code: 'es', name: '西班牙文' },
-                            { code: 'ru', name: '俄文' },
+                            { code: 'zh', name: t('vid.langZh') },
+                            { code: 'en', name: t('vid.langEn') },
+                            { code: 'ja', name: t('vid.langJa') },
+                            { code: 'ko', name: t('vid.langKo') },
+                            { code: 'fr', name: t('vid.langFr') },
+                            { code: 'de', name: t('vid.langDe') },
+                            { code: 'es', name: t('vid.langEs') },
+                            { code: 'ru', name: t('vid.langRu') },
                           ].filter(lang => !translatedSubs.some(s => s.language === lang.code)).map((lang) => (
                             <button
                               key={lang.code}
@@ -1860,7 +1862,7 @@ export default function VideoPlayer({
                     className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-surface-300 hover:text-white hover:bg-neon-blue/5 transition-colors"
                   >
                     <Search size={12} className="text-neon-blue/60" />
-                    在线搜索字幕...
+                    {t('subtitle.searchOnline')}
                   </button>
                 </div>
               )}
@@ -1882,7 +1884,7 @@ export default function VideoPlayer({
                   'rounded-lg p-2 transition-all hover:bg-white/5',
                   showContentSearch ? 'text-neon-blue' : 'text-white/70 hover:text-white'
                 )}
-                title="字幕搜索 (Ctrl+F)"
+                title={t('vid.subtitleSearchKbd')}
               >
                 <Search size={18} />
               </button>
@@ -1906,7 +1908,7 @@ export default function VideoPlayer({
                 setShowSubtitleMenu(false)
               }}
               className="rounded-lg p-2 text-white/70 transition-all hover:text-white hover:bg-white/5"
-              title="投屏"
+              title={t('vid.cast')}
             >
               <Monitor size={18} />
             </button>
@@ -1930,7 +1932,7 @@ export default function VideoPlayer({
                   setShowCastPanel(false)
                 }}
                 className="rounded-lg p-2 text-white/70 transition-all hover:text-white hover:bg-white/5"
-                title="音轨"
+                title={t('vid.audioTrack')}
               >
                 <Languages size={18} />
               </button>
@@ -1942,7 +1944,7 @@ export default function VideoPlayer({
                     backdropFilter: 'blur(20px)',
                   }}
                 >
-                  <div className="px-4 py-1.5 text-xs text-surface-500 border-b border-white/5">音轨</div>
+                  <div className="px-4 py-1.5 text-xs text-surface-500 border-b border-white/5">{t('vid.audioTrackTitle')}</div>
                   {audioTracks.map((t) => (
                     <button
                       key={t.id}
@@ -2009,41 +2011,41 @@ export default function VideoPlayer({
                   {/* 实时状态面板：仅 HLS 转码模式有意义 */}
                   {mode !== 'direct' && mode !== 'remux' && (
                     <div className="mt-1 border-t border-white/10 px-4 py-2.5 text-[11px] leading-relaxed text-surface-400">
-                      <div className="mb-1 text-surface-300">实时状态</div>
+                      <div className="mb-1 text-surface-300">{t('vid.liveStatus')}</div>
                       {currentBitrate > 0 && (
                         <div className="flex justify-between">
-                          <span>当前码率</span>
+                          <span>{t('vid.currentBitrate')}</span>
                           <span className="text-white">{(currentBitrate / 1_000_000).toFixed(2)} Mbps</span>
                         </div>
                       )}
                       {bandwidthEstimate > 0 && (
                         <div className="flex justify-between">
-                          <span>带宽评估</span>
+                          <span>{t('vid.bandwidthEst')}</span>
                           <span className="text-white">{(bandwidthEstimate / 1_000_000).toFixed(2)} Mbps</span>
                         </div>
                       )}
                       {throttleStatus && (
                         <>
                           <div className="flex justify-between">
-                            <span>转码</span>
+                            <span>{t('vid.transcode')}</span>
                             <span className={throttleStatus.running ? 'text-emerald-400' : 'text-surface-500'}>
-                              {throttleStatus.running ? '运行中' : '空闲'}
+                              {throttleStatus.running ? t('common.statusRunning') : t('common.statusIdle')}
                             </span>
                           </div>
                           {throttleStatus.active_qualities && throttleStatus.active_qualities.length > 0 && (
                             <div className="flex justify-between">
-                              <span>活跃档位</span>
+                              <span>{t('vid.activeTier')}</span>
                               <span className="text-white">{throttleStatus.active_qualities.join('/')}</span>
                             </div>
                           )}
                           {throttleStatus.suspended_count > 0 && (
                             <div className="flex justify-between">
-                              <span>已挂起</span>
+                              <span>{t('vid.suspended')}</span>
                               <span className="text-amber-400">{throttleStatus.suspended_count}</span>
                             </div>
                           )}
                           <div className="flex justify-between">
-                            <span>缓冲领先</span>
+                            <span>{t('vid.bufferLead')}</span>
                             <span className="text-white">{throttleStatus.ahead_seconds.toFixed(0)}s</span>
                           </div>
                         </>
@@ -2067,7 +2069,7 @@ export default function VideoPlayer({
               }
             }}
             className="rounded-lg p-2 text-white/70 transition-all hover:text-white hover:bg-white/5"
-            title="画中画"
+            title={t('player.pip')}
           >
             <PictureInPicture2 size={18} />
           </button>

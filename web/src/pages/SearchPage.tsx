@@ -412,7 +412,7 @@ export default function SearchPage() {
                 )}
                 style={minRating !== r ? { border: '1px solid var(--border-default)' } : {}}
               >
-                {r === 0 ? t('search.ratingAll') : `≥${r}分`}
+                {r === 0 ? t('search.ratingAll') : t('search.ratingAbove', { score: r })}
               </button>
             ))}
           </div>
@@ -592,6 +592,7 @@ export default function SearchPage() {
 
 // SceneSearchCard 场景检索结果卡片：拉取场景帧图（带鉴权 blob），点击跳转到对应时间点播放
 function SceneSearchCard({ result }: { result: SceneSearchResult }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [url, setUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
@@ -634,7 +635,7 @@ function SceneSearchCard({ result }: { result: SceneSearchResult }) {
         ) : (
           <div className="flex h-full items-center justify-center">
             {failed ? (
-              <span className="text-xs text-surface-600">加载失败</span>
+              <span className="text-xs text-surface-600">{t('search.sceneLoadFailed')}</span>
             ) : (
               <Skeleton className="h-full w-full rounded-none" />
             )}
@@ -644,7 +645,7 @@ function SceneSearchCard({ result }: { result: SceneSearchResult }) {
       <div className="mt-2 min-w-0">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium text-surface-200 transition-colors group-hover:text-neon">
-            {result.media_title || '未命名媒体'}
+            {result.media_title || t('search.unnamedMedia')}
           </span>
           <span className="shrink-0 text-[10px] text-surface-500">
             {formatVideoAnalysisSeconds(result.start_time)} - {formatVideoAnalysisSeconds(result.end_time)}

@@ -1,4 +1,5 @@
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import { useTranslation } from '@/i18n'
 import type { ComponentProps, ReactNode } from 'react'
 import DashboardTab from '@/components/admin/DashboardTab'
 import UsersTab from '@/components/admin/UsersTab'
@@ -36,40 +37,45 @@ function DrawerShell({ open, onOpenChange, title, description, size, contentClas
 }
 
 export function AIDrawer({ open, onOpenChange }: CommonProps) {
+  const { t } = useTranslation()
   return (
-    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" contentClassName="h-[85vh]" title="AI 服务" description="AI 识别、归类、搜索、推荐、元数据增强">
+    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" contentClassName="h-[85vh]" title={t('admin.ovCardAi')} description={t('admin.ovCardAiDesc')}>
       <AITab />
     </DrawerShell>
   )
 }
 
 export function StorageDrawer({ open, onOpenChange }: CommonProps) {
+  const { t } = useTranslation()
   return (
-    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" title="存储" description="WebDAV / Alist / S3 远程存储挂载">
+    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" title={t('admin.ovCardStorage')} description={t('admin.ovCardStorageDesc')}>
       <StorageTab />
     </DrawerShell>
   )
 }
 
 export function STRMDrawer({ open, onOpenChange }: CommonProps) {
+  const { t } = useTranslation()
   return (
-    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" title="STRM 远程流" description=".strm 流默认请求头、HLS 重写、远程探测、域名白名单">
+    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" title={t('admin.ovCardStrm')} description={t('admin.ovCardStrmDesc')}>
       <STRMConfigSection />
     </DrawerShell>
   )
 }
 
 export function UsersDrawer({ open, onOpenChange, users, setUsers }: CommonProps & { users: User[]; setUsers: React.Dispatch<React.SetStateAction<User[]>> }) {
+  const { t } = useTranslation()
   return (
-    <DrawerShell open={open} onOpenChange={onOpenChange} title="用户管理" description="账号、角色与权限">
+    <DrawerShell open={open} onOpenChange={onOpenChange} title={t('admin.ovCardUsers')} description={t('admin.ovCardUsersDesc')}>
       <UsersTab users={users} setUsers={setUsers} />
     </DrawerShell>
   )
 }
 
 export function LogsDrawer({ open, onOpenChange }: CommonProps) {
+  const { t } = useTranslation()
   return (
-    <DrawerShell open={open} onOpenChange={onOpenChange} size="xl" title="日志" description="系统运行与访问日志">
+    <DrawerShell open={open} onOpenChange={onOpenChange} size="xl" title={t('admin.ovCardLogs')} description={t('admin.ovCardLogsDesc')}>
       <LogsTab />
     </DrawerShell>
   )
@@ -83,8 +89,9 @@ export function DashboardDrawer({ open, onOpenChange, systemInfo, scanProgress, 
   scanPhase: Record<string, ScanPhaseData>
   realtimeMessages: string[]
 }) {
+  const { t } = useTranslation()
   return (
-    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" title="仪表盘" description="实时进度、系统状态、数据维护">
+    <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" title={t('admin.ovCardDashboard')} description={t('admin.ovCardDashboardDesc')}>
       <DashboardTab
         systemInfo={systemInfo}
         scanProgress={scanProgress}

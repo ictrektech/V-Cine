@@ -1,5 +1,6 @@
 import { WifiOff } from 'lucide-react'
 import { STORAGE_TYPE_LABELS, type StorageType } from '@/lib/storageSchemes'
+import { useTranslation } from '@/i18n'
 
 interface RemoteOfflineBannerProps {
   /** 当前范围内已断连的远程存储类型集合 */
@@ -8,8 +9,9 @@ interface RemoteOfflineBannerProps {
 
 /** 远程存储断连提示条：一条消息解释当前范围内所有「源离线」媒体 */
 export default function RemoteOfflineBanner({ types }: RemoteOfflineBannerProps) {
+  const { t } = useTranslation()
   if (types.size === 0) return null
-  const labels = [...types].map((t) => STORAGE_TYPE_LABELS[t]).join('、')
+  const labels = [...types].map((x) => STORAGE_TYPE_LABELS[x]).join('、')
   return (
     <div
       role="status"
@@ -22,7 +24,7 @@ export default function RemoteOfflineBanner({ types }: RemoteOfflineBannerProps)
     >
       <WifiOff size={14} className="flex-shrink-0" />
       <span>
-        远程存储 {labels} 连接不上，来自这些存储的内容暂时无法播放，恢复后自动恢复
+        {t('remoteOffline.message', { labels })}
       </span>
     </div>
   )

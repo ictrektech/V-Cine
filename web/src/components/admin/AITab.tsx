@@ -42,27 +42,22 @@ import clsx from 'clsx'
 
 // ==================== 提供商预设 ====================
 // ==================== 测试用例预设 ====================
-const SEARCH_TEST_CASES = [
-  '帮我找一部2023年的科幻电影',
-  '有没有评分8分以上的日本动画',
-  '最近有什么好看的悬疑剧',
-  '诺兰导演的电影',
-]
+const SEARCH_TEST_CASES = ['ait.qt1', 'ait.qt2', 'ait.qt3', 'ait.qt4']
 
 const RECOMMEND_TEST_CASES = [
-  { title: '星际穿越', genres: '科幻,冒险,剧情' },
-  { title: '你的名字', genres: '动画,爱情,奇幻' },
-  { title: '肖申克的救赎', genres: '剧情,犯罪' },
+  { titleKey: 'ait.rt1', genresKey: 'ait.rtGenres1' },
+  { titleKey: 'ait.rt2', genresKey: 'ait.rtGenres2' },
+  { titleKey: 'ait.rt3', genresKey: 'ait.rtGenres3' },
 ]
 
 // ==================== 分组导航定义（左栏点击点） ====================
 type AISectionKey = 'overview' | 'providers' | 'advanced' | 'ops'
 
-const AI_SECTIONS: { key: AISectionKey; label: string; icon: LucideIcon }[] = [
-  { key: 'overview', label: '概览与托管', icon: Power },
-  { key: 'providers', label: 'AI 提供商', icon: Settings },
-  { key: 'advanced', label: '高级设置', icon: Shield },
-  { key: 'ops', label: '运维诊断', icon: Activity },
+const AI_SECTIONS: { key: AISectionKey; labelKey: string; icon: LucideIcon }[] = [
+  { key: 'overview', labelKey: 'ait.secOverview', icon: Power },
+  { key: 'providers', labelKey: 'ait.secProviders', icon: Settings },
+  { key: 'advanced', labelKey: 'ait.secAdvanced', icon: Shield },
+  { key: 'ops', labelKey: 'ait.secOps', icon: Activity },
 ]
 
 export default function AITab() {
@@ -241,7 +236,7 @@ export default function AITab() {
 
   const handleFetchModels = async () => {
     if (!providerForm.api_base.trim()) {
-      toast.error('请先填写 API Base')
+      toast.error(t('ait.noApiBase'))
       return
     }
     setFetchingModels(true)
@@ -253,15 +248,15 @@ export default function AITab() {
       })
       const names = (res.data.data || []).filter((n) => n.trim())
       if (names.length === 0) {
-        toast.error('未获取到模型，请检查 API 地址与密钥')
+        toast.error(t('ait.fetchModelsFailed'))
         return
       }
       setFetchedModels(names)
       // 默认不勾选，由用户自行选择
       setFetchedSelected(new Set())
-      toast.success(`已获取 ${names.length} 个模型，请勾选添加`)
+      toast.success(t('ait.fetchedModels', { count: names.length }))
     } catch (e) {
-      toast.error(extractErrMsg(e) || '获取模型失败，请检查 API 地址与密钥')
+      toast.error(extractErrMsg(e) || t('ait.fetchModelsFailed2'))
     } finally {
       setFetchingModels(false)
     }
@@ -278,12 +273,12 @@ export default function AITab() {
       ],
     })
     resetFetchedModels()
-    toast.success(`已添加 ${picked.length} 个模型`)
+    toast.success(t('ait.addedModels', { count: picked.length }))
   }
 
   const handleSaveProvider = async () => {
     if (!providerForm.name.trim()) {
-      toast.error('请填写供应商名称')
+      toast.error(t('ait.needProviderName'))
       return
     }
     setProviderSaving(true)
@@ -297,7 +292,7 @@ export default function AITab() {
         if (providerForm.api_base.trim()) data.api_base = providerForm.api_base.trim()
         if (providerForm.api_key.trim()) data.api_key = providerForm.api_key.trim()
         await aiApi.updateProvider(editingProvider.id, data)
-        toast.success('供应商已更新')
+        toast.success(t('ait.providerUpdated'))
       } else {
         // 新增
         await aiApi.addProvider({
@@ -306,12 +301,12 @@ export default function AITab() {
           api_key: providerForm.api_key.trim() || undefined,
           models: providerForm.models.length > 0 ? providerForm.models : undefined,
         })
-        toast.success('供应商已添加')
+        toast.success(t('ait.providerAdded'))
       }
       setShowProviderDialog(false)
       await fetchStatus()
     } catch {
-      toast.error(editingProvider ? '更新失败' : '添加失败')
+      toast.error(t('ait.providerSaveFailed'))
     } finally {
       setProviderSaving(false)
     }
@@ -319,18 +314,18 @@ export default function AITab() {
 
   const handleDeleteProvider = async (p: ProviderItem) => {
     const ok = await dialog.confirm({
-      title: '删除供应商',
-      message: `确定删除「${p.name}」？此操作不可撤销。`,
-      confirmText: '删除',
+      title: t('ait.delProviderTitle'),
+      message: t('ait.delProviderMsg', { name: p.name }),
+      confirmText: t('common.delete'),
       variant: 'warning',
     })
     if (!ok) return
     try {
       await aiApi.deleteProvider(p.id)
-      toast.success('供应商已删除')
+      toast.success(t('ait.providerDeleted'))
       await fetchStatus()
     } catch {
-      toast.error('删除失败')
+      toast.error(t('ait.deleteFailed'))
     }
   }
 
@@ -339,10 +334,10 @@ export default function AITab() {
       // 优先用 is_default 标记的模型，否则取第一个
       const defaultModel = p.models.find(m => m.is_default)?.name || p.models[0]?.name
       await aiApi.setActive({ provider: p.id, model: defaultModel })
-      toast.success(`已切换到「${p.name}」`)
+      toast.success(t('ait.switched', { name: p.name }))
       await fetchStatus()
     } catch {
-      toast.error('切换失败')
+      toast.error(t('ait.switchFailed'))
     }
   }
 
@@ -352,14 +347,14 @@ export default function AITab() {
       const res = await aiApi.testConnection(p.id)
       const data = res.data?.data
       if (data?.success) {
-        setConnTests(prev => ({ ...prev, [p.id]: { testing: false, success: true, message: `连接成功 · ${data.latency_ms}ms` } }))
+        setConnTests(prev => ({ ...prev, [p.id]: { testing: false, success: true, message: t('ait.connOk', { ms: data.latency_ms }) } }))
       } else {
-        setConnTests(prev => ({ ...prev, [p.id]: { testing: false, success: false, message: data?.error || '连接失败' } }))
+        setConnTests(prev => ({ ...prev, [p.id]: { testing: false, success: false, message: data?.error || t('ait.connFail') } }))
       }
     } catch (e: unknown) {
       const msg = e && typeof e === 'object' && 'response' in e
-        ? (e as { response?: { data?: { error?: string } } }).response?.data?.error || '请求失败'
-        : '请求失败'
+        ? (e as { response?: { data?: { error?: string } } }).response?.data?.error || t('ait.requestFailed')
+        : t('ait.requestFailed')
       setConnTests(prev => ({ ...prev, [p.id]: { testing: false, success: false, message: msg } }))
     }
   }
@@ -383,10 +378,10 @@ export default function AITab() {
           image_scopes: editDesensitizeImageScopes,
         },
       })
-      toast.success('全局设置已保存')
+      toast.success(t('ait.globalSaved'))
       await fetchStatus()
     } catch {
-      toast.error('保存失败')
+      toast.error(t('ait.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -395,7 +390,7 @@ export default function AITab() {
   // 无可用模型时，禁止开启任何需要调用 AI 的功能
   const requireModel = (v: boolean, set: (v: boolean) => void) => {
     if (v && !status?.active_model) {
-      toast.error('请先在供应商设置中选择/启用一个模型')
+      toast.error(t('ait.noModel'))
       return
     }
     set(v)
@@ -410,10 +405,10 @@ export default function AITab() {
         enable_recommend_reason: editRecommendReason,
         enable_metadata_enhance: editMetadataEnhance,
       })
-      toast.success('AI 功能已保存')
+      toast.success(t('ait.featuresSaved'))
       await fetchStatus()
     } catch (e) {
-      toast.error(extractErrMsg(e) || '保存 AI 功能失败')
+      toast.error(extractErrMsg(e) || t('ait.featuresSaveFailed'))
     } finally {
       setSavingFeatures(false)
     }
@@ -426,12 +421,12 @@ export default function AITab() {
       const res = await aiApi.testDesensitize()
       const d = res.data.data
       if (d.success) {
-        setDsTest({ testing: false, success: true, message: `服务正常 · ${d.latency_ms}ms` })
+        setDsTest({ testing: false, success: true, message: t('ait.dsOk', { ms: d.latency_ms ?? 0 }) })
       } else {
-        setDsTest({ testing: false, success: false, message: d.error || '测试失败' })
+        setDsTest({ testing: false, success: false, message: d.error || t('ait.testFailed') })
       }
     } catch {
-      setDsTest({ testing: false, success: false, message: '无法连接测试服务' })
+      setDsTest({ testing: false, success: false, message: t('ait.dsNoConn') })
     }
   }
 
@@ -444,14 +439,14 @@ export default function AITab() {
         const params: { provider?: string } = {}
         if (editProvider) params.provider = editProvider
         await aiApi.enableAutoPilot(params)
-        toast.success('AI 全自动托管模式已开启')
+        toast.success(t('ait.autoPilotOn'))
       } else {
         await aiApi.updateConfig({ auto_pilot: false })
-        toast.success('AI 全自动托管模式已关闭')
+        toast.success(t('ait.autoPilotOff'))
       }
       await fetchStatus()
     } catch {
-      toast.error(enable ? '开启托管模式失败' : '关闭托管模式失败')
+      toast.error(enable ? t('ait.autoPilotOnFail') : t('ait.autoPilotOffFail'))
     } finally {
       setAutoPilotBusy(false)
     }
@@ -483,16 +478,16 @@ export default function AITab() {
   // ==================== 缓存管理 ====================
   const handleClearCache = async () => {
     const ok = await dialog.confirm({
-      title: '清空 AI 缓存',
-      message: '确定清空所有 AI 缓存？清空后下次请求将重新调用 AI API。',
-      confirmText: '清空',
+      title: t('ait.clearCacheTitle'),
+      message: t('ait.clearCacheMsg'),
+      confirmText: t('ait.clear'),
       variant: 'warning',
     })
     if (!ok) return
     setClearingCache(true)
     try {
       const res = await aiApi.clearCache()
-      toast.success(`已清空 ${res.data.data.cleared} 条缓存`)
+      toast.success(t('ait.cacheCleared', { count: res.data.data.cleared }))
       await fetchCacheStats()
     } catch {
       toast.error(t('aiTab.clearCacheFailed'))
@@ -555,7 +550,7 @@ export default function AITab() {
         style={{ borderColor: 'var(--border-default)' }}
       >
       <nav
-        aria-label="AI 服务分组"
+        aria-label={t('ait.groupLabel')}
         className="flex gap-1 overflow-x-auto pb-3 lg:sticky lg:top-0 lg:flex-col lg:gap-0.5 lg:overflow-x-visible lg:py-1 lg:pr-3"
       >
         {AI_SECTIONS.map((s) => {
@@ -576,7 +571,7 @@ export default function AITab() {
               )}
             >
               <Icon size={15} className="shrink-0" />
-              <span>{s.label}</span>
+              <span>{t(s.labelKey)}</span>
               {active && <ChevronRight size={14} className="ml-auto hidden lg:block" />}
             </button>
           )
@@ -598,7 +593,7 @@ export default function AITab() {
               <WifiOff size={16} className="text-surface-500" />
             )}
             <span className="text-xs font-medium text-theme-muted">
-              服务状态
+              {t('ait.serviceStatus')}
             </span>
           </div>
           <p
@@ -607,11 +602,11 @@ export default function AITab() {
               status?.enabled && status?.api_configured ? 'text-green-400' : 'text-surface-500'
             )}
           >
-            {status?.enabled ? (status?.api_configured ? '已启用' : '未配置') : '未启用'}
+            {status?.enabled ? (status?.api_configured ? t('ait.enabled') : t('ait.notConfigured')) : t('ait.notEnabled')}
           </p>
           {status?.enabled && status?.api_configured && !status?.active_model && (
             <p className="mt-1 flex items-center gap-1 text-xs text-yellow-400">
-              <AlertTriangle size={12} /> 未选择模型，请到下方供应商设置中拉取
+              <AlertTriangle size={12} /> {t('ait.noModelHint')}
             </p> 
           )}
         </div>
@@ -621,7 +616,7 @@ export default function AITab() {
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 size={16} className="text-neon/60" />
             <span className="text-xs font-medium text-theme-muted">
-              本月调用
+              {t('ait.monthCalls')}
             </span>
           </div>
           <p className="text-sm font-semibold text-theme-primary">
@@ -629,7 +624,7 @@ export default function AITab() {
             {status?.monthly_budget ? (
               <span className="text-xs font-normal text-surface-500"> / {status.monthly_budget}</span>
             ) : (
-              <span className="text-xs font-normal text-surface-500"> 次</span>
+              <span className="text-xs font-normal text-surface-500"> {t('ait.times')}</span>
             )}
           </p>
         </div>
@@ -639,7 +634,7 @@ export default function AITab() {
           <div className="flex items-center gap-2 mb-2">
             <Cpu size={16} className="text-purple-400/60" />
             <span className="text-xs font-medium text-theme-muted">
-              Token 消耗
+              {t('ait.tokenUsage')}
             </span>
           </div>
           <p className="text-sm font-semibold text-theme-primary">
@@ -652,7 +647,7 @@ export default function AITab() {
           <div className="flex items-center gap-2 mb-2">
             <DatabaseIcon size={16} className="text-cyan-400/60" />
             <span className="text-xs font-medium text-theme-muted">
-              缓存条目
+              {t('ait.cacheEntries')}
             </span>
           </div>
           <p className="text-sm font-semibold text-theme-primary">
@@ -682,16 +677,15 @@ export default function AITab() {
               </div>
               <div className="min-w-0">
                 <p className="text-base font-semibold text-theme-primary flex items-center gap-2">
-                  全自动托管模式
+                  {t('ait.autoPilotMode')}
                   {status?.auto_pilot && (
                     <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-neon/10 text-neon">
-                      Active
+                      {t('ait.active')}
                     </span>
                   )}
                 </p>
                 <p className="mt-1 text-xs text-theme-muted leading-relaxed">
-                  新增媒体库自动执行：<span className="text-theme-secondary">AI 识别 → 归类 → 命名 → 元数据刮削 → AI 兜底</span>，
-                  仅写数据库不改原文件，建议使用能力较强的模型以保证自动刮削质量。
+                  {t('ait.autoPilotFlow1')}<span className="text-theme-secondary">{t('ait.autoPilotFlow2')}</span>{t('ait.autoPilotFlow3')}
                 </p>
               </div>
             </div>
@@ -699,25 +693,25 @@ export default function AITab() {
               checked={!!status?.auto_pilot}
               onCheckedChange={handleToggleAutoPilot}
               disabled={autoPilotBusy}
-              aria-label="全自动托管模式"
+              aria-label={t('ait.autoPilotMode')}
             />
           </div>
           {!status?.api_configured && (
             <div className="mt-3 flex items-center gap-2 text-xs text-yellow-400">
               <AlertTriangle size={14} />
-              请先在下方完成供应商配置并启用，托管模式才能生效
+              {t('ait.autoPilotNeedCfg')}
             </div>
           )}
           {status?.auto_pilot && status?.api_configured && !status?.active_model && (
             <div className="mt-3 flex items-center gap-2 text-xs text-yellow-400">
               <AlertTriangle size={14} />
-              未选择模型，托管任务将无法调用 AI，请到下方供应商设置中拉取模型
+              {t('ait.autoPilotNoModel')}
             </div>
           )}
           {status?.auto_pilot && status?.api_configured && status?.active_model && (
             <div className="mt-3 flex items-center gap-2 text-xs text-green-400">
               <Check size={14} />
-              托管模式已生效：后续扫描入库的文件将自动调用 {status.active_provider} / {status.active_model}
+              {t('ait.autoPilotActive', { provider: status.active_provider, model: status.active_model })}
             </div>
           )}
         </div>
@@ -729,7 +723,7 @@ export default function AITab() {
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
           <Power size={20} className="text-neon/60" />
-          AI 功能
+          {t('ait.aiFeatures')}
         </h2>
 
         <div className="glass-panel rounded-xl p-5 space-y-4">
@@ -744,17 +738,17 @@ export default function AITab() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-theme-primary">
-                  启用 AI 功能
+                  {t('ait.enableAiFeatures')}
                 </p>
                 <p className="text-xs text-theme-muted">
-                  全局开关，关闭后所有 AI 功能将停用
+                  {t('ait.enableAiDesc')}
                 </p>
               </div>
             </div>
             <Switch
               checked={editEnabled}
               onCheckedChange={(v) => requireModel(v, setEditEnabled)}
-              aria-label="启用 AI 功能"
+              aria-label={t('ait.enableAiFeatures')}
             />
           </div>
 
@@ -763,24 +757,24 @@ export default function AITab() {
             {[
               {
                 key: 'search',
-                label: '智能搜索',
-                desc: '自然语言 → 结构化查询参数',
+                labelKey: 'ait.featureSearch',
+                descKey: 'ait.featureSearchDesc',
                 icon: Search,
                 value: editSmartSearch,
                 setter: setEditSmartSearch,
               },
               {
                 key: 'recommend',
-                label: '推荐理由',
-                desc: 'AI 生成个性化推荐文案',
+                labelKey: 'ait.featureRecommend',
+                descKey: 'ait.featureRecommendDesc',
                 icon: MessageSquare,
                 value: editRecommendReason,
                 setter: setEditRecommendReason,
               },
               {
                 key: 'metadata',
-                label: '元数据增强',
-                desc: '传统数据源失败时用 AI 补充',
+                labelKey: 'ait.featureMetadata',
+                descKey: 'ait.featureMetadataDesc',
                 icon: Sparkles,
                 value: editMetadataEnhance,
                 setter: setEditMetadataEnhance,
@@ -796,14 +790,14 @@ export default function AITab() {
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Icon size={16} className="text-neon/50 shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-theme-primary">{item.label}</p>
-                      <p className="text-xs text-theme-muted truncate">{item.desc}</p>
+                      <p className="text-sm font-medium text-theme-primary">{t(item.labelKey)}</p>
+                      <p className="text-xs text-theme-muted truncate">{t(item.descKey)}</p>
                     </div>
                   </div>
                   <Switch
                     checked={item.value}
                     onCheckedChange={(v) => requireModel(v, item.setter)}
-                    aria-label={item.label}
+                    aria-label={t(item.labelKey)}
                   />
                 </div>
               )
@@ -813,7 +807,7 @@ export default function AITab() {
           <div className="flex items-center justify-end gap-2 border-t pt-4" style={{ borderColor: 'var(--border-subtle)' }}>
             <button onClick={handleSaveFeatures} disabled={savingFeatures} className="btn-primary gap-1.5 px-4 py-1.5 text-xs disabled:opacity-50">
               {savingFeatures ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check size={14} />}
-              保存 AI 功能
+              {t('ait.saveAiFeatures')}
             </button>
           </div>
         </div>
@@ -829,14 +823,14 @@ export default function AITab() {
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
           <Settings size={20} className="text-neon/60" />
-          供应商列表
+          {t('ait.providerList')}
         </h2>
 
         <div className="glass-panel rounded-xl p-5 space-y-3">
           {/* 供应商行 */}
           {providers.length === 0 ? (
             <div className="py-6 text-center text-sm text-theme-muted">
-              暂无供应商，请点击下方按钮新增
+              {t('ait.noProviders')}
             </div>
           ) : (
             providers.map((p) => (
@@ -861,28 +855,28 @@ export default function AITab() {
                       {p.active && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-neon"
                           style={{ background: 'var(--neon-blue-10)' }}>
-                          激活中
+                          {t('ait.active')}
                         </span>
                       )}
                       {p.id === 'vrouter' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-neon"
                           style={{ background: 'var(--nav-hover-bg)' }}>
-                          内置
+                          {t('ait.builtin')}
                         </span>
                       )}
                       {!p.enabled && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-surface-500"
                           style={{ background: 'var(--nav-hover-bg)' }}>
-                          已禁用
+                          {t('ait.disabled')}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-theme-muted truncate mt-0.5">
                       {p.models.length > 0
-                        ? p.models.map(m => `${m.name}${m.is_default ? '(默认)' : ''}${m.is_vision ? '👁' : ''}`).join(', ')
-                        : '未配置模型，请点击「设置」拉取模型'}
-                      {' · '}{p.api_base || '默认 API'}
-                      {p.is_gateway ? ' · 内网免鉴权' : ''}
+                        ? p.models.map(m => `${m.name}${m.is_default ? t('ait.default') : ''}${m.is_vision ? '👁' : ''}`).join(', ')
+                        : t('ait.noModelsConfigured')}
+                      {' · '}{p.api_base || t('ait.defaultApi')}
+                      {p.is_gateway ? t('ait.intranetNoAuth') : ''}
                     </p>
                     {connTests[p.id] && !connTests[p.id].testing && (
                       <p className={`text-xs mt-0.5 ${connTests[p.id].success ? 'text-green-400' : 'text-red-400'}`}>
@@ -898,7 +892,7 @@ export default function AITab() {
                       className="btn-ghost gap-1 px-2.5 py-1 text-xs text-neon hover:text-neon"
                     >
                       <Play size={12} />
-                      启用
+                      {t('ait.enable')}
                     </button>
                   )}
                   <button
@@ -907,9 +901,9 @@ export default function AITab() {
                     className="btn-ghost gap-1 px-2.5 py-1 text-xs text-green-400 hover:text-green-300 disabled:opacity-50"
                   >
                     {connTests[p.id]?.testing ? (
-                      <><Loader2 size={12} className="animate-spin" /> 测试中</>
+                      <><Loader2 size={12} className="animate-spin" /> {t('ait.testing')}</>
                     ) : (
-                      <><Wifi size={12} /> 测试</>
+                      <><Wifi size={12} /> {t('ait.test')}</>
                     )}
                   </button>
                   <button
@@ -917,16 +911,16 @@ export default function AITab() {
                     className="btn-ghost gap-1 px-2.5 py-1 text-xs"
                   >
                     <Pencil size={12} />
-                    设置
+                    {t('ait.setup')}
                   </button>
                   <button
                     onClick={() => handleDeleteProvider(p)}
                     disabled={p.id === 'vrouter'}
-                    title={p.id === 'vrouter' ? '内置 V-Router 供应商不可删除' : undefined}
+                    title={p.id === 'vrouter' ? t('ait.vrouterProtected') : undefined}
                     className="btn-ghost gap-1 px-2.5 py-1 text-xs text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Trash2 size={12} />
-                    删除
+                    {t('common.delete')}
                   </button>
                 </div>
               </div>
@@ -940,7 +934,7 @@ export default function AITab() {
             style={{ borderColor: 'var(--border-default)' }}
           >
             <Plus size={16} />
-            新增供应商
+            {t('ait.addProvider')}
           </button>
         </div>
       </section>
@@ -950,16 +944,16 @@ export default function AITab() {
       {/* ==================== 开启全自动托管模式提示 ==================== */}
       <Modal open={showAutoPilotWarning} onClose={cancelAutoPilotWarning} className="max-w-md">
           <div className="glass-panel rounded-2xl p-6 space-y-4" style={{ background: 'var(--bg-card)' }}>
-            <h3 className="text-lg font-semibold text-theme-primary">开启全自动托管模式</h3>
+            <h3 className="text-lg font-semibold text-theme-primary">{t('ait.enableAutoPilotTitle')}</h3>
             <p className="text-sm text-theme-muted leading-relaxed">
-              全自动托管会持续调用 AI 完成识别、命名和刮削，建议使用能力较强的模型以保证自动刮削质量。
+              {t('ait.autoPilotDesc')}
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={cancelAutoPilotWarning} className="btn-ghost px-4 py-2 rounded-lg text-sm">
-                取消
+                {t('common.cancel')}
               </button>
               <button onClick={confirmEnableAutoPilot} disabled={autoPilotCountdown > 0} className="btn-primary gap-1.5 px-4 py-2 text-sm disabled:opacity-50">
-                {autoPilotCountdown > 0 ? `开启（${autoPilotCountdown}s）` : '开启'}
+                {autoPilotCountdown > 0 ? t('ait.enableCountdown', { s: autoPilotCountdown }) : t('ait.enable')}
               </button>
             </div>
           </div>
@@ -969,20 +963,20 @@ export default function AITab() {
       <Modal open={showProviderDialog} onClose={() => setShowProviderDialog(false)} className="max-w-md">
           <div className="glass-panel flex max-h-[calc(100vh-3rem)] flex-col rounded-2xl p-6" style={{ background: 'var(--bg-card)' }}>
             <h3 className="shrink-0 text-lg font-semibold text-theme-primary">
-              {editingProvider ? '编辑供应商' : '新增供应商'}
+              {editingProvider ? t('ait.editProvider') : t('ait.addProvider')}
             </h3>
 
             <div className="-mx-2 min-h-0 flex-1 space-y-3 overflow-y-auto px-2" style={{ scrollbarGutter: 'stable' }}>
               <div>
                 <label className="mb-1 block text-sm font-medium text-theme-secondary">
-                  名称 <span className="text-red-400">*</span>
+                  {t('ait.name')} <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={providerForm.name}
                   onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })}
                   className="input w-full"
-                  placeholder="例如：DeepSeek / OpenAI"
+                  placeholder={t('ait.namePlaceholder')}
                 />
               </div>
               <div>
@@ -1003,7 +997,7 @@ export default function AITab() {
               </div>
               {isBuiltInVRouter ? (
                 <p className="flex items-center gap-1 text-xs text-green-400">
-                  <Check size={12} /> V-Router 内网免鉴权，无需 API Key，地址由系统内置
+                  <Check size={12} /> {t('ait.vrouterHint')}
                 </p>
               ) : (
                 <div>
@@ -1013,31 +1007,31 @@ export default function AITab() {
                     value={providerForm.api_key}
                     onChange={(e) => setProviderForm({ ...providerForm, api_key: e.target.value })}
                     className="input w-full font-mono text-sm"
-                    placeholder={isGatewayForm() ? '无需 API Key（内网免鉴权）' : 'sk-...（可选，服务商需要时必填）'}
+                    placeholder={isGatewayForm() ? t('ait.noKeyNeeded') : t('ait.keyPlaceholder')}
                   />
                   {isGatewayForm() && !providerForm.api_key ? (
                     <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
-                      <Check size={12} /> 内网免鉴权，留空即可
+                      <Check size={12} /> {t('ait.gatewayNoKey')}
                     </p>
                   ) : editingProvider?.api_key_configured && !providerForm.api_key && (
                     <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
-                      <Check size={12} /> 密钥已配置（留空不会清除）
+                      <Check size={12} /> {t('ait.keySet')}
                     </p>
                   )}
                 </div>
               )}
               <div>
                 <div className="mb-1 flex items-center justify-between">
-                  <label className="block text-sm font-medium text-theme-secondary">模型列表</label>
+                  <label className="block text-sm font-medium text-theme-secondary">{t('ait.modelList')}</label>
                   <button
                     type="button"
                     onClick={handleFetchModels}
                     disabled={fetchingModels || !providerForm.api_base.trim()}
                     className="btn-ghost gap-1 px-2 py-0.5 text-xs text-neon hover:text-neon disabled:opacity-50"
-                    title="从 API 地址获取可用模型，勾选后添加"
+                    title={t('ait.fetchModelsHint')}
                   >
                     {fetchingModels ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                    {fetchingModels ? '获取中…' : '自动获取'}
+                    {fetchingModels ? t('ait.fetching') : t('ait.fetch')}
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -1051,8 +1045,8 @@ export default function AITab() {
                           const newModels = providerForm.models.map((item, i) => ({ ...item, is_default: i === idx }))
                           setProviderForm({ ...providerForm, models: newModels })
                         }}
-                        aria-label={m.is_default ? '默认模型' : '设为默认模型'}
-                        title={m.is_default ? '默认模型' : '设为默认模型'}
+                        aria-label={m.is_default ? t('ait.defaultModel') : t('ait.setDefaultModel')}
+                        title={m.is_default ? t('ait.defaultModel') : t('ait.setDefaultModel')}
                       />
                       <input
                         type="text"
@@ -1077,10 +1071,10 @@ export default function AITab() {
                             ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30'
                             : 'bg-surface-700 text-surface-400 border border-surface-600'
                         }`}
-                        title={m.is_vision ? '视觉模型（点击取消）' : '标记为视觉模型'}
+                        title={m.is_vision ? t('ait.visionOn') : t('ait.visionOff')}
                       >
                         <Eye size={12} className="inline mr-1" />
-                        {m.is_vision ? '视觉' : '文本'}
+                        {m.is_vision ? t('ait.vision') : t('ait.text')}
                       </button>
                       <button
                         type="button"
@@ -1094,7 +1088,7 @@ export default function AITab() {
                           setProviderForm({ ...providerForm, models: newModels })
                         }}
                         className="text-surface-500 hover:text-red-400 transition-colors p-1"
-                        title="删除模型"
+                        title={t('ait.deleteModel')}
                       >
                         <X size={14} />
                       </button>
@@ -1108,7 +1102,7 @@ export default function AITab() {
                     }}
                     className="flex items-center gap-1 text-xs text-theme-secondary hover:text-neon transition-colors"
                   >
-                    <Plus size={12} /> 添加模型
+                    <Plus size={12} /> {t('ait.addModel')}
                   </button>
                 </div>
                 {/* 获取到的模型勾选列表 */}
@@ -1119,14 +1113,14 @@ export default function AITab() {
                       value={fetchedSearch}
                       onChange={(e) => setFetchedSearch(e.target.value)}
                       className="input w-full text-sm"
-                      placeholder="搜索过滤模型…"
+                      placeholder={t('ait.searchModels')}
                     />
                     <div className="max-h-40 space-y-1 overflow-y-auto">
                       {(() => {
                         const kw = fetchedSearch.trim().toLowerCase()
                         const filtered = fetchedModels.filter((n) => !kw || n.toLowerCase().includes(kw))
                         if (filtered.length === 0) {
-                          return <p className="py-2 text-center text-xs text-theme-muted">无匹配模型</p>
+                          return <p className="py-2 text-center text-xs text-theme-muted">{t('ait.noMatchModels')}</p>
                         }
                         return filtered.map((name) => {
                           const already = providerForm.models.some((m) => m.name === name)
@@ -1151,7 +1145,7 @@ export default function AITab() {
                                 }}
                               />
                               <span className="min-w-0 flex-1 truncate font-mono text-xs text-theme-primary">{name}</span>
-                              {already && <span className="shrink-0 text-[10px] text-green-400">已添加</span>}
+                              {already && <span className="shrink-0 text-[10px] text-green-400">{t('ait.alreadyAdded')}</span>}
                             </label>
                           )
                         })
@@ -1167,21 +1161,21 @@ export default function AITab() {
                           }}
                           className="text-xs text-theme-secondary hover:text-neon"
                         >
-                          全选
+                          {t('ait.selectAll')}
                         </button>
                         <button
                           type="button"
                           onClick={() => setFetchedSelected(new Set())}
                           className="text-xs text-theme-secondary hover:text-neon"
                         >
-                          清空
+                          {t('ait.clear')}
                         </button>
                         <button
                           type="button"
                           onClick={resetFetchedModels}
                           className="text-xs text-theme-secondary hover:text-neon"
                         >
-                          收起
+                          {t('ait.collapse')}
                         </button>
                       </div>
                       <button
@@ -1191,12 +1185,12 @@ export default function AITab() {
                         className="btn-primary gap-1 px-3 py-1 text-xs disabled:opacity-50"
                       >
                         <Plus size={12} />
-                        添加所选{fetchedSelected.size > 0 ? `（${fetchedSelected.size}）` : ''}
+                        {fetchedSelected.size > 0 ? t('ait.addSelectedN', { n: fetchedSelected.size }) : t('ait.addSelected')}
                       </button>
                     </div>
                   </div>
                 )}
-                <p className="mt-1 text-xs text-theme-muted">☑ 默认模型 · 标记为「视觉」的模型可用于场景描述</p>
+                <p className="mt-1 text-xs text-theme-muted">{t('ait.defaultModelHint')}</p>
               </div>
             </div>
 
@@ -1205,7 +1199,7 @@ export default function AITab() {
                 onClick={() => setShowProviderDialog(false)}
                 className="btn-ghost px-4 py-2 text-sm"
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleSaveProvider}
@@ -1213,7 +1207,7 @@ export default function AITab() {
                 className="btn-primary gap-1.5 px-5 py-2 text-sm"
               >
                 {providerSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                保存
+                {t('ait.save')}
               </button>
             </div>
           </div>
@@ -1227,7 +1221,7 @@ export default function AITab() {
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
           <Shield size={20} className="text-neon/60" />
-          数据脱敏
+          {t('ait.dataMasking')}
         </h2>
 
         <div className="glass-panel rounded-xl p-5 space-y-4">
@@ -1242,17 +1236,17 @@ export default function AITab() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-theme-primary">
-                  启用数据脱敏
+                  {t('ait.enableMasking')}
                 </p>
                 <p className="text-xs text-theme-muted">
-                  LLM 调用前自动脱敏敏感信息（手机号、身份证、密钥等）
+                  {t('ait.maskingDesc')}
                 </p>
               </div>
             </div>
             <Switch
               checked={editDesensitize}
               onCheckedChange={setEditDesensitize}
-              aria-label="启用数据脱敏"
+              aria-label={t('ait.enableMasking')}
             />
           </div>
 
@@ -1261,7 +1255,7 @@ export default function AITab() {
             <div className="rounded-lg border p-4 space-y-3" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-theme-muted">脱敏服务地址</label>
+                  <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.maskingUrl')}</label>
                   <input
                     type="text"
                     value={editDesensitizeURL}
@@ -1271,7 +1265,7 @@ export default function AITab() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-theme-muted">超时（秒）</label>
+                  <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.timeoutSec')}</label>
                   <input
                     type="number"
                     value={editDesensitizeTimeout}
@@ -1284,31 +1278,31 @@ export default function AITab() {
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-theme-primary">NER 语义识别</p>
-                  <p className="text-xs text-theme-muted">开启后额外识别人名、地址等语义信息（有并发限制）</p>
+                  <p className="text-sm font-medium text-theme-primary">{t('ait.ner')}</p>
+                  <p className="text-xs text-theme-muted">{t('ait.nerDesc')}</p>
                 </div>
                 <Switch
                   checked={editDesensitizeNER}
                   onCheckedChange={setEditDesensitizeNER}
-                  aria-label="NER 语义识别"
+                  aria-label={t('ait.ner')}
                 />
               </div>
               <div className="h-px" style={{ background: 'var(--border-default)' }} />
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-theme-primary">图片脱敏</p>
-                  <p className="text-xs text-theme-muted">开启后对外发图片先经脱敏服务打码（同一服务地址）</p>
+                  <p className="text-sm font-medium text-theme-primary">{t('ait.imageMasking')}</p>
+                  <p className="text-xs text-theme-muted">{t('ait.imageMaskingDesc')}</p>
                 </div>
                 <Switch
                   checked={editDesensitizeImageEnabled}
                   onCheckedChange={setEditDesensitizeImageEnabled}
-                  aria-label="图片脱敏"
+                  aria-label={t('ait.imageMasking')}
                 />
               </div>
               {editDesensitizeImageEnabled && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-muted">图片超时（秒）</label>
+                    <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.imgTimeoutSec')}</label>
                     <input
                       type="number"
                       value={editDesensitizeImageTimeout}
@@ -1319,7 +1313,7 @@ export default function AITab() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-theme-muted">生效范围（可多选）</label>
+                    <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.scope')}</label>
                     <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-surface)' }}>
                       <label className="flex cursor-pointer items-center gap-2 text-sm text-theme-primary">
                         <Checkbox
@@ -1328,7 +1322,7 @@ export default function AITab() {
                             setEditDesensitizeImageScopes((prev) => checked ? [...prev.filter((s) => s !== 'embedding'), 'embedding'] : prev.filter((s) => s !== 'embedding'))
                           }}
                         />
-                        Embedding（视频帧向量化）
+                        {t('ait.scopeEmbedding')}
                       </label>
                       <label className="flex cursor-pointer items-center gap-2 text-sm text-theme-primary">
                         <Checkbox
@@ -1337,10 +1331,10 @@ export default function AITab() {
                             setEditDesensitizeImageScopes((prev) => checked ? [...prev.filter((s) => s !== 'ai_assistant'), 'ai_assistant'] : prev.filter((s) => s !== 'ai_assistant'))
                           }}
                         />
-                        AI 助手图片上传
+                        {t('ait.scopeAssistantImg')}
                       </label>
                     </div>
-                    <p className="mt-1 text-[11px] text-theme-muted">可多选，新增功能时在此扩展选项</p>
+                    <p className="mt-1 text-[11px] text-theme-muted">{t('ait.scopeHint')}</p>
                   </div>
                 </div>
               )}
@@ -1352,7 +1346,7 @@ export default function AITab() {
             className="btn-primary gap-1.5 px-4 py-1.5 text-xs"
           >
             {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-            保存脱敏设置
+            {t('ait.saveMasking')}
           </button>
 
           {/* 测试服务健康 */}
@@ -1363,7 +1357,7 @@ export default function AITab() {
               className="btn-ghost gap-1.5 px-4 py-1.5 text-xs"
             >
               {dsTest.testing ? <Loader2 size={12} className="animate-spin" /> : <Activity size={12} />}
-              测试服务健康
+              {t('ait.testHealth')}
             </button>
             {dsTest.message && (
               <span
@@ -1382,33 +1376,33 @@ export default function AITab() {
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
           <Settings size={20} className="text-neon/60" />
-          全局设置
+          {t('ait.globalSettings')}
         </h2>
 
         <div className="glass-panel rounded-xl p-5 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-theme-muted">请求超时（秒）</label>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.reqTimeout')}</label>
               <input type="number" value={editTimeout} onChange={(e) => setEditTimeout(Number(e.target.value))}
                 className="input text-sm" min={5} max={120} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-theme-muted">月度预算上限（0=不限）</label>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.monthBudget')}</label>
               <input type="number" value={editMonthlyBudget} onChange={(e) => setEditMonthlyBudget(Number(e.target.value))}
                 className="input text-sm" min={0} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-theme-muted">缓存时长（小时）</label>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.cacheHours')}</label>
               <input type="number" value={editCacheTTL} onChange={(e) => setEditCacheTTL(Number(e.target.value))}
                 className="input text-sm" min={0} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-theme-muted">最大并发数</label>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.maxConcurrency')}</label>
               <input type="number" value={editMaxConcurrent} onChange={(e) => setEditMaxConcurrent(Number(e.target.value))}
                 className="input text-sm" min={1} max={10} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-theme-muted">请求间隔（毫秒）</label>
+              <label className="mb-1 block text-xs font-medium text-theme-muted">{t('ait.reqInterval')}</label>
               <input type="number" value={editRequestInterval} onChange={(e) => setEditRequestInterval(Number(e.target.value))}
                 className="input text-sm" min={0} />
             </div>
@@ -1419,7 +1413,7 @@ export default function AITab() {
             className="btn-primary gap-1.5 px-4 py-1.5 text-xs"
           >
             {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-            保存设置
+            {t('ait.saveSettings')}
           </button>
         </div>
       </section>
@@ -1434,7 +1428,7 @@ export default function AITab() {
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
           <BarChart3 size={20} className="text-neon/60" />
-          使用统计
+          {t('ait.usageStats')}
         </h2>
 
         <div className="glass-panel rounded-xl p-5">
@@ -1442,7 +1436,7 @@ export default function AITab() {
             <div className="text-center">
               <p className="text-2xl font-bold text-neon">{status?.monthly_calls || 0}</p>
               <p className="mt-1 text-xs text-theme-muted">
-                本月请求次数
+                {t('ait.monthCallsCount')}
               </p>
               {status?.monthly_budget ? (
                 <div className="mt-2">
@@ -1456,7 +1450,7 @@ export default function AITab() {
                     />
                   </div>
                   <p className="mt-1 text-[10px] text-surface-500">
-                    {Math.round(((status.monthly_calls || 0) / status.monthly_budget) * 100)}% 已用
+                    {Math.round(((status.monthly_calls || 0) / status.monthly_budget) * 100)}% {t('ait.used')}
                   </p>
                 </div>
               ) : null}
@@ -1466,7 +1460,7 @@ export default function AITab() {
                 {((status?.total_prompt_tokens || 0) / 1000).toFixed(1)}K
               </p>
               <p className="mt-1 text-xs text-theme-muted">
-                输入 Token
+                {t('ait.inputTokens')}
               </p>
             </div>
             <div className="text-center">
@@ -1474,7 +1468,7 @@ export default function AITab() {
                 {((status?.total_completion_tokens || 0) / 1000).toFixed(1)}K
               </p>
               <p className="mt-1 text-xs text-theme-muted">
-                输出 Token
+                {t('ait.outputTokens')}
               </p>
             </div>
           </div>
@@ -1484,8 +1478,8 @@ export default function AITab() {
             <div className="mt-4 flex items-center gap-2 rounded-lg bg-yellow-500/10 px-4 py-2.5 text-sm text-yellow-400">
               <AlertTriangle size={16} />
               {status.monthly_calls >= status.monthly_budget
-                ? '月度配额已用尽，AI 功能暂停'
-                : `月度配额已使用 ${Math.round((status.monthly_calls / status.monthly_budget) * 100)}%，请注意用量`}
+                ? t('ait.quotaExhausted')
+                : t('ait.quotaWarning', { pct: Math.round((status.monthly_calls / status.monthly_budget) * 100) })}
             </div>
           ) : null}
         </div>
@@ -1497,7 +1491,7 @@ export default function AITab() {
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
           <DatabaseIcon size={20} className="text-neon/60" />
-          缓存管理
+          {t('ait.cacheMgmt')}
         </h2>
 
         <div className="glass-panel rounded-xl p-5">
@@ -1505,10 +1499,10 @@ export default function AITab() {
             <div className="flex items-center gap-6">
               <div>
                 <p className="text-sm font-medium text-theme-primary">
-                  {cacheStats?.active_entries || 0} 条有效缓存
+                  {t('ait.activeCache', { count: cacheStats?.active_entries || 0 })}
                 </p>
                 <p className="text-xs text-theme-muted">
-                  共 {cacheStats?.total_entries || 0} 条 · {cacheStats?.expired_entries || 0} 条已过期 · TTL{' '}
+                  {t('ait.cacheStatLines', { total: cacheStats?.total_entries || 0, expired: cacheStats?.expired_entries || 0 })} TTL{' '}
                   {cacheStats?.ttl_hours || 0}h
                 </p>
               </div>
@@ -1519,7 +1513,7 @@ export default function AITab() {
                 className="btn-ghost gap-1 px-3 py-1.5 text-xs"
               >
                 <RefreshCw size={12} />
-                刷新
+                {t('ait.refresh')}
               </button>
               <button
                 onClick={handleClearCache}
@@ -1527,7 +1521,7 @@ export default function AITab() {
                 className="btn-ghost gap-1 px-3 py-1.5 text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
               >
                 {clearingCache ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                清空缓存
+                {t('ait.clearCache')}
               </button>
             </div>
           </div>
@@ -1540,7 +1534,7 @@ export default function AITab() {
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide text-theme-primary"
         >
           <Play size={20} className="text-neon/60" />
-          功能测试
+          {t('ait.featureTests')}
         </h2>
 
         <div className="space-y-4">
@@ -1548,7 +1542,7 @@ export default function AITab() {
           <div className="glass-panel rounded-xl p-5">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-theme-primary">
               <Search size={16} className="text-neon/60" />
-              智能搜索测试
+              {t('ait.searchTest')}
             </h3>
 
             <div className="flex gap-2">
@@ -1557,7 +1551,7 @@ export default function AITab() {
                 value={searchTestQuery}
                 onChange={(e) => setSearchTestQuery(e.target.value)}
                 className="input flex-1 text-sm"
-                placeholder="输入自然语言查询..."
+                placeholder={t('ait.searchPlaceholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleTestSearch()}
               />
               <button
@@ -1566,7 +1560,7 @@ export default function AITab() {
                 className="btn-primary gap-1.5 px-4 py-2 text-sm whitespace-nowrap"
               >
                 {testingSearch ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                测试
+                {t('ait.test')}
               </button>
             </div>
 
@@ -1580,7 +1574,7 @@ export default function AITab() {
                   className="rounded-md px-2 py-1 text-[11px] transition-colors hover:bg-white/[0.05]"
                   style={{ background: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
                 >
-                  {tc}
+                  {t(tc)}
                 </button>
               ))}
             </div>
@@ -1614,7 +1608,7 @@ export default function AITab() {
           <div className="glass-panel rounded-xl p-5">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-theme-primary">
               <MessageSquare size={16} className="text-neon/60" />
-              推荐理由测试
+              {t('ait.recommendTest')}
             </h3>
 
             <div className="flex gap-2">
@@ -1623,14 +1617,14 @@ export default function AITab() {
                 value={recommendTestTitle}
                 onChange={(e) => setRecommendTestTitle(e.target.value)}
                 className="input flex-1 text-sm"
-                placeholder="影片名称"
+                placeholder={t('ait.movieName')}
               />
               <input
                 type="text"
                 value={recommendTestGenres}
                 onChange={(e) => setRecommendTestGenres(e.target.value)}
                 className="input w-40 text-sm"
-                placeholder="类型（逗号分隔）"
+                placeholder={t('ait.genresPlaceholder')}
               />
               <button
                 onClick={() => handleTestRecommend()}
@@ -1638,7 +1632,7 @@ export default function AITab() {
                 className="btn-primary gap-1.5 px-4 py-2 text-sm whitespace-nowrap"
               >
                 {testingRecommend ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                测试
+                {t('ait.test')}
               </button>
             </div>
 
@@ -1646,13 +1640,13 @@ export default function AITab() {
             <div className="mt-2 flex flex-wrap gap-1.5">
               {RECOMMEND_TEST_CASES.map((tc) => (
                 <button
-                  key={tc.title}
-                  onClick={() => handleTestRecommend(tc.title, tc.genres)}
+                  key={tc.titleKey}
+                  onClick={() => handleTestRecommend(t(tc.titleKey), t(tc.genresKey))}
                   disabled={testingRecommend}
                   className="rounded-md px-2 py-1 text-[11px] transition-colors hover:bg-white/[0.05]"
                   style={{ background: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
                 >
-                  {tc.title}
+                  {t(tc.titleKey)}
                 </button>
               ))}
             </div>
@@ -1694,7 +1688,7 @@ export default function AITab() {
           className="mb-4 flex items-center gap-2 font-display text-lg font-semibold tracking-wide transition-colors text-theme-primary"
         >
           <AlertTriangle size={20} className="text-neon/60" />
-          错误日志
+          {t('ait.errorLogs')}
           {errorLogs.length > 0 && (
             <span className="ml-1 rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
               {errorLogs.length}
@@ -1709,7 +1703,7 @@ export default function AITab() {
               <div className="py-8 text-center">
                 <Check size={24} className="mx-auto mb-2 text-green-400" />
                 <p className="text-sm text-theme-muted">
-                  暂无错误记录
+                  {t('ait.noErrorLogs')}
                 </p>
               </div>
             ) : (
@@ -1746,11 +1740,11 @@ export default function AITab() {
           <Shield size={16} className="mt-0.5 text-neon/50 flex-shrink-0" />
           <div>
             <p className="text-xs font-medium text-theme-secondary">
-              权限说明
+              {t('ait.permissions')}
             </p>
             <p className="mt-1 text-xs text-theme-muted">
-              AI 配置仅管理员可修改。所有配置变更将实时生效，API 密钥以加密方式存储。
-              AI 功能调用不会上传任何用户隐私数据，仅发送影片标题和类型等公开信息。
+              {t('ait.perm1')}
+              {t('ait.perm2')}
             </p>
           </div>
         </div>

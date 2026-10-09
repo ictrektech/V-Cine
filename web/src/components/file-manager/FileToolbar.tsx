@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { SORT_OPTIONS, SOURCE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from './constants'
+import { useTranslation } from '@/i18n'
 import {
   Sparkles,
   Wand2,
@@ -82,15 +83,16 @@ export default function FileToolbar({
   onBatchRename, onBatchDelete, onClearSelection,
   children,
 }: FileToolbarProps) {
+  const { t } = useTranslation()
   const remoteDisabled = selectedAllRemote && !remoteVideoEnabled
   const analysisDisabled = !videoAnalysisEnabled || remoteDisabled
   let analysisTitle: string | undefined
   if (!videoAnalysisEnabled) {
-    analysisTitle = videoAnalysisDisabledReason || '视频分析服务未启用'
+    analysisTitle = videoAnalysisDisabledReason || t('fm.analysisNotEnabled')
   } else if (remoteDisabled) {
-    analysisTitle = REMOTE_ANALYSIS_DISABLED_TIP
+    analysisTitle = t(REMOTE_ANALYSIS_DISABLED_TIP)
   } else if (selectedAllRemote) {
-    analysisTitle = '远程视频已开启，将通过 URL 拉流分析（速度较慢并消耗网络带宽）'
+    analysisTitle = t('fm.remoteAnalysisHint')
   }
 
   return (
@@ -102,7 +104,7 @@ export default function FileToolbar({
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
           <Input
             type="text"
-            placeholder="搜索标题、原始标题、文件路径..."
+            placeholder={t('fm.searchPlaceholder')}
             value={keyword}
             onChange={e => onKeywordChange(e.target.value)}
             className="w-full pl-9 pr-3 text-sm rounded-lg"
@@ -114,7 +116,7 @@ export default function FileToolbar({
           onClick={onToggleFilters}
           className={clsx('btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm', showFilters && 'text-neon')}
         >
-          <Filter size={16} /> 筛选
+          <Filter size={16} /> {t('search.filter')}
           {showFilters ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
 
@@ -122,7 +124,7 @@ export default function FileToolbar({
 
         {/* 导入按钮 */}
         <button onClick={onImport} className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
-          <Plus size={16} /> 导入文件
+          <Plus size={16} /> {t('fm.importFiles')}
         </button>
 
         <div className="h-6 w-px bg-surface-700" />
@@ -133,13 +135,13 @@ export default function FileToolbar({
             onClick={() => onViewModeChange('table')}
             className={clsx('px-2.5 py-1.5 text-xs', viewMode === 'table' ? 'bg-neon-blue/20 text-neon' : 'text-surface-400')}
           >
-            列表
+            {t('fm.viewList')}
           </button>
           <button
             onClick={() => onViewModeChange('grid')}
             className={clsx('px-2.5 py-1.5 text-xs', viewMode === 'grid' ? 'bg-neon-blue/20 text-neon' : 'text-surface-400')}
           >
-            网格
+            {t('fm.viewGrid')}
           </button>
         </div>
 
@@ -152,28 +154,28 @@ export default function FileToolbar({
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t" style={{ borderColor: 'var(--border-default)' }}>
           <select value={filterLibrary} onChange={e => onFilterLibraryChange(e.target.value)}
             className="input-glass px-3 py-1.5 text-sm rounded-lg">
-            <option value="">全部媒体库</option>
+            <option value="">{t('fm.filterAllLibraries')}</option>
             {libraries.map(lib => <option key={lib.id} value={lib.id}>{lib.name}</option>)}
           </select>
           <select value={filterMediaType} onChange={e => onFilterMediaTypeChange(e.target.value)}
             className="input-glass px-3 py-1.5 text-sm rounded-lg">
-            <option value="">全部类型</option>
-            <option value="movie">电影</option>
-            <option value="episode">剧集</option>
+            <option value="">{t('fm.filterAllTypes')}</option>
+            <option value="movie">{t('media.movie')}</option>
+            <option value="episode">{t('media.episode')}</option>
           </select>
           <select value={filterScraped} onChange={e => onFilterScrapedChange(e.target.value)}
             className="input-glass px-3 py-1.5 text-sm rounded-lg">
-            <option value="">全部状态</option>
-            <option value="true">已刮削</option>
-            <option value="false">未刮削</option>
+            <option value="">{t('fm.filterAllStatus')}</option>
+            <option value="true">{t('fm.statScraped')}</option>
+            <option value="false">{t('fm.statUnscraped')}</option>
           </select>
           <select value={sortBy} onChange={e => onSortByChange(e.target.value)}
             className="input-glass px-3 py-1.5 text-sm rounded-lg">
-            {SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            {SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>)}
           </select>
           <button onClick={onToggleSortOrder}
             className="btn-ghost flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm">
-            <ArrowUpDown size={14} /> {sortOrder === 'desc' ? '降序' : '升序'}
+            <ArrowUpDown size={14} /> {sortOrder === 'desc' ? t('fm.sortDesc') : t('fm.sortAsc')}
           </button>
         </div>
       )}
@@ -182,7 +184,7 @@ export default function FileToolbar({
       {selectedCount > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border p-3" style={{ borderColor: 'var(--border-strong)', background: 'var(--bg-surface)' }}>
           <Badge variant="outline" className="gap-1.5 rounded-full border-transparent bg-neon-blue/10 px-3 py-1 text-sm font-medium text-neon">
-            <CheckSquare size={14} /> 已选 {selectedCount} 项
+            <CheckSquare size={14} /> {t('fm.selectedCount', { count: selectedCount })}
           </Badge>
 
           <Separator orientation="vertical" className="h-6" />
@@ -193,7 +195,7 @@ export default function FileToolbar({
             </SelectTrigger>
             <SelectContent>
               {SOURCE_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                <SelectItem key={opt.value} value={opt.value}>{opt.labelKey ? t(opt.labelKey) : opt.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -204,7 +206,7 @@ export default function FileToolbar({
             className="bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 hover:text-blue-200"
             onClick={onBatchScrape}
           >
-            <Sparkles size={14} /> 批量刮削
+            <Sparkles size={14} /> {t('fm.batchScrape')}
           </Button>
           <Button
             variant="ghost"
@@ -214,7 +216,7 @@ export default function FileToolbar({
             disabled={analysisDisabled}
             title={analysisTitle}
           >
-            <ScanSearch size={14} /> 视频结构化分析
+            <ScanSearch size={14} /> {t('fm.batchAnalyze')}
           </Button>
           {!videoAnalysisEnabled && (
             <Button
@@ -222,9 +224,9 @@ export default function FileToolbar({
               size="sm"
               className="px-2.5 text-xs text-amber-300 hover:bg-amber-400/10 hover:text-amber-200"
               onClick={() => { window.location.href = toAppUrl(routes.admin()) }}
-              title={videoAnalysisDisabledReason || '前往视频分析相关配置'}
+              title={videoAnalysisDisabledReason || t('fm.goAnalysisConfig')}
             >
-              前往配置
+              {t('fm.goConfig')}
             </Button>
           )}
           <Button
@@ -233,7 +235,7 @@ export default function FileToolbar({
             className="bg-purple-400/10 text-purple-300 hover:bg-purple-400/20 hover:text-purple-200"
             onClick={onBatchRename}
           >
-            <Wand2 size={14} /> 批量重命名
+            <Wand2 size={14} /> {t('fm.batchRename')}
           </Button>
 
           <Separator orientation="vertical" className="h-6" />
@@ -244,7 +246,7 @@ export default function FileToolbar({
             className="border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200"
             onClick={onBatchDelete}
           >
-            <Trash2 size={14} /> 批量删除
+            <Trash2 size={14} /> {t('common.delete')}
           </Button>
 
           <Button
@@ -253,7 +255,7 @@ export default function FileToolbar({
             className="ml-auto text-surface-400 hover:text-surface-200"
             onClick={onClearSelection}
           >
-            <X size={14} /> 取消选择
+            <X size={14} /> {t('fm.cancelSelection')}
           </Button>
         </div>
       )}

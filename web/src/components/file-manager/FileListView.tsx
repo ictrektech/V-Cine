@@ -32,6 +32,7 @@ import { usePosterVersion } from '@/stores/mediaRefresh'
 import Pagination from '@/components/Pagination'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
+import { useTranslation } from '@/i18n'
 
 interface FileListViewProps {
   files: Media[]
@@ -77,6 +78,7 @@ export default function FileListView({
   onPlayFile, onCopyFilePath,
   onCreateSubFolder, onRenameSubFolder, onDeleteSubFolder, onRefreshSubFolder, onCopyFolderPath,
 }: FileListViewProps) {
+  const { t } = useTranslation()
   // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
   // 右键菜单状态
@@ -92,7 +94,7 @@ export default function FileListView({
   // 来源显示：媒体库名
   const sourceLabel = (file: Media): string => {
     const lib = libraries?.find(l => l.id === file.library_id)
-    return lib ? lib.name : '未知'
+    return lib ? lib.name : t('common.unknown')
   }
 
   // 表格横向滚动时显示固定列（标题/操作）分隔线
@@ -120,46 +122,46 @@ export default function FileListView({
     return [
       {
         key: 'play',
-        label: '播放/预览',
+        label: t('fm.playPreview'),
         icon: <Play size={14} />,
         onClick: () => onPlayFile?.(file) || onViewDetail(file),
       },
       {
         key: 'detail',
-        label: '查看详情',
+        label: t('fm.viewDetail'),
         icon: <Eye size={14} />,
         onClick: () => onViewDetail(file),
       },
       {
         key: 'edit',
-        label: '编辑信息',
+        label: t('fm.editInfo'),
         icon: <Edit3 size={14} />,
         divider: true,
         onClick: () => onEdit(file),
       },
       {
         key: 'scrape',
-        label: '重新刮削',
+        label: t('fm.rescrape'),
         icon: <Sparkles size={14} />,
         onClick: () => onScrape(file.id),
       },
       {
         key: 'copy-path',
-        label: '复制文件路径',
+        label: t('fm.copyFilePath'),
         icon: <Copy size={14} />,
         divider: true,
         onClick: () => onCopyFilePath?.(file.file_path),
       },
       {
         key: 'delete',
-        label: '删除文件',
+        label: t('fm.deleteFile'),
         icon: <Trash2 size={14} />,
         danger: true,
         divider: true,
         onClick: () => onDelete(file.id),
       },
     ]
-  }, [ctxMenu.media, onPlayFile, onViewDetail, onEdit, onScrape, onDelete, onCopyFilePath])
+  }, [ctxMenu.media, onPlayFile, onViewDetail, onEdit, onScrape, onDelete, onCopyFilePath, t])
 
   // 构建子文件夹右键菜单项
   const getFolderMenuItems = useCallback((): ContextMenuItem[] => {
@@ -168,13 +170,13 @@ export default function FileListView({
     return [
       {
         key: 'open',
-        label: '打开文件夹',
+        label: t('fm.openFolder'),
         icon: <FolderOpen size={14} />,
         onClick: () => onNavigateFolder?.(fp),
       },
       {
         key: 'create',
-        label: '新建子文件夹',
+        label: t('fm.contextNewFolder'),
         icon: <FolderPlus size={14} />,
         divider: true,
         disabled: !onCreateSubFolder,
@@ -182,14 +184,14 @@ export default function FileListView({
       },
       {
         key: 'rename',
-        label: '重命名',
+        label: t('common.rename'),
         icon: <Pencil size={14} />,
         disabled: !onRenameSubFolder,
         onClick: () => onRenameSubFolder?.(fp),
       },
       {
         key: 'refresh',
-        label: '刷新',
+        label: t('fm.refresh'),
         icon: <RefreshCw size={14} />,
         divider: true,
         disabled: !onRefreshSubFolder,
@@ -197,13 +199,13 @@ export default function FileListView({
       },
       {
         key: 'copy-path',
-        label: '复制路径',
+        label: t('fm.copyPath'),
         icon: <Copy size={14} />,
         onClick: () => onCopyFolderPath?.(fp),
       },
       {
         key: 'delete',
-        label: '删除文件夹',
+        label: t('fm.deleteFolder'),
         icon: <Trash2 size={14} />,
         danger: true,
         divider: true,
@@ -211,7 +213,7 @@ export default function FileListView({
         onClick: () => onDeleteSubFolder?.(fp),
       },
     ]
-  }, [ctxMenu.folderPath, onNavigateFolder, onCreateSubFolder, onRenameSubFolder, onDeleteSubFolder, onRefreshSubFolder, onCopyFolderPath])
+  }, [ctxMenu.folderPath, onNavigateFolder, onCreateSubFolder, onRenameSubFolder, onDeleteSubFolder, onRefreshSubFolder, onCopyFolderPath, t])
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -226,8 +228,8 @@ export default function FileListView({
     return (
       <div className="p-12 text-center">
         <FolderOpen size={48} className="mx-auto mb-4 text-surface-500" />
-        <p className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>暂无影视文件</p>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>点击"导入文件"开始添加，或为媒体库添加路径后扫描</p>
+        <p className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>{t('fm.noFiles')}</p>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>{t('fm.noFilesHint')}</p>
       </div>
     )
   }
@@ -248,26 +250,26 @@ export default function FileListView({
       : 'gap-1 text-xs border-transparent'
     if (st === 'partial') {
       return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-orange-500/80' : 'bg-orange-500/10 text-orange-400')}>
-        {size === 'sm' ? '部分刮削' : <><AlertCircle size={12} /> 部分刮削</>}
+        {size === 'sm' ? t('fm.statPartial') : <><AlertCircle size={12} /> {t('fm.statPartial')}</>}
       </Badge>
     }
     if (st === 'failed') {
       return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-red-500/80' : 'bg-red-500/10 text-red-400')}>
-        {size === 'sm' ? '刮削失败' : <><AlertCircle size={12} /> 刮削失败</>}
+        {size === 'sm' ? t('fm.statFailed') : <><AlertCircle size={12} /> {t('fm.statFailed')}</>}
       </Badge>
     }
     if (st === 'manual') {
       return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-blue-500/80' : 'bg-blue-500/10 text-blue-400')}>
-        {size === 'sm' ? '手动锁定' : <><Check size={12} /> 手动锁定</>}
+        {size === 'sm' ? t('fm.statManual') : <><Check size={12} /> {t('fm.statManual')}</>}
       </Badge>
     }
     if (isScraped(file)) {
       return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-green-500/80' : 'bg-green-500/10 text-green-400')}>
-        {size === 'sm' ? '已刮削' : <><Check size={12} /> 已刮削</>}
+        {size === 'sm' ? t('fm.statScraped') : <><Check size={12} /> {t('fm.statScraped')}</>}
       </Badge>
     }
     return <Badge variant="outline" className={clsx(cls, size === 'sm' ? 'bg-amber-500/80' : 'bg-amber-500/10 text-amber-400')}>
-      {size === 'sm' ? '未刮削' : <><AlertCircle size={12} /> 未刮削</>}
+      {size === 'sm' ? t('fm.statUnscraped') : <><AlertCircle size={12} /> {t('fm.statUnscraped')}</>}
     </Badge>
   }
 
@@ -308,7 +310,7 @@ export default function FileListView({
         /* 当前文件夹下无直接文件（但有子文件夹） */
         <div className="p-8 text-center">
           <FolderOpen size={36} className="mx-auto mb-3 text-surface-500" />
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>当前文件夹下无直接文件，请浏览子文件夹</p>
+          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>{t('fm.noDirectFiles')}</p>
         </div>
       ) : viewMode === 'table' ? (
         /* 表格视图。无强制 min-width：列宽由内容撑起，操作列 sticky right，小屏不产生滚动空白；
@@ -322,14 +324,14 @@ export default function FileListView({
                     {selectedIds.size === files.length ? <CheckSquare size={16} className="text-neon" /> : <Square size={16} className="text-surface-500" />}
                   </button>
                 </TableHead>
-                <TableHead className="sticky left-10 top-0 z-30 px-2.5 py-2 text-left" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>标题</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>类型</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>年份</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>评分</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>大小</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>来源</TableHead>
-                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>状态</TableHead>
-                <TableHead className="sticky top-0 right-0 z-30 px-2.5 py-2 text-right" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset 1px 0 0 var(--border-strong)' : 'none' }}>操作</TableHead>
+                <TableHead className="sticky left-10 top-0 z-30 px-2.5 py-2 text-left" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset -1px 0 0 var(--border-strong)' : 'none' }}>{t('fm.colTitle')}</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>{t('fm.colType')}</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>{t('fm.colYear')}</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>{t('fm.colRating')}</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>{t('fm.colSize')}</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>{t('fm.colSource')}</TableHead>
+                <TableHead className="sticky top-0 z-20 hidden px-2.5 py-2 text-left @660:table-cell" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}>{t('fm.colStatus')}</TableHead>
+                <TableHead className="sticky top-0 right-0 z-30 px-2.5 py-2 text-right" style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset 1px 0 0 var(--border-strong)' : 'none' }}>{t('fm.colActions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -363,8 +365,8 @@ export default function FileListView({
                             className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-bl-md rounded-tr"
                             style={{ background: 'rgba(0,0,0,0.72)', border: '1px solid rgba(251,191,36,0.35)' }}
                             title={file.poster_origin === 'frame'
-                              ? '封面为自动生成（视频抽帧）'
-                              : '封面为自动生成（视频内嵌封面）'}
+                              ? t('fm.posterAutoFrame')
+                              : t('fm.posterAutoEmbedded')}
                           >
                             <Sparkles size={10} className="text-amber-400" />
                           </span>
@@ -397,7 +399,7 @@ export default function FileListView({
                       file.media_type === 'movie' ? 'bg-purple-500/10 text-purple-400' : 'bg-green-500/10 text-green-400'
                     )}>
                       {file.media_type === 'movie' ? <Film size={12} /> : <Tv size={12} />}
-                      {file.media_type === 'movie' ? '电影' : '剧集'}
+                      {file.media_type === 'movie' ? t('media.movie') : t('media.episode')}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden px-2.5 py-2 @660:table-cell" style={{ color: 'var(--text-secondary)' }}>
@@ -422,19 +424,19 @@ export default function FileListView({
                   <TableCell className="sticky right-0 z-10 px-2.5 py-2 text-right" style={{ background: 'var(--bg-surface)', boxShadow: tableScrolled ? 'inset 1px 0 0 var(--border-strong)' : 'none' }}>
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => onViewDetail(file)}
-                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-blue-400" title="查看详情">
+                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-blue-400" title={t('fm.viewDetail')}>
                         <Eye size={14} />
                       </button>
                       <button onClick={() => onEdit(file)}
-                        className="hidden md:inline-flex p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-amber-400" title="编辑">
+                        className="hidden md:inline-flex p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-amber-400" title={t('common.edit')}>
                         <Edit3 size={14} />
                       </button>
                       <button onClick={() => onScrape(file.id)}
-                        className="hidden md:inline-flex p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-purple-400" title="刮削">
+                        className="hidden md:inline-flex p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-purple-400" title={t('fm.scrape')}>
                         <Sparkles size={14} />
                       </button>
                       <button onClick={() => onDelete(file.id)}
-                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-red-400" title="删除">
+                        className="p-1.5 rounded hover:bg-white/5 text-surface-400 hover:text-red-400" title={t('common.delete')}>
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -471,15 +473,15 @@ export default function FileListView({
                 {/* 悬浮操作 */}
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                   <button onClick={e => { e.stopPropagation(); onEdit(file) }}
-                    className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white" title="编辑">
+                    className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white" title={t('common.edit')}>
                     <Edit3 size={16} />
                   </button>
                   <button onClick={e => { e.stopPropagation(); onScrape(file.id) }}
-                    className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white" title="刮削">
+                    className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white" title={t('fm.scrape')}>
                     <Sparkles size={16} />
                   </button>
                   <button onClick={e => { e.stopPropagation(); onDelete(file.id) }}
-                    className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white" title="删除">
+                    className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white" title={t('common.delete')}>
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -501,7 +503,7 @@ export default function FileListView({
                   <span>{file.year || '-'}</span>
                   {file.rating > 0 && <span className="text-amber-400">★ {file.rating.toFixed(1)}</span>}
                   <span className={file.media_type === 'movie' ? 'text-purple-400' : 'text-green-400'}>
-                    {file.media_type === 'movie' ? '电影' : '剧集'}
+                    {file.media_type === 'movie' ? t('media.movie') : t('media.episode')}
                   </span>
                 </div>
               </CardContent>

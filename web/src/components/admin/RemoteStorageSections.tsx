@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Link2,
 } from 'lucide-react'
+import { useTranslation } from '@/i18n'
 import { Switch } from '@/components/ui/switch'
 import {
   SectionShell,
@@ -73,6 +74,7 @@ function toProviderState(status: { enabled?: boolean; connected?: boolean } | nu
 // ==================== Alist Section ====================
 
 export function AlistSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<AlistConfig>(DEFAULT_ALIST)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -117,10 +119,10 @@ export function AlistSection() {
       await storageApi.updateAlistConfig(payload)
       setPwdDirty(false)
       setTokenDirty(false)
-      setToast({ ok: true, msg: 'Alist 配置已保存' })
+      setToast({ ok: true, msg: t('st.savedAlist') })
       await load()
     } catch (e: any) {
-      setToast({ ok: false, msg: '保存失败: ' + (e.response?.data?.error || e.message) })
+      setToast({ ok: false, msg: t('st.saveFailedColon') + (e.response?.data?.error || e.message) })
     } finally {
       setSaving(false)
     }
@@ -137,12 +139,12 @@ export function AlistSection() {
         token: tokenDirty ? config.token : '',
         base_path: config.base_path,
       })
-      setToast({ ok: true, msg: 'Alist 连接测试成功' })
+      setToast({ ok: true, msg: t('st.testOkAlist') })
     } catch (e: any) {
-      const raw = e.response?.data?.error || '连接测试失败'
+      const raw = e.response?.data?.error || t('st.testFailed')
       const missingCreds = !hasToken && !hasPwd && !config.token.trim() && (!config.username.trim() || !config.password.trim())
       const msg = missingCreds
-        ? '连接失败：未填写 Token 或完整的账号密码，请确认 Alist 服务是否需要认证'
+        ? t('st.testAuthHintAlist')
         : raw
       setToast({ ok: false, msg })
     } finally {
@@ -161,29 +163,29 @@ export function AlistSection() {
   return (
     <SectionShell
       icon={<Cloud size={18} />}
-      title="Alist 聚合网盘"
-      subtitle="统一对接阿里云盘 / 115 / 夸克 / 百度网盘 / OneDrive 等"
+      title={t('st.alistCardName')}
+      subtitle={t('st.alistCardSubtitle')}
       badge={<VersionBadge accent="purple">V2.3</VersionBadge>}
       statusSlot={<StatusBadge state={toProviderState(status)} />}
       accent="purple"
       description={
         <>
-          媒体库路径使用{' '}
+          {t('st.prefixStart')}{' '}
           <code
             className="mx-0.5 rounded px-1.5 py-0.5 font-mono text-[11px] text-purple-600 dark:text-purple-300"
             style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.25)' }}
           >
             alist://
           </code>
-          {' '}前缀。推荐使用 <strong>长期 Token</strong> 模式，避免明文保存密码。
+          {' '}{t('st.prefixEndAlist')}
         </>
       }
     >
       {/* 启用开关行 */}
       <EnableRow
         icon={<Link2 size={16} />}
-        title="启用 Alist 存储"
-        description="启用后可将 Alist 挂载的网盘作为媒体库数据源"
+        title={t('st.enableTitleAlist')}
+        description={t('st.enableDescAlist')}
         checked={config.enabled}
         onChange={(v) => setConfig({ ...config, enabled: v })}
         iconColorClass="text-purple-600 dark:text-purple-300"
@@ -193,9 +195,9 @@ export function AlistSection() {
       {config.enabled ? (
         <>
       {/* 连接配置 */}
-      <FieldGroup title="连接" description="Alist 服务地址与基础路径" collapsible defaultOpen={!(config.enabled && status?.connected)}>
+      <FieldGroup title={t('st.connTitle')} description={t('st.connDescAlist')} collapsible defaultOpen={!(config.enabled && status?.connected)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="服务器地址" required fullWidth>
+          <Field label={t('st.serverUrl')} required fullWidth>
             <Input
               type="url"
               value={config.server_url}
@@ -204,7 +206,7 @@ export function AlistSection() {
               disabled={!config.enabled}
             />
           </Field>
-          <Field label="基础路径" hint="所有相对路径基于此路径解析">
+          <Field label={t('st.basePath')} hint={t('st.basePathHintAlist')}>
             <Input
               type="text"
               value={config.base_path}
@@ -213,7 +215,7 @@ export function AlistSection() {
               disabled={!config.enabled}
             />
           </Field>
-          <Field label="超时（秒）">
+          <Field label={t('st.timeout')}>
             <Input
               type="number"
               min={1}
@@ -226,9 +228,9 @@ export function AlistSection() {
       </FieldGroup>
 
       {/* 鉴权 */}
-      <FieldGroup title="鉴权" description="推荐使用 Token，二者都填时 Token 优先" collapsible defaultOpen={!(config.enabled && status?.connected)}>
+      <FieldGroup title={t('st.authTitle')} description={t('st.authDescAlist')} collapsible defaultOpen={!(config.enabled && status?.connected)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="用户名">
+          <Field label={t('st.username')}>
             <Input
               type="text"
               value={config.username}
@@ -237,7 +239,7 @@ export function AlistSection() {
               autoComplete="username"
             />
           </Field>
-          <Field label="密码">
+          <Field label={t('st.password')}>
             <Input
               type={showPwd ? 'text' : 'password'}
               value={config.password}
@@ -246,12 +248,12 @@ export function AlistSection() {
                 setPwdDirty(true)
               }}
               disabled={!config.enabled}
-              placeholder={pwdDirty ? '' : (hasPwd ? '已设置密码，留空保持不变' : '未设置密码')}
+              placeholder={pwdDirty ? '' : (hasPwd ? t('st.pwdSet') : t('st.pwdUnset'))}
               autoComplete="current-password"
               suffix={<EyeToggle visible={showPwd} onToggle={() => setShowPwd((v) => !v)} />}
             />
           </Field>
-          <Field label="长期 Token（推荐）" fullWidth hint="优先于用户名密码使用，避免每次登录换取 JWT">
+          <Field label={t('st.token')} fullWidth hint={t('st.tokenHint')}>
             <Input
               type={showToken ? 'text' : 'password'}
               value={config.token}
@@ -260,7 +262,7 @@ export function AlistSection() {
                 setTokenDirty(true)
               }}
               disabled={!config.enabled}
-              placeholder={tokenDirty ? '' : (hasToken ? '已设置 Token，留空保持不变' : '未设置 Token')}
+              placeholder={tokenDirty ? '' : (hasToken ? t('st.tokenSet') : t('st.tokenUnset'))}
               className="font-mono"
               suffix={<EyeToggle visible={showToken} onToggle={() => setShowToken((v) => !v)} />}
             />
@@ -269,9 +271,9 @@ export function AlistSection() {
       </FieldGroup>
 
       {/* 性能（折叠） */}
-      <FieldGroup title="性能调优" collapsible defaultOpen={false} description="影响流式播放的缓存和分块读取策略">
+      <FieldGroup title={t('st.perfTuning')} collapsible defaultOpen={false} description={t('st.perfDescCommon')}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="启用元数据缓存">
+          <Field label={t('st.metaCache')}>
             <div className="flex items-center h-9">
               <Switch
                 checked={config.enable_cache}
@@ -280,7 +282,7 @@ export function AlistSection() {
               />
             </div>
           </Field>
-          <Field label="缓存 TTL（小时）">
+          <Field label={t('st.cacheTtl')}>
             <Input
               type="number"
               min={0}
@@ -289,7 +291,7 @@ export function AlistSection() {
               disabled={!config.enabled || !config.enable_cache}
             />
           </Field>
-          <Field label="块大小（MiB）">
+          <Field label={t('st.chunkSize')}>
             <Input
               type="number"
               min={1}
@@ -298,7 +300,7 @@ export function AlistSection() {
               disabled={!config.enabled}
             />
           </Field>
-          <Field label="每文件最大块数">
+          <Field label={t('st.maxChunks')}>
             <Input
               type="number"
               min={1}
@@ -313,7 +315,7 @@ export function AlistSection() {
         </>
       ) : (
         <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          启用 Alist 存储后，将在这里显示连接与鉴权配置。
+          {t('st.notConfiguredHintAlist')}
         </p>
       )}
 
@@ -331,9 +333,9 @@ export function AlistSection() {
               loading={testing}
               icon={<Wifi size={16} />}
             >
-              测试连接
+              {t('st.testBtn')}
             </ActionButton>
-            <ActionButton variant="icon" onClick={load} icon={<RefreshCw size={16} />} aria-label="刷新" />
+            <ActionButton variant="icon" onClick={load} icon={<RefreshCw size={16} />} aria-label={t('st.refresh')} />
           </>
         }
         primaryActions={
@@ -345,7 +347,7 @@ export function AlistSection() {
             loading={saving}
             icon={<Save size={16} />}
           >
-            保存配置
+            {t('st.saveBtn')}
           </ActionButton>
         }
       />
@@ -356,6 +358,7 @@ export function AlistSection() {
 // ==================== S3 Section ====================
 
 export function S3Section() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<S3Config>(DEFAULT_S3)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -394,10 +397,10 @@ export function S3Section() {
       if (!secretDirty) delete payload.secret_key
       await storageApi.updateS3Config(payload)
       setSecretDirty(false)
-      setToast({ ok: true, msg: 'S3 配置已保存' })
+      setToast({ ok: true, msg: t('st.savedS3') })
       await load()
     } catch (e: any) {
-      setToast({ ok: false, msg: '保存失败: ' + (e.response?.data?.error || e.message) })
+      setToast({ ok: false, msg: t('st.saveFailedColon') + (e.response?.data?.error || e.message) })
     } finally {
       setSaving(false)
     }
@@ -416,12 +419,12 @@ export function S3Section() {
         base_path: config.base_path,
         path_style: config.path_style,
       })
-      setToast({ ok: true, msg: 'S3 连接测试成功' })
+      setToast({ ok: true, msg: t('st.testOkS3') })
     } catch (e: any) {
-      const raw = e.response?.data?.error || '连接测试失败'
+      const raw = e.response?.data?.error || t('st.testFailed')
       const missingCreds = !config.access_key.trim() || (!hasSecret && !config.secret_key.trim())
       const msg = missingCreds
-        ? '连接失败：未填写 Access Key / Secret Key，请确认对象存储认证信息'
+        ? t('st.testAuthHintS3')
         : raw
       setToast({ ok: false, msg })
     } finally {
@@ -440,29 +443,29 @@ export function S3Section() {
   return (
     <SectionShell
       icon={<Database size={18} />}
-      title="S3 兼容对象存储"
-      subtitle="AWS S3 / MinIO / R2 / 阿里云 OSS / 腾讯云 COS / B2"
+      title={t('st.s3CardName')}
+      subtitle={t('st.s3CardSubtitle')}
       badge={<VersionBadge accent="amber">V2.3</VersionBadge>}
       statusSlot={<StatusBadge state={toProviderState(status)} />}
       accent="amber"
       description={
         <>
-          媒体库路径使用{' '}
+          {t('st.prefixStart')}{' '}
           <code
             className="mx-0.5 rounded px-1.5 py-0.5 font-mono text-[11px] text-amber-600 dark:text-amber-300"
             style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}
           >
             s3://
           </code>
-          {' '}前缀；MinIO 等自建服务请勾选 <strong>Path-Style</strong>；播放通过预签名 URL（有效期 2 小时）。
+          {' '}{t('st.prefixEndS3')}
         </>
       }
     >
       {/* 启用 */}
       <EnableRow
         icon={<Database size={16} />}
-        title="启用 S3 存储"
-        description="启用后可将对象存储桶作为媒体库数据源"
+        title={t('st.enableTitleS3')}
+        description={t('st.enableDescS3')}
         checked={config.enabled}
         onChange={(v) => setConfig({ ...config, enabled: v })}
         iconColorClass="text-amber-600 dark:text-amber-300"
@@ -472,13 +475,13 @@ export function S3Section() {
       {config.enabled ? (
         <>
       {/* 连接 */}
-      <FieldGroup title="连接" description="Endpoint、Region 与 Bucket" collapsible defaultOpen={!(config.enabled && status?.connected)}>
+      <FieldGroup title={t('st.connTitle')} description={t('st.connDescS3')} collapsible defaultOpen={!(config.enabled && status?.connected)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             label="Endpoint"
             required
             fullWidth
-            hint="如 https://s3.amazonaws.com、https://minio.example.com:9000"
+            hint={t('st.endpointHint2')}
           >
             <Input
               type="url"
@@ -505,7 +508,7 @@ export function S3Section() {
               disabled={!config.enabled}
             />
           </Field>
-          <Field label="基础路径前缀" hint="例如 media/，所有对象 key 以此为根">
+          <Field label={t('st.prefixLabel')} hint={t('st.prefixHint')}>
             <Input
               type="text"
               value={config.base_path}
@@ -514,7 +517,7 @@ export function S3Section() {
               disabled={!config.enabled}
             />
           </Field>
-          <Field label="Path-Style 寻址">
+          <Field label={t('st.pathStyle')}>
             <div className="flex items-center h-9 gap-2">
               <Switch
                 checked={config.path_style}
@@ -522,7 +525,7 @@ export function S3Section() {
                 disabled={!config.enabled}
               />
               <span className="text-xs inline-flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-                <Server size={12} /> MinIO 等自建必选
+                <Server size={12} /> {t('st.pathStyleHint')}
               </span>
             </div>
           </Field>
@@ -530,9 +533,9 @@ export function S3Section() {
       </FieldGroup>
 
       {/* 鉴权 */}
-      <FieldGroup title="鉴权" description="Access Key + Secret Key" collapsible defaultOpen={!(config.enabled && status?.connected)}>
+      <FieldGroup title={t('st.authTitle')} description={t('st.authDescS3')} collapsible defaultOpen={!(config.enabled && status?.connected)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Access Key" required>
+          <Field label={t('st.accessKey')} required>
             <Input
               type="text"
               value={config.access_key}
@@ -542,7 +545,7 @@ export function S3Section() {
               autoComplete="off"
             />
           </Field>
-          <Field label="Secret Key" required>
+          <Field label={t('st.secretKey')} required>
             <Input
               type={showSecret ? 'text' : 'password'}
               value={config.secret_key}
@@ -551,7 +554,7 @@ export function S3Section() {
                 setSecretDirty(true)
               }}
               disabled={!config.enabled}
-              placeholder={secretDirty ? '' : (hasSecret ? '已设置 Secret，留空保持不变' : '未设置 Secret')}
+              placeholder={secretDirty ? '' : (hasSecret ? t('st.secretSet') : t('st.secretUnset'))}
               className="font-mono"
               autoComplete="off"
               suffix={<EyeToggle visible={showSecret} onToggle={() => setShowSecret((v) => !v)} />}
@@ -562,13 +565,13 @@ export function S3Section() {
 
       {/* 性能（折叠） */}
       <FieldGroup
-        title="性能调优"
+        title={t('st.perfTuning')}
         collapsible
         defaultOpen={false}
-        description="影响流式播放的缓存和分块读取策略"
+        description={t('st.perfDescCommon')}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="启用元数据缓存">
+          <Field label={t('st.metaCache')}>
             <div className="flex items-center h-9">
               <Switch
                 checked={config.enable_cache}
@@ -577,7 +580,7 @@ export function S3Section() {
               />
             </div>
           </Field>
-          <Field label="缓存 TTL（小时）">
+          <Field label={t('st.cacheTtl')}>
             <Input
               type="number"
               min={0}
@@ -586,7 +589,7 @@ export function S3Section() {
               disabled={!config.enabled || !config.enable_cache}
             />
           </Field>
-          <Field label="块大小（MiB）">
+          <Field label={t('st.chunkSize')}>
             <Input
               type="number"
               min={1}
@@ -595,7 +598,7 @@ export function S3Section() {
               disabled={!config.enabled}
             />
           </Field>
-          <Field label="每文件最大块数">
+          <Field label={t('st.maxChunks')}>
             <Input
               type="number"
               min={1}
@@ -610,7 +613,7 @@ export function S3Section() {
         </>
       ) : (
         <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          启用 S3 存储后，将在这里显示连接与鉴权配置。
+          {t('st.notConfiguredHintS3')}
         </p>
       )}
 
@@ -628,9 +631,9 @@ export function S3Section() {
               loading={testing}
               icon={<Wifi size={16} />}
             >
-              测试连接
+              {t('st.testBtn')}
             </ActionButton>
-            <ActionButton variant="icon" onClick={load} icon={<RefreshCw size={16} />} aria-label="刷新" />
+            <ActionButton variant="icon" onClick={load} icon={<RefreshCw size={16} />} aria-label={t('st.refresh')} />
           </>
         }
         primaryActions={
@@ -642,7 +645,7 @@ export function S3Section() {
             loading={saving}
             icon={<Save size={16} />}
           >
-            保存配置
+            {t('st.saveBtn')}
           </ActionButton>
         }
       />

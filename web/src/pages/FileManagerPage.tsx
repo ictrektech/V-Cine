@@ -10,6 +10,7 @@ import { toAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
 import { useToast } from '@/components/Toast'
+import { useTranslation } from '@/i18n'
 import { useNotificationCenterStore } from '@/stores/notificationCenter'
 import { useDialog } from '@/components/Dialog'
 import AIAssistant, { AIAssistantButton, AIAssistantPanel } from '@/components/AIAssistant'
@@ -58,6 +59,7 @@ import type { TabType, DialogType } from '@/components/file-manager'
 type FolderDialogType = 'none' | 'createFolder' | 'renameFolder' | 'deleteFolder'
 
 export default function FileManagerPage() {
+  const { t } = useTranslation()
   const toast = useToast()
   const dialog = useDialog()
   const { on, off } = useWebSocket()
@@ -214,7 +216,7 @@ export default function FileManagerPage() {
         setSubFolders([])
       }
     } catch {
-      toast.error('获取文件列表失败')
+      toast.error(t('fm.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -270,7 +272,7 @@ export default function FileManagerPage() {
     } catch (err: any) {
       if (err?.response?.status === 503) {
         setVideoAnalysisEnabled(false)
-        setVideoAnalysisDisabledReason(err?.response?.data?.error || '视频分析服务未启用或配置无效')
+        setVideoAnalysisDisabledReason(err?.response?.data?.error || t('fm.analysisDisabled'))
         return
       }
       setVideoAnalysisEnabled(true)
@@ -357,39 +359,39 @@ export default function FileManagerPage() {
 
   const handleDeleteFile = async (id: string) => {
     const ok = await dialog.confirm({
-      title: '删除文件记录',
-      message: '确定要删除此文件记录吗？（原始文件不会被删除）',
-      confirmText: '删除',
+      title: t('fm.deleteFileTitle'),
+      message: t('fm.deleteFileConfirm'),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
     try {
       await fileManagerApi.deleteFile(id)
-      toast.success('文件记录已删除')
+      toast.success(t('fm.deletedRecord'))
       setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
       invalidateMediaListCaches()
       fetchFiles(); fetchStats()
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '删除失败')
+      toast.error(err?.response?.data?.error || t('fm.deleteFailed'))
     }
   }
 
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return
     const ok = await dialog.confirm({
-      title: '批量删除文件记录',
-      message: `确定要删除选中的 ${selectedIds.size} 个文件记录吗？（原始文件不会被删除）`,
-      confirmText: '删除',
+      title: t('fm.batchDeleteTitle'),
+      message: t('fm.batchDeleteConfirm', { count: selectedIds.size }),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
     try {
       const res = await fileManagerApi.batchDeleteFiles(Array.from(selectedIds))
-      toast.success(`已删除 ${res.data.deleted} 个文件记录`)
+      toast.success(t('fm.batchDeleted', { count: res.data.deleted }))
       setSelectedIds(new Set())
       invalidateMediaListCaches()
       fetchFiles(); fetchStats()
-    } catch { toast.error('批量删除失败') }
+    } catch { toast.error(t('fm.batchDeleteFailed')) }
   }
 
   // 乐观推送刮削进行中通知（与 WS scrape_chain 同 id，事件到达后原地更新）
@@ -397,8 +399,8 @@ export default function FileManagerPage() {
     useNotificationCenterStore.getState().push({
       id: `scrape:${id}`,
       type: 'scrape',
-      title: files.find((f) => f.id === id)?.title || '刮削任务',
-      message: '刮削已启动，正在刮削...',
+      title: files.find((f) => f.id === id)?.title || t('fm.scrapeTask'),
+      message: t('fm.scrapeRunning'),
       status: 'running',
       link: routes.tasks.files,
     }, { restart: true })
@@ -410,7 +412,7 @@ export default function FileManagerPage() {
       await fileManagerApi.scrapeFile(id, scrapeSource === 'auto' ? undefined : scrapeSource)
       // 乐观预热海报版本（刮削完成 WS 到达时也会再刷一次）
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '刮削失败')
+      toast.error(err?.response?.data?.error || t('fm.scrapeFailed'))
     }
   }
 
@@ -420,7 +422,7 @@ export default function FileManagerPage() {
     Array.from(selectedIds).forEach(pushScrapeRunning)
     try {
       await fileManagerApi.batchScrapeFiles(Array.from(selectedIds), scrapeSource === 'auto' ? undefined : scrapeSource)
-    } catch { toast.error('批量刮削失败') }
+    } catch { toast.error(t('fm.batchScrapeFailed')) }
   }
 
   const showVideoAnalysisBatchIssues = useCallback(async (title: string, issues: VideoAnalysisBatchIssue[], variant: 'warning' | 'error') => {
@@ -431,13 +433,13 @@ export default function FileManagerPage() {
 
     const kindLabel = (kind?: string) => {
       switch (kind) {
-        case 'unsupported_strm': return 'STRM / 远程流媒体'
-        case 'remote_video_disabled': return '远程视频未开启'
-        case 'unreadable_file': return '文件不可读'
-        case 'path_mapping_failed': return '路径映射失败'
-        case 'invalid_input': return '请求参数无效'
-        case 'submit_failed': return '提交失败'
-        default: return '其他原因'
+        case 'unsupported_strm': return t('fm.issueStrm')
+        case 'remote_video_disabled': return t('fm.issueRemoteDisabled')
+        case 'unreadable_file': return t('fm.issueUnreadable')
+        case 'path_mapping_failed': return t('fm.issuePathMappingFailed')
+        case 'invalid_input': return t('fm.issueInvalidInput')
+        case 'submit_failed': return t('fm.issueSubmitFailed')
+        default: return t('fm.issueOther')
       }
     }
     const remoteLink = (
@@ -445,19 +447,19 @@ export default function FileManagerPage() {
         href={toAppUrl(routes.admin('video-analysis'))}
         className="inline-flex rounded-lg px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-400/10"
       >
-        前往开启远程视频结构化
+        {t('fm.goEnableRemote')}
       </a>
     )
 
     if (remoteDisabledIssues.length > 0 && otherIssues.length === 0) {
       const message: ReactNode = (
         <div className="space-y-3 text-sm">
-          <p>本地/内网视频已开始分析。</p>
-          <p>远程视频已跳过，无需分析（远程目录未开启结构化解析）。</p>
+          <p>{t('fm.analysisLocalHint')}</p>
+          <p>{t('fm.analysisRemoteSkip')}</p>
           {remoteLink}
         </div>
       )
-      await dialog.alert({ title: '已开始分析', message, variant: 'success' })
+      await dialog.alert({ title: t('fm.analysisStarted'), message, variant: 'success' })
       return
     }
 
@@ -468,24 +470,24 @@ export default function FileManagerPage() {
     }, {})
     const summaryItems = Object.entries(grouped)
       .slice(0, 5)
-      .map(([kind, count]) => <li key={kind}>{kindLabel(kind)}：{count} 个</li>)
+      .map(([kind, count]) => <li key={kind}>{t('fm.issueKindCount', { kind: kindLabel(kind), count })}</li>)
     const detailItems = otherIssues.slice(0, 8).map((issue, index) => (
       <li key={`${issue.media_id || 'unknown'}-${index}`} className="break-all">
-        <span className="font-medium">{issue.media_id || '未知媒体'}</span>
+        <span className="font-medium">{issue.media_id || t('fm.unknownMedia')}</span>
         <span className="text-surface-400"> · {issue.message}</span>
       </li>
     ))
     const message: ReactNode = <div className="space-y-3 text-sm">
       <div>
-        <div className="font-medium mb-1">原因汇总</div>
+        <div className="font-medium mb-1">{t('fm.reasonSummary')}</div>
         <ul className="list-disc space-y-1 pl-5 text-surface-300">
           {summaryItems}
-          {remoteDisabledIssues.length > 0 && <li>{kindLabel('remote_video_disabled')}：{remoteDisabledIssues.length} 个</li>}
+          {remoteDisabledIssues.length > 0 && <li>{t('fm.issueKindCount', { kind: kindLabel('remote_video_disabled'), count: remoteDisabledIssues.length })}</li>}
         </ul>
       </div>
       {detailItems.length > 0 && (
         <div>
-          <div className="font-medium mb-1">示例明细{otherIssues.length > 8 ? `（前 8 条，共 ${otherIssues.length} 条）` : ''}</div>
+          <div className="font-medium mb-1">{otherIssues.length > 8 ? t('fm.sampleDetailExtra', { count: otherIssues.length }) : t('fm.sampleDetail')}</div>
           <ul className="list-disc space-y-1 pl-5 text-surface-300">{detailItems}</ul>
         </div>
       )}
@@ -500,28 +502,28 @@ export default function FileManagerPage() {
     try {
       const h = (await videoAnalysisApi.getHealth()).data.data
       if (!h.available) {
-        return videoAnalysisDisabledReason || '视频分析服务当前不可用，请检查 Scene / Structure 配置'
+        return videoAnalysisDisabledReason || t('fm.analysisUnavailable')
       }
       if (!h.scene || h.scene.status !== 'ok') {
-        return `Scene 检测服务不可用${h.scene_base_url ? `（${h.scene_base_url}）` : ''}，请检查服务地址或确认服务已启动`
+        return t('fm.sceneUnavailable', { url: h.scene_base_url ? `（${h.scene_base_url}）` : '' })
       }
       if (!h.structure || h.structure.status !== 'ok') {
-        return `Structure 结构化服务不可用${h.structure_base_url ? `（${h.structure_base_url}）` : ''}，请检查服务地址或确认服务已启动`
+        return t('fm.structureUnavailable', { url: h.structure_base_url ? `（${h.structure_base_url}）` : '' })
       }
       if (includeDescriptions && !h.describe_enabled) {
-        return '场景描述未开启，请到「视频分析」设置中开启'
+        return t('fm.sceneDescDisabled')
       }
       return null
     } catch (e) {
-      return extractErrMsg(e) || '无法获取视频分析健康状态'
+      return extractErrMsg(e) || t('fm.healthError')
     }
   }, [videoAnalysisDisabledReason])
 
   const showHealthWarning = useCallback(async (message?: string) => {
     if (await dialog.confirm({
-      title: '视频分析服务不可用',
-      message: message || '视频分析服务状态异常，无法提交任务',
-      confirmText: '前往设置',
+      title: t('fm.analysisDialogTitle'),
+      message: message || t('fm.analysisDialogMessage'),
+      confirmText: t('fm.goSettings'),
       variant: 'warning',
     })) window.location.href = toAppUrl(routes.admin())
   }, [dialog])
@@ -537,28 +539,28 @@ export default function FileManagerPage() {
       const result = res.data.data
       const skippedReasonCount = result.skipped_errors?.length || 0
       if (result.created === 0 && result.reused === 0 && result.skipped === 0 && result.errors.length === 0) {
-        toast.info('没有可提交的视频分析任务')
+        toast.info(t('fm.noAnalysisTasks'))
       } else {
         const parts: string[] = []
-        if (result.created) parts.push(`新建 ${result.created}`)
-        if (result.reused) parts.push(`复用 ${result.reused}`)
-        if (result.skipped) parts.push(`跳过 ${result.skipped}`)
-        if (skippedReasonCount) parts.push(`含原因 ${skippedReasonCount}`)
-        if (result.errors.length) parts.push(`失败 ${result.errors.length}`)
+        if (result.created) parts.push(t('fm.created', { count: result.created }))
+        if (result.reused) parts.push(t('fm.reused', { count: result.reused }))
+        if (result.skipped) parts.push(t('fm.skipped', { count: result.skipped }))
+        if (skippedReasonCount) parts.push(t('fm.withReason', { count: skippedReasonCount }))
+        if (result.errors.length) parts.push(t('fm.failedCount', { count: result.errors.length }))
         useNotificationCenterStore.getState().push({
           id: 'batch:analysis',
           type: 'analysis',
-          title: '批量视频分析',
+          title: t('fm.batchAnalysis'),
           message: parts.join('，'),
           status: result.errors.length > 0 || skippedReasonCount > 0 ? 'partial' : 'success',
           link: routes.tasks.analysis(),
         })
       }
       if (result.skipped_errors?.length) {
-        await showVideoAnalysisBatchIssues('部分视频已跳过', result.skipped_errors, 'warning')
+        await showVideoAnalysisBatchIssues(t('fm.partialSkipped'), result.skipped_errors, 'warning')
       }
       if (result.errors.length) {
-        await showVideoAnalysisBatchIssues('部分视频分析提交失败', result.errors, 'error')
+        await showVideoAnalysisBatchIssues(t('fm.partialSubmitFailed'), result.errors, 'error')
       }
       if (result.created > 0 || result.reused > 0) {
         const nextParams = new URLSearchParams(searchParams)
@@ -569,21 +571,21 @@ export default function FileManagerPage() {
             .map(issue => issue.message)
             .filter(Boolean)
             .join('；')
-          nextParams.set('analysisLastSkipped', skippedSummary || `本次有 ${result.skipped_errors!.length} 个视频被自动跳过`)
+          nextParams.set('analysisLastSkipped', skippedSummary || t('fm.autoSkipped', { count: result.skipped_errors!.length }))
         } else {
           nextParams.delete('analysisLastSkipped')
         }
         setSearchParams(nextParams, { replace: true })
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '批量视频分析提交失败')
+      toast.error(err?.response?.data?.error || t('fm.batchAnalysisFailed'))
     }
   }, [checkVideoAnalysisHealth, selectedIds, showHealthWarning, showVideoAnalysisBatchIssues, searchParams, setSearchParams, toast])
 
   const handleBatchAnalyze = useCallback(async () => {
     if (selectedIds.size === 0) return
     if (!videoAnalysisEnabled) {
-      toast.warning(videoAnalysisDisabledReason || '视频分析服务未启用或配置无效')
+      toast.warning(videoAnalysisDisabledReason || t('fm.analysisDisabled'))
       return
     }
     setActiveDialog('batchAnalyze')
@@ -591,7 +593,7 @@ export default function FileManagerPage() {
 
   const handleAnalyzeFile = useCallback(async (media: Media, force = false, includeDescriptions = false) => {
     if (!videoAnalysisEnabled) {
-      toast.warning(videoAnalysisDisabledReason || '视频分析服务未启用或配置无效')
+      toast.warning(videoAnalysisDisabledReason || t('fm.analysisDisabled'))
       return
     }
     const message = await checkVideoAnalysisHealth(includeDescriptions)
@@ -601,23 +603,23 @@ export default function FileManagerPage() {
     }
     if (force) {
       const ok = await dialog.confirm({
-        title: '重新分析视频',
-        message: '将创建一个新的历史分析任务重新执行，不会覆盖原有任务记录。确定继续吗？',
-        confirmText: '重新分析',
+        title: t('fm.reanalyzeTitle'),
+        message: t('fm.reanalyzeConfirm'),
+        confirmText: t('fm.reanalyzeBtn'),
         variant: 'warning',
       })
       if (!ok) return
     }
     try {
       const res = await videoAnalysisApi.submit({ media_id: media.id, force, include_descriptions: includeDescriptions })
-      if (res.data.reused) toast.success('已复用现有视频分析任务')
-      else if (includeDescriptions) toast.success(force ? '已重新提交“分析并生成描述”任务' : '已提交“分析并生成描述”任务')
-      else toast.success(force ? '已重新提交视频分析任务' : '视频分析任务已提交')
+      if (res.data.reused) toast.success(t('fm.reusedTask'))
+      else if (includeDescriptions) toast.success(force ? t('fm.resubmittedWithDesc') : t('fm.submittedWithDesc'))
+      else toast.success(force ? t('fm.resubmittedAnalysis') : t('fm.submittedAnalysis'))
       const nextParams = new URLSearchParams(searchParams)
       nextParams.set('tab', 'analysis')
       setSearchParams(nextParams, { replace: true })
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '视频分析提交失败')
+      toast.error(err?.response?.data?.error || t('fm.analysisSubmitFailed'))
     }
   }, [checkVideoAnalysisHealth, dialog, searchParams, setSearchParams, showHealthWarning, toast, videoAnalysisDisabledReason, videoAnalysisEnabled])
 
@@ -629,7 +631,7 @@ export default function FileManagerPage() {
       nextParams.set('analysisTaskId', taskId)
       setSearchParams(nextParams, { replace: true })
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '重新分析失败')
+      toast.error(err?.response?.data?.error || t('fm.reanalyzeFailed'))
     }
   }, [searchParams, setSearchParams, toast])
 
@@ -709,30 +711,30 @@ export default function FileManagerPage() {
 
   const handleCopyPath = useCallback((path: string) => {
     navigator.clipboard.writeText(path).then(() => {
-      toast.success('路径已复制到剪贴板')
+      toast.success(t('fm.pathCopied'))
     }).catch(() => {
-      toast.error('复制失败')
+      toast.error(t('fm.copyFailed'))
     })
   }, [toast])
 
   const executeCreateFolder = useCallback(async () => {
-    if (!folderInputValue.trim()) { toast.error('文件夹名不能为空'); return }
+    if (!folderInputValue.trim()) { toast.error(t('fm.folderNameEmpty')); return }
     try {
       await fileManagerApi.createFolder(folderDialogTarget, folderInputValue.trim())
-      toast.success('文件夹创建成功')
+      toast.success(t('fm.folderCreated'))
       setFolderDialog('none')
       fetchFolderTree()
       fetchFiles()
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '创建文件夹失败')
+      toast.error(err?.response?.data?.error || t('fm.folderCreateFailed'))
     }
   }, [folderDialogTarget, folderInputValue, toast, fetchFolderTree, fetchFiles])
 
   const executeRenameFolder = useCallback(async () => {
-    if (!folderInputValue.trim()) { toast.error('文件夹名不能为空'); return }
+    if (!folderInputValue.trim()) { toast.error(t('fm.folderNameEmpty')); return }
     try {
       await fileManagerApi.renameFolder(folderDialogTarget, folderInputValue.trim())
-      toast.success('文件夹重命名成功')
+      toast.success(t('fm.folderRenamed'))
       setFolderDialog('none')
       // 如果当前选中的文件夹被重命名，更新路径
       if (currentFolderPath === folderDialogTarget) {
@@ -742,14 +744,14 @@ export default function FileManagerPage() {
       fetchFolderTree()
       fetchFiles()
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '重命名失败')
+      toast.error(err?.response?.data?.error || t('fm.renameFailed'))
     }
   }, [folderDialogTarget, folderInputValue, currentFolderPath, toast, fetchFolderTree, fetchFiles])
 
   const executeDeleteFolder = useCallback(async (force: boolean) => {
     try {
       await fileManagerApi.deleteFolder(folderDialogTarget, force)
-      toast.success('文件夹删除成功')
+      toast.success(t('fm.folderDeleted'))
       setFolderDialog('none')
       // 如果当前选中的文件夹被删除，回到上级
       if (currentFolderPath === folderDialogTarget || currentFolderPath.startsWith(folderDialogTarget + '/')) {
@@ -759,7 +761,7 @@ export default function FileManagerPage() {
       fetchFiles()
       fetchStats()
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '删除失败')
+      toast.error(err?.response?.data?.error || t('fm.deleteFailed'))
     }
   }, [folderDialogTarget, currentFolderPath, toast, handleClearFolder, fetchFolderTree, fetchFiles, fetchStats])
 
@@ -786,19 +788,19 @@ export default function FileManagerPage() {
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
             <FolderOpen className="inline-block mr-2 mb-1" size={24} />
-            媒体库管理
+            {t('fm.pageTitle')}
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
-            管理媒体库与影视文件、智能刮削元数据、AI批量重命名
+            {t('fm.pageSubtitle')}
           </p>
         </div>
         {activeTab === 'files' && (
           <div className="flex items-center gap-2">
             <button onClick={() => setActiveDialog('logs')} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
-              <History size={16} /> 操作日志
+              <History size={16} /> {t('fm.opLogs')}
             </button>
             <button onClick={refreshData} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
-              <RefreshCw size={16} /> 刷新
+              <RefreshCw size={16} /> {t('fm.refresh')}
             </button>
           </div>
         )}
@@ -807,11 +809,11 @@ export default function FileManagerPage() {
       {/* Tab 切换栏 */}
       <SegmentedTabs
         tabs={[
-          { key: 'library', label: '媒体库', icon: LibraryIcon },
-          { key: 'files', label: '文件列表', icon: FolderOpen },
-          { key: 'analysis', label: '视频分析', icon: ScanLine },
-          { key: 'preprocess', label: '预处理', icon: Zap },
-          { key: 'adult', label: '成人刮削', icon: ShieldAlert, hidden: nsfwEnabled !== true },
+          { key: 'library', label: t('fm.tabLibrary'), icon: LibraryIcon },
+          { key: 'files', label: t('fm.tabFiles'), icon: FolderOpen },
+          { key: 'analysis', label: t('fm.tabAnalysis'), icon: ScanLine },
+          { key: 'preprocess', label: t('fm.tabPreprocess'), icon: Zap },
+          { key: 'adult', label: t('fm.tabAdult'), icon: ShieldAlert, hidden: nsfwEnabled !== true },
         ]}
         active={activeTab}
         onChange={(key) => handleTabChange(key as TabType)}
@@ -843,8 +845,8 @@ export default function FileManagerPage() {
         <div className="space-y-3">
           <SegmentedTabs
             tabs={[
-              { key: 'video', label: '视频预处理', icon: Zap },
-              { key: 'subtitle', label: '字幕预处理', icon: Subtitles },
+              { key: 'video', label: t('fm.tabVideo'), icon: Zap },
+              { key: 'subtitle', label: t('fm.tabSubtitle'), icon: Subtitles },
             ]}
             active={preSub}
             onChange={(key) => handlePreSubChange(key as 'video' | 'subtitle')}
@@ -960,18 +962,18 @@ export default function FileManagerPage() {
                       <button
                         onClick={() => setShowFolderPanel(true)}
                         className="btn-ghost hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
-                        title="展开文件夹面板"
+                        title={t('fm.expandNavTitle')}
                       >
-                        <PanelLeftOpen size={14} /> 展开导航
+                        <PanelLeftOpen size={14} /> {t('fm.expandNav')}
                       </button>
                     )}
                     {currentFolderPath && (
                       <button
                         onClick={handleGoUpFolder}
                         className="btn-ghost hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
-                        title="返回上一级"
+                        title={t('fm.goUpTitle')}
                       >
-                        <ArrowUpLeft size={14} /> 上一级
+                        <ArrowUpLeft size={14} /> {t('fm.goUp')}
                       </button>
                     )}
                   </div>
@@ -1115,23 +1117,23 @@ export default function FileManagerPage() {
       {folderDialog === 'createFolder' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setFolderDialog('none')}>
           <div className="glass-panel rounded-2xl p-6 w-full max-w-md mx-4 space-y-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>新建文件夹</h3>
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{t('fm.newFolderTitle')}</h3>
             <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-              在 <code className="px-1.5 py-0.5 rounded bg-surface-700/50 text-xs">{folderDialogTarget.replace(/\\/g, '/').split('/').pop()}</code> 下创建子文件夹
+              {t('fm.newFolderHint', { path: folderDialogTarget.replace(/\\/g, '/').split('/').pop() ?? '' })}
             </p>
             <input
               type="text"
               value={folderInputValue}
               onChange={e => setFolderInputValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') executeCreateFolder() }}
-              placeholder="输入文件夹名称"
+              placeholder={t('fm.folderNamePlaceholder')}
               className="w-full px-3 py-2 rounded-lg text-sm border bg-transparent focus:outline-none focus:ring-1 focus:ring-neon"
               style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
               autoFocus
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setFolderDialog('none')} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
-              <button onClick={executeCreateFolder} className="btn-primary px-4 py-2 rounded-lg text-sm">创建</button>
+              <button onClick={() => setFolderDialog('none')} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
+              <button onClick={executeCreateFolder} className="btn-primary px-4 py-2 rounded-lg text-sm">{t('fm.create')}</button>
             </div>
           </div>
         </div>
@@ -1141,23 +1143,23 @@ export default function FileManagerPage() {
       {folderDialog === 'renameFolder' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setFolderDialog('none')}>
           <div className="glass-panel rounded-2xl p-6 w-full max-w-md mx-4 space-y-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>重命名文件夹</h3>
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{t('fm.renameFolderTitle')}</h3>
             <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-              重命名 <code className="px-1.5 py-0.5 rounded bg-surface-700/50 text-xs">{folderDialogTarget.replace(/\\/g, '/').split('/').pop()}</code>
+              {t('fm.renameHint', { path: folderDialogTarget.replace(/\\/g, '/').split('/').pop() ?? '' })}
             </p>
             <input
               type="text"
               value={folderInputValue}
               onChange={e => setFolderInputValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') executeRenameFolder() }}
-              placeholder="输入新名称"
+              placeholder={t('fm.newNamePlaceholder')}
               className="w-full px-3 py-2 rounded-lg text-sm border bg-transparent focus:outline-none focus:ring-1 focus:ring-neon"
               style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
               autoFocus
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setFolderDialog('none')} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
-              <button onClick={executeRenameFolder} className="btn-primary px-4 py-2 rounded-lg text-sm">确认重命名</button>
+              <button onClick={() => setFolderDialog('none')} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
+              <button onClick={executeRenameFolder} className="btn-primary px-4 py-2 rounded-lg text-sm">{t('fm.confirmRename')}</button>
             </div>
           </div>
         </div>
@@ -1167,28 +1169,28 @@ export default function FileManagerPage() {
       {folderDialog === 'deleteFolder' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setFolderDialog('none')}>
           <div className="glass-panel rounded-2xl p-6 w-full max-w-md mx-4 space-y-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-red-400">删除文件夹</h3>
+            <h3 className="text-lg font-semibold text-red-400">{t('fm.deleteFolderTitle')}</h3>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              确定要删除文件夹 <code className="px-1.5 py-0.5 rounded bg-surface-700/50 text-xs font-bold">{folderDialogTarget.replace(/\\/g, '/').split('/').pop()}</code> 吗？
+              {t('fm.deleteFolderConfirm', { path: folderDialogTarget.replace(/\\/g, '/').split('/').pop() ?? '' })}
             </p>
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
               <p className="text-xs text-red-400">
-                ⚠️ 此操作将删除文件夹及其中的所有文件，且不可恢复。数据库中对应的文件记录也将被清除。
+                {t('fm.deleteFolderWarning')}
               </p>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setFolderDialog('none')} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
+              <button onClick={() => setFolderDialog('none')} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
               <button
                 onClick={() => executeDeleteFolder(false)}
                 className="px-4 py-2 rounded-lg text-sm bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors"
               >
-                仅删除空文件夹
+                {t('fm.deleteEmptyOnly')}
               </button>
               <button
                 onClick={() => executeDeleteFolder(true)}
                 className="px-4 py-2 rounded-lg text-sm bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
               >
-              强制删除
+              {t('fm.forceDelete')}
               </button>
             </div>
           </div>

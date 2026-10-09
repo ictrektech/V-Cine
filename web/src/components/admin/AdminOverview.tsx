@@ -19,6 +19,7 @@ import { videoAnalysisApi } from '@/api/videoAnalysis'
 import type { SystemInfo, SystemSettings, Library, User, TMDbConfigStatus, DoubanConfigStatus, AIStatus } from '@/types'
 import type { VideoAnalysisHealthInfo } from '@/types/videoAnalysis'
 import { useStorageStatuses } from '@/hooks/useStorageStatuses'
+import { useTranslation } from '@/i18n'
 import { formatHwAccel } from '@/utils/format'
 
 // ==================== 概览（配置状态聚合 + 下一步引导）====================
@@ -31,8 +32,8 @@ export type ConfigState = 'configured' | 'partial' | 'unconfigured' | 'attention
 type StatusCard = {
   id: string
   icon: React.ReactNode
-  title: string
-  desc: string
+  titleKey: string
+  descKey: string
   state: ConfigState
   value: string
 }
@@ -68,6 +69,7 @@ function StateBadge({ state, value }: { state: ConfigState; value: string }) {
 }
 
 function Card({ card, onClick }: { card: StatusCard; onClick: () => void }) {
+  const { t } = useTranslation()
   return (
     <button
       onClick={onClick}
@@ -78,8 +80,8 @@ function Card({ card, onClick }: { card: StatusCard; onClick: () => void }) {
         {card.icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{card.title}</p>
-        <p className="mt-0.5 truncate text-xs" style={{ color: 'var(--text-tertiary)' }}>{card.desc}</p>
+        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t(card.titleKey)}</p>
+        <p className="mt-0.5 truncate text-xs" style={{ color: 'var(--text-tertiary)' }}>{t(card.descKey)}</p>
       </div>
       <StateBadge state={card.state} value={card.value} />
       <ChevronRight size={16} className="shrink-0 text-surface-500 transition-transform group-hover:translate-x-0.5" />
@@ -88,6 +90,7 @@ function Card({ card, onClick }: { card: StatusCard; onClick: () => void }) {
 }
 
 export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer, onSetupStatusChange, aiStatusRefresh = 0 }: Props) {
+  const { t } = useTranslation()
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
   const [vaHealth, setVaHealth] = useState<VideoAnalysisHealthInfo | null>(null)
   const { webdavStatus, alistStatus, s3Status } = useStorageStatuses()
@@ -103,7 +106,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
   // 元数据刮削：TMDb / 豆瓣 两个子项
   const tmdbOk = !!tmdbConfig?.configured
   const doubanOk = !!doubanConfig?.configured
-  const metadataValue = tmdbOk && doubanOk ? '已配置' : tmdbOk ? 'TMDb✓ 豆瓣○' : doubanOk ? 'TMDb○ 豆瓣✓' : '未配置'
+  const metadataValue = tmdbOk && doubanOk ? t('admin.ovConfigured') : tmdbOk ? t('admin.ovTmdbOnly') : doubanOk ? t('admin.ovDoubanOnly') : t('admin.ovUnconfigured')
   const metadataState: ConfigState = tmdbOk && doubanOk ? 'configured' : (tmdbOk || doubanOk ? 'partial' : 'unconfigured')
 
   // AI 服务
@@ -112,12 +115,12 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
   const aiModel = aiStatus?.active_model?.trim()
   const aiValue = aiOk
     ? (aiStatus?.enabled
-        ? (aiModel ? '已启用 · ' + aiModel : '已启用 · 未选择模型，请到 AI 设置中拉取')
-        : '已配置 · 未启用')
-    : '未配置'
+        ? (aiModel ? t('admin.ovAiOnModel', { model: aiModel }) : t('admin.ovAiOnNoModel'))
+        : t('admin.ovAiConfiguredOff'))
+    : t('admin.ovUnconfigured')
 
   // 播放与转码：GPU / 直连
-  const playbackValue = sysSettings.enable_gpu_transcode ? 'GPU·开' : 'GPU·关'
+  const playbackValue = sysSettings.enable_gpu_transcode ? t('admin.ovGpuOn') : t('admin.ovGpuOff')
   const playbackState: ConfigState = 'configured'
 
   // 存储：WebDAV / Alist / S3，只统计 enabled 且 connected 的可用后端
@@ -127,29 +130,29 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
     s3Status?.enabled && s3Status?.connected,
   ].filter(Boolean).length
   const storageState: ConfigState = storageCount > 0 ? 'configured' : 'unconfigured'
-  const storageValue = storageCount > 0 ? storageCount + ' 个可用' : '本地存储'
+  const storageValue = storageCount > 0 ? t('admin.ovStorageCount', { count: storageCount }) : t('admin.ovLocalOnly')
 
   // 用户 / 日志：状态常显
-  const userValue = users.length + ' 用户'
-  const logValue = '查看'
+  const userValue = t('admin.ovUsersCount', { count: users.length })
+  const logValue = t('admin.ovView')
 
   // 视频分析：Scene / Structure 服务健康（只读诊断）
   const vaSceneOk = vaHealth?.available ? vaHealth.scene?.status === 'ok' : null
   const vaStructureOk = vaHealth?.available ? vaHealth.structure?.status === 'ok' : null
   const vaUnavailable = !vaHealth?.available || !vaHealth?.enabled
   const vaState: ConfigState = !vaHealth ? 'unconfigured' : vaUnavailable ? 'unconfigured' : vaSceneOk && vaStructureOk ? 'configured' : 'attention'
-  const vaValue = !vaHealth ? '检查中' : vaUnavailable ? '未启用' : vaSceneOk && vaStructureOk ? '场景✓ 结构✓' : vaSceneOk ? '结构异常' : vaStructureOk ? '场景异常' : '服务异常'
+  const vaValue = !vaHealth ? t('admin.ovChecking') : vaUnavailable ? t('admin.ovNotEnabled') : vaSceneOk && vaStructureOk ? t('admin.ovVaBothOk') : vaSceneOk ? t('admin.ovVaStructureBad') : vaStructureOk ? t('admin.ovVaSceneBad') : t('admin.ovVaServiceBad')
 
   const cards: StatusCard[] = [
-    { id: 'metadata', icon: <Film size={18} className="text-neon/60" />, title: '元数据刮削', desc: 'TMDb 与豆瓣识别，自动获取海报简介评分', state: metadataState, value: metadataValue },
-    { id: 'ai', icon: <Sparkles size={18} className="text-purple-400/70" />, title: 'AI 服务', desc: 'AI 识别、归类、搜索、推荐、元数据增强', state: aiState, value: aiValue },
-    { id: 'video-analysis', icon: <ScanLine size={18} className="text-cyan-400/70" />, title: '视频分析', desc: 'Scene 场景检测 / Structure 结构分析 / 场景描述', state: vaState, value: vaValue },
-    { id: 'playback', icon: <MonitorPlay size={18} className="text-violet-400/70" />, title: '播放与转码', desc: 'GPU 转码、直连播放、缓存行为', state: playbackState, value: playbackValue },
-    { id: 'storage', icon: <HardDrive size={18} className="text-amber-400/70" />, title: '存储', desc: 'WebDAV / Alist / S3 远程存储挂载', state: storageState, value: storageValue },
-    { id: 'strm', icon: <Globe size={18} className="text-teal-400/70" />, title: 'STRM 远程流', desc: '.strm 流默认请求头、HLS 重写、远程探测、域名白名单', state: 'configured', value: '配置' },
-    { id: 'users', icon: <Users size={18} className="text-emerald-400/70" />, title: '用户管理', desc: '账号、角色与权限', state: 'configured', value: userValue },
-    { id: 'logs', icon: <FileText size={18} className="text-sky-400/70" />, title: '日志', desc: '系统运行与访问日志', state: 'configured', value: logValue },
-    { id: 'dashboard', icon: <Activity size={18} className="text-cyan-400/70" />, title: '运行仪表盘', desc: '实时进度、系统状态、数据维护', state: 'configured', value: '查看' },
+    { id: 'metadata', icon: <Film size={18} className="text-neon/60" />, titleKey: 'admin.ovCardMetadata', descKey: 'admin.ovCardMetadataDesc', state: metadataState, value: metadataValue },
+    { id: 'ai', icon: <Sparkles size={18} className="text-purple-400/70" />, titleKey: 'admin.ovCardAi', descKey: 'admin.ovCardAiDesc', state: aiState, value: aiValue },
+    { id: 'video-analysis', icon: <ScanLine size={18} className="text-cyan-400/70" />, titleKey: 'admin.ovCardVa', descKey: 'admin.ovCardVaDesc', state: vaState, value: vaValue },
+    { id: 'playback', icon: <MonitorPlay size={18} className="text-violet-400/70" />, titleKey: 'admin.ovCardPlayback', descKey: 'admin.ovCardPlaybackDesc', state: playbackState, value: playbackValue },
+    { id: 'storage', icon: <HardDrive size={18} className="text-amber-400/70" />, titleKey: 'admin.ovCardStorage', descKey: 'admin.ovCardStorageDesc', state: storageState, value: storageValue },
+    { id: 'strm', icon: <Globe size={18} className="text-teal-400/70" />, titleKey: 'admin.ovCardStrm', descKey: 'admin.ovCardStrmDesc', state: 'configured', value: t('admin.ovView') },
+    { id: 'users', icon: <Users size={18} className="text-emerald-400/70" />, titleKey: 'admin.ovCardUsers', descKey: 'admin.ovCardUsersDesc', state: 'configured', value: userValue },
+    { id: 'logs', icon: <FileText size={18} className="text-sky-400/70" />, titleKey: 'admin.ovCardLogs', descKey: 'admin.ovCardLogsDesc', state: 'configured', value: logValue },
+    { id: 'dashboard', icon: <Activity size={18} className="text-cyan-400/70" />, titleKey: 'admin.ovCardDashboard', descKey: 'admin.ovCardDashboardDesc', state: 'configured', value: t('admin.ovView') },
   ]
 
   // 按 id 查卡片，避免下标耦合 —— 在数组中间插卡时分组自动保持正确
@@ -157,8 +160,8 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
 
   // ===== 下一步引导 =====
   const nextStep = !tmdbOk && !doubanOk
-    ? { short: '元数据刮削', target: 'metadata' }
-    : (!aiOk ? { short: 'AI 服务', target: 'ai' } : null)
+    ? { short: t('admin.ovCardMetadata'), target: 'metadata' }
+    : (!aiOk ? { short: t('admin.ovCardAi'), target: 'ai' } : null)
 
   // 配置进度上报给宿主页标题栏（完成 → 绿色"配置就绪"；否则 → "待配置 · xx"）
   const setupComplete = !nextStep
@@ -178,7 +181,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
     <div className="space-y-6">
       {/* ===== 媒体设置（配置重心）===== */}
       <section>
-        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>媒体设置</h2>
+        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>{t('admin.ovSecMedia')}</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           <Card card={cardById.metadata} onClick={() => onOpenDrawer('metadata')} />
           <Card card={cardById.ai} onClick={() => onOpenDrawer('ai')} />
@@ -188,7 +191,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
 
       {/* ===== 播放与存储设置 ===== */}
       <section>
-        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>播放与存储设置</h2>
+        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>{t('admin.ovSecPlayback')}</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           <Card card={cardById.playback} onClick={() => onOpenDrawer('playback')} />
           <Card card={cardById.storage} onClick={() => onOpenDrawer('storage')} />
@@ -198,7 +201,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
 
       {/* ===== 用户与系统设置 ===== */}
       <section>
-        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>用户与系统设置</h2>
+        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>{t('admin.ovSecUsers')}</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           <Card card={cardById.users} onClick={() => onOpenDrawer('users')} />
           <Card card={cardById.logs} onClick={() => onOpenDrawer('logs')} />
@@ -207,7 +210,7 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
 
       {/* ===== 运行与维护 ===== */}
       <section>
-        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>运行与维护</h2>
+        <h2 className="mb-3 px-1 text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>{t('admin.ovSecOps')}</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           <Card card={cardById.dashboard} onClick={() => onOpenDrawer('dashboard')} />
         </div>
@@ -217,13 +220,13 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
       {systemInfo && (
         <section className="rounded-xl p-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
           <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>
-            <Server size={13} /> 运行状态
+            <Server size={13} /> {t('admin.ovRuntime')}
           </h3>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <span className="flex items-center gap-1.5"><Cpu size={14} className="text-neon/60" />{systemInfo.cpus} 核</span>
-            <span className="flex items-center gap-1.5"><Server size={14} className="text-neon/60" />内存 {fmtMem}</span>
+            <span className="flex items-center gap-1.5"><Cpu size={14} className="text-neon/60" />{t('admin.ovCpuCores', { count: systemInfo.cpus })}</span>
+            <span className="flex items-center gap-1.5"><Server size={14} className="text-neon/60" />{t('admin.ovMem', { mem: fmtMem })}</span>
             <span className="flex items-center gap-1.5"><Zap size={14} className="text-neon/60" />{formatHwAccel(systemInfo.hw_accel)}</span>
-            <span className="flex items-center gap-1.5"><HardDrive size={14} className="text-neon/60" />{libraries.length} 个媒体库</span>
+            <span className="flex items-center gap-1.5"><HardDrive size={14} className="text-neon/60" />{t('admin.ovLibCount', { count: libraries.length })}</span>
             <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>v{systemInfo.version}</span>
           </div>
         </section>

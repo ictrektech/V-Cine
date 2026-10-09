@@ -1,4 +1,5 @@
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import { useTranslation } from '@/i18n'
 import TMDbConfigSection from '@/components/admin/TMDbConfigSection'
 import DoubanConfigSection from '@/components/admin/DoubanConfigSection'
 import type { TMDbConfigStatus, DoubanConfigStatus } from '@/types'
@@ -17,9 +18,10 @@ type Props = {
 }
 
 export default function MetadataScraperDrawer({ open, onOpenChange, tmdbConfig, setTmdbConfig, doubanConfig, setDoubanConfig }: Props) {
+  const { t } = useTranslation()
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent size="xl" title="元数据刮削" description="自动获取海报、简介、评分、类型">
+      <DrawerContent size="xl" title={t("drawer.metadataScrape")} description={t("drawer.metadataScrapeDesc")}>
         <div className="space-y-8">
           <TMDbConfigSection tmdbConfig={tmdbConfig} setTmdbConfig={setTmdbConfig} />
           <DoubanConfigSection doubanConfig={doubanConfig} setDoubanConfig={setDoubanConfig} />

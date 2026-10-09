@@ -3,6 +3,7 @@ import { subtitlePreprocessApi } from '@/api/subtitlePreprocess'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { useToast } from '@/components/Toast'
 import { usePagination } from '@/hooks/usePagination'
+import { useTranslation } from '@/i18n'
 import Pagination from '@/components/Pagination'
 import type { SubtitlePreprocessTask, SubtitlePreprocessStatistics, ASRHealthStatus, Library } from '@/types'
 import api from '@/api/client'
@@ -47,14 +48,7 @@ const statusColors: Record<string, string> = {
   skipped: 'text-orange-400',
 }
 
-const statusLabels: Record<string, string> = {
-  pending: '等待中',
-  running: '处理中',
-  completed: '已完成',
-  failed: '失败',
-  cancelled: '已取消',
-  skipped: '已跳过',
-}
+
 
 const statusIcons: Record<string, React.ReactNode> = {
   pending: <Clock size={14} />,
@@ -65,26 +59,36 @@ const statusIcons: Record<string, React.ReactNode> = {
   skipped: <SkipForward size={14} />,
 }
 
-// 阶段标签
-const phaseLabels: Record<string, string> = {
-  check: '检查字幕',
-  extract: '提取字幕',
-  clean: '字幕清洗',
-  generate: 'AI 生成',
-  translate: '多语言翻译',
-  done: '完成',
-}
 
-// 字幕来源标签
-const sourceLabels: Record<string, string> = {
-  ai_cached: 'AI 缓存',
-  external_vtt: '外挂 VTT',
-  extracted: '内嵌提取',
-  ai_generated: 'AI 生成',
-  ocr_extracted: 'OCR 识别',
-}
 
 export default function SubtitlePreprocessPage() {
+  const { t } = useTranslation()
+  // 任务状态标签（随语言切换重建）
+  const statusLabels: Record<string, string> = {
+    pending: t('common.statusPending'),
+    running: t('common.statusProcessing'),
+    completed: t('common.statusCompleted'),
+    failed: t('common.statusFailed'),
+    cancelled: t('common.statusCancelled'),
+    skipped: t('common.statusSkipped'),
+  }
+  // 阶段标签（随语言切换重建）
+  const phaseLabels: Record<string, string> = {
+    check: t('subpre.phaseCheck'),
+    extract: t('subpre.phaseExtract'),
+    clean: t('subpre.phaseClean'),
+    generate: t('subpre.phaseGenerate'),
+    translate: t('subpre.phaseTranslate'),
+    done: t('subpre.phaseDone'),
+  }
+  // 字幕来源标签（随语言切换重建）
+  const sourceLabels: Record<string, string> = {
+    ai_cached: t('subpre.srcAiCached'),
+    external_vtt: t('subpre.srcExternalVtt'),
+    extracted: t('subpre.srcExtracted'),
+    ai_generated: t('subpre.srcAiGenerated'),
+    ocr_extracted: t('subpre.srcOcr'),
+  }
   const toast = useToast()
   const toastRef = useRef(toast)
   toastRef.current = toast
@@ -164,7 +168,7 @@ export default function SubtitlePreprocessPage() {
       setTasks(res.data.data.tasks || [])
       setTotal(res.data.data.total)
     } catch {
-      toastRef.current.error('加载字幕预处理任务失败')
+      toastRef.current.error(t('subpre.loadFailed'))
     }
   }, [page, pageSize, statusFilter])
 
@@ -244,25 +248,25 @@ export default function SubtitlePreprocessPage() {
   const handleCancel = async (id: string) => {
     try {
       await subtitlePreprocessApi.cancelTask(id)
-      toastRef.current.success('任务已取消')
+      toastRef.current.success(t('preprocess.taskCancelled'))
       loadTasks()
-    } catch { toastRef.current.error('取消失败') }
+    } catch { toastRef.current.error(t('preprocess.cancelFailed')) }
   }
 
   const handleRetry = async (id: string) => {
     try {
       await subtitlePreprocessApi.retryTask(id)
-      toastRef.current.success('任务已重新提交')
+      toastRef.current.success(t('preprocess.taskRetried'))
       loadTasks()
-    } catch { toastRef.current.error('重试失败') }
+    } catch { toastRef.current.error(t('preprocess.retryFailed')) }
   }
 
   const handleDelete = async (id: string) => {
     try {
       await subtitlePreprocessApi.deleteTask(id)
-      toastRef.current.success('任务已删除')
+      toastRef.current.success(t('preprocess.taskDeleted'))
       loadTasks()
-    } catch { toastRef.current.error('删除失败') }
+    } catch { toastRef.current.error(t('preprocess.deleteFailed')) }
   }
 
   // 批量操作
@@ -272,12 +276,12 @@ export default function SubtitlePreprocessPage() {
     try {
       const res = await subtitlePreprocessApi.batchDeleteTasks(Array.from(selectedIds))
       const deleted = res.data.data.deleted
-      toastRef.current.success(`已删除 ${deleted} 个任务`)
+      toastRef.current.success(t('preprocess.deletedTasks', { count: deleted }))
       setSelectedIds(new Set())
       loadTasks()
       loadStats()
     } catch {
-      toastRef.current.error('批量删除失败')
+      toastRef.current.error(t('preprocess.batchDeleteFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -289,12 +293,12 @@ export default function SubtitlePreprocessPage() {
     try {
       const res = await subtitlePreprocessApi.batchCancelTasks(Array.from(selectedIds))
       const cancelled = res.data.data.cancelled
-      toastRef.current.success(`已取消 ${cancelled} 个任务`)
+      toastRef.current.success(t('preprocess.cancelledTasks', { count: cancelled }))
       setSelectedIds(new Set())
       loadTasks()
       loadStats()
     } catch {
-      toastRef.current.error('批量取消失败')
+      toastRef.current.error(t('preprocess.batchCancelFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -306,12 +310,12 @@ export default function SubtitlePreprocessPage() {
     try {
       const res = await subtitlePreprocessApi.batchRetryTasks(Array.from(selectedIds))
       const retried = res.data.data.retried
-      toastRef.current.success(`已重试 ${retried} 个任务`)
+      toastRef.current.success(t('preprocess.retriedTasks', { count: retried }))
       setSelectedIds(new Set())
       loadTasks()
       loadStats()
     } catch {
-      toastRef.current.error('批量重试失败')
+      toastRef.current.error(t('preprocess.batchRetryFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -325,14 +329,14 @@ export default function SubtitlePreprocessPage() {
       const res = await subtitlePreprocessApi.submitLibrary(libraryId, targetLangs, forceRegenerate)
       const count = res.data.data.submitted
       if (count > 0) {
-        toastRef.current.success(`已提交 ${count} 个字幕预处理任务`)
+        toastRef.current.success(t('subpre.submitted', { count }))
         loadTasks()
         loadStats()
       } else {
-        toastRef.current.info('该媒体库没有需要字幕预处理的视频')
+        toastRef.current.info(t('subpre.noVideos'))
       }
     } catch {
-      toastRef.current.error('提交失败')
+      toastRef.current.error(t('preprocess.submitFailed'))
     } finally {
       setSubmitting(null)
     }
@@ -345,14 +349,14 @@ export default function SubtitlePreprocessPage() {
       const res = await subtitlePreprocessApi.retryAllFailed()
       const retried = res.data.data.retried
       if (retried > 0) {
-        toastRef.current.success(`已重试 ${retried} 个失败任务`)
+        toastRef.current.success(t('subpre.retriedFailed', { count: retried }))
         loadTasks()
         loadStats()
       } else {
-        toastRef.current.info('没有失败的任务需要重试')
+        toastRef.current.info(t('subpre.noFailedTasks'))
       }
     } catch {
-      toastRef.current.error('一键重试失败')
+      toastRef.current.error(t('subpre.retryAllFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -365,14 +369,14 @@ export default function SubtitlePreprocessPage() {
       const res = await subtitlePreprocessApi.deleteByStatus(status)
       const deleted = res.data.data.deleted
       if (deleted > 0) {
-        toastRef.current.success(`已清理 ${deleted} 个${statusLabels[status] || status}任务`)
+        toastRef.current.success(t('subpre.cleanedTasks', { count: deleted, status: statusLabels[status] || status }))
         loadTasks()
         loadStats()
       } else {
-        toastRef.current.info(`没有${statusLabels[status] || status}的任务需要清理`)
+        toastRef.current.info(t('subpre.noTasksToClean', { status: statusLabels[status] || status }))
       }
     } catch {
-      toastRef.current.error('清理失败')
+      toastRef.current.error(t('preprocess.cleanFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -386,15 +390,15 @@ export default function SubtitlePreprocessPage() {
 
     // 从当前页任务中统计错误类型
     const errorMap = new Map<string, number>()
-    tasks.filter(t => t.status === 'failed' && t.error).forEach(t => {
+    tasks.filter((task) => task.status === 'failed' && task.error).forEach((task) => {
       // 提取错误关键信息（去掉具体的媒体名称等）
-      let key = t.error
+      let key = task.error
       if (key.includes('Whisper API 返回 HTTP 404')) {
-        key = 'Whisper API 端点不存在 (HTTP 404)'
+        key = t('subpre.errWhisper404')
       } else if (key.includes('ASR 失败')) {
-        key = 'ASR 语音识别失败'
+        key = t('subpre.errAsrFailed')
       } else if (key.includes('音频提取失败')) {
-        key = '音频提取失败'
+        key = t('subpre.errAudioExtract')
       }
       errorMap.set(key, (errorMap.get(key) || 0) + 1)
     })
@@ -461,10 +465,10 @@ export default function SubtitlePreprocessPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
             <Subtitles className="text-neon-blue" size={24} />
-            字幕预处理
+            {t('subpre.pageTitle')}
           </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            自动生成、提取和翻译字幕，支持 AI 语音识别和图形字幕 OCR
+            {t('subpre.pageSubtitle')}
           </p>
         </div>
         <button
@@ -473,7 +477,7 @@ export default function SubtitlePreprocessPage() {
           style={{ background: 'var(--neon-blue-6)', color: 'var(--text-secondary)' }}
         >
           <RefreshCw size={14} />
-          刷新
+          {t('preprocess.refresh')}
         </button>
       </div>
 
@@ -483,44 +487,44 @@ export default function SubtitlePreprocessPage() {
           <div className="rounded-xl p-4" style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}>
             <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
               <Activity size={14} className="text-neon-blue" />
-              处理中
+              {t('common.statusProcessing')}
             </div>
             <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
               {stats.status_counts?.running || 0}
             </div>
             <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              {stats.active_workers}/{stats.max_workers} 工作线程
+              {stats.active_workers}/{stats.max_workers} {t('preprocess.workers')}
             </div>
           </div>
 
           <div className="rounded-xl p-4" style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}>
             <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
               <Clock size={14} className="text-yellow-400" />
-              队列
+              {t('preprocess.queue')}
             </div>
             <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{stats.queue_size}</div>
             <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              等待处理 {stats.status_counts?.pending || 0} 个
+              {t('subpre.waitingCount', { count: stats.status_counts?.pending || 0 })}
             </div>
           </div>
 
           <div className="rounded-xl p-4" style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}>
             <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
               <CheckCircle2 size={14} className="text-emerald-400" />
-              已完成
+              {t('common.statusCompleted')}
             </div>
             <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
               {stats.status_counts?.completed || 0}
             </div>
             <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              跳过 {stats.status_counts?.skipped || 0} 个
+              {t('subpre.skippedCount', { count: stats.status_counts?.skipped || 0 })}
             </div>
           </div>
 
           <div className="rounded-xl p-4" style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}>
             <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
               <AlertCircle size={14} className="text-red-400" />
-              失败
+              {t('common.statusFailed')}
             </div>
             <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
               {stats.status_counts?.failed || 0}
@@ -533,7 +537,7 @@ export default function SubtitlePreprocessPage() {
                 style={{ color: 'var(--text-muted)' }}
               >
                 <RotateCcw size={10} />
-                一键重试全部
+                {t('subpre.retryAll')}
               </button>
             )}
           </div>
@@ -549,21 +553,21 @@ export default function SubtitlePreprocessPage() {
               ) : (
                 <ShieldAlert size={14} className="text-red-400" />
               )}
-              ASR 服务
+              {t('subpre.asrService')}
             </div>
             <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
               {checkingHealth ? (
                 <Loader2 size={18} className="animate-spin text-neon-blue" />
               ) : asrHealth?.healthy ? (
-                <span className="text-emerald-400">可用</span>
+                <span className="text-emerald-400">{t('subpre.available')}</span>
               ) : asrHealth?.configured ? (
-                <span className="text-red-400">不可用</span>
+                <span className="text-red-400">{t('subpre.unavailable')}</span>
               ) : (
-                <span style={{ color: 'var(--text-muted)' }}>未配置</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('subpre.notConfigured')}</span>
               )}
             </div>
             <div className="text-xs mt-1 truncate" style={{ color: 'var(--text-muted)' }} title={asrHealth?.message}>
-              {asrHealth?.engine ? `引擎: ${asrHealth.engine}` : asrHealth?.message || '点击检测'}
+              {asrHealth?.engine ? t('subpre.engine', { engine: asrHealth.engine }) : asrHealth?.message || t('subpre.clickDetect')}
             </div>
             <button
               onClick={checkASRHealth}
@@ -572,7 +576,7 @@ export default function SubtitlePreprocessPage() {
               style={{ color: 'var(--text-muted)' }}
             >
               <Zap size={10} />
-              {checkingHealth ? '检测中...' : '重新检测'}
+              {checkingHealth ? t('subpre.detecting') : t('subpre.redetect')}
             </button>
           </div>
         </div>
@@ -586,9 +590,9 @@ export default function SubtitlePreprocessPage() {
         >
           <ShieldAlert size={16} className="text-red-400 shrink-0" />
           <div className="flex-1">
-            <span className="text-xs font-medium text-red-400">ASR 服务不可用</span>
+            <span className="text-xs font-medium text-red-400">{t('subpre.asrUnavailable')}</span>
             <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>
-              {asrHealth.message}。没有内嵌字幕的视频将被跳过而非失败。
+              {asrHealth.message}{t('subpre.asrSkipHint')}
             </span>
           </div>
           <button
@@ -597,7 +601,7 @@ export default function SubtitlePreprocessPage() {
             className="text-xs px-2 py-1 rounded-lg transition-colors hover:bg-white/5"
             style={{ color: 'var(--text-muted)', border: '1px solid rgba(239,68,68,0.2)' }}
           >
-            重新检测
+            {t('subpre.redetect')}
           </button>
         </div>
       )}
@@ -611,7 +615,7 @@ export default function SubtitlePreprocessPage() {
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-red-400 flex items-center gap-1.5">
               <AlertCircle size={12} />
-              {errorSummary.total} 个任务失败
+              {t('subpre.failedCount', { count: errorSummary.total })}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -621,7 +625,7 @@ export default function SubtitlePreprocessPage() {
                 style={{ color: 'var(--neon-blue)', border: '1px solid var(--neon-blue-15)' }}
               >
                 <RotateCcw size={10} />
-                一键重试全部
+                {t('subpre.retryAll')}
               </button>
               <button
                 onClick={() => handleDeleteByStatus('failed')}
@@ -630,7 +634,7 @@ export default function SubtitlePreprocessPage() {
                 style={{ color: 'var(--text-muted)', border: '1px solid rgba(239,68,68,0.15)' }}
               >
                 <Trash2 size={10} />
-                清理全部失败
+                {t('subpre.cleanAllFailed')}
               </button>
             </div>
           </div>
@@ -652,7 +656,7 @@ export default function SubtitlePreprocessPage() {
         <div className="rounded-xl p-4" style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}>
           <h2 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
             <FolderOpen size={16} className="text-neon-blue" />
-            媒体库批量字幕预处理
+            {t('subpre.batchTitle')}
           </h2>
 
           {/* P1: 强制重新生成开关 + 翻译语言配置 */}
@@ -662,10 +666,10 @@ export default function SubtitlePreprocessPage() {
               onClick={() => setForceRegenerate(!forceRegenerate)}
               className="flex items-center gap-1.5 text-xs transition-colors"
               style={{ color: forceRegenerate ? 'var(--neon-blue)' : 'var(--text-muted)' }}
-              title="启用后将覆盖已有字幕，重新生成"
+              title={t('subpre.forceTitle')}
             >
               {forceRegenerate ? <ToggleRight size={18} className="text-neon-blue" /> : <ToggleLeft size={18} />}
-              强制重新生成
+              {t('subpre.forceLabel')}
             </button>
 
             <div className="w-px h-4" style={{ background: 'var(--neon-blue-6)' }} />
@@ -673,7 +677,7 @@ export default function SubtitlePreprocessPage() {
 
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <Languages size={14} style={{ color: 'var(--text-muted)' }} />
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>翻译目标语言：</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('subpre.targetLangLabel')}</span>
 
             {/* 多选下拉框 */}
             <div className="relative" ref={langDropdownRef}>
@@ -688,7 +692,7 @@ export default function SubtitlePreprocessPage() {
               >
                 <span className="flex-1 text-left truncate">
                   {selectedTargetLangs.length === 0 ? (
-                    <span style={{ color: 'var(--text-muted)' }}>选择语言（留空则不翻译）</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{t('subpre.langPlaceholder')}</span>
                   ) : (
                     <span className="flex items-center gap-1 flex-wrap">
                       {selectedTargetLangs.map((code) => {
@@ -699,7 +703,7 @@ export default function SubtitlePreprocessPage() {
                             className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs"
                             style={{ background: 'var(--neon-blue-6)', color: 'var(--text-secondary)' }}
                           >
-                            {lang?.flag} {lang?.label || code}
+                            {lang?.flag} {(lang?.labelKey ? t(lang.labelKey) : lang?.label) || code}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -752,7 +756,7 @@ export default function SubtitlePreprocessPage() {
                       >
                         {isSelected ? <CheckSquare size={12} /> : <Square size={12} />}
                         <span>{lang.flag}</span>
-                        <span>{lang.label}</span>
+                        <span>{lang.labelKey ? t(lang.labelKey) : lang.label}</span>
                         <span className="ml-auto text-[10px]" style={{ color: 'var(--text-muted)' }}>{lang.value}</span>
                       </button>
                     )
@@ -765,7 +769,7 @@ export default function SubtitlePreprocessPage() {
                         className="text-xs transition-colors hover:text-red-400"
                         style={{ color: 'var(--text-muted)' }}
                       >
-                        清除所有
+                        {t('subpre.clearAll')}
                       </button>
                     </div>
                   )}
@@ -776,7 +780,7 @@ export default function SubtitlePreprocessPage() {
             {/* 已选标签（当下拉框关闭时显示） */}
             {!showLangDropdown && selectedTargetLangs.length > 0 && (
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                已选 {selectedTargetLangs.length} 种语言
+                {t('subpre.langSelected', { count: selectedTargetLangs.length })}
               </span>
             )}
           </div>
@@ -815,7 +819,7 @@ export default function SubtitlePreprocessPage() {
               )}
               style={statusFilter === s ? { background: 'var(--neon-blue-15)', border: '1px solid var(--neon-blue-30)', color: 'var(--text-primary)' } : { background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)', color: 'var(--text-muted)' }}
             >
-              {s === '' ? '全部' : statusLabels[s] || s}
+              {s === '' ? t('common.all') : statusLabels[s] || s}
               {s && stats?.status_counts?.[s] ? ` (${stats.status_counts[s]})` : ''}
             </button>
           ))}
@@ -832,7 +836,7 @@ export default function SubtitlePreprocessPage() {
                 style={{ color: 'var(--neon-blue)', border: '1px solid var(--neon-blue-15)' }}
               >
                 <RotateCcw size={10} />
-                重试全部失败
+                {t('subpre.retryFailedAll')}
               </button>
             )}
             <button
@@ -842,7 +846,7 @@ export default function SubtitlePreprocessPage() {
               style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
             >
               <Trash2 size={10} />
-              清理全部{statusLabels[statusFilter]}
+              {t('subpre.cleanStatus', { status: statusLabels[statusFilter] })}
             </button>
           </div>
         )}
@@ -860,11 +864,11 @@ export default function SubtitlePreprocessPage() {
             style={{ color: 'var(--text-primary)' }}
           >
             {isAllSelected ? <CheckSquare size={14} className="text-neon-blue" /> : <Square size={14} />}
-            {isAllSelected ? '取消全选' : '全选当前页'}
+            {isAllSelected ? t('common.deselectAll') : t('preprocess.selectPage')}
           </button>
 
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            已选择 <span className="font-medium text-neon-blue">{selectedIds.size}</span> 项
+            {t('preprocess.selectedCount', { count: selectedIds.size })}
           </span>
 
           <div className="flex-1" />
@@ -876,7 +880,7 @@ export default function SubtitlePreprocessPage() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             <XCircle size={12} />
-            批量取消
+            {t('preprocess.batchCancel')}
           </button>
 
           <button
@@ -886,7 +890,7 @@ export default function SubtitlePreprocessPage() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             <RotateCcw size={12} />
-            批量重试
+            {t('preprocess.batchRetry')}
           </button>
 
           <button
@@ -896,7 +900,7 @@ export default function SubtitlePreprocessPage() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             {batchLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-            批量删除
+            {t('preprocess.batchDelete')}
           </button>
 
           <button
@@ -904,7 +908,7 @@ export default function SubtitlePreprocessPage() {
             className="text-xs transition-colors hover:text-red-400"
             style={{ color: 'var(--text-muted)' }}
           >
-            清除选择
+            {t('preprocess.clearSelectionBtn')}
           </button>
         </div>
       )}
@@ -924,10 +928,10 @@ export default function SubtitlePreprocessPage() {
               ) : (
                 <Square size={16} />
               )}
-              {isAllSelected ? '取消全选' : '全选'}
+              {isAllSelected ? t('common.deselectAll') : t('common.selectAll')}
             </button>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              共 {total} 条，当前第 {page}/{totalPages} 页
+              {t('preprocess.taskPagination', { total, page, pages: totalPages })}
             </span>
           </div>
         )}
@@ -935,8 +939,8 @@ export default function SubtitlePreprocessPage() {
         {tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--text-muted)' }}>
             <Subtitles size={48} className="mb-4 opacity-30" />
-            <p>暂无字幕预处理任务</p>
-            <p className="text-xs mt-1">选择媒体库提交批量字幕预处理，或在配置中启用自动预处理</p>
+            <p>{t('subpre.noTasks')}</p>
+            <p className="text-xs mt-1">{t('subpre.noTasksHint')}</p>
           </div>
         ) : (
           tasks.map((task) => (
@@ -1009,32 +1013,32 @@ export default function SubtitlePreprocessPage() {
                     {task.cue_count > 0 && (
                       <span className="flex items-center gap-1">
                         <FileText size={10} />
-                        {task.cue_count} 条字幕
+                        {t('subpre.cueCount', { count: task.cue_count })}
                       </span>
                     )}
                     {task.detected_language && (
                       <span className="flex items-center gap-1">
                         <Globe size={10} />
-                        源语言: {task.detected_language}
+                        {t('subpre.srcLang', { lang: task.detected_language })}
                       </span>
                     )}
                     {task.target_langs && (
                       <span className="flex items-center gap-1">
                         <Languages size={10} />
-                        翻译: {task.target_langs}
+                        {t('subpre.translation', { langs: task.target_langs })}
                       </span>
                     )}
                     {task.failed_langs && (
-                      <span className="flex items-center gap-1 text-red-400" title={`翻译失败的语言: ${task.failed_langs}`}>
+                      <span className="flex items-center gap-1 text-red-400" title={t('subpre.failedLangsTitle', { langs: task.failed_langs })}>
                         <AlertCircle size={10} />
-                        失败语言: {task.failed_langs}
+                        {t('subpre.failedLangs', { langs: task.failed_langs })}
                       </span>
                     )}
                     {task.elapsed_sec > 0 && (
-                      <span>耗时 {formatDuration(task.elapsed_sec)}</span>
+                      <span>{t('preprocess.elapsed', { time: formatDuration(task.elapsed_sec) })}</span>
                     )}
                     {task.force_regenerate && (
-                      <span className="text-yellow-400">强制重新生成</span>
+                      <span className="text-yellow-400">{t('subpre.forceLabel')}</span>
                     )}
                     {task.error && (
                       <span className="text-red-400">{task.error}</span>
@@ -1051,17 +1055,17 @@ export default function SubtitlePreprocessPage() {
                 {/* 操作按钮 */}
                 <div className="flex items-center gap-1 shrink-0">
                   {(task.status === 'running' || task.status === 'pending') && (
-                    <button onClick={() => handleCancel(task.id)} className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 transition-colors" style={{ color: 'var(--text-muted)' }} title="取消">
+                    <button onClick={() => handleCancel(task.id)} className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 transition-colors" style={{ color: 'var(--text-muted)' }} title={t('common.cancel')}>
                       <XCircle size={14} />
                     </button>
                   )}
                   {task.status === 'failed' && (
-                    <button onClick={() => handleRetry(task.id)} className="p-1.5 rounded-lg hover:text-neon-blue hover:bg-neon-blue/10 transition-colors" style={{ color: 'var(--text-muted)' }} title="重试">
+                    <button onClick={() => handleRetry(task.id)} className="p-1.5 rounded-lg hover:text-neon-blue hover:bg-neon-blue/10 transition-colors" style={{ color: 'var(--text-muted)' }} title={t('preprocess.retry')}>
                       <RotateCcw size={14} />
                     </button>
                   )}
                   {(task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled' || task.status === 'skipped') && (
-                    <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 transition-colors" style={{ color: 'var(--text-muted)' }} title="删除">
+                    <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 transition-colors" style={{ color: 'var(--text-muted)' }} title={t('common.delete')}>
                       <Trash2 size={14} />
                     </button>
                   )}

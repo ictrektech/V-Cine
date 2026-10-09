@@ -1063,6 +1063,7 @@ const zhCN: Record<string, string> = {
   'prx.testConnect': '测试连接',
   'prx.testImage': '图片',
   'prx.testNetwork': '网络出口',
+  'prx.proxyPlaceholder': 'http://127.0.0.1:7890 或 socks5://127.0.0.1:7891',
 
   // ==================== 运行仪表盘 ====================
   'dash.phaseScanning': '📂 扫描文件',
@@ -1114,7 +1115,7 @@ const zhCN: Record<string, string> = {
   'dash.wipeDesc3': '此操作不可撤销。',
   'dash.wipeKeep1': '仅保留',
   'dash.wipeKeep2': '磁盘上的影视文件',
-  'dash.wipeKeep3': '（不做任何文件操作）',
+  'dash.wipeKeep3': '（不做任何文件操作）和',
   'dash.wipeKeep4': '当前管理员账号',
   'dash.wipeBtn': '清空数据',
   'dash.colDataType': '数据类型',

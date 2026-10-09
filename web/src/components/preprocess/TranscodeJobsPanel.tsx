@@ -5,6 +5,7 @@ import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import { useToast } from '@/components/Toast'
 import { useDialog } from '@/components/Dialog'
 import { usePagination } from '@/hooks/usePagination'
+import { useTranslation } from '@/i18n'
 import Pagination from '@/components/Pagination'
 import { formatSize } from '@/utils/format'
 import type { TranscodeJob, TranscodeStatistics, PreprocessCandidate, Library } from '@/types'
@@ -45,15 +46,7 @@ const QUALITY_BITRATE_MBPS: Record<string, number> = {
 // ==================== 状态映射（与预处理面板共享语义） ====================
 // 转码服务实际状态：pending / running / done / failed / cancelled
 // 这里同时兼容预处理风格的命名（completed），方便潜在的字段统一
-const statusLabels: Record<string, string> = {
-  pending: '等待中',
-  queued: '排队中',
-  running: '处理中',
-  done: '已完成',
-  completed: '已完成',
-  failed: '失败',
-  cancelled: '已取消',
-}
+
 
 const statusColors: Record<string, string> = {
   pending: 'text-yellow-400',
@@ -76,14 +69,7 @@ const statusIcons: Record<string, ReactNode> = {
 }
 
 // 状态筛选选项（顶部按钮组）
-const STATUS_FILTERS: { value: string; label: string }[] = [
-  { value: '', label: '全部' },
-  { value: 'running', label: '处理中' },
-  { value: 'pending', label: '等待中' },
-  { value: 'done', label: '已完成' },
-  { value: 'failed', label: '失败' },
-  { value: 'cancelled', label: '已取消' },
-]
+
 
 /**
  * 转码任务面板
@@ -91,13 +77,32 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
  * 与「视频预处理」面板的列表交互保持一致：
  *   - 顶部统计：处理中 / 失败 / 已完成 / 硬件加速
  *   - 状态筛选 + 分页
- *   - 复选 + 批量取消 / 批量重试 / 批量删除
+ *   - 复选 + {t('preprocess.batchCancel')} / {t('preprocess.batchRetry')} / {t('preprocess.batchDelete')}
  *   - 单条操作：取消（运行中） / 重试（失败/取消） / 删除（终态）
  *   - 实时进度：订阅 WS 转码事件，运行中卡片展示实时进度条
  *
  * 注意：转码服务本身不支持暂停/恢复（节流由播放进度驱动），所以不提供这两个按钮。
  */
 export default function TranscodeJobsPanel() {
+  const { t } = useTranslation()
+  // 任务状态标签（随语言切换重建）
+  const statusLabels: Record<string, string> = {
+    pending: t('common.statusPending'),
+    queued: t('common.statusQueued'),
+    running: t('common.statusProcessing'),
+    done: t('common.statusCompleted'),
+    completed: t('common.statusCompleted'),
+    failed: t('common.statusFailed'),
+    cancelled: t('common.statusCancelled'),
+  }
+  const STATUS_FILTERS: { value: string; label: string }[] = [
+    { value: '', label: t('common.all') },
+    { value: 'running', label: t('common.statusProcessing') },
+    { value: 'pending', label: t('common.statusPending') },
+    { value: 'done', label: t('common.statusCompleted') },
+    { value: 'failed', label: t('common.statusFailed') },
+    { value: 'cancelled', label: t('common.statusCancelled') },
+  ]
   const toast = useToast()
   const dialog = useDialog()
   const toastRef = useRef(toast)
@@ -133,7 +138,7 @@ export default function TranscodeJobsPanel() {
       console.error('[TranscodeJobsPanel] 加载转码任务失败:', e)
       setJobs([])
       setTotal(0)
-      toastRef.current.error('加载转码任务失败')
+      toastRef.current.error(t('transcode.loadFailed'))
     }
   }, [page, pageSize, statusFilter])
 
@@ -246,40 +251,40 @@ export default function TranscodeJobsPanel() {
   const handleCancel = async (id: string) => {
     try {
       await adminApi.cancelTranscodeTask(id)
-      toastRef.current.success('已取消')
+      toastRef.current.success(t('transcode.cancelled'))
       loadJobs()
       loadStats()
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '取消失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.cancelFailed'))
     }
   }
 
   const handleRetry = async (id: string) => {
     try {
       await adminApi.retryTranscodeTask(id)
-      toastRef.current.success('已重新提交')
+      toastRef.current.success(t('transcode.retried'))
       loadJobs()
       loadStats()
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '重试失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.retryFailed'))
     }
   }
 
   const handleDelete = async (id: string) => {
     const ok = await dialog.confirm({
-      title: '删除转码任务',
-      message: '确认删除该转码任务？\n对应的转码缓存目录会一并清理，下次播放需要时会重新生成。',
-      confirmText: '删除',
+      title: t('transcode.deleteTitle'),
+      message: t('transcode.deleteConfirm'),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
     try {
       await adminApi.deleteTranscodeTask(id)
-      toastRef.current.success('已删除')
+      toastRef.current.success(t('transcode.deleted'))
       loadJobs()
       loadStats()
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '删除失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.deleteFailed'))
     }
   }
 
@@ -289,12 +294,12 @@ export default function TranscodeJobsPanel() {
     setBatchLoading(true)
     try {
       const res = await adminApi.batchCancelTranscodeTasks([...selectedIds])
-      toastRef.current.success(`已取消 ${res.data.data.cancelled} 个任务`)
+      toastRef.current.success(t('preprocess.cancelledTasks', { count: res.data.data.cancelled }))
       setSelectedIds(new Set())
       loadJobs()
       loadStats()
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '批量取消失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.batchCancelFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -305,12 +310,12 @@ export default function TranscodeJobsPanel() {
     setBatchLoading(true)
     try {
       const res = await adminApi.batchRetryTranscodeTasks([...selectedIds])
-      toastRef.current.success(`已重试 ${res.data.data.retried} 个任务`)
+      toastRef.current.success(t('preprocess.retriedTasks', { count: res.data.data.retried }))
       setSelectedIds(new Set())
       loadJobs()
       loadStats()
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '批量重试失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.batchRetryFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -319,21 +324,21 @@ export default function TranscodeJobsPanel() {
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return
     const ok = await dialog.confirm({
-      title: '批量删除转码任务',
-      message: `确认删除选中的 ${selectedIds.size} 个转码任务？\n对应的转码缓存目录会一并清理。运行中的任务会被跳过。`,
-      confirmText: '删除',
+      title: t('transcode.batchDeleteTitle'),
+      message: t('transcode.batchDeleteConfirm', { count: selectedIds.size }),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
     setBatchLoading(true)
     try {
       const res = await adminApi.batchDeleteTranscodeTasks([...selectedIds])
-      toastRef.current.success(`已删除 ${res.data.data.deleted} 个任务`)
+      toastRef.current.success(t('preprocess.deletedTasks', { count: res.data.data.deleted }))
       setSelectedIds(new Set())
       loadJobs()
       loadStats()
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '批量删除失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.batchDeleteFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -359,22 +364,22 @@ export default function TranscodeJobsPanel() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <StatCard
           icon={<Loader2 size={18} className={stats?.running_count ? 'animate-spin text-neon-blue' : 'text-neon-blue/40'} />}
-          label="处理中"
+          label={t('common.statusProcessing')}
           value={runningCount}
         />
         <StatCard
           icon={<AlertCircle size={18} className={failedCount > 0 ? 'text-red-400' : 'text-red-400/40'} />}
-          label="失败"
+          label={t('common.statusFailed')}
           value={failedCount}
         />
         <StatCard
           icon={<CheckCircle2 size={18} className="text-emerald-400/70" />}
-          label="已完成"
+          label={t('common.statusCompleted')}
           value={doneCount}
         />
         <StatCard
           icon={<Cpu size={18} className="text-neon-blue/70" />}
-          label="硬件加速"
+          label={t('preprocess.hardwareAccel')}
           value={stats?.hw_accel || 'none'}
         />
         <StatCard
@@ -388,7 +393,7 @@ export default function TranscodeJobsPanel() {
               }
             />
           }
-          label="缓存占用"
+          label={t('preprocess.cacheUsage')}
           value={stats?.disk_usage_bytes !== undefined ? formatSize(stats.disk_usage_bytes) : '—'}
           hint={stats?.disk_usage_dir}
         />
@@ -399,7 +404,7 @@ export default function TranscodeJobsPanel() {
         <section>
           <h2 className="mb-2 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
             <Loader2 size={16} className="animate-spin text-neon-blue" />
-            实时进度
+            {t('transcode.realtime')}
           </h2>
           <div className="space-y-2">
             {Object.entries(progressMap).map(([taskId, data]) => (
@@ -474,10 +479,10 @@ export default function TranscodeJobsPanel() {
           }}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition hover:bg-[var(--nav-hover-bg)]"
           style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
-          title="刷新"
+          title={t('preprocess.refresh')}
         >
           <RefreshCw size={12} />
-          刷新
+          {t('preprocess.refresh')}
         </button>
       </div>
 
@@ -493,10 +498,10 @@ export default function TranscodeJobsPanel() {
             style={{ color: 'var(--text-primary)' }}
           >
             {isAllSelected ? <CheckSquare size={14} className="text-neon-blue" /> : <Square size={14} />}
-            {isAllSelected ? '取消全选' : '全选当前页'}
+            {isAllSelected ? t('common.deselectAll') : t('preprocess.selectPage')}
           </button>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            已选择 <span className="font-medium text-neon-blue">{selectedIds.size}</span> 项
+            {t('preprocess.selectedCount', { count: selectedIds.size })}
           </span>
           <div className="flex-1" />
           <button
@@ -506,7 +511,7 @@ export default function TranscodeJobsPanel() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             <XCircle size={12} />
-            批量取消
+            {t('preprocess.batchCancel')}
           </button>
           <button
             onClick={handleBatchRetry}
@@ -515,7 +520,7 @@ export default function TranscodeJobsPanel() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             <RotateCcw size={12} />
-            批量重试
+            {t('preprocess.batchRetry')}
           </button>
           <button
             onClick={handleBatchDelete}
@@ -524,14 +529,14 @@ export default function TranscodeJobsPanel() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             {batchLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-            批量删除
+            {t('preprocess.batchDelete')}
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
             className="text-xs hover:text-red-400"
             style={{ color: 'var(--text-muted)' }}
           >
-            清除选择
+            {t('preprocess.clearSelectionBtn')}
           </button>
         </div>
       )}
@@ -545,10 +550,10 @@ export default function TranscodeJobsPanel() {
             style={{ color: 'var(--text-muted)' }}
           >
             {isAllSelected ? <CheckSquare size={16} className="text-neon-blue" /> : <Square size={16} />}
-            {isAllSelected ? '取消全选' : '全选'}
+            {isAllSelected ? t('common.deselectAll') : t('common.selectAll')}
           </button>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            共 {total} 条，当前第 {page}/{totalPages} 页
+            {t('preprocess.taskPagination', { total, page, pages: totalPages })}
           </span>
         </div>
       )}
@@ -562,8 +567,8 @@ export default function TranscodeJobsPanel() {
         ) : jobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--text-muted)' }}>
             <Zap size={48} className="mb-4 opacity-30" />
-            <p>暂无转码任务</p>
-            <p className="text-xs mt-1">用户播放需要在线转码的影视时会自动产生任务</p>
+            <p>{t('transcode.noTasks')}</p>
+            <p className="text-xs mt-1">{t('transcode.noTasksHint')}</p>
           </div>
         ) : (
           jobs.map((job) => {
@@ -615,7 +620,7 @@ export default function TranscodeJobsPanel() {
                     {isRunning && (
                       <div className="mt-2">
                         <div className="flex items-center justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                          <span>{live?.message || '转码中...'}</span>
+                          <span>{live?.message || t('transcode.transcoding')}</span>
                           <span>
                             {liveProgress.toFixed(1)}%{live?.speed ? ` · ${live.speed}` : ''}
                           </span>
@@ -636,7 +641,7 @@ export default function TranscodeJobsPanel() {
                     {/* 详细信息 */}
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
                       <span>ID: {job.id.slice(0, 8)}</span>
-                      {job.retries !== undefined && job.retries > 0 && <span>重试 {job.retries} 次</span>}
+                      {job.retries !== undefined && job.retries > 0 && <span>{t('transcode.retryCount', { count: job.retries })}</span>}
                       {job.error && <span className="text-red-400">{job.error}</span>}
                     </div>
                   </div>
@@ -648,7 +653,7 @@ export default function TranscodeJobsPanel() {
                         onClick={() => handleCancel(job.id)}
                         className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-all"
                         style={{ color: 'var(--text-muted)' }}
-                        title="取消"
+                        title={t('common.cancel')}
                       >
                         <XCircle size={14} />
                       </button>
@@ -658,7 +663,7 @@ export default function TranscodeJobsPanel() {
                         onClick={() => handleRetry(job.id)}
                         className="p-1.5 rounded-lg hover:text-neon-blue hover:bg-neon-blue/10 active:scale-90 transition-all"
                         style={{ color: 'var(--text-muted)' }}
-                        title="重试"
+                        title={t('preprocess.retry')}
                       >
                         <RotateCcw size={14} />
                       </button>
@@ -668,7 +673,7 @@ export default function TranscodeJobsPanel() {
                         onClick={() => handleDelete(job.id)}
                         className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-all"
                         style={{ color: 'var(--text-muted)' }}
-                        title="删除"
+                        title={t('common.delete')}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -744,6 +749,7 @@ function StatCard({
  * 默认折叠收起，避免与下方任务列表抢占视觉。
  */
 function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
+  const { t } = useTranslation()
   const toast = useToast()
   const toastRef = useRef(toast)
   toastRef.current = toast
@@ -824,7 +830,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
       setCandidates(list?.items || [])
       setTotal(list?.total || 0)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '加载影视列表失败')
+      toastRef.current.error(e?.response?.data?.error || t('transcode.loadCandidatesFailed'))
       setCandidates([])
       setTotal(0)
     } finally {
@@ -869,11 +875,11 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
 
   const handleSubmit = async () => {
     if (selected.size === 0) {
-      toastRef.current.error('请至少选择一项影视')
+      toastRef.current.error(t('transcode.selectAtLeastOne'))
       return
     }
     if (qualities.size === 0) {
-      toastRef.current.error('请至少选择一个清晰度档位')
+      toastRef.current.error(t('transcode.selectAtLeastOneQuality'))
       return
     }
     setSubmitting(true)
@@ -886,14 +892,14 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
       const skipped = res.data.data?.skipped ?? 0
       toastRef.current.success(
         skipped > 0
-          ? `已提交 ${submitted} 项转码，跳过 ${skipped} 项`
-          : `已提交 ${submitted} 项转码任务`
+          ? t('transcode.submittedSkipped', { submitted, skipped })
+          : t('transcode.submitted', { submitted })
       )
       setSelected(new Set())
       loadCandidates()
       onSubmitted()
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '批量提交失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.batchSubmitFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -912,20 +918,20 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
       >
         <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
           <Film size={16} className="text-neon-blue" />
-          选源提交转码
+          {t('transcode.submitTitle')}
           {expanded && total > 0 && (
             <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
-              （共 {total.toLocaleString()} 条）
+              {t('preprocess.totalCandidates', { count: total.toLocaleString() })}
             </span>
           )}
           {selected.size > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--neon-blue-15)', color: 'var(--neon-blue)' }}>
-              已选 {selected.size}
+              {t('preprocess.selectedCount', { count: selected.size })}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-          {!expanded && <span>点击展开 ↓</span>}
+          {!expanded && <span>{t('transcode.expandHint')}</span>}
           {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </button>
@@ -936,7 +942,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
           {/* 清晰度多选 + 提交按钮 */}
           <div className="flex items-center justify-between flex-wrap gap-2 pt-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>清晰度：</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('transcode.qualityLabel')}</span>
               {TRANSCODE_QUALITIES.map((q) => {
                 const active = qualities.has(q)
                 const mbps = QUALITY_BITRATE_MBPS[q] ?? 0
@@ -947,7 +953,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                     key={q}
                     type="button"
                     onClick={() => toggleQuality(q)}
-                    title={`${q} 约 ${mbps.toFixed(1)} Mbps · 每分钟约 ${perMinMB.toFixed(1)} MB`}
+                    title={t('transcode.qualityEstimate', { q, mbps: mbps.toFixed(1), mb: perMinMB.toFixed(1) })}
                     className={clsx(
                       'rounded-lg px-2.5 py-1 text-xs transition',
                       active && 'font-medium'
@@ -961,17 +967,17 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                 )
               })}
               <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                超过原始分辨率的档位会自动跳过
+                {t('transcode.skipAboveOriginal')}
               </span>
               {/* 已选影视 + 已选档位 → 估算本次产出，跨页选择时仅当前页可见部分参与计算 */}
               {estimatedSize > 0 && (
                 <span
                   className="text-[11px] px-1.5 py-0.5 rounded"
                   style={{ background: 'var(--neon-blue-6)', color: 'var(--neon-blue)' }}
-                  title="基于已选档位码率与影视时长估算，实际大小受编码器与场景复杂度影响（误差 ±20%）"
+                  title={t('transcode.estimateHint')}
                 >
-                  预计本次产出 ≈ {formatSize(estimatedSize)}
-                  {visibleSelectedCount < selected.size && '（仅当前页可估算）'}
+                  {t('transcode.estimatedOutput', { size: formatSize(estimatedSize) })}
+                  {visibleSelectedCount < selected.size && t('transcode.pageOnlyEstimate')}
                 </span>
               )}
             </div>
@@ -983,7 +989,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                 className="text-xs px-2 py-1.5 rounded transition disabled:opacity-40"
                 style={{ background: 'var(--surface-glass-2)', color: 'var(--text-secondary)' }}
               >
-                清空
+                {t('preprocess.clearSelection')}
               </button>
               <button
                 type="button"
@@ -993,7 +999,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                 style={{ background: 'var(--bg-overlay)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}
               >
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                提交转码（{selected.size}）
+                {t('transcode.submitTranscode', { count: selected.size })}
               </button>
             </div>
           </div>
@@ -1010,7 +1016,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                     setKeyword(keywordInput.trim())
                   }
                 }}
-                placeholder="搜索标题 / 原名 / 番号，回车确认"
+                placeholder={t('preprocess.searchPlaceholder')}
                 className="w-full px-3 py-1.5 text-sm rounded-md outline-none"
                 style={{ background: 'var(--surface-glass-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
               />
@@ -1021,7 +1027,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
               className="px-2 py-1.5 text-sm rounded-md outline-none"
               style={{ background: 'var(--surface-glass-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
             >
-              <option value="">全部媒体库</option>
+              <option value="">{t('preprocess.allLibraries')}</option>
               {libraries.map((lib) => (
                 <option key={lib.id} value={lib.id}>{lib.name}</option>
               ))}
@@ -1032,9 +1038,9 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
               className="px-2 py-1.5 text-sm rounded-md outline-none"
               style={{ background: 'var(--surface-glass-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
             >
-              <option value="">全部类型</option>
-              <option value="movie">电影</option>
-              <option value="episode">剧集</option>
+              <option value="">{t('preprocess.allTypes')}</option>
+              <option value="movie">{t('media.movie')}</option>
+              <option value="episode">{t('media.episode')}</option>
             </select>
             <button
               type="button"
@@ -1042,10 +1048,10 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
               disabled={loading}
               className="px-2 py-1.5 text-xs rounded-md flex items-center gap-1 transition"
               style={{ background: 'var(--surface-glass-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
-              title="刷新"
+              title={t('preprocess.refresh')}
             >
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-              刷新
+              {t('preprocess.refresh')}
             </button>
           </div>
 
@@ -1056,22 +1062,22 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                 type="button"
                 onClick={toggleSelectAll}
                 className="flex items-center gap-1 hover:text-neon-blue transition"
-                title="全选 / 取消全选当前页可选项"
+                title={t('preprocess.selectPageTitle')}
               >
                 {allSelectedOnPage ? <CheckSquare size={14} className="text-neon-blue" /> : <Square size={14} />}
-                当前页全选
+                {t('preprocess.selectPage')}
               </button>
-              <span className="ml-auto">第 {page} / {totalPages || 1} 页</span>
+              <span className="ml-auto">{t('preprocess.pageInfo', { cur: page, total: totalPages || 1 })}</span>
             </div>
 
             {loading && candidates.length === 0 ? (
               <div className="p-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
                 <Loader2 size={16} className="inline animate-spin mr-2" />
-                加载中...
+                {t('common.loading')}
               </div>
             ) : candidates.length === 0 ? (
               <div className="p-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-                暂无匹配的影视
+                {t('preprocess.noCandidates')}
               </div>
             ) : (
               <ul className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -1107,7 +1113,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                            {c.title || c.orig_title || '(无标题)'}
+                            {c.title || c.orig_title || t('preprocess.noTitle')}
                           </span>
                           {c.media_type === 'episode' && (c.season_num || c.episode_num) ? (
                             <span
@@ -1121,16 +1127,16 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>({c.year})</span>
                           )}
                           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-glass-2)', color: 'var(--text-muted)' }}>
-                            {c.media_type === 'episode' ? '剧集' : '电影'}
+                            {c.media_type === 'episode' ? t('media.episode') : t('media.movie')}
                           </span>
                           {c.is_strm && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded text-amber-400" style={{ background: 'rgba(245,158,11,0.1)' }}>
-                              STRM 不可转码
+                              {t('transcode.strmNotTranscodable')}
                             </span>
                           )}
                           {c.can_play_directly && !c.is_strm && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded text-emerald-400" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                              可直接播放
+                              {t('preprocess.playable')}
                             </span>
                           )}
                         </div>
@@ -1138,7 +1144,7 @@ function SourcePicker({ onSubmitted }: { onSubmitted: () => void }) {
                           {c.resolution && <span>{c.resolution}</span>}
                           {c.video_codec && <span>{c.video_codec}</span>}
                           {c.audio_codec && <span>{c.audio_codec}</span>}
-                          {c.duration > 0 && <span>{Math.round(c.duration / 60)} 分钟</span>}
+                          {c.duration > 0 && <span>{t('timeFormat.minutes', { minutes: Math.round(c.duration / 60) })}</span>}
                           {c.file_size > 0 && <span>{formatSize(c.file_size)}</span>}
                         </div>
                       </div>

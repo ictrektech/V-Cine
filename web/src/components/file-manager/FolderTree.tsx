@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useTranslation } from '@/i18n'
 
 interface FolderTreeProps {
   tree: FolderNode[]
@@ -183,6 +184,7 @@ export default function FolderTree({
   onCopyPath,
   onCollapse,
 }: FolderTreeProps) {
+  const { t } = useTranslation()
   // 右键菜单状态
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean; x: number; y: number; node: FolderNode | null
@@ -203,21 +205,21 @@ export default function FolderTree({
     return [
       {
         key: 'create',
-        label: '新建子文件夹',
+        label: t('fm.contextNewFolder'),
         icon: <FolderPlus size={14} />,
         disabled: !onCreateFolder,
         onClick: () => onCreateFolder?.(node.path),
       },
       {
         key: 'rename',
-        label: '重命名',
+        label: t('common.rename'),
         icon: <Pencil size={14} />,
         disabled: !onRenameFolder,
         onClick: () => onRenameFolder?.(node.path),
       },
       {
         key: 'refresh',
-        label: '刷新',
+        label: t('fm.refresh'),
         icon: <RefreshCw size={14} />,
         divider: true,
         disabled: !onRefreshFolder,
@@ -225,13 +227,13 @@ export default function FolderTree({
       },
       {
         key: 'copy-path',
-        label: '复制路径',
+        label: t('fm.copyPath'),
         icon: <Copy size={14} />,
         onClick: () => onCopyPath?.(node.path),
       },
       {
         key: 'delete',
-        label: '删除文件夹',
+        label: t('fm.deleteFolder'),
         icon: <Trash2 size={14} />,
         danger: true,
         divider: true,
@@ -239,22 +241,22 @@ export default function FolderTree({
         onClick: () => onDeleteFolder?.(node.path),
       },
     ]
-  }, [contextMenu.node, onCreateFolder, onRenameFolder, onDeleteFolder, onRefreshFolder, onCopyPath])
+  }, [contextMenu.node, onCreateFolder, onRenameFolder, onDeleteFolder, onRefreshFolder, onCopyPath, t])
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* 标题栏 */}
       <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor: 'var(--border-default)' }}>
         <FolderTreeIcon size={16} className="text-neon flex-shrink-0" />
-        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>文件夹导航</span>
+        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('fm.folderNav')}</span>
         {onRefreshFolder && (
           <Button
             variant="ghost"
             size="icon"
             className="ml-auto h-7 w-7 text-surface-400 hover:text-neon"
             onClick={onRefreshFolder}
-            title="刷新文件夹树"
-            aria-label="刷新文件夹树"
+            title={t('fm.refreshFolderTree')}
+            aria-label={t('fm.refreshFolderTree')}
           >
             <RefreshCw size={14} />
           </Button>
@@ -265,8 +267,8 @@ export default function FolderTree({
             size="icon"
             className="h-7 w-7 text-surface-400 hover:text-neon"
             onClick={onCollapse}
-            title="收起文件夹面板"
-            aria-label="收起文件夹面板"
+            title={t('fm.collapseFolderPanel')}
+            aria-label={t('fm.collapseFolderPanel')}
           >
             <PanelLeftClose size={14} />
           </Button>
@@ -282,7 +284,7 @@ export default function FolderTree({
           onClick={onClearFolder}
         >
           <Home size={16} />
-          <span>全部文件</span>
+          <span>{t('fm.allFiles')}</span>
         </Button>
       </div>
 
@@ -300,7 +302,7 @@ export default function FolderTree({
         ) : tree.length === 0 ? (
           <div className="text-center py-8">
             <Folder size={32} className="mx-auto mb-2 text-surface-600" />
-            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>暂无文件夹</p>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{t('fm.noFolders')}</p>
           </div>
         ) : (
           tree.map((node) => (

@@ -24,17 +24,19 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
+import { useTranslation } from '@/i18n'
 
 type SortOption = 'premiered_asc' | 'premiered_desc' | 'title_asc' | 'rating_desc'
 
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'premiered_asc', label: '首映日期 ↑' },
-  { value: 'premiered_desc', label: '首映日期 ↓' },
-  { value: 'title_asc', label: '标题 A-Z' },
-  { value: 'rating_desc', label: '评分 ↓' },
+const SORT_OPTIONS: { value: SortOption; labelKey: string }[] = [
+  { value: 'premiered_asc', labelKey: 'collections.sortPremieredAsc' },
+  { value: 'premiered_desc', labelKey: 'collections.sortPremieredDesc' },
+  { value: 'title_asc', labelKey: 'collections.sortTypeTitleAsc' },
+  { value: 'rating_desc', labelKey: 'collections.sortRatingDesc' },
 ]
 
 export default function CollectionDetailPage() {
+  const { t } = useTranslation()
   // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
   usePosterVersion()
   const { id } = useParams<{ id: string }>()
@@ -120,10 +122,10 @@ export default function CollectionDetailPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Layers size={48} className="text-surface-600" />
         <p className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>
-          {error ? '合集不存在或加载失败' : '合集不存在'}
+          {error ? t('collections.loadFailed') : t('collections.notFound')}
         </p>
         <button onClick={() => navigate('/collections')} className="btn-ghost text-sm">
-          返回合集列表
+          {t('collections.backToList')}
         </button>
       </div>
     )
@@ -181,7 +183,7 @@ export default function CollectionDetailPage() {
             }}
           >
             <ArrowLeft size={16} />
-            返回
+            {t('common.back')}
           </button>
 
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
@@ -207,7 +209,7 @@ export default function CollectionDetailPage() {
               <div className="flex items-center gap-2 mb-2">
                 <Layers size={16} className="text-neon/60" />
                 <span className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--neon-blue)' }}>
-                  系列合集
+                  {t('collections.overviewBadge')}
                 </span>
               </div>
               <h1 className="font-display text-3xl font-bold tracking-wide sm:text-4xl"
@@ -221,9 +223,9 @@ export default function CollectionDetailPage() {
                     color: 'var(--neon-blue)',
                     border: '1px solid var(--neon-blue-20)',
                   }}>
-                  {movieCount} 部电影
+                  {t('collections.movieCount', { count: movieCount })}
                   {fileCount > movieCount && (
-                    <span className="ml-1 opacity-70">· {fileCount} 个文件</span>
+                    <span className="ml-1 opacity-70">{t('collections.fileCountDot', { count: fileCount })}</span>
                   )}
                 </span>
                 {media.length > 0 && (
@@ -249,7 +251,7 @@ export default function CollectionDetailPage() {
                       return (
                         <span className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
                           <Star size={14} className="text-yellow-400" />
-                          均分 {avg.toFixed(1)}
+                          {t('collections.avgRating', { rating: avg.toFixed(1) })}
                         </span>
                       )
                     })()}
@@ -320,9 +322,9 @@ export default function CollectionDetailPage() {
                         }}
                       >
                         {headerGenresExpanded ? (
-                          <><ChevronUp size={12} /> 收起</>
+                          <><ChevronUp size={12} /> {t('collections.collapse')}</>
                         ) : (
-                          <><ChevronDown size={12} /> 更多 {genres.length - COLLAPSED_COUNT} 个</>
+                          <><ChevronDown size={12} /> {t('collections.moreGenres', { count: genres.length - COLLAPSED_COUNT })}</>
                         )}
                       </button>
                     )}
@@ -344,7 +346,7 @@ export default function CollectionDetailPage() {
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold tracking-wide"
             style={{ color: 'var(--text-primary)' }}>
-            系列电影
+            {t('collections.moviesTitle')}
           </h2>
           <div className="flex items-center gap-3">
             {/* 排序 */}
@@ -367,7 +369,7 @@ export default function CollectionDetailPage() {
                 }}
               >
                 {SORT_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
                 ))}
               </select>
             </div>
@@ -384,7 +386,7 @@ export default function CollectionDetailPage() {
                   background: viewMode === 'grid' ? 'var(--nav-active-bg)' : 'transparent',
                   color: viewMode === 'grid' ? 'var(--neon-blue)' : 'var(--text-tertiary)',
                 }}
-                title="卡片视图"
+                title={t('collections.cardView')}
               >
                 <Grid3X3 size={16} />
               </button>
@@ -399,7 +401,7 @@ export default function CollectionDetailPage() {
                   background: viewMode === 'list' ? 'var(--nav-active-bg)' : 'transparent',
                   color: viewMode === 'list' ? 'var(--neon-blue)' : 'var(--text-tertiary)',
                 }}
-                title="列表视图"
+                title={t('collections.listView')}
               >
                 <LayoutList size={16} />
               </button>
@@ -440,6 +442,7 @@ export default function CollectionDetailPage() {
 
 /** 合集中的电影卡片（支持同片多版本折叠展示） */
 function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index: number }) {
+  const { t } = useTranslation()
   const item = group.primary
   const versionCount = group.versions.length
   const hasMultipleVersions = versionCount > 1
@@ -489,10 +492,10 @@ function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index:
                   color: '#fff',
                   border: '1px solid rgba(255,255,255,0.15)',
                 }}
-                title={`共有 ${versionCount} 个版本`}
+                title={`${t('collections.versionCount', { count: versionCount })}`}
               >
                 <Copy size={9} />
-                {versionCount}版
+                {t('collections.versionBadgeShort', { count: versionCount })}
               </span>
             </div>
           )}
@@ -537,7 +540,7 @@ function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index:
             )}
             {item.runtime > 0 && (
               <span className="flex items-center gap-0.5">
-                <Clock size={10} /> {item.runtime}分钟
+                <Clock size={10} /> {t('media.durationMin', { minutes: item.runtime })}
               </span>
             )}
           </div>
@@ -592,7 +595,7 @@ function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index:
             background: showVersions ? 'var(--neon-blue)' : 'rgba(0,0,0,0.6)',
             color: '#fff',
           }}
-          title="查看所有版本"
+          title={t('collections.viewVersions')}
         >
           <ChevronDown size={12} className={showVersions ? 'rotate-180' : ''} />
         </button>
@@ -609,7 +612,7 @@ function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index:
         >
           <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-muted)' }}>
-            {versionCount} 个版本
+            {t('collections.versionCountLabel', { count: versionCount })}
           </div>
           {group.versions.map((v) => {
             const label = versionLabel(v) || v.title
@@ -632,7 +635,7 @@ function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index:
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate">{label}</span>
                   {v.id === item.id && (
-                    <span className="flex-shrink-0 text-[9px] font-bold">当前</span>
+                    <span className="flex-shrink-0 text-[9px] font-bold">{t('collections.current')}</span>
                   )}
                 </div>
               </Link>
@@ -646,6 +649,7 @@ function CollectionMovieCard({ group, index }: { group: GroupedMovieItem; index:
 
 /** 合集中的电影列表项（支持同片多版本展示） */
 function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; index: number }) {
+  const { t } = useTranslation()
   const item = group.primary
   const versionCount = group.versions.length
   const hasMultipleVersions = versionCount > 1
@@ -705,10 +709,10 @@ function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; in
                   background: 'var(--bg-overlay)',
                   color: '#fff',
                 }}
-                title={`共有 ${versionCount} 个版本`}
+                title={`${t('collections.versionCount', { count: versionCount })}`}
               >
                 <Copy size={9} />
-                {versionCount}个版本
+                {t('collections.versionCountLabel2', { count: versionCount })}
               </span>
             )}
           </div>
@@ -750,7 +754,7 @@ function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; in
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--neon-blue-10)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                 >
-                  {genresExpanded ? '收起' : `+${genreList.length - LIST_MAX_VISIBLE}`}
+                  {genresExpanded ? t('collections.collapse') : `+${genreList.length - LIST_MAX_VISIBLE}`}
                 </button>
               )}
             </div>
@@ -779,7 +783,7 @@ function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; in
               background: showVersions ? 'var(--neon-blue-10)' : 'var(--bg-elevated)',
               color: showVersions ? 'var(--neon-blue)' : 'var(--text-muted)',
             }}
-            title={showVersions ? '收起版本' : '展开版本'}
+            title={showVersions ? t('collections.collapseVersions') : t('collections.expandVersions')}
           >
             <ChevronDown size={14} className={showVersions ? 'rotate-180 transition-transform' : 'transition-transform'} />
           </button>
@@ -802,7 +806,7 @@ function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; in
         <div className="px-3 pb-3" style={{ borderTop: '1px dashed var(--border-default)' }}>
           <div className="mt-2 space-y-1">
             {group.versions.map((v) => {
-              const label = versionLabel(v) || '默认版本'
+              const label = versionLabel(v) || t('collections.defaultVersion')
               return (
                 <Link
                   key={v.id}
@@ -819,7 +823,7 @@ function CollectionMovieListItem({ group, index }: { group: GroupedMovieItem; in
                       style={{
                         background: 'var(--bg-overlay)',
                         color: '#fff',
-                      }}>当前</span>
+                      }}>{t('collections.current')}</span>
                   )}
                 </Link>
               )

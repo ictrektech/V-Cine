@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/i18n'
 
 // ==================== Drawer（居中弹窗）====================
 // 基于 shadcn Dialog 扩展：桌面居中弹窗（宽度按 size 分级，高度 90vh 内滚动），
@@ -43,7 +44,9 @@ DrawerOverlay.displayName = 'DrawerOverlay'
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { title?: string; description?: string; size?: keyof typeof DRAWER_SIZES }
->(({ className, children, title, description, size = 'lg', ...props }, ref) => (
+>(({ className, children, title, description, size = 'lg', ...props }, ref) => {
+  const { t } = useTranslation()
+  return (
   <DialogPrimitive.Portal>
     <DrawerOverlay />
     {/* 居中容器：flex 定位替代 translate(-50%,-50%)，slide-up 动画无需位置补偿 */}
@@ -68,7 +71,7 @@ const DrawerContent = React.forwardRef<
           </div>
           <DialogPrimitive.Close className="rounded-lg p-1.5 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <X className="h-4 w-4" />
-            <span className="sr-only">关闭</span>
+            <span className="sr-only">{t('common.close')}</span>
           </DialogPrimitive.Close>
         </div>
         {/* 内容区：滚动；overflow-x-hidden 防止内容横向溢出被裁切 */}
@@ -76,7 +79,8 @@ const DrawerContent = React.forwardRef<
       </DialogPrimitive.Content>
     </div>
   </DialogPrimitive.Portal>
-))
+  )
+})
 DrawerContent.displayName = 'DrawerContent'
 
 export { Drawer, DrawerClose, DrawerOverlay, DrawerContent }

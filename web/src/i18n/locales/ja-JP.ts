@@ -1072,6 +1072,7 @@ const jaJP: Record<string, string> = {
   'prx.testConnect': '接続テスト',
   'prx.testImage': '画像',
   'prx.testNetwork': 'ネットワーク出口',
+  'prx.proxyPlaceholder': 'http://127.0.0.1:7890 または socks5://127.0.0.1:7891',
 
   // ==================== ダッシュボード ====================
   'dash.phaseScanning': '📂 ファイルをスキャン',

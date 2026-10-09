@@ -19,6 +19,7 @@ import { formatFileSize, LANGUAGE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from '
 import { streamApi } from '@/api/stream'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
 import { usePosterVersion } from '@/stores/mediaRefresh'
+import { useTranslation } from '@/i18n'
 
 // ==================== 导入文件对话框 ====================
 interface ImportFileModalProps {
@@ -41,6 +42,7 @@ function guessLibraryId(path: string, libraries: Library[]): string {
 
 export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportFileModalProps) {
   const toast = useToast()
+  const { t } = useTranslation()
   const [importPath, setImportPath] = useState('')
   const [importTitle, setImportTitle] = useState('')
   const [importMediaType, setImportMediaType] = useState('movie')
@@ -55,19 +57,19 @@ export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportF
   const [browserOpen, setBrowserOpen] = useState(false)
 
   const handleImport = async () => {
-    if (!importPath) { toast.error('请选择文件路径'); return }
-    if (!importLibraryId) { toast.error('请选择目标媒体库'); return }
+    if (!importPath) { toast.error(t('fm.importPathRequired')); return }
+    if (!importLibraryId) { toast.error(t('fm.importLibRequired')); return }
     setImporting(true)
     try {
       await fileManagerApi.importFile({
         file_path: importPath, title: importTitle || undefined,
         media_type: importMediaType, library_id: importLibraryId,
       })
-      toast.success('文件导入成功')
+      toast.success(t('fm.importSuccess'))
       onClose()
       onSuccess()
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '导入失败')
+      toast.error(err?.response?.data?.error || t('fm.importFailed'))
     } finally {
       setImporting(false)
     }
@@ -77,52 +79,52 @@ export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportF
     <Modal open={open} onClose={onClose} className="max-w-lg">
       <div className="glass-panel-strong rounded-2xl p-6">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          <Plus className="inline-block mr-2 mb-0.5" size={20} /> 导入影视文件
+          <Plus className="inline-block mr-2 mb-0.5" size={20} /> {t('fm.importTitle')}
         </h3>
         <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>
-          从服务器已挂载的目录中选择视频文件登记到媒体库，仅建立索引记录，不会搬移或复制文件
+          {t('fm.importDesc')}
         </p>
         <div className="space-y-3">
           <div>
             <label className="block text-sm mb-1 font-medium" style={{ color: 'var(--text-primary)' }}>
-              服务器文件 <span style={{ color: 'var(--text-tertiary)' }}>*</span>
+              {t('fm.serverFile')} <span style={{ color: 'var(--text-tertiary)' }}>*</span>
             </label>
             <button onClick={() => setBrowserOpen(true)}
               className="btn-ghost w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm border border-dashed transition-colors hover:border-neon hover:bg-neon/5">
               <FolderOpen size={16} className="flex-shrink-0 text-neon" />
               <span className="flex-1 text-left truncate font-medium" style={{ color: importPath ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-                {importPath || '点击选择挂载的文件'}
+                {importPath || t('fm.clickSelectFile')}
               </span>
               <ChevronRight size={14} className="flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
             </button>
           </div>
           <div>
             <label className="block text-sm mb-1 font-medium" style={{ color: 'var(--text-primary)' }}>
-              标题 <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>（留空自动提取）</span>
+              {t('fm.colTitle')} <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{t('fm.titleAutoHint')}</span>
             </label>
             <input type="text" value={importTitle} onChange={e => setImportTitle(e.target.value)}
-              placeholder="自动从文件名提取" className="input-glass w-full px-3 py-2 rounded-lg text-sm" />
+              placeholder={t('fm.titleAutoPlaceholder')} className="input-glass w-full px-3 py-2 rounded-lg text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm mb-1 font-medium" style={{ color: 'var(--text-primary)' }}>媒体类型</label>
+              <label className="block text-sm mb-1 font-medium" style={{ color: 'var(--text-primary)' }}>{t('fm.mediaTypeLabel')}</label>
               <Select value={importMediaType} onValueChange={v => setImportMediaType(v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择类型" />
+                  <SelectValue placeholder={t('fm.selectType')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="movie">电影</SelectItem>
-                  <SelectItem value="episode">剧集</SelectItem>
+                  <SelectItem value="movie">{t('media.movie')}</SelectItem>
+                  <SelectItem value="episode">{t('media.episode')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
               <label className="block text-sm mb-1 font-medium" style={{ color: 'var(--text-primary)' }}>
-                媒体库 <span style={{ color: 'var(--text-tertiary)' }}>*</span>
+                {t('fm.libraryLabel')} <span style={{ color: 'var(--text-tertiary)' }}>*</span>
               </label>
               <Select value={importLibraryId} onValueChange={v => setImportLibraryId(v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择媒体库" />
+                  <SelectValue placeholder={t('fm.selectLibrary')} />
                 </SelectTrigger>
                 <SelectContent>
                   {libraries.map(lib => <SelectItem key={lib.id} value={lib.id}>{lib.name}</SelectItem>)}
@@ -132,11 +134,11 @@ export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportF
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
+          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
           <button onClick={handleImport} disabled={importing}
             className="btn-primary flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm">
             {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            {importing ? '导入中...' : '导入'}
+            {importing ? t('fm.importing') : t('fm.importBtn')}
           </button>
         </div>
       </div>
@@ -162,6 +164,7 @@ interface EditFileModalProps {
 
 export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps) {
   const toast = useToast()
+  const { t } = useTranslation()
   const [editForm, setEditForm] = useState<Record<string, unknown>>({
     title: media.title, orig_title: media.orig_title, year: media.year,
     overview: media.overview, genres: media.genres, rating: media.rating,
@@ -171,11 +174,11 @@ export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps)
   const handleSave = async () => {
     try {
       const res = await fileManagerApi.updateFile(media.id, editForm)
-      toast.success('更新成功')
+      toast.success(t('fm.updateSuccess'))
       onClose()
       onSuccess(res.data.data)
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '更新失败')
+      toast.error(err?.response?.data?.error || t('fm.updateFailed'))
     }
   }
 
@@ -183,44 +186,44 @@ export function EditFileModal({ media, onClose, onSuccess }: EditFileModalProps)
     <Modal open onClose={onClose} className="max-w-lg">
       <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          <Edit3 className="inline-block mr-2 mb-0.5" size={20} /> 编辑文件信息
+          <Edit3 className="inline-block mr-2 mb-0.5" size={20} /> {t('fm.editTitle')}
         </h3>
         <div className="space-y-3">
           {[
-            { key: 'title', label: '标题', type: 'text' },
-            { key: 'orig_title', label: '原始标题', type: 'text' },
-            { key: 'year', label: '年份', type: 'number' },
-            { key: 'genres', label: '类型', type: 'text', placeholder: '动作,科幻,冒险' },
-            { key: 'rating', label: '评分', type: 'number' },
-            { key: 'country', label: '国家/地区', type: 'text' },
-            { key: 'language', label: '语言', type: 'text' },
+            { key: 'title', labelKey: 'fm.colTitle', type: 'text' },
+            { key: 'orig_title', labelKey: 'fm.fieldOrigTitle', type: 'text' },
+            { key: 'year', labelKey: 'media.year', type: 'number' },
+            { key: 'genres', labelKey: 'media.genres', type: 'text', placeholderKey: 'fm.genresPlaceholder' },
+            { key: 'rating', labelKey: 'media.rating', type: 'number' },
+            { key: 'country', labelKey: 'fm.fieldCountry', type: 'text' },
+            { key: 'language', labelKey: 'fm.fieldLanguage', type: 'text' },
           ].map(field => (
             <div key={field.key}>
-              <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{field.label}</label>
+              <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{t(field.labelKey)}</label>
               <input type={field.type} value={editForm[field.key] as string || ''}
                 onChange={e => setEditForm(prev => ({ ...prev, [field.key]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                placeholder={field.placeholder} className="input-glass w-full px-3 py-2 rounded-lg text-sm" />
+                placeholder={field.placeholderKey ? t(field.placeholderKey) : undefined} className="input-glass w-full px-3 py-2 rounded-lg text-sm" />
             </div>
           ))}
           <div>
-            <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>简介</label>
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{t('media.overview')}</label>
             <textarea value={editForm.overview as string || ''}
               onChange={e => setEditForm(prev => ({ ...prev, overview: e.target.value }))}
               rows={4} className="input-glass w-full px-3 py-2 rounded-lg text-sm resize-none" />
           </div>
           <div>
-            <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>媒体类型</label>
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{t('fm.mediaTypeLabel')}</label>
             <select value={editForm.media_type as string || 'movie'}
               onChange={e => setEditForm(prev => ({ ...prev, media_type: e.target.value }))}
               className="input-glass w-full px-3 py-2 rounded-lg text-sm">
-              <option value="movie">电影</option>
-              <option value="episode">剧集</option>
+              <option value="movie">{t('media.movie')}</option>
+              <option value="episode">{t('media.episode')}</option>
             </select>
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
-          <button onClick={handleSave} className="btn-primary px-4 py-2 rounded-lg text-sm">保存</button>
+          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
+          <button onClick={handleSave} className="btn-primary px-4 py-2 rounded-lg text-sm">{t('common.save')}</button>
         </div>
       </div>
     </Modal>
@@ -243,6 +246,7 @@ interface FileDetailModalProps {
 
 export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = true, remoteVideoEnabled = false, onClose, onEdit, onScrape, onAnalyze, onRetryAnalysis, onViewAnalysis }: FileDetailModalProps) {
   const toast = useToast()
+  const { t } = useTranslation()
   // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
   const [analysisTask, setAnalysisTask] = useState<VideoAnalysisTask | null>(null)
@@ -264,7 +268,7 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
           setAnalysisUnavailable(true)
           setAnalysisTask(null)
         } else {
-          toast.error(err?.response?.data?.error || '读取视频分析状态失败')
+          toast.error(err?.response?.data?.error || t('fm.readAnalysisStatusFailed'))
         }
       })
       .finally(() => {
@@ -277,17 +281,17 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
     if (!analysisTask) return null
     switch (analysisTask.status) {
       case 'queued':
-        return { label: '排队中', tone: 'text-surface-300 bg-surface-600/30', action: 'progress' as const }
+        return { labelKey: 'common.statusQueued', tone: 'text-surface-300 bg-surface-600/30', action: 'progress' as const }
       case 'running':
-        return { label: '分析中', tone: 'text-amber-300 bg-amber-500/10', action: 'progress' as const }
+        return { labelKey: 'common.statusProcessing', tone: 'text-amber-300 bg-amber-500/10', action: 'progress' as const }
       case 'succeeded':
-        return { label: '已完成', tone: 'text-emerald-300 bg-emerald-500/10', action: 'result' as const }
+        return { labelKey: 'common.statusCompleted', tone: 'text-emerald-300 bg-emerald-500/10', action: 'result' as const }
       case 'partial':
-        return { label: '部分完成', tone: 'text-amber-300 bg-amber-500/10', action: 'retry' as const }
+        return { labelKey: 'fm.analysisPartial', tone: 'text-amber-300 bg-amber-500/10', action: 'retry' as const }
       case 'failed':
-        return { label: '失败', tone: 'text-red-300 bg-red-500/10', action: 'retry' as const }
+        return { labelKey: 'common.statusFailed', tone: 'text-red-300 bg-red-500/10', action: 'retry' as const }
       case 'skipped':
-        return { label: '已跳过', tone: 'text-surface-400 bg-surface-600/20', action: 'analyze' as const }
+        return { labelKey: 'common.statusSkipped', tone: 'text-surface-400 bg-surface-600/20', action: 'analyze' as const }
       default:
         return null
     }
@@ -298,11 +302,11 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
   const analysisDescribeDisabled = remoteDisabled || !videoAnalysisDescribeEnabled
   let analysisDescribeTitle = ''
   if (remoteDisabled) {
-    analysisDescribeTitle = REMOTE_ANALYSIS_DISABLED_TIP
+    analysisDescribeTitle = t(REMOTE_ANALYSIS_DISABLED_TIP)
   } else if (!videoAnalysisDescribeEnabled) {
-    analysisDescribeTitle = '需要在「视频分析」设置中开启场景描述功能'
+    analysisDescribeTitle = t('fm.descNeedEnabled')
   } else if (isRemoteVideo) {
-    analysisDescribeTitle = '远程视频将通过 URL 拉流分析，速度较慢并消耗网络带宽'
+    analysisDescribeTitle = t('fm.remoteAnalysisUrlHint')
   }
 
   return (
@@ -310,7 +314,7 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
       <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-            <Eye className="inline-block mr-2 mb-0.5" size={20} /> 文件详情
+            <Eye className="inline-block mr-2 mb-0.5" size={20} /> {t('fm.detailTitle')}
           </h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-white/10"><X size={18} /></button>
         </div>
@@ -324,16 +328,16 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
             />
           </div>
           <div className="flex-1 space-y-2 text-sm">
-            <div><span style={{ color: 'var(--text-tertiary)' }}>标题：</span><span style={{ color: 'var(--text-primary)' }}>{media.title}</span></div>
-            {media.orig_title && <div><span style={{ color: 'var(--text-tertiary)' }}>原始标题：</span><span style={{ color: 'var(--text-secondary)' }}>{media.orig_title}</span></div>}
-            <div><span style={{ color: 'var(--text-tertiary)' }}>年份：</span><span style={{ color: 'var(--text-secondary)' }}>{media.year || '-'}</span></div>
-            <div><span style={{ color: 'var(--text-tertiary)' }}>评分：</span>{media.rating > 0 ? <span className="text-amber-400">★ {media.rating.toFixed(1)}</span> : <span style={{ color: 'var(--text-secondary)' }}>-</span>}</div>
-            <div><span style={{ color: 'var(--text-tertiary)' }}>类型：</span><span style={{ color: 'var(--text-secondary)' }}>{media.genres || '-'}</span></div>
-            <div><span style={{ color: 'var(--text-tertiary)' }}>媒体类型：</span><span className={media.media_type === 'movie' ? 'text-purple-400' : 'text-green-400'}>{media.media_type === 'movie' ? '电影' : '剧集'}</span></div>
-            <div><span style={{ color: 'var(--text-tertiary)' }}>分辨率：</span><span style={{ color: 'var(--text-secondary)' }}>{media.resolution || '-'}</span></div>
-            <div><span style={{ color: 'var(--text-tertiary)' }}>文件大小：</span><span style={{ color: 'var(--text-secondary)' }}>{media.file_size > 0 ? formatFileSize(media.file_size) : '-'}</span></div>
-            <div><span style={{ color: 'var(--text-tertiary)' }}>国家：</span><span style={{ color: 'var(--text-secondary)' }}>{media.country || '-'}</span></div>
-            <div><span style={{ color: 'var(--text-tertiary)' }}>语言：</span><span style={{ color: 'var(--text-secondary)' }}>{media.language || '-'}</span></div>
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailTitleLabel')}</span><span style={{ color: 'var(--text-primary)' }}>{media.title}</span></div>
+            {media.orig_title && <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailOrigTitleLabel')}</span><span style={{ color: 'var(--text-secondary)' }}>{media.orig_title}</span></div>}
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailYearLabel')}</span><span style={{ color: 'var(--text-secondary)' }}>{media.year || '-'}</span></div>
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailRatingLabel')}</span>{media.rating > 0 ? <span className="text-amber-400">★ {media.rating.toFixed(1)}</span> : <span style={{ color: 'var(--text-secondary)' }}>-</span>}</div>
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailGenresLabel')}</span><span style={{ color: 'var(--text-secondary)' }}>{media.genres || '-'}</span></div>
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailMediaTypeLabel')}</span><span className={media.media_type === 'movie' ? 'text-purple-400' : 'text-green-400'}>{media.media_type === 'movie' ? t('media.movie') : t('media.episode')}</span></div>
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailResolutionLabel')}</span><span style={{ color: 'var(--text-secondary)' }}>{media.resolution || '-'}</span></div>
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailFileSizeLabel')}</span><span style={{ color: 'var(--text-secondary)' }}>{media.file_size > 0 ? formatFileSize(media.file_size) : '-'}</span></div>
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailCountryLabel')}</span><span style={{ color: 'var(--text-secondary)' }}>{media.country || '-'}</span></div>
+            <div><span style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailLanguageLabel')}</span><span style={{ color: 'var(--text-secondary)' }}>{media.language || '-'}</span></div>
             <div className="flex items-center gap-2">
               <span style={{ color: 'var(--text-tertiary)' }}>TMDb ID：</span>
               <span style={{ color: 'var(--text-secondary)' }}>{media.tmdb_id || '-'}</span>
@@ -343,57 +347,57 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
         </div>
         {media.overview && (
           <div className="mt-4">
-            <div className="text-sm mb-1" style={{ color: 'var(--text-tertiary)' }}>简介</div>
+            <div className="text-sm mb-1" style={{ color: 'var(--text-tertiary)' }}>{t('media.overview')}</div>
             <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{media.overview}</p>
           </div>
         )}
         <div className="mt-4 p-3 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
           <div className="text-xs flex items-center gap-1 mb-1" style={{ color: 'var(--text-tertiary)' }}>
-            <HardDrive size={12} /> 文件路径
+            <HardDrive size={12} /> {t('fm.detailFilePath')}
           </div>
           <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>{media.file_path}</div>
         </div>
         <div className="mt-4 p-3 rounded-lg border" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-default)' }}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>视频分析状态</div>
+              <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>{t('fm.detailAnalysisStatus')}</div>
               {loadingAnalysis ? (
-                <div className="inline-flex items-center gap-2 text-sm text-surface-400"><ScanLine size={14} className="animate-pulse" /> 正在读取任务状态…</div>
+                <div className="inline-flex items-center gap-2 text-sm text-surface-400"><ScanLine size={14} className="animate-pulse" /> {t('fm.readingAnalysisStatus')}</div>
               ) : analysisUnavailable ? (
                 <div className="space-y-2">
-                  <div className="text-sm text-amber-300">视频分析服务未启用或配置无效</div>
+                  <div className="text-sm text-amber-300">{t('fm.analysisDisabled')}</div>
                   <button
                     onClick={() => { window.location.href = toAppUrl(routes.admin()) }}
                     className="inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-400/10"
                   >
-                    前往系统配置
+                    {t('fm.goSystemConfig')}
                   </button>
                 </div>
               ) : analysisMeta ? (
                 <div className="space-y-1">
-                  <span className={clsx('inline-flex items-center rounded-md px-2 py-1 text-xs', analysisMeta.tone)}>{analysisMeta.label}</span>
+                  <span className={clsx('inline-flex items-center rounded-md px-2 py-1 text-xs', analysisMeta.tone)}>{t(analysisMeta.labelKey)}</span>
                   <div className="text-xs text-surface-400">
-                    当前阶段：{analysisTask?.stage || '—'} · 进度 {Math.round(analysisTask?.progress || 0)}%
+                    {t('fm.analysisStage', { stage: analysisTask?.stage || '—', percent: Math.round(analysisTask?.progress || 0) })}
                   </div>
                   {analysisTask?.error_message && <div className="text-xs text-red-300 max-w-xl break-words">{analysisTask.error_message}</div>}
                 </div>
               ) : (
-                <div className="text-sm text-surface-400">尚未提交视频分析任务</div>
+                <div className="text-sm text-surface-400">{t('fm.noAnalysisTask')}</div>
               )}
             </div>
             {!loadingAnalysis && !analysisUnavailable && (
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => onViewAnalysis(analysisTask)} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
-                  <ListTodo size={14} /> {analysisMeta?.action === 'result' ? '查看结果' : analysisMeta?.action === 'progress' ? '查看进度' : '查看分析任务'}
+                  <ListTodo size={14} /> {analysisMeta?.action === 'result' ? t('fm.viewResult') : analysisMeta?.action === 'progress' ? t('fm.viewProgress') : t('fm.viewAnalysisTask')}
                 </button>
                 {(analysisMeta?.action === 'retry') && analysisTask && (
                   <button
                     onClick={() => onRetryAnalysis(analysisTask)}
                     className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${remoteDisabled ? 'opacity-50 cursor-not-allowed text-surface-400' : 'text-amber-300 hover:bg-amber-400/10'}`}
                     disabled={remoteDisabled}
-                    title={remoteDisabled ? REMOTE_ANALYSIS_DISABLED_TIP : isRemoteVideo ? '远程视频将通过 URL 拉流分析，速度较慢并消耗网络带宽' : ''}
+                    title={remoteDisabled ? t(REMOTE_ANALYSIS_DISABLED_TIP) : isRemoteVideo ? t('fm.remoteAnalysisUrlHint') : ''}
                   >
-                    <ScanSearch size={14} /> 重新分析
+                    <ScanSearch size={14} /> {t('fm.reanalyzeBtn')}
                   </button>
                 )}
                 {(!analysisMeta || analysisMeta.action === 'analyze' || analysisMeta.action === 'retry') && (
@@ -402,9 +406,9 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
                       onClick={() => onAnalyze()}
                       className={`btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${remoteDisabled ? 'opacity-50 cursor-not-allowed text-surface-400' : 'text-cyan-300 hover:bg-cyan-400/10'}`}
                       disabled={remoteDisabled}
-                      title={remoteDisabled ? REMOTE_ANALYSIS_DISABLED_TIP : isRemoteVideo ? '远程视频将通过 URL 拉流分析，速度较慢并消耗网络带宽' : ''}
+                      title={remoteDisabled ? t(REMOTE_ANALYSIS_DISABLED_TIP) : isRemoteVideo ? t('fm.remoteAnalysisUrlHint') : ''}
                     >
-                      <ScanSearch size={14} /> 分析视频
+                      <ScanSearch size={14} /> {t('fm.analyzeVideo')}
                     </button>
                     <button
                       onClick={() => onAnalyze(false, true)}
@@ -412,7 +416,7 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
                       disabled={analysisDescribeDisabled}
                       title={analysisDescribeTitle}
                     >
-                      <Sparkles size={14} /> 分析并生成描述
+                      <Sparkles size={14} /> {t('fm.analyzeWithDesc')}
                     </button>
                   </>
                 )}
@@ -422,10 +426,10 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
         </div>
         <div className="flex flex-wrap justify-end gap-2 mt-4">
           <button onClick={onEdit} className="btn-ghost flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
-            <Edit3 size={14} /> 编辑
+            <Edit3 size={14} /> {t('common.edit')}
           </button>
           <button onClick={onScrape} className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm">
-            <Sparkles size={14} /> 刮削元数据
+            <Sparkles size={14} /> {t('fm.scrapeMetadata')}
           </button>
         </div>
       </div>
@@ -445,6 +449,7 @@ interface BatchAnalyzeModalProps {
 }
 
 export function BatchAnalyzeModal({ open, selectedCount, videoAnalysisEnabled, videoAnalysisDescribeEnabled, disabledReason, onClose, onConfirm }: BatchAnalyzeModalProps) {
+  const { t } = useTranslation()
   const [force, setForce] = useState(false)
   const [includeDescriptions, setIncludeDescriptions] = useState(false)
 
@@ -452,11 +457,10 @@ export function BatchAnalyzeModal({ open, selectedCount, videoAnalysisEnabled, v
     <Modal open={open} onClose={onClose} className="max-w-lg">
       <div className="glass-panel-strong rounded-2xl p-6">
         <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-          <ScanSearch className="inline-block mr-2 mb-0.5" size={20} /> 批量分析视频
+          <ScanSearch className="inline-block mr-2 mb-0.5" size={20} /> {t('fm.batchAnalysis')}
         </h3>
         <p className="text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
-          将为选中的 <span className="text-neon font-medium">{selectedCount}</span> 个视频提交场景检测与结构分析任务。
-          已有进行中任务会自动复用，已完成且文件未变化的任务默认会跳过。
+          {t('fm.batchAnalyzeDesc', { count: selectedCount })}
         </p>
 
         <div className="mt-4 space-y-3">
@@ -469,9 +473,9 @@ export function BatchAnalyzeModal({ open, selectedCount, videoAnalysisEnabled, v
               disabled={!videoAnalysisEnabled}
             />
             <div>
-              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>强制重新分析</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('fm.forceReanalyze')}</div>
               <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                即使已有成功结果，也创建新的历史任务重新执行；不会覆盖旧任务记录。
+                {t('fm.forceReanalyzeHint')}
               </div>
             </div>
           </label>
@@ -484,15 +488,15 @@ export function BatchAnalyzeModal({ open, selectedCount, videoAnalysisEnabled, v
               disabled={!videoAnalysisEnabled || !videoAnalysisDescribeEnabled}
             />
             <div>
-              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>包含场景描述（可选）</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('fm.includeDesc')}</div>
               <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                在结构分析成功后继续生成场景文字描述。若描述阶段失败，结构结果仍会保留并显示为"部分完成"。
+                {t('fm.includeDescHint')}
               </div>
               {!videoAnalysisEnabled && (
-                <div className="text-xs mt-1 text-amber-300">需要先启用视频分析服务</div>
+                <div className="text-xs mt-1 text-amber-300">{t('fm.needEnableAnalysis')}</div>
               )}
               {videoAnalysisEnabled && !videoAnalysisDescribeEnabled && (
-                <div className="text-xs mt-1 text-amber-300">需要在「视频分析」设置中开启场景描述功能</div>
+                <div className="text-xs mt-1 text-amber-300">{t('fm.descNeedEnabled')}</div>
               )}
             </div>
           </label>
@@ -500,24 +504,24 @@ export function BatchAnalyzeModal({ open, selectedCount, videoAnalysisEnabled, v
 
         {!videoAnalysisEnabled && (
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
-            <div>{disabledReason || '视频分析服务未启用或配置无效'}</div>
+            <div>{disabledReason || t('fm.analysisDisabled')}</div>
             <button
               onClick={() => { window.location.href = toAppUrl(routes.admin()) }}
               className="mt-3 inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-400/10"
             >
-              前往系统配置
+              {t('fm.goSystemConfig')}
             </button>
           </div>
         )}
 
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
+          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
           <button
             onClick={() => onConfirm({ force, includeDescriptions })}
             disabled={!videoAnalysisEnabled}
             className="btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            开始分析
+            {t('fm.startAnalysis')}
           </button>
         </div>
       </div>
@@ -535,6 +539,7 @@ interface RenameModalProps {
 
 export function RenameModal({ open, selectedCount, selectedIds, onClose, onSuccess }: RenameModalProps) {
   const toast = useToast()
+  const { t } = useTranslation()
   const [useAIRename, setUseAIRename] = useState(false)
   const [renameTemplate, setRenameTemplate] = useState('{title} ({year}) [{resolution}]')
   const [renamePreviews, setRenamePreviews] = useState<RenamePreview[]>([])
@@ -564,7 +569,7 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
       setRenamePreviews(res.data.data || [])
       setPreviewsExpanded(true)
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '生成预览失败')
+      toast.error(err?.response?.data?.error || t('fm.previewFailed'))
     } finally {
       setRenaming(false)
     }
@@ -574,11 +579,11 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
     setRenaming(true)
     try {
       const res = await fileManagerApi.executeRename(Array.from(selectedIds), renameTemplate)
-      toast.success(`已重命名 ${res.data.renamed} 个文件`)
+      toast.success(t('fm.renamedCount', { count: res.data.renamed }))
       onClose()
       onSuccess()
     } catch {
-      toast.error('重命名失败')
+      toast.error(t('fm.renameFailed'))
     } finally {
       setRenaming(false)
     }
@@ -588,9 +593,9 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
     <Modal open={open} onClose={onClose} className="max-w-3xl">
       <div className="glass-panel-strong rounded-2xl p-6 max-h-[85vh] flex flex-col">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          <Wand2 className="inline-block mr-2 mb-0.5" size={20} /> AI批量重命名
+          <Wand2 className="inline-block mr-2 mb-0.5" size={20} /> {t('fm.renameTitle')}
           <span className="text-xs font-normal ml-2 px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400">
-            已选 {selectedCount} 个文件
+            {t('fm.renameSelected', { count: selectedCount })}
           </span>
         </h3>
 
@@ -598,12 +603,12 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
         <div className="flex items-center gap-4 mb-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="radio" checked={!useAIRename} onChange={() => setUseAIRename(false)} className="accent-[var(--neon-blue)]" />
-            <span className={clsx('text-sm', !useAIRename ? 'text-neon font-medium' : '')} style={{ color: useAIRename ? 'var(--text-secondary)' : undefined }}>模板重命名</span>
+            <span className={clsx('text-sm', !useAIRename ? 'text-neon font-medium' : '')} style={{ color: useAIRename ? 'var(--text-secondary)' : undefined }}>{t('fm.templateRename')}</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="radio" checked={useAIRename} onChange={() => setUseAIRename(true)} className="accent-[var(--neon-blue)]" />
             <span className={clsx('text-sm', useAIRename ? 'text-neon font-medium' : '')} style={{ color: !useAIRename ? 'var(--text-secondary)' : undefined }}>
-              <Sparkles size={12} className="inline-block mr-1 mb-0.5" />AI智能重命名
+              <Sparkles size={12} className="inline-block mr-1 mb-0.5" />{t('fm.aiRename')}
             </span>
           </label>
         </div>
@@ -611,20 +616,20 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
         {/* 模板选择 */}
         {!useAIRename && (
           <div className="mb-4 space-y-2">
-            <label className="block text-sm" style={{ color: 'var(--text-secondary)' }}>命名模板</label>
+            <label className="block text-sm" style={{ color: 'var(--text-secondary)' }}>{t('fm.renameTemplate')}</label>
             <input type="text" value={renameTemplate} onChange={e => setRenameTemplate(e.target.value)}
               className="input-glass w-full px-3 py-2 rounded-lg text-sm font-mono" />
             <div className="flex flex-wrap gap-1.5">
-              {renameTemplates.map((t, i) => (
-                <button key={i} onClick={() => setRenameTemplate(t.pattern)}
-                  className={clsx('px-2 py-1 rounded text-xs border transition-all', renameTemplate === t.pattern ? 'border-neon text-neon bg-neon-blue/5' : 'border-surface-700 text-surface-400 hover:border-surface-500')}
-                  title={`示例: ${t.example}`}>
-                  {t.pattern}
+              {renameTemplates.map((tmpl, i) => (
+                <button key={i} onClick={() => setRenameTemplate(tmpl.pattern)}
+                  className={clsx('px-2 py-1 rounded text-xs border transition-all', renameTemplate === tmpl.pattern ? 'border-neon text-neon bg-neon-blue/5' : 'border-surface-700 text-surface-400 hover:border-surface-500')}
+                  title={t('fm.renameExample', { example: tmpl.example })}>
+                  {tmpl.pattern}
                 </button>
               ))}
             </div>
             <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              可用变量: {'{title}'} {'{orig_title}'} {'{year}'} {'{resolution}'} {'{media_type}'}
+              {t('fm.renameVars')}: {'{title}'} {'{orig_title}'} {'{year}'} {'{resolution}'} {'{media_type}'}
             </div>
           </div>
         )}
@@ -633,7 +638,7 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
         {useAIRename && (
           <div className="mb-4 space-y-2">
             <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              <Languages size={14} /> 目标翻译语言
+              <Languages size={14} /> {t('fm.targetLang')}
             </label>
             <div className="flex flex-wrap gap-1.5">
               {LANGUAGE_OPTIONS.map(lang => (
@@ -643,14 +648,18 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
                       ? 'border-neon text-neon bg-neon-blue/10 shadow-[0_0_8px_rgba(0,170,255,0.15)]'
                       : 'border-surface-700 text-surface-400 hover:border-surface-500 hover:text-surface-300'
                   )}>
-                  <span>{lang.flag}</span><span>{lang.label}</span>
+                  <span>{lang.flag}</span><span>{lang.labelKey ? t(lang.labelKey) : lang.label}</span>
                 </button>
               ))}
             </div>
             {targetLang && (
               <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
                 <Sparkles size={10} />
-                AI将生成规范化标题并翻译为 {LANGUAGE_OPTIONS.find(l => l.value === targetLang)?.label}
+                {(() => {
+                  const lang = LANGUAGE_OPTIONS.find(l => l.value === targetLang)
+                  const langName = lang?.labelKey ? t(lang.labelKey) : lang?.label || ''
+                  return t('fm.aiRenameHint', { lang: langName })
+                })()}
               </div>
             )}
           </div>
@@ -661,10 +670,10 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
           <button onClick={handlePreview} disabled={renaming}
             className="btn-ghost flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm">
             {renaming ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
-            {renaming ? '生成中...' : '生成预览'}
+            {renaming ? t('fm.generating') : t('fm.generatePreview')}
           </button>
           {renamePreviews.length > 0 && (
-            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>共 {renamePreviews.length} 条预览结果</span>
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{t('fm.previewCount', { count: renamePreviews.length })}</span>
           )}
         </div>
 
@@ -675,9 +684,9 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
               <div className="flex items-center justify-between mb-2">
                 <button onClick={() => setPreviewsExpanded(!previewsExpanded)}
                   className="flex items-center gap-1 text-xs hover:text-neon transition-colors" style={{ color: 'var(--text-tertiary)' }}>
-                  <ChevronsUpDown size={12} />{previewsExpanded ? '折叠预览' : '展开预览'}
+                  <ChevronsUpDown size={12} />{previewsExpanded ? t('fm.collapsePreview') : t('fm.expandPreview')}
                 </button>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">{renamePreviews.length} 项将被重命名</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">{t('fm.willRename', { count: renamePreviews.length })}</span>
               </div>
               {previewsExpanded && (
                 <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(85vh - 420px)', minHeight: '120px', scrollBehavior: 'smooth', scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent' }}>
@@ -712,7 +721,7 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
               <div className="text-center py-8">
                 <Wand2 size={32} className="mx-auto mb-3 text-surface-600" />
                 <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                  {useAIRename ? '选择语言后点击"生成预览"查看AI重命名效果' : '点击"生成预览"查看重命名效果'}
+                  {useAIRename ? t('fm.renameAiHint') : t('fm.renameHint2')}
                 </p>
               </div>
             </div>
@@ -720,11 +729,11 @@ export function RenameModal({ open, selectedCount, selectedIds, onClose, onSucce
         </div>
 
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>
-          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">取消</button>
+          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
           <button onClick={handleExecute} disabled={renaming || renamePreviews.length === 0}
             className="btn-primary flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm">
             {renaming ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            执行重命名 {renamePreviews.length > 0 && `(${renamePreviews.length})`}
+            {t('fm.executeRename')} {renamePreviews.length > 0 && `(${renamePreviews.length})`}
           </button>
         </div>
       </div>
@@ -739,6 +748,7 @@ interface OperationLogsModalProps {
 }
 
 export function OperationLogsModal({ open, onClose }: OperationLogsModalProps) {
+  const { t } = useTranslation()
   const [opLogs, setOpLogs] = useState<FileOperationLog[]>([])
 
   useEffect(() => {
@@ -750,7 +760,7 @@ export function OperationLogsModal({ open, onClose }: OperationLogsModalProps) {
     <Modal open={open} onClose={onClose} className="max-w-2xl">
       <div className="glass-panel-strong rounded-2xl p-6 max-h-[80vh] flex flex-col">
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          <History className="inline-block mr-2 mb-0.5" size={20} /> 操作日志
+          <History className="inline-block mr-2 mb-0.5" size={20} /> {t('fm.opLogs')}
         </h3>
         <div className="flex-1 overflow-y-auto min-h-0">
           {opLogs.length > 0 ? (
@@ -778,11 +788,11 @@ export function OperationLogsModal({ open, onClose }: OperationLogsModalProps) {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-sm" style={{ color: 'var(--text-tertiary)' }}>暂无操作记录</div>
+            <div className="text-center py-8 text-sm" style={{ color: 'var(--text-tertiary)' }}>{t('fm.noOpLogs')}</div>
           )}
         </div>
         <div className="flex justify-end mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>
-          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">关闭</button>
+          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.close')}</button>
         </div>
       </div>
     </Modal>

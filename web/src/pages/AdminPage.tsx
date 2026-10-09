@@ -136,20 +136,20 @@ export default function AdminPage() {
                 <span
                   className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
                   style={{ color: '#16A34A', background: 'rgba(22,163,74,0.12)' }}
-                  title="核心配置已完成，可开始使用"
+                  title={t('admin.setupCompleteHint')}
                 >
                   <CheckCircle2 size={13} />
-                  配置就绪
+                  {t('admin.setupComplete')}
                 </span>
               ) : setupStatus.short ? (
                 <button
                   onClick={() => openDrawer(setupStatus.target || '')}
                   className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all hover:brightness-110"
                   style={{ color: '#38BDF8', background: 'var(--neon-blue-15)', border: '1px solid var(--neon-blue-30)' }}
-                  title={`下一步：配置${setupStatus.short}`}
+                  title={t('admin.setupNextHint', { name: setupStatus.short })}
                 >
                   <CircleAlert size={13} />
-                  待配置 · {setupStatus.short}
+                  {t('admin.setupPending', { name: setupStatus.short })}
                 </button>
               ) : null
             )}

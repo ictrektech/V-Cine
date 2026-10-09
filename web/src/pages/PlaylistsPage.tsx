@@ -63,9 +63,9 @@ export default function PlaylistsPage() {
 
   const handleDelete = async (id: string) => {
     const ok = await dialog.confirm({
-      title: t('playlists.deleteConfirmTitle') || '删除播放列表',
+      title: t('playlists.deleteConfirmTitle'),
       message: t('playlists.deleteConfirm'),
-      confirmText: t('playlists.delete') || '删除',
+      confirmText: t('playlists.delete'),
       variant: 'danger',
     })
     if (!ok) return

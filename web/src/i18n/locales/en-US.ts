@@ -1072,6 +1072,7 @@ const enUS: Record<string, string> = {
   'prx.testConnect': 'Test connection',
   'prx.testImage': 'Image',
   'prx.testNetwork': 'Network egress',
+  'prx.proxyPlaceholder': 'http://127.0.0.1:7890 or socks5://127.0.0.1:7891',
 
   // ==================== Dashboard ====================
   'dash.phaseScanning': '📂 Scanning files',

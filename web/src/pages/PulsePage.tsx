@@ -40,10 +40,10 @@ function formatBytes(bytes: number): string {
 }
 
 // 格式化分钟数
-function formatMinutes(minutes: number): string {
-  if (minutes < 60) return `${Math.round(minutes)} 分钟`
-  if (minutes < 1440) return `${(minutes / 60).toFixed(1)} 小时`
-  return `${(minutes / 1440).toFixed(1)} 天`
+function formatMinutes(minutes: number, tr: (key: string, params?: Record<string, string | number>) => string): string {
+  if (minutes < 60) return tr('timeFormat.minutes', { minutes: Math.round(minutes) })
+  if (minutes < 1440) return tr('timeFormat.hours', { hours: (minutes / 60).toFixed(1) })
+  return tr('timeFormat.days', { days: (minutes / 1440).toFixed(1) })
 }
 
 type TabKey = 'dashboard' | 'analytics'
@@ -205,14 +205,14 @@ function DashboardTab({
         <OverviewCard
           icon={<Clock size={22} />}
           label={t('pulse.totalPlayTime')}
-          value={formatMinutes(ov.total_play_minutes)}
+          value={formatMinutes(ov.total_play_minutes, t)}
           gradient="from-rose-500/10 to-red-500/10"
           iconColor="text-rose-400"
         />
         <OverviewCard
           icon={<Play size={22} />}
           label={t('pulse.todayPlayTime')}
-          value={formatMinutes(ov.today_play_minutes)}
+          value={formatMinutes(ov.today_play_minutes, t)}
           gradient="from-indigo-500/10 to-violet-500/10"
           iconColor="text-indigo-400"
         />
@@ -542,6 +542,7 @@ function HourlyHeatmap({ data }: { data: { hour: number; play_count: number; tot
 
 // 热门内容列表
 function TopContentList({ items }: { items: PulseTopContentItem[] }) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-2">
       {items.slice(0, 10).map((item, i) => (
@@ -578,7 +579,7 @@ function TopContentList({ items }: { items: PulseTopContentItem[] }) {
           <div className="flex-1 min-w-0">
             <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              {item.media_type === 'series' || item.media_type === 'episode' ? '📺' : '🎬'} {Math.round(item.total_minutes)} min · {item.unique_users} 人观看
+              {item.media_type === 'series' || item.media_type === 'episode' ? '📺' : '🎬'} {Math.round(item.total_minutes)} min · {t('pulse.viewers', { count: item.unique_users })}
             </p>
           </div>
         </div>
@@ -589,6 +590,7 @@ function TopContentList({ items }: { items: PulseTopContentItem[] }) {
 
 // 用户排行列表
 function TopUserList({ items }: { items: PulseTopUserItem[] }) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-2">
       {items.slice(0, 10).map((item, i) => (
@@ -618,7 +620,7 @@ function TopUserList({ items }: { items: PulseTopUserItem[] }) {
           <div className="flex-1 min-w-0">
             <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.username}</p>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              {formatMinutes(item.total_minutes)} · {item.media_count} 部作品
+              {formatMinutes(item.total_minutes, t)} · {t('pulse.worksCount', { count: item.media_count })}
             </p>
           </div>
         </div>
@@ -629,15 +631,16 @@ function TopUserList({ items }: { items: PulseTopUserItem[] }) {
 
 // 最近播放列表
 function RecentPlayList({ items }: { items: PulseRecentPlayItem[] }) {
+  const { t } = useTranslation()
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr style={{ color: 'var(--text-muted)' }}>
-            <th className="pb-2 text-left text-xs font-medium">用户</th>
-            <th className="pb-2 text-left text-xs font-medium">内容</th>
-            <th className="pb-2 text-right text-xs font-medium">时长</th>
-            <th className="pb-2 text-right text-xs font-medium">时间</th>
+            <th className="pb-2 text-left text-xs font-medium">{t('pulse.user')}</th>
+            <th className="pb-2 text-left text-xs font-medium">{t('pulse.content')}</th>
+            <th className="pb-2 text-right text-xs font-medium">{t('pulse.duration')}</th>
+            <th className="pb-2 text-right text-xs font-medium">{t('pulse.time')}</th>
           </tr>
         </thead>
         <tbody>
@@ -668,6 +671,7 @@ function RecentPlayList({ items }: { items: PulseRecentPlayItem[] }) {
 
 // 分布条形图（通用）
 function DistributionBars({ items, color }: { items: { label: string; value: number }[]; color: string }) {
+  const { t } = useTranslation()
   const maxVal = Math.max(...items.map((d) => d.value), 1)
   const total = items.reduce((sum, d) => sum + d.value, 0)
 
@@ -679,7 +683,7 @@ function DistributionBars({ items, color }: { items: { label: string; value: num
         return (
           <div key={i} className="flex items-center gap-3">
             <span className="w-24 truncate text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-              {item.label || '未知'}
+              {item.label || t('common.unknown')}
             </span>
             <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ background: 'var(--bg-surface)' }}>
               <div

@@ -169,7 +169,7 @@ export default function TMDbProxySettings({ config, onConfigChange }: Props) {
         <div className="space-y-3">
           <ProxyInput label={t('prx.apiBaseLabel')} hint={t('prx.apiBaseHint')} value={apiBase} onChange={setApiBase} placeholder="https://example.com/tmdbapi" />
           <ProxyInput label={t('prx.imgBaseLabel')} hint={t('prx.imgBaseHint')} value={imageBase} onChange={setImageBase} placeholder="https://example.com/tmdbimg" />
-          <ProxyInput label={t('prx.netLabel')} hint={t('prx.netHint')} value={networkProxy} onChange={setNetworkProxy} placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:7891" />
+          <ProxyInput label={t('prx.netLabel')} hint={t('prx.netHint')} value={networkProxy} onChange={setNetworkProxy} placeholder={t('prx.proxyPlaceholder')} />
           <div className="flex flex-wrap gap-2 pt-1">
             <button onClick={save} disabled={saving} className="btn-primary gap-1.5 px-4 py-2 text-sm disabled:opacity-50">{saving ? <><Loader2 size={14} className="animate-spin" />{t('editLib.saving')}</> : <><Check size={14} />{t('prx.saveConfig')}</>}</button>
             {configured && <button onClick={clear} disabled={saving} className="btn-ghost gap-1.5 px-4 py-2 text-sm text-red-400 disabled:opacity-50"><Trash2 size={14} />{t('prx.restoreBtn')}</button>}

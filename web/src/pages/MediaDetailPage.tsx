@@ -224,20 +224,21 @@ export default function MediaDetailPage() {
     // 优先尝试直输 ID / URL 解析（支持 https://www.themoviedb.org/movie/128881-3 、128881、128881-3 等）
     const direct = parseDirectMatchId(matchQuery, matchSource)
     if (direct) {
+      const sourceLabel = { tmdb: 'TMDb', douban: t('mediaDetail.doubanLabel'), bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[direct.source]
       // URL 中推导出的源与当前 tab 不一致，自动切换
       if (direct.source !== matchSource) {
         setMatchSource(direct.source)
-        toast.info(`已识别为 ${{ tmdb: 'TMDb', douban: '豆瓣', bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[direct.source]} 链接，已自动切换数据源`)
+        toast.info(t('seriesDetail.linkedDetected', { source: sourceLabel }))
       }
       // 准备一条“虚拟结果”，允许用户直接点击应用
       const idForApply: number | string = direct.source === 'douban' ? direct.id : Number(direct.id)
       const placeholder: any = {
         id: idForApply,
-        title: `直输 ID：${direct.id}`,
+        title: t('mediaDetail.directId', { id: direct.id }),
         original_title: '',
-        name: `直输 ID：${direct.id}`,
+        name: t('mediaDetail.directId', { id: direct.id }),
         original_name: '',
-        overview: `点击“应用”将本条目绑定到 ${{ tmdb: 'TMDb', douban: '豆瓣', bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[direct.source]} ID = ${direct.id}。`,
+        overview: t('mediaDetail.directBindHint', { source: sourceLabel, id: direct.id }),
         release_date: '',
         first_air_date: '',
         vote_average: 0,
@@ -245,7 +246,7 @@ export default function MediaDetailPage() {
       }
       setMatchResults([placeholder])
       setMatchSelectedId(idForApply)
-      toast.success(`已识别 ${{ tmdb: 'TMDb', douban: '豆瓣', bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[direct.source]} ID：${direct.id}，点击“应用”即可绑定`)
+      toast.success(t('mediaDetail.directBindSuccess', { source: sourceLabel, id: direct.id }))
       return
     }
     setMatchSearching(true)
@@ -294,7 +295,7 @@ export default function MediaDetailPage() {
   // 选中一个搜索结果（仅高亮，不提交）
   const handleMatchSelect = (resultId: number | string) => {
     if (matchSource === 'thetvdb') {
-      toast.info('TheTVDB 主要用于剧集匹配')
+      toast.info(t('mediaDetail.thetvdbHint'))
       return
     }
     setMatchSelectedId(resultId)
@@ -305,7 +306,7 @@ export default function MediaDetailPage() {
     if (!id || matchSelectedId === null) return
     setMatchApplying(true)
     try {
-      const sourceNameMap: Record<string, string> = { tmdb: 'TMDb', bangumi: 'Bangumi', douban: '豆瓣', thetvdb: 'TheTVDB' }
+      const sourceNameMap: Record<string, string> = { tmdb: 'TMDb', bangumi: 'Bangumi', douban: t('mediaDetail.doubanLabel'), thetvdb: 'TheTVDB' }
       if (matchSource === 'tmdb') {
         await adminApi.matchMetadata(id, matchSelectedId as number)
       } else if (matchSource === 'douban') {
@@ -313,7 +314,7 @@ export default function MediaDetailPage() {
       } else if (matchSource === 'bangumi') {
         await adminApi.matchMediaBangumi(id, matchSelectedId as number)
       } else {
-        toast.info('TheTVDB 主要用于剧集匹配')
+        toast.info(t('mediaDetail.thetvdbHint'))
         return
       }
       await refreshMediaDetail(id)
@@ -486,16 +487,16 @@ export default function MediaDetailPage() {
         onDelete={() => setShowDeleteConfirm(true)}
         onPreprocess={() => {
           adminApi.submitPreprocess(id!).then(() => {
-            toast.success('已提交预处理任务')
+            toast.success(t('mediaDetail.preprocessSubmitted'))
           }).catch(() => {
-            toast.error('提交预处理失败')
+            toast.error(t('mediaDetail.preprocessFailed'))
           })
         }}
         onTranscode={() => {
           adminApi.submitTranscode(id!).then(() => {
-            toast.success('已提交强制转码任务')
+            toast.success(t('mediaDetail.transcodeSubmitted'))
           }).catch(() => {
-            toast.error('提交转码失败')
+            toast.error(t('mediaDetail.transcodeFailed'))
           })
         }}
       />
@@ -537,8 +538,8 @@ export default function MediaDetailPage() {
               style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
             >
               <span>🎬</span>
-              <span>字幕管理</span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>查看内嵌/外挂字幕 · 批量提取导出</span>
+              <span>{t('mediaDetail.subtitleManager')}</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('mediaDetail.subtitleManagerHint')}</span>
             </button>
           </section>
         )}
@@ -701,7 +702,7 @@ export default function MediaDetailPage() {
                         </div>
                         {matchSource === 'bangumi' && (
                           <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'rgba(240,145,153,0.15)', color: '#f09199' }}>
-                            {result.type === 2 ? '动画' : result.type === 6 ? '三次元' : 'BGM'}
+                            {result.type === 2 ? t('seriesDetail.typeAnime') : result.type === 6 ? t('seriesDetail.typeLiveAction') : 'BGM'}
                           </span>
                         )}
                         {matchSource === 'douban' && result.genres && (
@@ -731,13 +732,13 @@ export default function MediaDetailPage() {
               })}
               {matchResults.length === 0 && !matchSearching && (
                 <div className="py-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                  {t('mediaDetail.searchHint', { source: ' ' + { tmdb: 'TMDb', douban: '豆瓣', bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[matchSource] })}
+                  {t('mediaDetail.searchHint', { source: { tmdb: 'TMDb', douban: t('mediaDetail.doubanLabel'), bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[matchSource] })}
                 </div>
               )}
             </div>
             <div className="mt-4 flex items-center justify-between gap-3">
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {matchSelectedId !== null ? '已选中 1 项，点击右侧“应用”即可替换元数据' : '提示：先选中搜索结果，再点击“应用”'}
+                {matchSelectedId !== null ? t('mediaDetail.selectedHint') : t('mediaDetail.selectHint')}
               </div>
               <div className="flex gap-3">
                 <button
@@ -757,7 +758,7 @@ export default function MediaDetailPage() {
                   {matchApplying && (
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                   )}
-                  {matchApplying ? '应用中...' : '应用'}
+                  {matchApplying ? t('mediaDetail.applying') : t('mediaDetail.apply')}
                 </button>
               </div>
             </div>

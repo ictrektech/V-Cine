@@ -32,27 +32,28 @@ import {
   Pencil,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 // 类型配置映射
-const TYPE_CONFIG: Record<string, { label: string; icon: typeof Film; color: string; bg: string }> = {
-  movie: { label: '电影', icon: Film, color: 'var(--neon-blue)', bg: 'var(--neon-blue-8)' },
-  tvshow: { label: '电视节目', icon: Tv, color: 'var(--neon-purple)', bg: 'var(--neon-purple-8)' },
-  mixed: { label: '混合影片', icon: Layers, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)' },
-  other: { label: '其他视频', icon: Video, color: '#10B981', bg: 'rgba(16, 185, 129, 0.08)' },
+const TYPE_CONFIG: Record<string, { labelKey: string; icon: typeof Film; color: string; bg: string }> = {
+  movie: { labelKey: 'createLib.typeMovie', icon: Film, color: 'var(--neon-blue)', bg: 'var(--neon-blue-8)' },
+  tvshow: { labelKey: 'createLib.typeTvshow', icon: Tv, color: 'var(--neon-purple)', bg: 'var(--neon-purple-8)' },
+  mixed: { labelKey: 'createLib.typeMixed', icon: Layers, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.08)' },
+  other: { labelKey: 'createLib.typeOther', icon: Video, color: '#10B981', bg: 'rgba(16, 185, 129, 0.08)' },
 }
 
 // 扫描按钮三态样式与文案（running 扫描中 / done 已扫描 / pending 未扫描）
 type ScanState = 'running' | 'done' | 'pending'
-const SCAN_BUTTON: Record<ScanState, { className: string; title: string }> = {
-  running: { className: 'text-neon', title: '扫描中...' },
+const SCAN_BUTTON: Record<ScanState, { className: string; titleKey: string }> = {
+  running: { className: 'text-neon', titleKey: 'libMan.scanRunning' },
   done: {
     className: 'text-[var(--text-tertiary)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--text-primary)]',
-    title: '扫描媒体文件',
+    titleKey: 'libMan.scanAction',
   },
   pending: {
     className:
       'group gap-1.5 border border-amber-500/40 bg-amber-500/10 text-xs font-semibold text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.15)] transition-all hover:bg-amber-500/20 hover:text-amber-300 hover:shadow-[0_0_14px_rgba(245,158,11,0.35)]',
-    title: '尚未扫描，点击开始入库',
+    titleKey: 'libMan.scanPending',
   },
 }
 
@@ -68,10 +69,10 @@ interface LibraryManagerProps {
 
 type MainScanStage = 'scanning' | 'ai_organizing' | 'scraping'
 
-const MAIN_SCAN_STAGES: { id: MainScanStage; label: string; short: string }[] = [
-  { id: 'scanning', label: '入库进度', short: '入库' },
-  { id: 'ai_organizing', label: 'AI整理进度', short: 'AI整理' },
-  { id: 'scraping', label: '元数据刮削进度', short: '刮削' },
+const MAIN_SCAN_STAGES: { id: MainScanStage; labelKey: string; shortKey: string }[] = [
+  { id: 'scanning', labelKey: 'libMan.stageScanning', shortKey: 'libMan.stageScanningShort' },
+  { id: 'ai_organizing', labelKey: 'libMan.stageAiOrganize', shortKey: 'libMan.stageAiOrganizeShort' },
+  { id: 'scraping', labelKey: 'libMan.stageScraping', shortKey: 'libMan.stageScrapingShort' },
 ]
 
 function clampPercent(n: number) {
@@ -90,6 +91,7 @@ function LibraryManager({
 }: LibraryManagerProps) {
   const toast = useToast()
   const dialog = useDialog()
+  const { t, locale } = useTranslation()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'created' | 'type'>('created')
   const [sortAsc, setSortAsc] = useState(false)
@@ -123,7 +125,7 @@ function LibraryManager({
         ns.delete(id)
         return ns
       })
-      const msg = err?.response?.data?.error || '扫描启动失败'
+      const msg = err?.response?.data?.error || t('createLib.scanStartFailed')
       toast.error(msg)
     }
   }
@@ -131,7 +133,7 @@ function LibraryManager({
   const handleScanAll = async () => {
     const toScan = libraries.filter((lib) => !scanning.has(lib.id))
     if (toScan.length === 0) {
-      toast.info('所有媒体库已在扫描中')
+      toast.info(t('libMan.allScanning'))
       return
     }
     setScanAllLoading(true)
@@ -143,8 +145,8 @@ function LibraryManager({
       useNotificationCenterStore.getState().push({
         id: 'scan:status',
         type: 'scan',
-        title: '媒体库扫描',
-        message: `已启动 ${toScan.length} 个媒体库扫描`,
+        title: t('libMan.scanDialogTitle'),
+        message: t('libMan.scanDialogMsg', { count: toScan.length }),
         status: 'running',
         link: routes.tasks.library,
       })
@@ -155,9 +157,9 @@ function LibraryManager({
 
   const handleDelete = async (id: string) => {
     const ok = await dialog.confirm({
-      title: '删除媒体库',
-      message: '确定删除此媒体库？关联的媒体记录也会被清除。',
-      confirmText: '删除',
+      title: t('libMan.deleteTitle'),
+      message: t('libMan.deleteMsg'),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
@@ -166,15 +168,15 @@ function LibraryManager({
       setLibraries((libs) => libs.filter((l) => l.id !== id))
       invalidateMediaListCaches()
     } catch {
-      toast.error('删除失败')
+      toast.error(t('libMan.deleteFailed'))
     }
   }
 
   const handleReindex = async (id: string) => {
     const ok = await dialog.confirm({
-      title: '重建索引',
-      message: '确定重建索引？这将清除现有媒体记录并重新扫描文件。',
-      confirmText: '重建',
+      title: t('libMan.reindexTitle'),
+      message: t('libMan.reindexMsg'),
+      confirmText: t('libMan.reindexConfirm'),
       variant: 'warning',
     })
     if (!ok) return
@@ -187,7 +189,7 @@ function LibraryManager({
         ns.delete(id)
         return ns
       })
-      toast.error('重建索引失败')
+      toast.error(t('libMan.reindexFailed'))
     }
   }
 
@@ -201,8 +203,8 @@ function LibraryManager({
   }
 
   const formatDate = (date: string | null) => {
-    if (!date) return '从未扫描'
-    return new Date(date).toLocaleString('zh-CN', {
+    if (!date) return t('libMan.neverScanned')
+    return new Date(date).toLocaleString(locale, {
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
@@ -220,7 +222,7 @@ function LibraryManager({
           style={{ color: 'var(--text-primary)' }}
         >
           <HardDrive size={20} className="text-neon/60" />
-          媒体库管理
+          {t('fm.pageTitle')}
         </h2>
 
         <div className="ml-auto flex items-center gap-2">
@@ -231,7 +233,7 @@ function LibraryManager({
             className="btn-primary gap-1.5 px-4 py-2 text-sm"
           >
             <FolderPlus size={16} />
-            新增媒体库
+            {t('libMan.addLibrary')}
           </button>
 
           {/* 排序按钮 */}
@@ -244,10 +246,10 @@ function LibraryManager({
                 color: 'var(--text-secondary)',
                 background: 'transparent',
               }}
-              title={`排序: ${sortBy === 'name' ? '名称' : sortBy === 'type' ? '类型' : '创建时间'}`}
+              title={`${t('libMan.sortLabel')}: ${sortBy === 'name' ? t('libMan.sortName') : sortBy === 'type' ? t('libMan.sortType') : t('libMan.sortCreated')}`}
             >
               <ArrowUpDown size={14} />
-              排序
+              {t('libMan.sortLabel')}
             </button>
           </div>
 
@@ -262,14 +264,14 @@ function LibraryManager({
                 color: 'var(--text-secondary)',
                 background: 'transparent',
               }}
-              title="扫描所有媒体库文件"
+              title={t('libMan.scanAllTitle')}
             >
               {scanAllLoading ? (
                 <RefreshCw size={14} className="animate-spin" />
               ) : (
                 <ScanLine size={14} />
               )}
-              {scanAllLoading ? '扫描中...' : '扫描媒体库文件'}
+              {scanAllLoading ? t('libMan.scanRunning') : t('libMan.scanAllBtn')}
             </button>
           )}
         </div>
@@ -299,25 +301,25 @@ function LibraryManager({
               className="flex items-center gap-1 text-left hover:text-[var(--text-primary)] transition-colors"
               onClick={() => toggleSort('name')}
             >
-              媒体库
+              {t('nav.libraries')}
               {sortBy === 'name' && <ChevronRight size={12} className={clsx('transition-transform', sortAsc ? '-rotate-90' : 'rotate-90')} />}
             </button>
-            <span>媒体文件夹</span>
+            <span>{t('createLib.mediaFolders')}</span>
             <button
               className="flex items-center gap-1 hover:text-[var(--text-primary)] transition-colors"
               onClick={() => toggleSort('type')}
             >
-              类型
+              {t('fm.colType')}
               {sortBy === 'type' && <ChevronRight size={12} className={clsx('transition-transform', sortAsc ? '-rotate-90' : 'rotate-90')} />}
             </button>
             <button
               className="flex items-center gap-1 hover:text-[var(--text-primary)] transition-colors"
               onClick={() => toggleSort('created')}
             >
-              最近更新
+              {t('libMan.colUpdated')}
               {sortBy === 'created' && <ChevronRight size={12} className={clsx('transition-transform', sortAsc ? '-rotate-90' : 'rotate-90')} />}
             </button>
-            <span className="text-center">操作</span>
+            <span className="text-center">{t('fm.colActions')}</span>
           </div>
 
           {/* 列表项 */}
@@ -339,7 +341,7 @@ function LibraryManager({
                   ? 'scraping'
                   : 'scanning'
             const activeStageIndex = MAIN_SCAN_STAGES.findIndex((s) => s.id === activeStage)
-            const stageLabel = MAIN_SCAN_STAGES[activeStageIndex]?.label || '入库进度'
+            const stageLabel = t(MAIN_SCAN_STAGES[activeStageIndex]?.labelKey || 'libMan.stageScanning')
             const phaseCurrent = phase?.current || 0
             const phaseTotal = phase?.total || 0
             const stageProgress = activeStage === 'scraping'
@@ -355,10 +357,10 @@ function LibraryManager({
                 ? 100
                 : 35
             const stageMessage = activeStage === 'scraping' && scrape
-              ? `元数据刮削 [${scrape.current}/${scrape.total}] ${scrape.media_title || ''}`
+              ? `${t('libMan.stageScraping')} [${scrape.current}/${scrape.total}] ${scrape.media_title || ''}`
               : activeStage === 'ai_organizing' && phase?.total
-                ? `AI整理 [${phase.current || 0}/${phase.total}]`
-                : progress?.message || phase?.message || '正在入库...'
+                ? `${t('libMan.stageAiOrganize')} [${phase.current || 0}/${phase.total}]`
+                : progress?.message || phase?.message || t('libMan.ingesting')
 
             return (
               <div key={lib.id} className="group relative">
@@ -434,7 +436,7 @@ function LibraryManager({
                         border: `1px solid ${typeConfig.bg}`,
                       }}
                     >
-                      {typeConfig.label}
+                      {t(typeConfig.labelKey)}
                     </span>
                   </div>
 
@@ -448,10 +450,10 @@ function LibraryManager({
                     <Badge
                       variant="outline"
                       className="w-fit gap-1.5 border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-500"
-                      title="点击右侧扫描按钮入库"
+                      title={t('libMan.scanHintTitle')}
                     >
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-                      未扫描
+                      {t('libMan.unscanned')}
                     </Badge>
                   )}
 
@@ -464,7 +466,7 @@ function LibraryManager({
                       onClick={() => handleScan(lib.id)}
                       disabled={isScanning}
                       className={clsx('h-8 px-2.5', SCAN_BUTTON[scanState].className)}
-                      title={SCAN_BUTTON[scanState].title}
+                      title={t(SCAN_BUTTON[scanState].titleKey)}
                     >
                       <RefreshCw
                         size={14}
@@ -473,14 +475,14 @@ function LibraryManager({
                           scanState === 'pending' && 'transition-transform duration-300 group-hover:-rotate-180'
                         )}
                       />
-                      {scanState === 'pending' && '去扫描'}
+                      {scanState === 'pending' && t('libMan.goScan')}
                     </Button>
 
                     {/* 删除 */}
                     <button
                       onClick={() => handleDelete(lib.id)}
                       className="rounded-lg p-2 text-surface-500 transition-all hover:bg-red-500/5 hover:text-red-400"
-                      title="删除媒体库"
+                      title={t('libMan.deleteTitle')}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -516,7 +518,7 @@ function LibraryManager({
                               style={{ color: 'var(--text-secondary)' }}
                             >
                               <Pencil size={14} />
-                              编辑媒体库
+                              {t('editLib.title')}
                             </button>
                             <button
                               onClick={() => {
@@ -528,7 +530,7 @@ function LibraryManager({
                               style={{ color: 'var(--text-secondary)' }}
                             >
                               <RotateCcw size={14} />
-                              重建索引
+                              {t('libMan.reindex')}
                             </button>
                           </div>
                         </>
@@ -559,10 +561,10 @@ function LibraryManager({
                           >
                             <div className="flex items-center justify-between gap-1">
                               <span className="truncate text-[11px] font-semibold" style={{ color: active ? 'var(--neon-blue)' : done ? '#10B981' : 'var(--text-tertiary)' }}>
-                                {index + 1}. {stage.short}
+                                {index + 1}. {t(stage.shortKey)}
                               </span>
                               <span className="text-[10px]" style={{ color: active ? 'var(--neon-blue)' : done ? '#10B981' : 'var(--text-muted)' }}>
-                                {done ? '完成' : active ? '进行中' : '等待'}
+                                {done ? t('libMan.stageDone') : active ? t('libMan.stageActive') : t('libMan.stageWaiting')}
                               </span>
                             </div>
                           </div>
@@ -575,7 +577,7 @@ function LibraryManager({
                         {stageLabel}
                       </span>
                       <span className="text-[11px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
-                        {stageProgress.total > 0 ? `${stageProgress.current}/${stageProgress.total}` : `已发现 ${progress?.new_found || 0}`}
+                        {stageProgress.total > 0 ? `${stageProgress.current}/${stageProgress.total}` : `${t('libMan.foundCount', { count: progress?.new_found || 0 })}`}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full" style={{ background: 'var(--neon-blue-6)' }}>
@@ -599,7 +601,7 @@ function LibraryManager({
                       </span>
                       {activeStage === 'scraping' && scrape && scrape.total > 0 && (
                         <span className="shrink-0 text-[11px] font-mono" style={{ color: 'var(--neon-purple)' }}>
-                          成功:{scrape.success} 失败:{scrape.failed}
+                          {t('libMan.scrapeResult', { success: scrape.success, failed: scrape.failed })}
                         </span>
                       )}
                     </div>
@@ -631,13 +633,13 @@ function LibraryManager({
             className="font-display text-base font-semibold tracking-wide"
             style={{ color: 'var(--text-secondary)' }}
           >
-            还没有媒体库
+            {t('libMan.emptyTitle')}
           </h3>
           <p
             className="mt-1.5 mb-5 text-sm"
             style={{ color: 'var(--text-muted)' }}
           >
-            添加媒体库后系统将自动扫描并索引您的视频文件
+            {t('libMan.emptyHint')}
           </p>
           <button
             data-onboarding={ANCHORS.createLibraryButton}
@@ -645,7 +647,7 @@ function LibraryManager({
             className="btn-primary gap-1.5 px-5 py-2.5 text-sm"
           >
             <FolderPlus size={16} />
-            新增媒体库
+            {t('libMan.addLibrary')}
           </button>
         </div>
       )}
@@ -665,7 +667,7 @@ function LibraryManager({
         onClose={() => setEditingLibrary(null)}
         onUpdate={(updated) => {
           setLibraries((libs) => libs.map((l) => (l.id === updated.id ? updated : l)))
-          toast.success('媒体库已更新')
+          toast.success(t('libMan.updated'))
         }}
       />
 

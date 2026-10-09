@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { storageApi } from '@/api'
+import { useTranslation } from '@/i18n'
 import type { WebDAVConfig } from '@/api/storage'
 import { useStorageStatuses } from '@/hooks/useStorageStatuses'
 import {
@@ -60,6 +61,7 @@ function toState(enabled?: boolean, connected?: boolean): ProviderState {
 }
 
 export default function StorageTab() {
+  const { t } = useTranslation()
   // WebDAV 本地 state
   const [config, setConfig] = useState<WebDAVConfig>(DEFAULT_CONFIG)
   const [loading, setLoading] = useState(true)
@@ -107,10 +109,10 @@ export default function StorageTab() {
       const payload: Partial<WebDAVConfig> = { ...config }
       if (!passwordDirty) payload.password = ''
       await storageApi.updateWebDAVConfig(payload)
-      setToast({ ok: true, msg: 'WebDAV 配置已保存' })
+      setToast({ ok: true, msg: t('st.savedWebdav') })
       await loadAll()
     } catch (e: any) {
-      setToast({ ok: false, msg: e?.response?.data?.error || '保存失败' })
+      setToast({ ok: false, msg: e?.response?.data?.error || t('st.saveFailed') })
     } finally {
       setSaving(false)
     }
@@ -126,12 +128,12 @@ export default function StorageTab() {
         password: passwordDirty ? config.password : '',
         base_path: config.base_path,
       })
-      setToast({ ok: true, msg: 'WebDAV 连接测试成功' })
+      setToast({ ok: true, msg: t('st.testOkWebdav') })
     } catch (e: any) {
-      const raw = e?.response?.data?.error || '连接测试失败'
+      const raw = e?.response?.data?.error || t('st.testFailed')
       const missingCreds = !hasPassword && (!config.username.trim() || !config.password.trim())
       const msg = missingCreds
-        ? '连接失败：账号/密码未填写完整，请确认服务器是否需要认证'
+        ? t('st.testAuthHintWebdav')
         : raw
       setToast({ ok: false, msg })
     } finally {
@@ -144,8 +146,8 @@ export default function StorageTab() {
     () => [
       {
         key: 'local' as const,
-        name: '本地存储',
-        subtitle: '文件系统直读',
+        name: t('st.localName'),
+        subtitle: t('st.localSubtitle'),
         icon: <HardDrive size={20} />,
         state: 'connected' as ProviderState,
         accent: 'emerald' as const,
@@ -153,22 +155,22 @@ export default function StorageTab() {
       {
         key: 'webdav' as const,
         name: 'WebDAV',
-        subtitle: status?.server_url || '远程文件协议',
+        subtitle: status?.server_url || t('st.remoteProto'),
         icon: <Cloud size={20} />,
         state: toState(status?.enabled, status?.connected),
         accent: 'blue' as const,
       },
       {
         key: 'alist' as const,
-        name: 'Alist 聚合网盘',
-        subtitle: '阿里云盘 / 115 / 夸克 等',
+        name: t('st.alistName'),
+        subtitle: t('st.alistSubtitle'),
         icon: <Server size={20} />,
         state: toState(alistStatus?.enabled, alistStatus?.connected),
         accent: 'purple' as const,
       },
       {
         key: 's3' as const,
-        name: 'S3 对象存储',
+        name: t('st.s3Name'),
         subtitle: 'AWS S3 / MinIO / R2 / OSS / COS',
         icon: <Database size={20} />,
         state: toState(s3Status?.enabled, s3Status?.connected),
@@ -197,13 +199,13 @@ export default function StorageTab() {
               style={{ color: 'var(--text-primary)' }}
             >
               <HardDrive size={20} className="text-primary-400" />
-              存储概览
+              {t('st.overviewTitle')}
             </h2>
             <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              点击下方卡片切换 provider 配置
+              {t('st.overviewHint')}
             </p>
           </div>
-          <ActionButton variant="icon" onClick={loadAll} icon={<RefreshCw size={16} />} aria-label="刷新状态" />
+          <ActionButton variant="icon" onClick={loadAll} icon={<RefreshCw size={16} />} aria-label={t('st.refreshAria')} />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {providers.map((p) => (
@@ -225,13 +227,13 @@ export default function StorageTab() {
       {activeTab === 'local' && (
         <SectionShell
           icon={<HardDrive size={18} />}
-          title="本地存储"
-          subtitle="直接读取宿主机挂载的目录"
-          statusSlot={<StatusBadge state="connected" label="始终启用" />}
-          description="本地存储始终启用，媒体库路径使用标准文件系统路径（如 /vol01/Media/电影）。无需额外配置。"
+          title={t('st.localCardTitle')}
+          subtitle={t('st.localCardSubtitle')}
+          statusSlot={<StatusBadge state="connected" label={t('st.localBadge')} />}
+          description={t('st.localCardDesc')}
         >
           <div className="text-sm text-center py-4" style={{ color: 'var(--text-tertiary)' }}>
-            本地存储无配置项。请在「媒体库」菜单中新增本地路径的媒体库。
+            {t('st.localNoConfig')}
           </div>
         </SectionShell>
       )}
@@ -240,12 +242,12 @@ export default function StorageTab() {
         <>
           <SectionShell
             icon={<Cloud size={18} />}
-            title="WebDAV 存储"
-            subtitle="兼容坚果云 / Nextcloud / ownCloud / Synology WebDAV"
+            title={t('st.webdavName')}
+            subtitle={t('st.webdavSubtitle')}
             statusSlot={<StatusBadge state={toState(status?.enabled, status?.connected)} />}
             description={
               <>
-                媒体库路径使用{' '}
+                {t('st.prefixStart')}{' '}
                 <code
                   className="mx-0.5 rounded px-1.5 py-0.5 font-mono text-[11px]"
                   style={{
@@ -256,10 +258,10 @@ export default function StorageTab() {
                 >
                   webdav://
                 </code>{' '}
-                前缀。扫描时会自动从远程目录拉取文件列表。
+                {t('st.prefixEndWebdav')}
                 {status?.error && (
                   <div className="mt-2 text-red-500 dark:text-red-400">
-                    <strong>错误：</strong>{status.error}
+                    <strong>{t('st.err')}：</strong>{status.error}
                   </div>
                 )}
               </>
@@ -268,8 +270,8 @@ export default function StorageTab() {
             {/* 启用开关 */}
             <EnableRow
               icon={<Link2 size={16} />}
-              title="启用 WebDAV 存储"
-              description="启用后媒体库可使用 webdav:// 远程路径"
+              title={t('st.enableTitleWebdav')}
+              description={t('st.enableDescWebdav')}
               checked={config.enabled}
               onChange={(v) => setConfig({ ...config, enabled: v })}
             />
@@ -278,9 +280,9 @@ export default function StorageTab() {
             {config.enabled ? (
               <>
             {/* 连接 */}
-            <FieldGroup title="连接" description="WebDAV 服务器地址与基础路径" collapsible defaultOpen={!(status?.enabled && status?.connected)}>
+            <FieldGroup title={t('st.connTitle')} description={t('st.connDescWebdav')} collapsible defaultOpen={!(status?.enabled && status?.connected)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="服务器地址" required fullWidth>
+                <Field label={t('st.serverUrl')} required fullWidth>
                   <Input
                     type="url"
                     value={config.server_url}
@@ -289,12 +291,12 @@ export default function StorageTab() {
                     disabled={!config.enabled}
                   />
                 </Field>
-                <Field label="基础路径" hint="所有媒体库路径基于此路径解析" fullWidth>
+                <Field label={t('st.basePath')} hint={t('st.basePathHintWebdav')} fullWidth>
                   <Input
                     type="text"
                     value={config.base_path}
                     onChange={(e) => setConfig({ ...config, base_path: e.target.value })}
-                    placeholder="/ 或 /media/videos"
+                    placeholder={t('st.basePathPlaceholder')}
                     disabled={!config.enabled}
                   />
                 </Field>
@@ -302,9 +304,9 @@ export default function StorageTab() {
             </FieldGroup>
 
             {/* 鉴权 */}
-            <FieldGroup title="鉴权" description="HTTP Basic 认证凭据" collapsible defaultOpen={!(status?.enabled && status?.connected)}>
+            <FieldGroup title={t('st.authTitle')} description={t('st.authDescWebdav')} collapsible defaultOpen={!(status?.enabled && status?.connected)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="用户名">
+                <Field label={t('st.username')}>
                   <Input
                     type="text"
                     value={config.username}
@@ -313,7 +315,7 @@ export default function StorageTab() {
                     autoComplete="username"
                   />
                 </Field>
-                <Field label="密码">
+                <Field label={t('st.password')}>
                   <Input
                     type={showPassword ? 'text' : 'password'}
                     value={config.password}
@@ -322,7 +324,7 @@ export default function StorageTab() {
                       setPasswordDirty(true)
                     }}
                     disabled={!config.enabled}
-                    placeholder={passwordDirty ? '' : (hasPassword ? '已设置密码，留空保持不变' : '未设置密码')}
+                    placeholder={passwordDirty ? '' : (hasPassword ? t('st.pwdSet') : t('st.pwdUnset'))}
                     autoComplete="current-password"
                     suffix={
                       <EyeToggle
@@ -337,13 +339,13 @@ export default function StorageTab() {
 
             {/* 性能与可靠性（折叠） */}
             <FieldGroup
-              title="性能与可靠性"
+              title={t('st.perfTitle')}
               collapsible
               defaultOpen={false}
-              description="连接池、缓存、重试等高级参数"
+              description={t('st.perfDescWebdav')}
             >
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Field label="请求超时（秒）">
+                <Field label={t('st.timeout')}>
                   <Input
                     type="number"
                     min={1}
@@ -352,7 +354,7 @@ export default function StorageTab() {
                     disabled={!config.enabled}
                   />
                 </Field>
-                <Field label="连接池大小">
+                <Field label={t('st.poolSize')}>
                   <Input
                     type="number"
                     min={1}
@@ -361,7 +363,7 @@ export default function StorageTab() {
                     disabled={!config.enabled}
                   />
                 </Field>
-                <Field label="最大重试次数">
+                <Field label={t('st.retries')}>
                   <Input
                     type="number"
                     min={0}
@@ -370,7 +372,7 @@ export default function StorageTab() {
                     disabled={!config.enabled}
                   />
                 </Field>
-                <Field label="重试间隔（秒）">
+                <Field label={t('st.retryInterval')}>
                   <Input
                     type="number"
                     min={1}
@@ -379,7 +381,7 @@ export default function StorageTab() {
                     disabled={!config.enabled}
                   />
                 </Field>
-                <Field label="启用元数据缓存">
+                <Field label={t('st.metaCache')}>
                   <div className="flex items-center h-9">
                     <Switch
                       checked={config.enable_cache}
@@ -388,7 +390,7 @@ export default function StorageTab() {
                     />
                   </div>
                 </Field>
-                <Field label="缓存 TTL（小时）">
+                <Field label={t('st.cacheTtl')}>
                   <Input
                     type="number"
                     min={0}
@@ -403,7 +405,7 @@ export default function StorageTab() {
               </>
             ) : (
               <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                启用 WebDAV 存储后，将在这里显示连接与鉴权配置。
+                {t('st.notConfiguredHintWebdav')}
               </p>
             )}
 
@@ -421,13 +423,13 @@ export default function StorageTab() {
                     loading={testing}
                     icon={<Wifi size={16} />}
                   >
-                    测试连接
+                    {t('st.testBtn')}
                   </ActionButton>
                   <ActionButton
                     variant="icon"
                     onClick={loadAll}
                     icon={<RefreshCw size={16} />}
-                    aria-label="刷新"
+                    aria-label={t('st.refresh')}
                   />
                 </>
               }
@@ -440,7 +442,7 @@ export default function StorageTab() {
                   loading={saving}
                   icon={<Save size={16} />}
                 >
-                  保存配置
+                  {t('st.saveBtn')}
                 </ActionButton>
               }
             />

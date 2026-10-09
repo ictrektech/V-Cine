@@ -54,7 +54,7 @@ export default function TMDbConfigSection({ tmdbConfig, setTmdbConfig }: Props) 
   const handleClear = async () => {
     const ok = await dialog.confirm({
       title: t('admin.tmdbClearConfirm'),
-      confirmText: t('admin.confirm') || '确定',
+      confirmText: t('admin.confirm'),
       variant: 'danger',
     })
     if (!ok) return
@@ -103,7 +103,7 @@ export default function TMDbConfigSection({ tmdbConfig, setTmdbConfig }: Props) 
         <details className="group mb-5">
           <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium select-none" style={{ color: 'var(--text-tertiary)' }}>
             <Info size={13} />
-            关于 TMDb
+            {t('admin.aboutTmdb')}
             <ChevronRight size={12} className="transition-transform group-open:rotate-90" />
           </summary>
           <div className="mt-3 rounded-lg p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>

@@ -1,3 +1,4 @@
+import { useTranslation } from '@/i18n'
 import { useEffect, useState } from 'react'
 import {
   Radio,
@@ -31,6 +32,7 @@ import { Button } from '@/components/ui/button'
  *  - 域名级白名单（针对 115/阿里云盘等特定源自动应用 UA/Referer）
  */
 export default function STRMConfigSection() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(true)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -55,7 +57,7 @@ export default function STRMConfigSection() {
       const res = await strmApi.getConfig()
       setCfg({ ...defaultCfg, ...(res.data.data || {}) })
     } catch (e: unknown) {
-      setTip({ kind: 'err', msg: e instanceof Error ? e.message : '加载配置失败' })
+      setTip({ kind: 'err', msg: e instanceof Error ? e.message : t('strm.loadFailed') })
     } finally {
       setLoading(false)
     }
@@ -71,21 +73,21 @@ export default function STRMConfigSection() {
   const save = async () => {
     if (!cfg) return
     if (cfg.connect_timeout < 0 || cfg.connect_timeout > 600) {
-      setTip({ kind: 'err', msg: 'connect_timeout 必须在 0-600 秒之间' })
+      setTip({ kind: 'err', msg: t('strm.timeoutRange') })
       return
     }
     if (cfg.remote_probe_timeout < 0 || cfg.remote_probe_timeout > 120) {
-      setTip({ kind: 'err', msg: 'remote_probe_timeout 必须在 0-120 秒之间' })
+      setTip({ kind: 'err', msg: t('strm.probeRange') })
       return
     }
     setSaving(true)
     try {
       const res = await strmApi.updateConfig(cfg)
       setCfg({ ...defaultCfg, ...(res.data.data || {}) })
-      setTip({ kind: 'ok', msg: '配置已保存' })
+      setTip({ kind: 'ok', msg: t('strm.saved') })
       setTimeout(() => setTip(null), 2500)
     } catch (e: unknown) {
-      setTip({ kind: 'err', msg: e instanceof Error ? e.message : '保存失败' })
+      setTip({ kind: 'err', msg: e instanceof Error ? e.message : t('strm.saveFailed') })
     } finally {
       setSaving(false)
     }
@@ -96,7 +98,7 @@ export default function STRMConfigSection() {
   // ---- 域名表格操作 ----
   const addDomain = (target: 'ua' | 'ref') => {
     if (!cfg) return
-    const key = `新域名-${Date.now()}`
+    const key = `${t('strm.newDomain')}-${Date.now()}`
     if (target === 'ua') {
       setCfg({ ...cfg, domain_user_agents: { ...cfg.domain_user_agents, [key]: '' } })
     } else {
@@ -161,10 +163,10 @@ export default function STRMConfigSection() {
         </div>
         <div className="flex-1">
           <div className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-            STRM 远程流配置
+            {t('strm.title')}
           </div>
           <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            针对 .strm 云盘/CDN 远程流的统一代理、HLS 重写、FFprobe 探测与域名级白名单
+            {t('strm.desc')}
           </div>
         </div>
         {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -175,7 +177,7 @@ export default function STRMConfigSection() {
           {loading || !cfg ? (
             <div className="flex items-center gap-2 py-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
               <Loader2 size={14} className="animate-spin" />
-              正在加载配置...
+              {t('strm.loading')}
             </div>
           ) : (
             <>
@@ -208,7 +210,7 @@ export default function STRMConfigSection() {
                     className="mb-1 flex items-center gap-1.5 text-xs font-medium"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    <Globe size={12} /> 默认 User-Agent
+                    <Globe size={12} /> {t('strm.ua')}
                   </label>
                   <Input
                     type="text"
@@ -225,7 +227,7 @@ export default function STRMConfigSection() {
                     className="mb-1 flex items-center gap-1.5 text-xs font-medium"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    <Globe size={12} /> 默认 Referer
+                    <Globe size={12} /> {t('strm.referer')}
                   </label>
                   <Input
                     type="text"
@@ -240,7 +242,7 @@ export default function STRMConfigSection() {
                     className="mb-1 flex items-center gap-1.5 text-xs font-medium"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    <Clock size={12} /> 连接超时（秒）
+                    <Clock size={12} /> {t('strm.connectTimeout')}
                   </label>
                   <Input
                     type="number"
@@ -258,7 +260,7 @@ export default function STRMConfigSection() {
                     className="mb-1 flex items-center gap-1.5 text-xs font-medium"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    <Clock size={12} /> 远程 FFprobe 超时（秒）
+                    <Clock size={12} /> {t('strm.probeTimeout')}
                   </label>
                   <Input
                     type="number"
@@ -277,15 +279,15 @@ export default function STRMConfigSection() {
               <div className="grid gap-3 md:grid-cols-2">
                 <Toggle
                   icon={<Film size={14} />}
-                  label="HLS 主清单重写"
-                  hint="让分片走后端代理，统一继承媒体的 UA/Referer/Cookie（解决跨域/鉴权）"
+                  label={t('strm.hlsRewrite')}
+                  hint={t('strm.hlsRewriteHint')}
                   checked={cfg.rewrite_hls}
                   onChange={(v) => setCfg({ ...cfg, rewrite_hls: v })}
                 />
                 <Toggle
                   icon={<Zap size={14} />}
-                  label="扫描时远程 FFprobe 探测"
-                  hint="对 mp4/mkv 直链启用，可获取真实时长/分辨率/编码（耗时+1~3s/条）"
+                  label={t('strm.ffprobe')}
+                  hint={t('strm.ffprobeHint')}
                   checked={cfg.remote_probe}
                   onChange={(v) => setCfg({ ...cfg, remote_probe: v })}
                 />
@@ -293,8 +295,8 @@ export default function STRMConfigSection() {
 
               {/* 域名白名单 */}
               <DomainTable
-                title="域名级 User-Agent 白名单"
-                hint="当远程 URL 的 host 命中某个域名时，自动应用对应 UA（Media 级自定义优先）"
+                title={t('strm.uaWhitelist')}
+                hint={t('strm.uaWhitelistHint')}
                 rows={cfg.domain_user_agents}
                 onAdd={() => addDomain('ua')}
                 onRemove={(d) => removeDomain('ua', d)}
@@ -303,8 +305,8 @@ export default function STRMConfigSection() {
                 placeholder="Mozilla/5.0 ..."
               />
               <DomainTable
-                title="域名级 Referer 白名单"
-                hint="同上，匹配 host 时自动注入 Referer"
+                title={t('strm.refererWhitelist')}
+                hint={t('strm.refererWhitelistHint')}
                 rows={cfg.domain_referers}
                 onAdd={() => addDomain('ref')}
                 onRemove={(d) => removeDomain('ref', d)}
@@ -317,14 +319,14 @@ export default function STRMConfigSection() {
               <div className="flex items-center gap-2 pt-2">
                 <Button size="sm" onClick={save} disabled={saving}>
                   {saving ? <Loader2 className="animate-spin" /> : <Save />}
-                  保存配置
+                  {t('strm.saveBtn')}
                 </Button>
                 <Button size="sm" variant="outline" onClick={reset}>
                   <RotateCcw />
-                  重置为默认
+                  {t('strm.reset')}
                 </Button>
                 <span className="ml-auto text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                  提示：Media 级 UA/Referer/Cookie 优先级高于全局；全局又高于域名白名单
+                  {t('strm.priorityHint')}
                 </span>
               </div>
             </>
@@ -391,6 +393,7 @@ function DomainTable({
   onSetValue,
   placeholder,
 }: DomainTableProps) {
+  const { t } = useTranslation()
   const entries = Object.entries(rows)
   return (
     <div
@@ -409,12 +412,12 @@ function DomainTable({
           )}
         </div>
         <Button size="sm" variant="secondary" className="ml-auto" onClick={onAdd}>
-          <Plus /> 新增
+          <Plus /> {t('strm.add')}
         </Button>
       </div>
       {entries.length === 0 ? (
         <div className="py-2 text-center text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-          暂无规则
+          {t('strm.noRules')}
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -439,7 +442,7 @@ function DomainTable({
                 size="icon"
                 className="h-7 w-7 text-rose-400 hover:text-rose-300"
                 onClick={() => onRemove(domain)}
-                title="删除"
+                title={t('strm.delete')}
               >
                 <Trash2 className="size-3" />
               </Button>

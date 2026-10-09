@@ -21,15 +21,16 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 import { Modal } from '@/components/ui/modal'
 
 // 内容分级选项
 const RATING_OPTIONS = [
-  { value: 'G', label: 'G — 所有年龄', color: 'text-green-400' },
-  { value: 'PG', label: 'PG — 家长指导', color: 'text-blue-400' },
-  { value: 'PG-13', label: 'PG-13 — 13岁以上', color: 'text-yellow-400' },
-  { value: 'R', label: 'R — 限制级', color: 'text-orange-400' },
-  { value: 'NC-17', label: 'NC-17 — 17岁以下禁止', color: 'text-red-400' },
+  { value: 'G', labelKey: 'users.ratingG', color: 'text-green-400' },
+  { value: 'PG', labelKey: 'users.ratingPG', color: 'text-blue-400' },
+  { value: 'PG-13', labelKey: 'users.ratingPG13', color: 'text-yellow-400' },
+  { value: 'R', labelKey: 'users.ratingR', color: 'text-orange-400' },
+  { value: 'NC-17', labelKey: 'users.ratingNC17', color: 'text-red-400' },
 ]
 
 interface UsersTabProps {
@@ -39,6 +40,7 @@ interface UsersTabProps {
 
 export default function UsersTab({ users, setUsers }: UsersTabProps) {
   const toast = useToast()
+  const { t, locale } = useTranslation()
   const dialog = useDialog()
   const [libraries, setLibraries] = useState<Library[]>([])
   const [editingUser, setEditingUser] = useState<string | null>(null)
@@ -88,28 +90,28 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
 
   const handleDeleteUser = async (id: string) => {
     const ok = await dialog.confirm({
-      title: '删除用户',
-      message: '确定删除此用户？',
-      confirmText: '删除',
+      title: t('users.deleteTitle'),
+      message: t('users.deleteMsg'),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
     try {
       await adminApi.deleteUser(id)
       setUsers((u) => u.filter((user) => user.id !== id))
-      toast.success('用户已删除')
+      toast.success(t('users.deleteSuccess'))
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '删除用户失败')
+      toast.error(err?.response?.data?.error || t('users.deleteFailed'))
     }
   }
 
   // 切换用户启用/禁用
   const handleToggleDisabled = async (user: User) => {
     const next = !user.disabled
-    const actionText = next ? '禁用' : '启用'
+    const actionText = next ? t('users.disable') : t('users.enable')
     const ok = await dialog.confirm({
-      title: `${actionText}用户`,
-      message: `确定${actionText} ${user.username}？${next ? '该用户将无法登录。' : ''}`,
+      title: t('users.toggleTitle', { action: actionText }),
+      message: t('users.toggleMsg', { action: actionText, username: user.username, cannotLogin: next ? t('users.cannotLogin') : '' }),
       confirmText: actionText,
       variant: next ? 'warning' : 'primary',
     })
@@ -117,16 +119,16 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
     try {
       await adminApi.setUserDisabled(user.id, next)
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, disabled: next } : u)))
-      toast.success(`已${actionText}用户 ${user.username}`)
+      toast.success(t('users.toggleSuccess', { action: actionText, username: user.username }))
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || `${actionText}失败`)
+      toast.error(err?.response?.data?.error || t('users.toggleFailed', { action: actionText }))
     }
   }
 
   // 创建用户
   const handleCreateUser = async () => {
-    if (newUser.username.trim().length < 3) { toast.error('用户名至少3位'); return }
-    if (newUser.password.length < 6) { toast.error('密码至少6位'); return }
+    if (newUser.username.trim().length < 3) { toast.error(t('users.usernameTooShort')); return }
+    if (newUser.password.length < 6) { toast.error(t('users.passwordTooShort')); return }
     setCreatingUser(true)
     try {
       const res = await adminApi.createUser({
@@ -137,11 +139,11 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
         email: newUser.email || undefined,
       })
       setUsers((prev) => [res.data.data, ...prev])
-      toast.success(`已创建用户 ${res.data.data.username}`)
+      toast.success(t('users.created', { username: res.data.data.username }))
       setShowCreateModal(false)
       setNewUser({ username: '', password: '', role: 'user', nickname: '', email: '' })
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '创建失败')
+      toast.error(err?.response?.data?.error || t('users.createFailed'))
     } finally {
       setCreatingUser(false)
     }
@@ -178,10 +180,10 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
         max_rating_level: permRating,
         daily_time_limit: permTimeLimit,
       })
-      toast.success('权限已保存')
+      toast.success(t('users.permSaved'))
       setEditingUser(null)
     } catch {
-      toast.error('保存权限失败')
+      toast.error(t('users.permSaveFailed'))
     } finally {
       setSavingPerm(false)
     }
@@ -190,18 +192,18 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
   // 重置密码
   const handleResetPassword = async () => {
     if (!resetPwdUser || resetPwdValue.length < 6) {
-      toast.error('新密码至少6位')
+      toast.error(t('users.passwordTooShort'))
       return
     }
     setResettingPwd(true)
     try {
       await adminApi.resetUserPassword(resetPwdUser.id, resetPwdValue, resetForceChange)
-      toast.success(`已重置 ${resetPwdUser.username} 的密码`)
+      toast.success(t('users.pwdReset', { username: resetPwdUser.username }))
       setResetPwdUser(null)
       setResetPwdValue('')
       setResetForceChange(true)
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '重置密码失败')
+      toast.error(err?.response?.data?.error || t('users.pwdResetFailed'))
     } finally {
       setResettingPwd(false)
     }
@@ -214,15 +216,15 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
   }
 
   const formatLastLogin = (user: User) => {
-    if (!user.last_login_at) return '从未登录'
+    if (!user.last_login_at) return t('users.neverLoggedIn')
     const d = new Date(user.last_login_at)
     const now = Date.now()
     const diff = now - d.getTime()
     const min = Math.floor(diff / 60000)
-    if (min < 1) return '刚刚'
-    if (min < 60) return `${min} 分钟前`
-    if (min < 60 * 24) return `${Math.floor(min / 60)} 小时前`
-    if (min < 60 * 24 * 30) return `${Math.floor(min / 60 / 24)} 天前`
+    if (min < 1) return t('users.justNow')
+    if (min < 60) return t('timeFormat.minutesAgo', { minutes: min })
+    if (min < 60 * 24) return t('timeFormat.hoursAgo', { hours: Math.floor(min / 60) })
+    if (min < 60 * 24 * 30) return t('timeFormat.daysAgo', { days: Math.floor(min / 60 / 24) })
     return d.toLocaleDateString('zh-CN')
   }
 
@@ -231,7 +233,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
           <Users size={20} className="text-neon/60" />
-          用户管理
+          {t('admin.users')}
         </h2>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -239,7 +241,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="搜索用户名/昵称/邮箱"
+              placeholder={t('users.searchPlaceholder')}
               className="input pl-9 w-60 py-1.5 text-sm"
             />
           </div>
@@ -248,9 +250,9 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
             className="btn-primary gap-1.5 px-3 py-1.5 text-sm"
           >
             <UserPlus size={14} />
-            新建用户
+            {t('users.createNew')}
           </button>
-          <span className="text-sm text-surface-400">共 {filteredUsers.length} / {users.length}</span>
+          <span className="text-sm text-surface-400">{t('users.count', { shown: filteredUsers.length, total: users.length })}</span>
         </div>
       </div>
 
@@ -282,24 +284,24 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                     {user.nickname && <span className="text-xs text-surface-400">({user.nickname})</span>}
                     {user.disabled && (
                       <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>
-                        已禁用
+                        {t('users.disabled')}
                       </span>
                     )}
                     {user.must_change_pwd && (
                       <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: 'rgba(234,179,8,0.12)', color: '#fbbf24' }}>
-                        需改密
+                        {t('users.needChangePwd')}
                       </span>
                     )}
                   </p>
                   <p className="text-xs text-surface-500 flex items-center gap-2 flex-wrap">
-                    <span>{user.role === 'admin' ? '管理员' : '普通用户'}</span>
+                    <span>{user.role === 'admin' ? t('profile.roleAdmin') : t('profile.roleUser')}</span>
                     <span>·</span>
-                    <span>注册于 {new Date(user.created_at).toLocaleDateString('zh-CN')}</span>
+                    <span>{t('users.registeredAt', { date: new Date(user.created_at).toLocaleDateString(locale) })}</span>
                     <span>·</span>
-                    <span>最近登录 {formatLastLogin(user)}</span>
+                    <span>{t('users.lastLogin', { time: formatLastLogin(user) })}</span>
                     {user.last_login_ip && <>
                       <span>·</span>
-                      <span title="最近登录 IP">{user.last_login_ip}</span>
+                      <span title={t('users.lastLoginIp')}>{user.last_login_ip}</span>
                     </>}
                   </p>
                 </div>
@@ -313,20 +315,20 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                       'btn-ghost gap-1 px-2.5 py-1.5 text-xs transition-all',
                       editingUser === user.id ? 'text-neon' : 'text-surface-400 hover:text-neon'
                     )}
-                    title="权限设置"
+                    title={t('users.permTitle')}
                   >
                     <Shield size={14} />
-                    权限
+                    {t('users.perm')}
                   </button>
                 )}
                 {/* 重置密码 */}
                 <button
                   onClick={() => { setResetPwdUser(user); setResetPwdValue(''); setResetForceChange(true) }}
                   className="btn-ghost gap-1 px-2.5 py-1.5 text-xs text-surface-400 hover:text-yellow-400 transition-all"
-                  title="重置密码"
+                  title={t('users.resetPwd')}
                 >
                   <KeyRound size={14} />
-                  密码
+                  {t('users.pwd')}
                 </button>
                 {/* 启用/禁用 */}
                 {user.role !== 'admin' && (
@@ -336,14 +338,14 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                       'btn-ghost gap-1 px-2.5 py-1.5 text-xs transition-all',
                       user.disabled ? 'text-green-400 hover:text-green-300' : 'text-surface-400 hover:text-orange-400'
                     )}
-                    title={user.disabled ? '启用账号' : '禁用账号'}
+                    title={user.disabled ? t('users.enableAccount') : t('users.disableAccount')}
                   >
                     {user.disabled ? <RotateCcw size={14} /> : <Ban size={14} />}
-                    {user.disabled ? '启用' : '禁用'}
+                    {user.disabled ? t('users.enable') : t('users.disable')}
                   </button>
                 )}
                 {user.role !== 'admin' && (
-                  <button onClick={() => handleDeleteUser(user.id)} className="btn-ghost p-2 text-red-400 hover:text-red-300" title="删除用户">
+                  <button onClick={() => handleDeleteUser(user.id)} className="btn-ghost p-2 text-red-400 hover:text-red-300" title={t('users.deleteTitle')}>
                     <Trash2 size={16} />
                   </button>
                 )}
@@ -361,15 +363,15 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                   <>
                     <h4 className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                       <Shield size={16} className="text-neon/60" />
-                      {user.username} 的权限设置
+                      {t('users.permEditorTitle', { username: user.username })}
                     </h4>
 
                     {/* 媒体库访问控制 */}
                     <div>
                       <label className="mb-2 flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                         <FolderOpen size={12} />
-                        可访问的媒体库
-                        <span className="text-surface-500">（不选 = 全部可访问）</span>
+                        {t('users.accessLibraries')}
+                        <span className="text-surface-500">{t('users.allLibrariesHint')}</span>
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {libraries.map((lib) => (
@@ -394,7 +396,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                     <div>
                       <label className="mb-2 flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                         <Eye size={12} />
-                        最高可观看的内容分级
+                        {t('users.maxRating')}
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {RATING_OPTIONS.map((opt) => (
@@ -409,7 +411,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                             )}
                             style={permRating !== opt.value ? { border: '1px solid var(--border-default)' } : {}}
                           >
-                            {opt.label}
+                            {t(opt.labelKey)}
                           </button>
                         ))}
                       </div>
@@ -419,8 +421,8 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                     <div>
                       <label className="mb-2 flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                         <Clock size={12} />
-                        每日观看时长限制
-                        <span className="text-surface-500">(0 = 不限制，单位: 分钟)</span>
+                        {t('users.dailyTimeLimit')}
+                        <span className="text-surface-500">{t('users.timeLimitHint')}</span>
                       </label>
                       <input
                         type="number"
@@ -433,7 +435,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                       />
                       {permTimeLimit > 0 && (
                         <span className="ml-2 text-xs text-surface-400">
-                          = {Math.floor(permTimeLimit / 60)} 小时 {permTimeLimit % 60} 分钟/天
+                          = {t('users.timeLimitSummary', { hours: Math.floor(permTimeLimit / 60), minutes: permTimeLimit % 60 })}
                         </span>
                       )}
                     </div>
@@ -444,11 +446,11 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                         className="rounded-xl px-4 py-2 text-sm font-medium transition-all"
                         style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
                       >
-                        取消
+                        {t('common.cancel')}
                       </button>
                       <button onClick={savePerm} disabled={savingPerm} className="btn-primary gap-1.5 px-4 py-2 text-sm">
                         {savingPerm ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                        保存权限
+                        {t('users.savePerm')}
                       </button>
                     </div>
                   </>
@@ -461,7 +463,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
 
       <div className="flex items-start gap-2 rounded-xl p-3 text-xs text-yellow-400/80" style={{ background: 'rgba(234, 179, 8, 0.03)', border: '1px solid rgba(234, 179, 8, 0.08)' }}>
         <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
-        <span>管理员可通过「新建用户」直接创建账号（默认要求首次登录强制改密）。也可在登录页让用户通过邀请码自行注册。禁用账号将立即吊销用户持有的所有登录凭证。</span>
+        <span>{t('users.createNote')}</span>
       </div>
 
       {/* 创建用户弹窗 */}
@@ -470,7 +472,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                 <UserPlus size={16} className="text-neon" />
-                创建新用户
+                {t('users.createTitle')}
               </h3>
               <button onClick={() => setShowCreateModal(false)} className="text-surface-500 hover:text-surface-300">
                 <X size={16} />
@@ -478,15 +480,15 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>用户名 *</label>
-                <input value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} className="input w-full" placeholder="至少 3 位" />
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>{t('auth.username')} *</label>
+                <input value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} className="input w-full" placeholder={t('users.usernameMinHint')} />
               </div>
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>初始密码 *</label>
-                <input type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} className="input w-full" placeholder="至少 6 位，用户首次登录须修改" />
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>{t('users.initialPwd')} *</label>
+                <input type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} className="input w-full" placeholder={t('users.initialPwdHint')} />
               </div>
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>角色</label>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>{t('profile.role')}</label>
                 <div className="flex gap-2">
                   {(['user', 'admin'] as const).map(r => (
                     <button
@@ -498,27 +500,27 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                       )}
                       style={newUser.role !== r ? { border: '1px solid var(--border-default)' } : {}}
                     >
-                      {r === 'admin' ? '管理员' : '普通用户'}
+                      {r === 'admin' ? t('profile.roleAdmin') : t('profile.roleUser')}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>昵称（可选）</label>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>{t('users.nickname')}</label>
                   <input value={newUser.nickname} onChange={e => setNewUser({ ...newUser, nickname: e.target.value })} className="input w-full" />
                 </div>
                 <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>邮箱（可选）</label>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>{t('users.email')}</label>
                   <input value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} className="input w-full" />
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">
-              <button onClick={() => setShowCreateModal(false)} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}>取消</button>
+              <button onClick={() => setShowCreateModal(false)} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}>{t('common.cancel')}</button>
               <button onClick={handleCreateUser} disabled={creatingUser} className="btn-primary gap-1.5 px-4 py-2 text-sm">
                 {creatingUser ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                创建
+                {t('users.create')}
               </button>
             </div>
           </div>
@@ -530,27 +532,27 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                 <KeyRound size={16} className="text-yellow-400" />
-                重置密码
+                {t('users.resetPwdTitle')}
               </h3>
               <button onClick={() => setResetPwdUser(null)} className="text-surface-500 hover:text-surface-300">
                 <X size={16} />
               </button>
             </div>
             <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>
-              为用户 <strong style={{ color: 'var(--text-primary)' }}>{resetPwdUser?.username}</strong> 设置新密码
+              {t('users.setNewPwdFor', { username: resetPwdUser?.username || '' })}
             </p>
             <input
               type="password"
               value={resetPwdValue}
               onChange={e => setResetPwdValue(e.target.value)}
               className="input w-full mb-3"
-              placeholder="输入新密码（至少6位）"
+              placeholder={t('users.newPwdPlaceholder')}
               minLength={6}
               autoFocus
             />
             <label className="flex items-center gap-2 mb-4 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={resetForceChange} onChange={e => setResetForceChange(e.target.checked)} />
-              要求用户下次登录强制修改密码（推荐）
+              {t('users.forceChangeHint')}
             </label>
             <div className="flex items-center justify-end gap-2">
               <button
@@ -558,7 +560,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                 className="rounded-xl px-4 py-2 text-sm font-medium transition-all"
                 style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleResetPassword}
@@ -566,7 +568,7 @@ export default function UsersTab({ users, setUsers }: UsersTabProps) {
                 className="btn-primary gap-1.5 px-4 py-2 text-sm"
               >
                 {resettingPwd ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                确认重置
+                {t('users.confirmReset')}
               </button>
             </div>
           </div>

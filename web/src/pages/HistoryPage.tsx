@@ -56,9 +56,9 @@ export default function HistoryPage() {
 
   const handleClear = async () => {
     const ok = await dialog.confirm({
-      title: t('history.clearConfirmTitle') || '清空观看历史',
+      title: t('history.clearConfirmTitle'),
       message: t('history.clearConfirm'),
-      confirmText: t('history.clear') || '清空',
+      confirmText: t('history.clear'),
       variant: 'danger',
     })
     if (!ok) return

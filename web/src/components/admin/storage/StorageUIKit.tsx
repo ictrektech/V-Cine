@@ -7,6 +7,7 @@
 // 保证在深/浅两种主题下都有正确的对比度。
 // ============================================================
 import { ReactNode, CSSProperties } from 'react'
+import { useTranslation } from '@/i18n'
 import clsx from 'clsx'
 import { Switch } from '@/components/ui/switch'
 import { CheckCircle2, XCircle, Loader2, Wifi, WifiOff } from 'lucide-react'
@@ -23,30 +24,31 @@ interface StatusBadgeProps {
 
 /** 统一的 provider 状态徽章：四种状态 = 四种色板，形状/留白/图标尺寸完全一致 */
 export function StatusBadge({ state, label, size = 'md' }: StatusBadgeProps) {
-  const palette: Record<ProviderState, { bg: string; text: string; icon: ReactNode; defaultLabel: string }> = {
+  const { t } = useTranslation()
+  const palette: Record<ProviderState, { bg: string; text: string; icon: ReactNode; defaultLabelKey: string }> = {
     connected: {
       bg: 'bg-emerald-500/10 border-emerald-500/30',
       text: 'text-emerald-500 dark:text-emerald-300',
       icon: <Wifi size={size === 'sm' ? 11 : 13} />,
-      defaultLabel: '已连接',
+      defaultLabelKey: 'storage.stateConnected',
     },
     error: {
       bg: 'bg-red-500/10 border-red-500/30',
       text: 'text-red-500 dark:text-red-300',
       icon: <XCircle size={size === 'sm' ? 11 : 13} />,
-      defaultLabel: '异常',
+      defaultLabelKey: 'storage.stateError',
     },
     disabled: {
       bg: 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10',
       text: '',
       icon: <WifiOff size={size === 'sm' ? 11 : 13} />,
-      defaultLabel: '未启用',
+      defaultLabelKey: 'storage.stateDisabled',
     },
     idle: {
       bg: 'bg-blue-500/10 border-blue-500/30',
       text: 'text-blue-500 dark:text-blue-300',
       icon: <CheckCircle2 size={size === 'sm' ? 11 : 13} />,
-      defaultLabel: '就绪',
+      defaultLabelKey: 'storage.stateIdle',
     },
   }
   const p = palette[state]
@@ -61,7 +63,7 @@ export function StatusBadge({ state, label, size = 'md' }: StatusBadgeProps) {
       style={state === 'disabled' ? { color: 'var(--text-tertiary)' } : undefined}
     >
       {p.icon}
-      <span>{label || p.defaultLabel}</span>
+      <span>{label || t(p.defaultLabelKey)}</span>
     </span>
   )
 }
@@ -330,6 +332,7 @@ interface ToastProps {
 }
 
 export function Toast({ ok, msg, onDismiss }: ToastProps) {
+  const { t } = useTranslation()
   return (
     <div
       role="alert"
@@ -351,7 +354,7 @@ export function Toast({ ok, msg, onDismiss }: ToastProps) {
           type="button"
           onClick={onDismiss}
           className="opacity-60 hover:opacity-100 transition-opacity"
-          aria-label="关闭"
+          aria-label={t('common.close')}
         >
           <XCircle size={14} />
         </button>
@@ -526,6 +529,7 @@ export function VersionBadge({ accent = 'neon', children = 'V2.3' }: { accent?: 
 // ---------------- 密码眼睛按钮 ----------------
 
 export function EyeToggle({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
@@ -535,7 +539,7 @@ export function EyeToggle({ visible, onToggle }: { visible: boolean; onToggle: (
       onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-tertiary)')}
       tabIndex={-1}
-      aria-label={visible ? '隐藏' : '显示'}
+      aria-label={visible ? t('common.hide') : t('common.show')}
     >
       {visible ? (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

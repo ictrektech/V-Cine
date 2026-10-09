@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from '@/i18n'
 import type { Library } from '@/types'
 import { batchMoveApi, libraryApi } from '@/api'
 import { useToast } from '@/components/Toast'
@@ -19,6 +20,7 @@ interface BatchMoveDialogProps {
 }
 
 export default function BatchMoveDialog({ mediaIds, currentLibraryId, onClose, onSuccess }: BatchMoveDialogProps) {
+  const { t } = useTranslation()
   const toast = useToast()
   const [libraries, setLibraries] = useState<Library[]>([])
   const [targetId, setTargetId] = useState('')
@@ -33,16 +35,16 @@ export default function BatchMoveDialog({ mediaIds, currentLibraryId, onClose, o
   }, [currentLibraryId])
 
   const handleMove = async () => {
-    if (!targetId) { toast.error('请选择目标媒体库'); return }
+    if (!targetId) { toast.error(t('bm.pickTarget')); return }
     setLoading(true)
     try {
       const res = await batchMoveApi.batchMove({ media_ids: mediaIds, target_library_id: targetId })
       const result = res.data.data
-      toast.success(`移动完成：成功 ${result.success}，失败 ${result.failed}`)
+      toast.success(t('bm.done', { ok: result.success, failed: result.failed }))
       onSuccess?.()
       onClose()
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '移动失败')
+      toast.error(err?.response?.data?.error || t('bm.failed'))
     } finally {
       setLoading(false)
     }
@@ -57,7 +59,7 @@ export default function BatchMoveDialog({ mediaIds, currentLibraryId, onClose, o
         <div className="flex items-center justify-between mb-4">
           <h3 className="flex items-center gap-2 text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
             <FolderInput size={20} className="text-neon" />
-            批量移动媒体
+            {t('bm.title')}
           </h3>
           <button onClick={onClose} className="text-surface-400 hover:text-surface-200">
             <X size={18} />
@@ -65,12 +67,12 @@ export default function BatchMoveDialog({ mediaIds, currentLibraryId, onClose, o
         </div>
 
         <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          将选中的 <span className="font-semibold text-neon">{mediaIds.length}</span> 个媒体移动到目标媒体库
+          {t('bm.desc', { count: mediaIds.length })}
         </p>
 
         <div className="mb-6">
           <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            目标媒体库
+            {t('bm.target')}
           </label>
           {libraries.length > 0 ? (
             <div className="space-y-2">
@@ -96,12 +98,12 @@ export default function BatchMoveDialog({ mediaIds, currentLibraryId, onClose, o
               ))}
             </div>
           ) : (
-            <p className="text-sm text-surface-500">没有可用的目标媒体库</p>
+            <p className="text-sm text-surface-500">{t('bm.noTarget')}</p>
           )}
         </div>
 
         <div className="flex items-center justify-end gap-2">
-          <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">取消</button>
+          <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">{t('common.cancel')}</button>
           <button
             onClick={handleMove}
             disabled={loading || !targetId}
@@ -112,7 +114,7 @@ export default function BatchMoveDialog({ mediaIds, currentLibraryId, onClose, o
             ) : (
               <ArrowRight size={14} />
             )}
-            确认移动
+            {t('bm.confirm')}
           </button>
         </div>
       </div>

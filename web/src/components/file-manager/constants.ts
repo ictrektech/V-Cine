@@ -1,21 +1,22 @@
 import type { Media, Library, FileManagerStats } from '@/types'
 
-// 远程视频禁用的提示文案
-export const REMOTE_ANALYSIS_DISABLED_TIP = '远程挂载视频暂不支持结构化分析'
+// 远程视频禁用的提示 i18n key（渲染处用 t() 翻译）
+export const REMOTE_ANALYSIS_DISABLED_TIP = 'fm.remoteAnalysisDisabledTip'
 
 // 数据源选项
 // 自动：走完整多源降级链（Adult → TMDb → 豆瓣 → TheTVDB/Bangumi → Fanart → AI）
-export const SOURCE_OPTIONS = [
-  { value: 'auto', label: '自动 (多源降级)' },
+export const SOURCE_OPTIONS: { value: string; label?: string; labelKey?: string }[] = [
+  { value: 'auto', labelKey: 'fm.sourceAuto' },
   { value: 'tmdb', label: 'TMDb' },
   { value: 'bangumi', label: 'Bangumi' },
-  { value: 'ai', label: 'AI增强' },
+  { value: 'ai', labelKey: 'fm.sourceAi' },
 ]
 
 // 语言选项
-export const LANGUAGE_OPTIONS = [
-  { value: '', label: '不翻译（保持原语言）', flag: '🌐' },
-  { value: 'zh', label: '中文', flag: '🇨🇳' },
+// 仅含中文文案的条目用 labelKey 走 i18n，语言本名（English 等）不翻译
+export const LANGUAGE_OPTIONS: { value: string; label?: string; labelKey?: string; flag: string }[] = [
+  { value: '', labelKey: 'fm.langNone', flag: '🌐' },
+  { value: 'zh', labelKey: 'fm.langZh', flag: '🇨🇳' },
   { value: 'en', label: 'English', flag: '🇺🇸' },
   { value: 'ja', label: '日本語', flag: '🇯🇵' },
   { value: 'ko', label: '한국어', flag: '🇰🇷' },
@@ -29,14 +30,14 @@ export const LANGUAGE_OPTIONS = [
   { value: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
 ]
 
-// 排序选项
-export const SORT_OPTIONS = [
-  { value: 'created_at', label: '导入时间' },
-  { value: 'title', label: '标题' },
-  { value: 'year', label: '年份' },
-  { value: 'rating', label: '评分' },
-  { value: 'file_size', label: '文件大小' },
-  { value: 'updated_at', label: '更新时间' },
+// 排序选项（文案走 i18n）
+export const SORT_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: 'created_at', labelKey: 'fm.sortCreatedAt' },
+  { value: 'title', labelKey: 'fm.sortTitle' },
+  { value: 'year', labelKey: 'fm.sortYear' },
+  { value: 'rating', labelKey: 'fm.sortRating' },
+  { value: 'file_size', labelKey: 'fm.sortFileSize' },
+  { value: 'updated_at', labelKey: 'fm.sortUpdatedAt' },
 ]
 
 // 格式化文件大小

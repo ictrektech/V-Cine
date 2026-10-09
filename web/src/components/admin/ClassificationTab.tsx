@@ -4,9 +4,6 @@ import {
   type MediaClassification,
   type ClassificationStats,
   type ClassificationCategory,
-  categoryDisplay,
-  regionDisplay,
-  statusDisplay,
   statusColor,
   categoryToEmbyCollectionType,
   categoryToEmbyGenre,
@@ -37,6 +34,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useDialog } from '@/components/Dialog'
+import { useTranslation } from '@/i18n'
 import SmartRenameDrawer from '@/components/SmartRenameDrawer'
 
 // ==================== 智能归类（原"扫描后处理 / 虚拟归类与命名映射"） ====================
@@ -55,44 +53,45 @@ import SmartRenameDrawer from '@/components/SmartRenameDrawer'
 
 // ============ 常量 ============
 
-const CATEGORY_OPTIONS: { value: ClassificationCategory | ''; label: string }[] = [
-  { value: '', label: '全部类别' },
-  { value: 'movie', label: '电影  ·  Movies' },
-  { value: 'tvshow', label: '剧集  ·  TV Shows' },
-  { value: 'anime', label: '动画  ·  TV Shows / Genre=Anime' },
-  { value: 'documentary', label: '纪录片  ·  TV Shows / Genre=Documentary' },
-  { value: 'variety', label: '综艺  ·  TV Shows / Genre=Reality' },
-  { value: 'music', label: '音乐  ·  Music' },
-  { value: 'adult', label: '成人  ·  Mixed' },
-  { value: 'other', label: '其他  ·  Mixed' },
+const CATEGORY_OPTIONS: { value: ClassificationCategory | ''; labelKey: string }[] = [
+  { value: '', labelKey: 'clsf.allCategories' },
+  { value: 'movie', labelKey: 'clsf.catMovieFull' },
+  { value: 'tvshow', labelKey: 'clsf.catTvshowFull' },
+  { value: 'anime', labelKey: 'clsf.catAnimeFull' },
+  { value: 'documentary', labelKey: 'clsf.catDocFull' },
+  { value: 'variety', labelKey: 'clsf.catVarietyFull' },
+  { value: 'music', labelKey: 'clsf.catMusicFull' },
+  { value: 'adult', labelKey: 'clsf.catAdultFull' },
+  { value: 'other', labelKey: 'clsf.catOtherFull' },
 ]
 
 const REGION_OPTIONS = [
-  { value: '', label: '全部地区' },
-  { value: 'CN', label: '中国大陆' },
-  { value: 'HK', label: '中国香港' },
-  { value: 'TW', label: '中国台湾' },
-  { value: 'JP', label: '日本' },
-  { value: 'KR', label: '韩国' },
-  { value: 'US', label: '美国' },
-  { value: 'EU', label: '欧洲' },
-  { value: 'IN', label: '印度' },
-  { value: 'OTHER', label: '其他' },
+  { value: '', labelKey: 'clsf.allRegions' },
+  { value: 'CN', labelKey: 'clsf.regCN' },
+  { value: 'HK', labelKey: 'clsf.regHK' },
+  { value: 'TW', labelKey: 'clsf.regTW' },
+  { value: 'JP', labelKey: 'clsf.regJP' },
+  { value: 'KR', labelKey: 'clsf.regKR' },
+  { value: 'US', labelKey: 'clsf.regUS' },
+  { value: 'EU', labelKey: 'clsf.regEU' },
+  { value: 'IN', labelKey: 'clsf.regIN' },
+  { value: 'OTHER', labelKey: 'clsf.regOther' },
 ]
 
 // 快捷筛选标签：4 个核心场景
 type QuickFilter = 'all' | 'todo' | 'done' | 'ai'
 
-const QUICK_TABS: { key: QuickFilter; label: string; icon: React.ReactNode; tint: string }[] = [
-  { key: 'all', label: '全部', icon: <Database className="h-4 w-4" />, tint: 'text-blue-300' },
-  { key: 'todo', label: '⚠️ 待修正', icon: <AlertTriangle className="h-4 w-4" />, tint: 'text-red-300' },
-  { key: 'done', label: '已完成', icon: <CheckCircle2 className="h-4 w-4" />, tint: 'text-emerald-300' },
-  { key: 'ai', label: 'AI 识别', icon: <Bot className="h-4 w-4" />, tint: 'text-purple-300' },
+const QUICK_TABS: { key: QuickFilter; labelKey: string; icon: React.ReactNode; tint: string }[] = [
+  { key: 'all', labelKey: 'clsf.qAll', icon: <Database className="h-4 w-4" />, tint: 'text-blue-300' },
+  { key: 'todo', labelKey: 'clsf.qTodo', icon: <AlertTriangle className="h-4 w-4" />, tint: 'text-red-300' },
+  { key: 'done', labelKey: 'clsf.qDone', icon: <CheckCircle2 className="h-4 w-4" />, tint: 'text-emerald-300' },
+  { key: 'ai', labelKey: 'clsf.qAi', icon: <Bot className="h-4 w-4" />, tint: 'text-purple-300' },
 ]
 
 // ============ 主组件 ============
 
 export default function ClassificationTab() {
+  const { t } = useTranslation()
   const dialog = useDialog()
 
   // ---------- 状态 ----------
@@ -154,7 +153,7 @@ export default function ClassificationTab() {
     return localStorage.getItem('classify-tour-seen') === '1'
   })
 
-  // 设置抽屉（收纳：专家模式 / 危险区 / 键盘快捷键 / 删除归类记录）
+  // 设置抽屉（收纳：专家模式 / {t('clsf.dangerZone')} / 键盘快捷键 / 删除归类记录）
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   // 首次向导（A+C 模式）：当从未跑过 + 未关闭过引导 时显示
@@ -252,7 +251,7 @@ export default function ClassificationTab() {
       setTotal(res.data.data.total || 0)
     } catch (e) {
       const err = e as { response?: { data?: { error?: string } } }
-      setMessage({ type: 'err', text: err?.response?.data?.error || '加载失败' })
+      setMessage({ type: 'err', text: err?.response?.data?.error || t('clsf.loadFailed') })
     } finally {
       setLoading(false)
     }
@@ -310,13 +309,13 @@ export default function ClassificationTab() {
                   setQuick('todo')
                   setMessage({
                     type: 'info',
-                    text: `✨ 归类完成！有 ${failed} 条建议你确认一下，已为你切到「待修正」`,
+                    text: t('clsf.doneWithTodo', { count: failed }),
                   })
                 } else {
                   setQuick('done')
                   setMessage({
                     type: 'ok',
-                    text: '🎉 归类完成，全部就绪，无需人工处理！',
+                    text: t('clsf.doneAll'),
                   })
                 }
               })
@@ -393,7 +392,7 @@ export default function ClassificationTab() {
     if (aiReady === false) {
       setMessage({
         type: 'err',
-        text: '请先配置 AI 后再使用智能归类。点击右上「立即配置 AI」前往。',
+        text: t('clsf.needAi'),
       })
       return
     }
@@ -407,11 +406,11 @@ export default function ClassificationTab() {
       })
       const data = res.data.data
       const targetText = libraryID
-        ? `《${libraries.find((l) => l.id === libraryID)?.name || '当前库'}》`
-        : '全部媒体库'
+        ? `${t('clsf.curLibBrace1')}${libraries.find((l) => l.id === libraryID)?.name || t('clsf.curLib')}${t('clsf.curLibBrace2')}`
+        : t('clsf.allLibraries')
       setMessage({
         type: 'ok',
-        text: `✨ 已开始为 ${targetText} 智能归类 ${data?.count ?? 0} 条媒体，完成后会自动展示需要确认的条目`,
+        text: t('clsf.started', { target: targetText, count: data?.count ?? 0 }),
       })
       setProgress({ running: true, queued: data?.count ?? 0, startedAt: Date.now() })
       // 标记完成后自动切到「待修正」
@@ -423,7 +422,7 @@ export default function ClassificationTab() {
       }
     } catch (e) {
       const err = e as { response?: { data?: { error?: string } } }
-      setMessage({ type: 'err', text: err?.response?.data?.error || '启动失败' })
+      setMessage({ type: 'err', text: err?.response?.data?.error || t('clsf.startFailed') })
     } finally {
       setReprocessing(false)
     }
@@ -434,12 +433,12 @@ export default function ClassificationTab() {
     setMessage(null)
     try {
       await scanClassifyApi.reprocess({ media_ids: [mediaId] })
-      setMessage({ type: 'ok', text: '已重新识别该条' })
+      setMessage({ type: 'ok', text: t('clsf.reprocessed') })
       loadList()
       loadStats()
     } catch (e) {
       const err = e as { response?: { data?: { error?: string } } }
-      setMessage({ type: 'err', text: err?.response?.data?.error || '重试失败' })
+      setMessage({ type: 'err', text: err?.response?.data?.error || t('clsf.retryFailed') })
     }
   }
 
@@ -448,11 +447,10 @@ export default function ClassificationTab() {
   const handleCancel = async () => {
     if (cancelling) return
     const ok = await dialog.confirm({
-      title: '停止扫描归类？',
-      message:
-        '将立即丢弃队列中所有未处理的条目，并把待处理 / 处理中的记录回写为「失败（已取消）」。\n\n正在被处理的那一条会自然结束，不会强行打断。\n\n是否继续？',
-      confirmText: '停止',
-      cancelText: '继续运行',
+      title: t('clsf.stopTitle'),
+      message: t('clsf.stopMsg'),
+      confirmText: t('clsf.stopConfirm'),
+      cancelText: t('clsf.stopCancel'),
     })
     if (!ok) return
     setCancelling(true)
@@ -462,7 +460,7 @@ export default function ClassificationTab() {
       const d = res.data.data
       setMessage({
         type: 'ok',
-        text: `已停止扫描，丢弃队列 ${d.drained} 条 / 标记失败 ${d.marked} 条${d.still_running ? '（最后 1 条收尾中…）' : ''}`,
+        text: t('clsf.stopped', { drained: d.drained, marked: d.marked, tail: d.still_running ? t('clsf.stoppedTail') : '' }),
       })
       // 立刻收起进度提示并刷新列表
       setProgress(null)
@@ -470,7 +468,7 @@ export default function ClassificationTab() {
       loadStats()
     } catch (e) {
       const err = e as { response?: { data?: { error?: string } } }
-      setMessage({ type: 'err', text: err?.response?.data?.error || '停止失败' })
+      setMessage({ type: 'err', text: err?.response?.data?.error || t('clsf.stopFailed') })
     } finally {
       setCancelling(false)
     }
@@ -478,27 +476,27 @@ export default function ClassificationTab() {
 
   // 清空 - 二级保险
   const handleClear = async () => {
-    const label = libraryID ? '当前筛选的媒体库' : '【全部】'
+    const label = libraryID ? t('clsf.curScope') : t('clsf.allScope')
     const txt = await dialog.prompt({
-      title: '⚠️ 危险操作 · 删除归类记录',
-      message: `即将清空 ${label} 的归类记录。此操作不可恢复。\n\n请输入 DELETE 以确认：`,
+      title: t('clsf.delTitle'),
+      message: t('clsf.delMsg', { scope: label }),
       placeholder: 'DELETE',
-      confirmText: '确认清空',
+      confirmText: t('clsf.delConfirm'),
     })
     if (!txt || txt.trim().toUpperCase() !== 'DELETE') {
-      if (txt !== null) setMessage({ type: 'err', text: '输入不匹配，已取消' })
+      if (txt !== null) setMessage({ type: 'err', text: t('clsf.inputMismatch') })
       return
     }
     setClearing(true)
     setMessage(null)
     try {
       const res = await scanClassifyApi.clear(libraryID || undefined)
-      setMessage({ type: 'ok', text: `已清空 ${res.data.data.deleted} 条记录` })
+      setMessage({ type: 'ok', text: t('clsf.cleared', { count: res.data.data.deleted }) })
       loadList()
       loadStats()
     } catch (e) {
       const err = e as { response?: { data?: { error?: string } } }
-      setMessage({ type: 'err', text: err?.response?.data?.error || '清空失败' })
+      setMessage({ type: 'err', text: err?.response?.data?.error || t('clsf.clearFailed') })
     } finally {
       setClearing(false)
     }
@@ -518,13 +516,13 @@ export default function ClassificationTab() {
   ) => {
     try {
       await scanClassifyApi.correct({ media_id: item.media_id, ...payload })
-      setMessage({ type: 'ok', text: `已修正：${payload.title || item.parsed_title}` })
+      setMessage({ type: 'ok', text: t('clsf.corrected', { title: payload.title || item.parsed_title }) })
       setCorrectTarget(null)
       loadList()
       loadStats()
     } catch (e) {
       const err = e as { response?: { data?: { error?: string } } }
-      setMessage({ type: 'err', text: err?.response?.data?.error || '修正失败' })
+      setMessage({ type: 'err', text: err?.response?.data?.error || t('clsf.correctFailed') })
     }
   }
 
@@ -583,9 +581,9 @@ export default function ClassificationTab() {
               <Sparkles className="h-5 w-5 text-primary-300" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">智能归类</h2>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t('clsf.title')}</h2>
               <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                让 AI 自动识别并整理成 <span className="text-emerald-300">Emby / Jellyfin</span> 标准格式（仅写数据库，不动磁盘）
+                {t('clsf.desc')} <span className="text-emerald-300">Emby / Jellyfin</span>{t('clsf.desc2')}
               </p>
             </div>
           </div>
@@ -594,10 +592,10 @@ export default function ClassificationTab() {
           <button
             onClick={() => setSettingsOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition hover:border-primary-500"
-            title="设置（专家模式 / 应用到磁盘 / 删除归类记录 / 快捷键）"
+            title={t('clsf.settingsTitle')}
           >
             <Settings2 className="h-3.5 w-3.5" />
-            设置
+            {t('clsf.settings')}
           </button>
         </div>
 
@@ -605,13 +603,13 @@ export default function ClassificationTab() {
         <div className="relative mt-5 flex flex-col items-center gap-4">
           {/* 库选择行 */}
           <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-            <span>📚 媒体库</span>
+            <span>📚 {t('clsf.libLabel')}</span>
             <select
               value={libraryID}
               onChange={(e) => setLibraryID(e.target.value)}
               className="rounded-md border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:border-primary-500 focus:outline-none"
             >
-              <option value="">全部媒体库</option>
+              <option value="">{t('clsf.allLibraries')}</option>
               {libraries.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
@@ -620,17 +618,17 @@ export default function ClassificationTab() {
             </select>
             {stats && stats.total > 0 && (
               <span className="text-[var(--text-tertiary)]">
-                · 共 <span className="font-semibold text-[var(--text-primary)]">{stats.total.toLocaleString()}</span> 条
+                · {t('clsf.totalCount', { count: stats.total.toLocaleString() })}
               </span>
             )}
             {aiReady === true && (
               <span className="flex items-center gap-1 text-emerald-300">
-                · <CheckCircle2 className="h-3 w-3" /> AI 已就绪
+                · <CheckCircle2 className="h-3 w-3" /> {t('clsf.aiReady')}
               </span>
             )}
             {aiReady === false && (
               <span className="flex items-center gap-1 text-amber-300">
-                · <AlertTriangle className="h-3 w-3" /> AI 未配置
+                · <AlertTriangle className="h-3 w-3" /> {t('clsf.aiNotConfigured')}
               </span>
             )}
           </div>
@@ -646,15 +644,15 @@ export default function ClassificationTab() {
                   ? 'cursor-not-allowed bg-[var(--bg-surface)] text-[var(--text-tertiary)]'
                   : 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-primary-500/30 hover:scale-[1.02] hover:shadow-primary-500/50 active:scale-[0.98]',
               )}
-              title={aiReady === false ? '请先配置 AI' : '按 R 键快捷触发'}
+              title={aiReady === false ? t('clsf.configureAiFirst') : t('clsf.pressR')}
             >
               <Zap className="h-5 w-5 group-hover:animate-pulse" />
-              <span>{stats && stats.total > 0 ? '🔁 重新智能归类' : '⚡ 一键智能归类'}</span>
+              <span>{stats && stats.total > 0 ? t('clsf.recategorize') : t('clsf.categorize')}</span>
             </button>
           ) : (
             <div className="flex items-center gap-3 rounded-2xl border-2 border-primary-500/40 bg-primary-500/10 px-8 py-4 text-base font-bold text-primary-200">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span>正在归类 {progress?.queued ?? '…'} 条…</span>
+              <span>{t('clsf.classifying', { count: progress?.queued ?? '…' })}</span>
               <button
                 onClick={handleCancel}
                 disabled={cancelling}
@@ -666,7 +664,7 @@ export default function ClassificationTab() {
                 )}
               >
                 {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StopCircle className="h-3.5 w-3.5" />}
-                停止
+                {t('clsf.stop')}
               </button>
             </div>
           )}
@@ -675,28 +673,28 @@ export default function ClassificationTab() {
           <p className="text-center text-xs text-[var(--text-tertiary)]">
             {aiReady === false ? (
               <>
-                <span className="text-amber-300">需先配置 AI</span>
+                <span className="text-amber-300">{t('clsf.aiRequired')}</span>
                 <button
                   onClick={() => (window.location.hash = '#ai')}
                   className="ml-2 rounded-md bg-amber-500/20 px-2.5 py-0.5 text-xs font-medium text-amber-100 hover:bg-amber-500/30"
                 >
-                  立即配置 →
+                  {t('clsf.configNow')}
                 </button>
               </>
             ) : progress?.running ? (
-              '页面会自动刷新进度，识别完成后自动展示需要确认的条目'
+              t('clsf.autoRefreshHint')
             ) : stats && stats.total > 0 ? (
               <>
-                上次结果：<span className="text-emerald-300">{doneCount} 已识别</span>
+                {t('clsf.lastResult')}<span className="text-emerald-300">{doneCount} {t('clsf.recognized')}</span>
                 {failedCount > 0 && (
                   <>
                     {' · '}
-                    <span className="text-red-300">{failedCount} 待修正</span>
+                    <span className="text-red-300">{failedCount} {t('clsf.todo')}</span>
                   </>
                 )}
               </>
             ) : (
-              '点一下，AI 会自动识别标题、年份、类别并生成 Emby/Jellyfin 命名'
+              t('clsf.clickHint')
             )}
           </p>
         </div>
@@ -708,16 +706,16 @@ export default function ClassificationTab() {
               <div className="flex items-start gap-2 text-blue-200">
                 <Bot className="mt-0.5 h-5 w-5 shrink-0" />
                 <div>
-                  <p className="font-semibold text-blue-100">👋 第一次使用？三步搞定：</p>
+                  <p className="font-semibold text-blue-100">👋 {t('clsf.firstUse')}</p>
                   <ol className="mt-2 space-y-1.5 text-xs text-blue-200/90">
                     <li className="flex items-start gap-2">
                       <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/30 text-[10px] font-bold text-blue-100">
                         1
                       </span>
                       <span>
-                        选择要整理的媒体库
+                        {t('clsf.step1')}
                         {aiReady === false && (
-                          <span className="ml-1 text-amber-300">（同时建议配置 AI 提升识别准确率）</span>
+                          <span className="ml-1 text-amber-300">{t('clsf.step1Hint')}</span>
                         )}
                       </span>
                     </li>
@@ -725,13 +723,13 @@ export default function ClassificationTab() {
                       <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/30 text-[10px] font-bold text-blue-100">
                         2
                       </span>
-                      <span>点击上方「⚡ 一键智能归类」让 AI 开始工作</span>
+                      <span>{t('clsf.step2')}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/30 text-[10px] font-bold text-blue-100">
                         3
                       </span>
-                      <span>完成后自动显示需要人工确认的条目，点「修改」即可调整</span>
+                      <span>{t('clsf.step3')}</span>
                     </li>
                   </ol>
                 </div>
@@ -743,7 +741,7 @@ export default function ClassificationTab() {
                   dismissTour()
                 }}
                 className="shrink-0 rounded-md p-1 text-blue-200 hover:bg-blue-500/20 hover:text-white"
-                title="不再显示"
+                title={t('clsf.dontShow')}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -756,7 +754,7 @@ export default function ClassificationTab() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <ClickableStatCard
           icon={<Database className="h-5 w-5" />}
-          title="总数"
+          title={t('clsf.totalTitle')}
           value={stats?.total ?? 0}
           tint="text-blue-300 bg-blue-500/10"
           active={quick === 'all'}
@@ -764,7 +762,7 @@ export default function ClassificationTab() {
         />
         <ClickableStatCard
           icon={<AlertTriangle className="h-5 w-5" />}
-          title="待修正"
+          title={t('clsf.qTodo')}
           value={failedCount}
           tint="text-red-300 bg-red-500/10"
           active={quick === 'todo'}
@@ -773,7 +771,7 @@ export default function ClassificationTab() {
         />
         <ClickableStatCard
           icon={<CheckCircle2 className="h-5 w-5" />}
-          title="已完成"
+          title={t('clsf.qDone')}
           value={doneCount}
           tint="text-emerald-300 bg-emerald-500/10"
           active={quick === 'done'}
@@ -781,12 +779,12 @@ export default function ClassificationTab() {
         />
         <ClickableStatCard
           icon={<Bot className="h-5 w-5" />}
-          title="AI 识别"
+          title={t('clsf.qAi')}
           value={aiCount ?? '—'}
           tint="text-purple-300 bg-purple-500/10"
           active={quick === 'ai'}
           onClick={() => setQuick('ai')}
-          subtitle={aiReady === false ? '未配置' : ''}
+          subtitle={aiReady === false ? t('clsf.unconfigured') : ''}
         />
       </div>
 
@@ -795,10 +793,10 @@ export default function ClassificationTab() {
         <div className="glass-panel-subtle rounded-xl p-3">
           <div className="mb-2 flex items-center justify-between text-xs">
             <span className="text-[var(--text-tertiary)]">
-              Emby / Jellyfin 库分布 · <span className="text-[var(--text-secondary)]">CollectionType</span>
+              {t('clsf.distTitle')} · <span className="text-[var(--text-secondary)]">CollectionType</span>
             </span>
             <span className="text-[10px] text-[var(--text-tertiary)]">
-              对齐官方枚举：movies / tvshows / music / mixed · 仅作预览
+              {t('clsf.distHint')}
             </span>
           </div>
           <div className="flex h-2 w-full overflow-hidden rounded-full bg-[var(--bg-card)]">
@@ -820,7 +818,7 @@ export default function ClassificationTab() {
                   key={ct}
                   className={clsx('h-full', color[ct])}
                   style={{ width: `${pct}%` }}
-                  title={`${embyCollectionTypeDisplay[ct]} · ${v} 条 (${pct.toFixed(1)}%)`}
+                  title={t('clsf.distCount', { label: embyCollectionTypeDisplay[ct] || '', count: v, pct: pct.toFixed(1) })}
                 />
               )
             })}
@@ -855,19 +853,19 @@ export default function ClassificationTab() {
         <div className="flex flex-wrap items-center gap-2">
           {/* 快捷标签 */}
           <div className="flex items-center gap-1.5">
-            {QUICK_TABS.map((t) => (
+            {QUICK_TABS.map((q) => (
               <button
-                key={t.key}
-                onClick={() => setQuick(t.key)}
+                key={q.key}
+                onClick={() => setQuick(q.key)}
                 className={clsx(
                   'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition',
-                  quick === t.key
+                  quick === q.key
                     ? 'bg-primary-600 text-white'
                     : 'border border-[var(--border-default)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-primary-500',
                 )}
               >
-                <span className={quick === t.key ? '' : t.tint}>{t.icon}</span>
-                {t.label}
+                <span className={quick === q.key ? '' : q.tint}>{q.icon}</span>
+                {t(q.labelKey)}
               </button>
             ))}
           </div>
@@ -879,7 +877,7 @@ export default function ClassificationTab() {
                 ref={searchRef}
                 value={keywordInput}
                 onChange={(e) => setKeywordInput(e.target.value)}
-                placeholder="搜索标题 / 建议名称（F）"
+                placeholder={t('clsf.searchPlaceholder')}
                 className="w-56 rounded-md border border-[var(--border-default)] bg-[var(--bg-input)] py-1.5 pl-8 pr-3 text-sm text-[var(--text-primary)] focus:border-primary-500 focus:outline-none"
               />
             </div>
@@ -889,7 +887,7 @@ export default function ClassificationTab() {
                 loadStats()
               }}
               className="rounded-md border border-[var(--border-default)] bg-[var(--bg-card)] p-2 text-[var(--text-secondary)] hover:border-primary-500"
-              title="刷新"
+              title={t('clsf.refresh')}
             >
               <RefreshCw className={clsx('h-3.5 w-3.5', loading && 'animate-spin')} />
             </button>
@@ -898,7 +896,7 @@ export default function ClassificationTab() {
                 onClick={() => setAdvancedOpen((v) => !v)}
                 className="flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:border-primary-500"
               >
-                高级筛选
+                {t('clsf.advancedFilter')}
                 <ChevronDown
                   className={clsx('h-3 w-3 transition-transform', advancedOpen && 'rotate-180')}
                 />
@@ -927,7 +925,7 @@ export default function ClassificationTab() {
               )}
             >
               {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              ⚠️ 删除归类记录
+              {t('clsf.deleteRecords')}
             </button>
           </div>
         )}
@@ -952,17 +950,17 @@ export default function ClassificationTab() {
       {/* ============ 列表 ============ */}
       <div className="glass-panel-subtle overflow-hidden rounded-xl">
         <div className="border-b border-[var(--border-default)]/60 px-4 py-2.5 text-xs text-[var(--text-tertiary)]">
-          共 <span className="font-semibold text-[var(--text-primary)]">{total}</span> 条
-          {quick === 'todo' && <span className="ml-2 text-red-300">· 仅显示待修正</span>}
+          {t('clsf.totalCount', { count: total })}
+          {quick === 'todo' && <span className="ml-2 text-red-300">· {t('clsf.todoOnly')}</span>}
           {libraryID && (
-            <span className="ml-2 text-[var(--text-secondary)]">· 库：{targetLibName}</span>
+            <span className="ml-2 text-[var(--text-secondary)]">· {t('clsf.libScope', { name: targetLibName ?? '' })}</span>
           )}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-[var(--text-tertiary)]">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            加载中…
+            {t('clsf.loading')}
           </div>
         ) : items.length === 0 ? (
           <EmptyState quick={quick} onReprocess={handleReprocess} />
@@ -986,16 +984,16 @@ export default function ClassificationTab() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-default)]/60 px-4 py-2 text-xs">
           <div className="flex items-center gap-3 text-[var(--text-tertiary)]">
             <span>
-              第 <span className="text-[var(--text-secondary)]">{page}</span> / {totalPages} 页
+              {t('clsf.pageX')} <span className="text-[var(--text-secondary)]">{page}</span> / {totalPages} {t('clsf.pages')}
             </span>
             <span className="text-[var(--text-tertiary)]">·</span>
             <span>
-              共 <span className="text-[var(--text-secondary)]">{total}</span> 条
+              {t('clsf.totalCount', { count: total })}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-1.5 text-[var(--text-tertiary)]">
-              <span>每页</span>
+              <span>{t('clsf.perPage')}</span>
               <select
                 value={size}
                 onChange={(e) => {
@@ -1006,7 +1004,7 @@ export default function ClassificationTab() {
                   }
                 }}
                 className="rounded border border-[var(--border-default)] bg-[var(--bg-card)] px-2 py-1 text-[var(--text-secondary)] focus:border-neon-blue focus:outline-none"
-                title="每页显示条数"
+                title={t('clsf.perPageTitle')}
               >
                 {PAGE_SIZE_OPTIONS.map((n) => (
                   <option key={n} value={n}>
@@ -1014,14 +1012,14 @@ export default function ClassificationTab() {
                   </option>
                 ))}
               </select>
-              <span>条</span>
+              <span>{t('clsf.items')}</span>
             </label>
             <div className="flex gap-1">
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(1)}
                 className="rounded border border-[var(--border-default)] px-2 py-1 text-[var(--text-secondary)] disabled:opacity-40"
-                title="首页"
+                title={t('clsf.firstPage')}
               >
                 «
               </button>
@@ -1030,20 +1028,20 @@ export default function ClassificationTab() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="rounded border border-[var(--border-default)] px-3 py-1 text-[var(--text-secondary)] disabled:opacity-40"
               >
-                上一页
+                {t('clsf.prevPage')}
               </button>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="rounded border border-[var(--border-default)] px-3 py-1 text-[var(--text-secondary)] disabled:opacity-40"
               >
-                下一页
+                {t('clsf.nextPage')}
               </button>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage(totalPages)}
                 className="rounded border border-[var(--border-default)] px-2 py-1 text-[var(--text-secondary)] disabled:opacity-40"
-                title="末页"
+                title={t('clsf.lastPage')}
               >
                 »
               </button>
@@ -1088,7 +1086,7 @@ export default function ClassificationTab() {
           if (!libraryID) {
             setMessage({
               type: 'err',
-              text: '请先选定具体媒体库后再使用「应用到磁盘」（不支持全库范围）',
+              text: t('clsf.applyToDiskHint'),
             })
             return
           }
@@ -1122,8 +1120,9 @@ function Select({
 }: {
   value: string
   onChange: (v: string) => void
-  options: { value: string; label: string }[]
+  options: { value: string; label?: string; labelKey?: string }[]
 }) {
+  const { t } = useTranslation()
   return (
     <select
       value={value}
@@ -1132,7 +1131,7 @@ function Select({
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
-          {o.label}
+          {o.labelKey ? t(o.labelKey) : o.label}
         </option>
       ))}
     </select>
@@ -1191,26 +1190,27 @@ function EmptyState({
   quick: QuickFilter
   onReprocess: () => void
 }) {
+  const { t } = useTranslation()
   if (quick === 'todo') {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-[var(--text-tertiary)]">
         <CheckCircle2 className="h-10 w-10 text-emerald-400 opacity-60" />
-        <p className="mt-2 text-sm font-medium text-emerald-300">没有待修正的条目 🎉</p>
-        <p className="mt-1 text-xs">所有媒体识别均已完成</p>
+        <p className="mt-2 text-sm font-medium text-emerald-300">{t('clsf.emptyTodo')}</p>
+        <p className="mt-1 text-xs">{t('clsf.emptyTodo2')}</p>
       </div>
     )
   }
   return (
     <div className="flex flex-col items-center justify-center py-16 text-[var(--text-tertiary)]">
       <Database className="h-10 w-10 opacity-40" />
-      <p className="mt-2 text-sm">暂无记录</p>
-      <p className="mt-1 text-xs">扫描媒体库后将自动产出识别结果</p>
+      <p className="mt-2 text-sm">{t('clsf.empty')}</p>
+      <p className="mt-1 text-xs">{t('clsf.emptyHint')}</p>
       <button
         onClick={onReprocess}
         className="mt-4 flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500"
       >
         <Zap className="h-4 w-4" />
-        立即开始识别
+        {t('clsf.startNow')}
       </button>
     </div>
   )
@@ -1233,6 +1233,10 @@ function Row({
 }) {
   const isFailed = item.status === 'failed' || item.status === 'partial'
   const isProcessing = item.status === 'running' || item.status === 'pending'
+  const { t } = useTranslation()
+  const catOf = (cc: string) => ({ movie: t('clsf.catMovie'), tvshow: t('clsf.catTvshow'), anime: t('clsf.catAnime'), documentary: t('clsf.catDoc'), variety: t('clsf.catVariety'), music: t('clsf.catMusic'), adult: t('clsf.catAdult'), other: t('clsf.catOther') }[cc] ?? cc)
+  const regionOf = (rr: string) => ({ CN: t('clsf.regCN'), HK: t('clsf.regHK'), TW: t('clsf.regTW'), JP: t('clsf.regJP'), KR: t('clsf.regKR'), US: t('clsf.regUS'), EU: t('clsf.regEU'), IN: t('clsf.regIN'), OTHER: t('clsf.regOther') }[rr] ?? rr)
+  const statusOf = (ss: string) => ({ pending: t('clsf.stPending'), running: t('clsf.stRunning'), processed: t('clsf.stDone'), partial: t('clsf.stPartial'), failed: t('clsf.stFailed'), skipped: t('clsf.stSkipped') }[ss] ?? ss)
   // 标题展示策略（图片中"<未识别>"全是因为 running 时段 parsed_title 为空导致）：
   // 1) 有 parsed_title → 直接展示
   // 2) running/pending → 「识别中…」+ spinner
@@ -1262,22 +1266,22 @@ function Row({
                       ? 'text-red-400'
                       : 'text-[var(--text-tertiary)] italic',
               )}
-              title="点击展开详情"
+              title={t('clsf.expandDetail')}
             >
               {hasParsed ? (
                 item.parsed_title || item.suggested_name
               ) : isProcessing ? (
                 <span className="inline-flex items-center gap-1.5">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  识别中…
+                  {t('clsf.recognizing')}
                 </span>
               ) : isFailed ? (
                 <span className="inline-flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  识别失败
+                  {t('clsf.recognizeFailed')}
                 </span>
               ) : (
-                '未识别'
+                t('clsf.unrecognized')
               )}
             </button>
             {item.parsed_year > 0 && (
@@ -1305,7 +1309,7 @@ function Row({
                 className="max-w-[24rem] truncate rounded bg-red-500/10 px-1.5 py-0.5 text-xs text-red-300"
                 title={item.error_msg}
               >
-                {item.error_msg.replace(/^\[cancelled\]\s*/, '⛔ 已取消 · ')}
+                {item.error_msg.replace(/^\[cancelled\]\s*/, t('clsf.cancelledPrefix'))}
               </span>
             )}
           </div>
@@ -1315,9 +1319,9 @@ function Row({
               <EmbyCollectionBadge category={item.category as string} />
             )}
             {item.category && (
-              <span>{categoryDisplay[item.category as string] || item.category}</span>
+              <span>{catOf(item.category as string)}</span>
             )}
-            {item.region && <span>· {regionDisplay[item.region] || item.region}</span>}
+            {item.region && <span>· {regionOf(item.region)}</span>}
             {item.decade && <span>· {item.decade}</span>}
             {item.quality_tier && (
               <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-300">
@@ -1327,13 +1331,13 @@ function Row({
             {/* 仅在确实跑过识别（confidence > 0）时才展示匹配度，避免 0% 误导 */}
             {item.confidence > 0 && (
               <span className={clsx(item.confidence < 0.6 && 'text-amber-300')}>
-                匹配度 {(item.confidence * 100).toFixed(0)}%
+                {t('clsf.matchScore', { score: (item.confidence * 100).toFixed(0) })}
               </span>
             )}
             {/* 没有任何元信息时，给一行轻量占位，避免空荡 */}
             {!hasParsed && !item.category && item.confidence === 0 && (
               <span className="text-[var(--text-tertiary)]">
-                {isProcessing ? '等待 AI 返回结果' : '无元数据'}
+                {isProcessing ? t('clsf.waitingAi') : t('clsf.noMetadata')}
               </span>
             )}
           </div>
@@ -1346,7 +1350,7 @@ function Row({
             statusColor[item.status] || 'bg-gray-500/15 text-gray-300',
           )}
         >
-          {statusDisplay[item.status] || item.status}
+          {statusOf(item.status)}
         </span>
 
         {/* 行内操作（hover 显示） */}
@@ -1354,18 +1358,18 @@ function Row({
           <button
             onClick={onCorrect}
             className="rounded-md border border-[var(--border-default)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:border-primary-500 hover:text-primary-300"
-            title="修改识别结果"
+            title={t('clsf.editResult')}
           >
             <Pencil className="mr-1 inline h-3 w-3" />
-            修改
+            {t('clsf.edit')}
           </button>
           <button
             onClick={onRetry}
             className="rounded-md border border-[var(--border-default)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:border-primary-500 hover:text-primary-300"
-            title="重新识别该条"
+            title={t('clsf.reRetry')}
           >
             <RotateCw className="mr-1 inline h-3 w-3" />
-            重试
+            {t('clsf.retry')}
           </button>
         </div>
       </div>
@@ -1374,16 +1378,16 @@ function Row({
       {expanded && (
         <div className="mt-3 grid grid-cols-1 gap-2 rounded-lg bg-[var(--nav-hover-bg)] p-3 text-xs md:grid-cols-2">
           {/* === 识别结果（对应 NFO 顺序）=== */}
-          <KV label="Title · 主标题" value={item.parsed_title || '—'} />
+          <KV label={t('clsf.kvTitle')} value={item.parsed_title || '—'} />
           {item.parsed_title_alt && (
-            <KV label="OriginalTitle · 原名" value={item.parsed_title_alt} />
+            <KV label={t('clsf.kvOrigTitle')} value={item.parsed_title_alt} />
           )}
-          <KV label="Year · 年份" value={item.parsed_year > 0 ? String(item.parsed_year) : '—'} />
+          <KV label={t('clsf.kvYear')} value={item.parsed_year > 0 ? String(item.parsed_year) : '—'} />
           <KV
-            label="Genre · 类型标签"
+            label={t('clsf.kvGenre')}
             value={
               [
-                categoryDisplay[item.category as string] || '',
+                catOf(item.category as string),
                 categoryToEmbyGenre[item.category as string] || '',
                 item.genre_tags || '',
               ]
@@ -1392,8 +1396,8 @@ function Row({
             }
           />
           <KV
-            label="Country / Region · 国家地区"
-            value={item.region ? regionDisplay[item.region] || item.region : '—'}
+            label={t('clsf.kvCountry')}
+            value={item.region ? regionOf(item.region) : '—'}
           />
           <KV
             label="TMDb ID"
@@ -1405,33 +1409,33 @@ function Row({
           {/* === 路径/建议重命名（仅写入数据库）=== */}
           <div className="md:col-span-2 mt-1 border-t border-[var(--border-default)]/40 pt-2">
             <p className="mb-1 text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">
-              Emby/Jellyfin 建议命名（仅数据库映射，不会落盘）
+              {t('clsf.kvNamingHint')}
             </p>
           </div>
-          <KV label="原文件路径" value={item.media_id} mono />
-          <KV label="建议名称" value={item.suggested_name || '—'} mono />
+          <KV label={t('clsf.kvFilePath')} value={item.media_id} mono />
+          <KV label={t('clsf.kvSuggestedName')} value={item.suggested_name || '—'} mono />
           <div className="md:col-span-2">
             <KV
-              label="建议路径（DB 映射）"
+              label={t('clsf.kvSuggestedPath')}
               value={item.suggested_full_path || '—'}
               mono
             />
           </div>
           {item.error_msg && (
             <div className="md:col-span-2">
-              <KV label="Error · 错误信息" value={item.error_msg} mono />
+              <KV label={t('clsf.kvError')} value={item.error_msg} mono />
             </div>
           )}
           {expertMode && (
             <>
-              <KV label="Language · 语言" value={item.language_tag || '—'} />
-              <KV label="Decade · 年代" value={item.decade || '—'} />
-              <KV label="建议子目录" value={item.suggested_dir || '—'} mono />
-              <KV label="命名风格" value={item.naming_style || 'jellyfin'} />
+              <KV label={t('clsf.kvLanguage')} value={item.language_tag || '—'} />
+              <KV label={t('clsf.kvDecade')} value={item.decade || '—'} />
+              <KV label={t('clsf.kvSuggestedDir')} value={item.suggested_dir || '—'} mono />
+              <KV label={t('clsf.kvNamingStyle')} value={item.naming_style || 'jellyfin'} />
               {item.ai_invoked && (
                 <>
-                  <KV label="AI 服务商" value={item.ai_provider || '—'} />
-                  <KV label="AI 模型" value={item.ai_model || '—'} mono />
+                  <KV label={t('clsf.kvAiProvider')} value={item.ai_provider || '—'} />
+                  <KV label={t('clsf.kvAiModel')} value={item.ai_model || '—'} mono />
                 </>
               )}
             </>
@@ -1511,6 +1515,7 @@ function CorrectModal({
     },
   ) => void
 }) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState(item.parsed_title || '')
   const [year, setYear] = useState(String(item.parsed_year || ''))
   const [tmdbId, setTmdbId] = useState(String(item.parsed_tmdb_id || ''))
@@ -1539,17 +1544,17 @@ function CorrectModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">修正识别结果</h3>
+          <h3 className="text-lg font-semibold">{t('clsf.correctTitle')}</h3>
           <button onClick={onCancel} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
             <X className="h-4 w-4" />
           </button>
         </div>
         <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-          所有修改仅写入数据库，不会修改任何磁盘文件。
+          {t('clsf.correctHint')}
         </p>
 
         <div className="mt-4 space-y-3">
-          <Field label="标题">
+          <Field label={t('clsf.fTitle')}>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -1557,12 +1562,12 @@ function CorrectModal({
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="年份">
+            <Field label={t('clsf.fYear')}>
               <input
                 value={year}
                 onChange={(e) => setYear(e.target.value.replace(/\D/g, ''))}
                 className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-primary-500 focus:outline-none"
-                placeholder="如 2024"
+                placeholder={t('clsf.yearPlaceholder')}
               />
             </Field>
             <Field label="TMDb ID">
@@ -1570,7 +1575,7 @@ function CorrectModal({
                 value={tmdbId}
                 onChange={(e) => setTmdbId(e.target.value.replace(/\D/g, ''))}
                 className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-primary-500 focus:outline-none"
-                placeholder="如 12345"
+                placeholder={t('clsf.tmdbPlaceholder')}
               />
             </Field>
           </div>
@@ -1579,11 +1584,11 @@ function CorrectModal({
               value={imdbId}
               onChange={(e) => setImdbId(e.target.value)}
               className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-primary-500 focus:outline-none"
-              placeholder="如 tt0133093"
+              placeholder={t('clsf.imdbPlaceholder')}
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="类别">
+            <Field label={t('clsf.fCategory')}>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -1591,12 +1596,12 @@ function CorrectModal({
               >
                 {CATEGORY_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.label}
+                    {t(o.labelKey)}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="地区">
+            <Field label={t('clsf.fRegion')}>
               <select
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
@@ -1604,7 +1609,7 @@ function CorrectModal({
               >
                 {REGION_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.label}
+                    {t(o.labelKey)}
                   </option>
                 ))}
               </select>
@@ -1617,13 +1622,13 @@ function CorrectModal({
             onClick={onCancel}
             className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:border-primary-500"
           >
-            取消
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500"
           >
-            保存修正
+            {t('clsf.saveCorrect')}
           </button>
         </div>
       </div>
@@ -1643,15 +1648,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // ============ 快捷键帮助 ============
 
 function ShortcutHelpModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const items: { key: string; desc: string }[] = [
-    { key: 'R', desc: '一键重跑（按当前已选媒体库）' },
-    { key: 'F', desc: '聚焦搜索框' },
-    { key: '1', desc: '切换到「全部」' },
-    { key: '2', desc: '切换到「待修正」' },
-    { key: '3', desc: '切换到「已完成」' },
-    { key: '4', desc: '切换到「AI 识别」' },
-    { key: '?', desc: '显示/隐藏此帮助' },
-    { key: 'Esc', desc: '关闭弹层' },
+    { key: 'R', desc: t('clsf.hkR') },
+    { key: 'F', desc: t('clsf.hkF') },
+    { key: '1', desc: t('clsf.hk1') },
+    { key: '2', desc: t('clsf.hk2') },
+    { key: '3', desc: t('clsf.hk3') },
+    { key: '4', desc: t('clsf.hk4') },
+    { key: '?', desc: t('clsf.hkHelp') },
+    { key: 'Esc', desc: t('clsf.hkEsc') },
   ]
   return (
     <div
@@ -1663,7 +1669,7 @@ function ShortcutHelpModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">键盘快捷键</h3>
+          <h3 className="text-lg font-semibold">{t('clsf.hkTitle')}</h3>
           <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
             <X className="h-4 w-4" />
           </button>
@@ -1715,6 +1721,7 @@ function SettingsDrawer({
   onOpenShortcut: () => void
   onConfigAI: () => void
 }) {
+  const { t } = useTranslation()
   if (!open) return null
   return (
     <div className="fixed inset-0 z-[60] flex justify-end" onClick={onClose}>
@@ -1729,7 +1736,7 @@ function SettingsDrawer({
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border-default)] bg-[var(--bg-elevated)]/95 px-5 py-3 backdrop-blur">
           <div className="flex items-center gap-2">
             <Settings2 className="h-4 w-4 text-primary-300" />
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">归类设置</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('clsf.catSettings')}</h3>
           </div>
           <button
             onClick={onClose}
@@ -1743,7 +1750,7 @@ function SettingsDrawer({
           {/* 1. AI 配置状态 */}
           <section>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-              AI 服务
+              {t('clsf.aiService')}
             </h4>
             <div
               className={clsx(
@@ -1756,7 +1763,7 @@ function SettingsDrawer({
               <div className="flex items-center gap-2">
                 {aiReady ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
                 <span className="text-xs">
-                  {aiReady ? 'AI 已配置并启用，识别准确率 95%+' : 'AI 未配置，无法启动智能归类'}
+                  {aiReady ? t('clsf.aiOkDesc') : t('clsf.aiNotOkDesc')}
                 </span>
               </div>
               <button
@@ -1768,15 +1775,15 @@ function SettingsDrawer({
                     : 'bg-amber-500/20 text-amber-100 hover:bg-amber-500/30',
                 )}
               >
-                {aiReady ? '调整' : '立即配置'}
+                {aiReady ? t('clsf.adjust') : t('clsf.configNow')}
               </button>
             </div>
           </section>
 
-          {/* 2. 显示模式 */}
+          {/* 2. {t('clsf.displayMode')} */}
           <section>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-              显示模式
+              {t('clsf.displayMode')}
             </h4>
             <button
               onClick={onToggleExpert}
@@ -1784,12 +1791,12 @@ function SettingsDrawer({
             >
               <div>
                 <div className="text-sm font-medium text-[var(--text-primary)]">
-                  {expertMode ? '专家模式' : '小白模式'}
+                  {expertMode ? t('clsf.expertMode') : t('clsf.basicMode')}
                 </div>
                 <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">
                   {expertMode
-                    ? '已启用：高级筛选、应用到磁盘等专家功能可见'
-                    : '默认：仅显示常用操作，避免误触'}
+                    ? t('clsf.expertDesc')
+                    : t('clsf.basicDesc')}
                 </div>
               </div>
               <div
@@ -1808,20 +1815,20 @@ function SettingsDrawer({
             </button>
           </section>
 
-          {/* 3. 专家功能（仅专家模式 + AI 就绪） */}
+          {/* 3. {t('clsf.expertFeatures')}（仅专家模式 + AI 就绪） */}
           {expertMode && aiReady && (
             <section>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-                专家功能
+                {t('clsf.expertFeatures')}
               </h4>
               <div className="space-y-2">
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
                     <div className="text-xs text-amber-200/90">
-                      <div className="font-semibold text-amber-200">应用建议名称到磁盘</div>
+                      <div className="font-semibold text-amber-200">{t('clsf.applyToDisk')}</div>
                       <div className="mt-1 text-amber-300/80">
-                        将识别出的「建议名称」真实重命名磁盘上的原始文件，可回滚。
+                        {t('clsf.applyToDiskDesc')}
                       </div>
                     </div>
                   </div>
@@ -1836,7 +1843,7 @@ function SettingsDrawer({
                     )}
                   >
                     <Wand2 className="h-3.5 w-3.5" />
-                    {libraryID ? `⚠️ 应用到《${libraryName || '当前库'}》` : '请先在主页面选定具体媒体库'}
+                    {libraryID ? t('clsf.applyScope', { name: libraryName || t('clsf.curLib') }) : t('clsf.applyNeedLib')}
                   </button>
                 </div>
               </div>
@@ -1846,7 +1853,7 @@ function SettingsDrawer({
           {/* 4. 危险区：删除归类记录 */}
           <section>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-red-300/80">
-              危险区
+              {t('clsf.dangerZone')}
             </h4>
             <button
               onClick={onClear}
@@ -1859,9 +1866,9 @@ function SettingsDrawer({
               )}
             >
               <div className="text-left">
-                <div className="font-medium">删除归类记录</div>
+                <div className="font-medium">{t('clsf.delRecords')}</div>
                 <div className="mt-0.5 text-xs text-red-300/70">
-                  {libraryID ? `仅删除《${libraryName || '当前库'}》的归类记录` : '删除全部归类记录'}（不可恢复）
+                  {libraryID ? t('clsf.delScope', { name: libraryName || t('clsf.curLib') }) : t('clsf.delAllScope')}（{t('clsf.irreversible')}）
                 </div>
               </div>
               {clearing ? (
@@ -1875,7 +1882,7 @@ function SettingsDrawer({
           {/* 5. 快捷键 */}
           <section>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-              帮助
+              {t('clsf.help')}
             </h4>
             <button
               onClick={onOpenShortcut}
@@ -1883,9 +1890,9 @@ function SettingsDrawer({
             >
               <div className="flex items-center gap-2">
                 <Keyboard className="h-4 w-4" />
-                <span>键盘快捷键</span>
+                <span>{t('clsf.hkTitle')}</span>
               </div>
-              <span className="text-xs text-[var(--text-tertiary)]">按 ? 查看</span>
+              <span className="text-xs text-[var(--text-tertiary)]">{t('clsf.pressQuestion')}</span>
             </button>
           </section>
         </div>

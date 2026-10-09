@@ -9,18 +9,19 @@ import type { MovieCollection, Library } from '@/types'
 import Pagination from '@/components/Pagination'
 import { Library as LibraryIcon, Search, Film, Loader2, X, Play, Merge, Trash2, RefreshCw, Grid3X3, LayoutList, ArrowUpDown, ChevronDown, Filter } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 type ViewMode = 'grid' | 'list'
 
 const SORT_OPTIONS = [
-  { value: 'created_desc', label: '最近创建' },
-  { value: 'created_asc', label: '最早创建' },
-  { value: 'updated_desc', label: '最近更新' },
-  { value: 'updated_asc', label: '最早更新' },
-  { value: 'name_asc', label: '名称 A-Z' },
-  { value: 'name_desc', label: '名称 Z-A' },
-  { value: 'count_desc', label: '电影最多' },
-  { value: 'count_asc', label: '电影最少' },
+  { value: 'created_desc', labelKey: 'collections.sortCreatedDesc' },
+  { value: 'created_asc', labelKey: 'collections.sortCreatedAsc' },
+  { value: 'updated_desc', labelKey: 'collections.sortUpdatedDesc' },
+  { value: 'updated_asc', labelKey: 'collections.sortUpdatedAsc' },
+  { value: 'name_asc', labelKey: 'collections.sortNameAsc' },
+  { value: 'name_desc', labelKey: 'collections.sortNameDesc' },
+  { value: 'count_desc', labelKey: 'collections.sortCountDesc' },
+  { value: 'count_asc', labelKey: 'collections.sortCountAsc' },
 ] as const
 
 type SortValue = typeof SORT_OPTIONS[number]['value']
@@ -31,6 +32,7 @@ interface CollectionsData {
 }
 
 export default function CollectionsPage() {
+  const { t } = useTranslation()
   // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
   usePosterVersion()
   const navigate = useNavigate()
@@ -109,11 +111,11 @@ export default function CollectionsPage() {
     setOperationMsg('')
     try {
       const res = await collectionApi.mergeDuplicates()
-      setOperationMsg(res.data.message || `已合并 ${res.data.merged} 组重复合集`)
+      setOperationMsg(res.data.message || t('collections.merged', { count: res.data.merged }))
       invalidatePageCachePrefix('collections:')
       refetch(true)
     } catch {
-      setOperationMsg('合并失败，请重试')
+      setOperationMsg(t('collections.mergeFailed'))
     } finally {
       setOperating(false)
     }
@@ -126,11 +128,11 @@ export default function CollectionsPage() {
     setOperationMsg('')
     try {
       const res = await collectionApi.cleanupEmpty()
-      setOperationMsg(res.data.message || `已清理 ${res.data.cleaned} 个空壳合集`)
+      setOperationMsg(res.data.message || t('collections.cleaned', { count: res.data.cleaned }))
       invalidatePageCachePrefix('collections:')
       refetch(true)
     } catch {
-      setOperationMsg('清理失败，请重试')
+      setOperationMsg(t('collections.cleanupFailed'))
     } finally {
       setOperating(false)
     }
@@ -143,12 +145,12 @@ export default function CollectionsPage() {
     setOperationMsg('')
     try {
       const res = await collectionApi.rematch()
-      setOperationMsg(res.data.message || `重新匹配完成，新建 ${res.data.created} 个合集`)
+      setOperationMsg(res.data.message || t('collections.rematchDone', { count: res.data.created }))
       setSearchParams(prev => { prev.set('page', '1'); return prev })
       invalidatePageCachePrefix('collections:')
       refetch(true)
     } catch {
-      setOperationMsg('重新匹配失败，请重试')
+      setOperationMsg(t('collections.rematchFailed'))
     } finally {
       setOperating(false)
     }
@@ -171,7 +173,7 @@ export default function CollectionsPage() {
   const totalPages = searchResults === null
     ? Math.ceil(total / pageSize)
     : Math.ceil(displayList.length / pageSize)
-  const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortValue)?.label || '排序'
+  const currentSortLabel = t(SORT_OPTIONS.find(o => o.value === sortValue)?.labelKey || 'collections.sort')
   const hasActiveFilter = filterAuto !== '' || filterLibrary !== ''
   const activeFilterCount = (filterAuto !== '' ? 1 : 0) + (filterLibrary !== '' ? 1 : 0)
 
@@ -227,6 +229,12 @@ export default function CollectionsPage() {
     })
   }, [setSearchParams])
 
+  // 媒体库筛选选项：`全部` 走 i18n，其余直接展示库名
+  const libraryFilterOptions: { value: string; labelKey?: string; label?: string }[] = [
+    { value: '', labelKey: 'common.all' },
+    ...libraries.map(lib => ({ value: lib.id, label: lib.name })),
+  ]
+
   return (
     <div className="space-y-6">
       {/* 页面标题 */}
@@ -234,11 +242,11 @@ export default function CollectionsPage() {
         <div className="flex items-center gap-3">
           <LibraryIcon size={24} className="text-neon" />
           <h1 className="font-display text-2xl font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-            影视合集
+            {t('collections.pageTitle')}
           </h1>
           <span className="rounded-full px-2.5 py-0.5 text-xs font-medium"
             style={{ background: 'var(--neon-blue-10)', color: 'var(--neon-blue)' }}>
-            {total} 个合集
+            {t('collections.totalCount', { count: total })}
           </span>
         </div>
       </div>
@@ -252,7 +260,7 @@ export default function CollectionsPage() {
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="搜索合集名称..."
+            placeholder={t('collections.searchPlaceholder')}
             className="input w-full pl-9 pr-8"
           />
           {searchKeyword && (
@@ -265,7 +273,7 @@ export default function CollectionsPage() {
           )}
         </div>
         <button onClick={handleSearch} className="btn-primary px-4 py-2 text-sm">
-          搜索
+          {t('common.search')}
         </button>
         {/* 筛选按钮 */}
         <button
@@ -278,7 +286,7 @@ export default function CollectionsPage() {
           }}
         >
           <Filter size={14} />
-          筛选
+          {t('search.filter')}
           {hasActiveFilter && (
             <span
               className="ml-1 rounded-full px-1.5 text-[10px] font-bold"
@@ -325,7 +333,7 @@ export default function CollectionsPage() {
                     )}
                     style={{ color: sortValue === opt.value ? 'var(--neon-blue)' : 'var(--text-secondary)' }}
                   >
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </button>
                 ))}
               </div>
@@ -341,7 +349,7 @@ export default function CollectionsPage() {
               background: viewMode === 'grid' ? 'var(--nav-active-bg)' : 'transparent',
               color: viewMode === 'grid' ? 'var(--neon-blue)' : 'var(--text-tertiary)',
             }}
-            title="网格视图"
+            title={t('collections.gridView')}
           >
             <Grid3X3 size={16} />
           </button>
@@ -352,7 +360,7 @@ export default function CollectionsPage() {
               background: viewMode === 'list' ? 'var(--nav-active-bg)' : 'transparent',
               color: viewMode === 'list' ? 'var(--neon-blue)' : 'var(--text-tertiary)',
             }}
-            title="列表视图"
+            title={t('collections.listView')}
           >
             <LayoutList size={16} />
           </button>
@@ -362,28 +370,28 @@ export default function CollectionsPage() {
             onClick={handleRematch}
             disabled={operating}
             className="btn-ghost flex items-center gap-1.5 px-3 py-2 text-xs"
-            title="清除所有自动匹配的合集并重新匹配，手动创建的合集不受影响"
+            title={t('collections.rematchHint')}
           >
             {operating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            重新匹配
+            {t('collections.rematch')}
           </button>
           <button
             onClick={handleMergeDuplicates}
             disabled={operating}
             className="btn-ghost flex items-center gap-1.5 px-3 py-2 text-xs"
-            title="合并所有同名重复合集，保留最早创建的合集并将电影迁移过来"
+            title={t('collections.mergeDuplicatesHint')}
           >
             {operating ? <Loader2 size={14} className="animate-spin" /> : <Merge size={14} />}
-            合并重复
+            {t('collections.mergeDuplicates')}
           </button>
           <button
             onClick={handleCleanupEmpty}
             disabled={operating}
             className="btn-ghost flex items-center gap-1.5 px-3 py-2 text-xs"
-            title="删除所有没有关联电影的空壳合集"
+            title={t('collections.cleanupEmptyHint')}
           >
             {operating ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            清理空壳
+            {t('collections.cleanupEmpty')}
           </button>
         </div>
       </div>
@@ -397,11 +405,11 @@ export default function CollectionsPage() {
             border: '1px solid var(--border-default)',
           }}
         >
-          <span className="text-xs font-medium mr-1" style={{ color: 'var(--text-tertiary)' }}>来源</span>
+          <span className="text-xs font-medium mr-1" style={{ color: 'var(--text-tertiary)' }}>{t('collections.source')}</span>
           {[
-            { value: '', label: '全部' },
-            { value: 'true', label: '自动匹配' },
-            { value: 'false', label: '手动创建' },
+            { value: '', labelKey: 'collections.autoAll' },
+            { value: 'true', labelKey: 'collections.autoMatched' },
+            { value: 'false', labelKey: 'collections.manual' },
           ].map(opt => (
             <button
               key={opt.value}
@@ -413,7 +421,7 @@ export default function CollectionsPage() {
                 color: filterAuto === opt.value ? 'var(--neon-blue)' : 'var(--text-secondary)',
               }}
             >
-              {opt.label}
+              {t(opt.labelKey)}
             </button>
           ))}
           {hasActiveFilter && (
@@ -423,16 +431,13 @@ export default function CollectionsPage() {
               style={{ color: 'var(--text-tertiary)' }}
             >
               <X size={12} />
-              清除
+              {t('common.clear')}
             </button>
           )}
           {libraries.length > 0 && (
             <>
-              <span className="text-xs font-medium ml-3 mr-1" style={{ color: 'var(--text-tertiary)' }}>媒体库</span>
-              {[
-                { value: '', label: '全部' },
-                ...libraries.map(lib => ({ value: lib.id, label: lib.name })),
-              ].map(opt => (
+              <span className="text-xs font-medium ml-3 mr-1" style={{ color: 'var(--text-tertiary)' }}>{t('collections.library')}</span>
+              {libraryFilterOptions.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => handleFilterLibrary(opt.value)}
@@ -443,7 +448,7 @@ export default function CollectionsPage() {
                     color: filterLibrary === opt.value ? 'var(--neon-blue)' : 'var(--text-secondary)',
                   }}
                 >
-                  {opt.label}
+                  {opt.labelKey ? t(opt.labelKey) : opt.label}
                 </button>
               ))}
             </>
@@ -471,10 +476,10 @@ export default function CollectionsPage() {
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <LibraryIcon size={48} className="mb-4 text-surface-600" />
           <p className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>
-            {searchResults !== null ? '未找到匹配的合集' : hasActiveFilter ? '没有符合条件的合集' : '暂无影视合集'}
+            {searchResults !== null ? t('collections.noSearchResults') : hasActiveFilter ? t('collections.noMatchFiltered') : t('collections.empty')}
           </p>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            {searchResults !== null ? '请尝试其他关键词' : hasActiveFilter ? '尝试调整筛选条件' : '扫描媒体库后系统会自动匹配电影系列合集'}
+            {searchResults !== null ? t('collections.searchHint') : hasActiveFilter ? t('collections.filterHint') : t('collections.emptyHint')}
           </p>
         </div>
       ) : viewMode === 'grid' ? (
@@ -513,6 +518,7 @@ export default function CollectionsPage() {
 
 /** 合集卡片 — 点击跳转到合集详情页 */
 function CollectionCard({ collection: coll, onClick }: { collection: MovieCollection; onClick: () => void }) {
+  const { t } = useTranslation()
   return (
     <div
       className="media-card group cursor-pointer overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02]"
@@ -536,12 +542,12 @@ function CollectionCard({ collection: coll, onClick }: { collection: MovieCollec
         <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1">
           <div className="rounded-md px-2 py-0.5 text-xs font-bold backdrop-blur-md"
             style={{ background: 'rgba(0,0,0,0.7)', color: 'var(--neon-blue)' }}>
-            {coll.media_count} 部
+            {t('collections.mediaCount', { count: coll.media_count })}
           </div>
           {coll.file_count != null && coll.file_count > coll.media_count && (
             <div className="rounded-md px-1.5 py-0.5 text-[10px] font-medium backdrop-blur-md"
               style={{ background: 'rgba(0,0,0,0.6)', color: 'var(--text-tertiary)' }}>
-              {coll.file_count} 文件
+              {t('collections.fileCount', { count: coll.file_count })}
             </div>
           )}
         </div>
@@ -550,7 +556,7 @@ function CollectionCard({ collection: coll, onClick }: { collection: MovieCollec
         {coll.auto_matched && (
           <div className="absolute top-2 left-2 rounded-md px-1.5 py-0.5 text-[10px] font-medium backdrop-blur-md"
             style={{ background: 'rgba(0,0,0,0.6)', color: 'var(--text-tertiary)' }}>
-            自动
+            {t('collections.auto')}
           </div>
         )}
 
@@ -579,9 +585,9 @@ function CollectionCard({ collection: coll, onClick }: { collection: MovieCollec
           {coll.year_range && <span>{coll.year_range}</span>}
           {coll.year_range && <span style={{ color: 'var(--text-muted)' }}>·</span>}
           <span>
-            {coll.media_count} 部
+            {t('collections.mediaCount', { count: coll.media_count })}
             {coll.file_count != null && coll.file_count > coll.media_count && (
-              <span className="ml-1 opacity-70">/ {coll.file_count} 文件</span>
+              <span className="ml-1 opacity-70">{t('collections.fileCountSuffix', { count: coll.file_count })}</span>
             )}
           </span>
         </div>
@@ -592,6 +598,7 @@ function CollectionCard({ collection: coll, onClick }: { collection: MovieCollec
 
 /** 合集列表项 — 列表视图 */
 function CollectionListItem({ collection: coll }: { collection: MovieCollection }) {
+  const { t } = useTranslation()
   return (
     <Link
       to={`/collections/${coll.id}`}
@@ -626,7 +633,7 @@ function CollectionListItem({ collection: coll }: { collection: MovieCollection 
           {coll.year_range && <span>{coll.year_range}</span>}
           {coll.year_range && <span style={{ color: 'var(--text-muted)' }}>·</span>}
           <span className="rounded px-1 py-0.5 text-[10px]" style={{ background: 'var(--nav-hover-bg)' }}>
-            {coll.auto_matched ? '自动匹配' : '手动创建'}
+            {coll.auto_matched ? t('collections.autoMatched') : t('collections.manual')}
           </span>
         </div>
       </div>
@@ -636,9 +643,9 @@ function CollectionListItem({ collection: coll }: { collection: MovieCollection 
         style={{ color: 'var(--text-secondary)' }}>
         <Film size={14} />
         <span>
-          {coll.media_count} 部
+          {t('collections.mediaCount', { count: coll.media_count })}
           {coll.file_count != null && coll.file_count > coll.media_count && (
-            <span className="ml-1 opacity-60">/ {coll.file_count} 文件</span>
+            <span className="ml-1 opacity-60">{t('collections.fileCountSuffix', { count: coll.file_count })}</span>
           )}
         </span>
       </div>

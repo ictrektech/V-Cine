@@ -27,15 +27,15 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 
-// 排序选项
+// 排序选项（文案走 i18n，labelKey 渲染时翻译）
 const SORT_OPTIONS = [
-  { value: 'created_desc', label: '最近添加' },
-  { value: 'created_asc', label: '最早添加' },
-  { value: 'title_asc', label: '名称 A-Z' },
-  { value: 'title_desc', label: '名称 Z-A' },
-  { value: 'year_desc', label: '年份最新' },
-  { value: 'year_asc', label: '年份最早' },
-  { value: 'rating_desc', label: '评分最高' },
+  { value: 'created_desc', labelKey: 'library.sortCreatedDesc' },
+  { value: 'created_asc', labelKey: 'library.sortCreatedAsc' },
+  { value: 'title_asc', labelKey: 'library.sortTitleAsc' },
+  { value: 'title_desc', labelKey: 'library.sortTitleDesc' },
+  { value: 'year_desc', labelKey: 'library.sortYearDesc' },
+  { value: 'year_asc', labelKey: 'library.sortYearAsc' },
+  { value: 'rating_desc', labelKey: 'library.sortRatingDesc' },
 ]
 
 type LibraryViewMode = 'grid' | 'list'
@@ -158,7 +158,7 @@ export default function LibraryPage() {
         setTotal(mixedRes.data.total)
         setSeriesList(seriesRes.data.data || [])
       })
-      .catch(() => { toast.error('加载媒体库内容失败') })
+      .catch(() => { toast.error(t('library.loadFailed')) })
       .finally(() => setLoading(false))
   }, [id, page, size])
 
@@ -302,7 +302,7 @@ export default function LibraryPage() {
     return items
   }, [deduplicatedSeries, searchQuery, filterGenre, sortValue])
 
-  const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sortValue)?.label || '排序'
+  const currentSortLabel = t(SORT_OPTIONS.find((o) => o.value === sortValue)?.labelKey || 'library.sort')
 
   return (
     <div>
@@ -328,7 +328,7 @@ export default function LibraryPage() {
               }}
             >
               <Film size={14} />
-              全部内容
+              {t('library.allContent')}
             </button>
             {hasSeries && (
               <button
@@ -347,7 +347,7 @@ export default function LibraryPage() {
                 }}
               >
                 <Tv size={14} />
-                剧集合集 ({seriesList.length})
+                {t('library.seriesCollections', { count: seriesList.length })}
               </button>
             )}
           </div>
@@ -364,7 +364,7 @@ export default function LibraryPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input pl-9 pr-8 py-2 text-sm"
-              placeholder="搜索此媒体库..."
+              placeholder={t('library.searchPlaceholder')}
             />
             {searchQuery && (
               <button
@@ -417,7 +417,7 @@ export default function LibraryPage() {
                       )}
                       style={sortValue !== opt.value ? { color: 'var(--text-secondary)' } : undefined}
                     >
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -440,7 +440,7 @@ export default function LibraryPage() {
               }}
             >
               <Filter size={14} />
-              筛选
+              {t('search.filter')}
               {filterGenre && (
                 <span
                   className="ml-1 rounded-full px-1.5 text-[10px] font-bold"
@@ -493,7 +493,7 @@ export default function LibraryPage() {
             }}
           >
             <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
-              类型:
+              {t('library.genreLabel')}
             </span>
             <button
               onClick={() => setFilterGenre(null)}
@@ -507,7 +507,7 @@ export default function LibraryPage() {
                 color: filterGenre ? 'var(--text-secondary)' : undefined,
               }}
             >
-              全部
+              {t('common.all')}
             </button>
             {allGenres.map((genre) => (
               <button
@@ -533,7 +533,7 @@ export default function LibraryPage() {
         {(searchQuery || filterGenre) && (
           <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-tertiary)' }}>
             <span>
-              找到 <strong className="text-neon">{viewTab === 'all' ? filteredMixed.length : filteredSeries.length}</strong> 个结果
+              {t('search.found')} <strong className="text-neon">{viewTab === 'all' ? filteredMixed.length : filteredSeries.length}</strong> {t('search.results2')}
             </span>
             {(searchQuery || filterGenre) && (
               <button
@@ -542,7 +542,7 @@ export default function LibraryPage() {
                 style={{ color: 'var(--text-secondary)' }}
               >
                 <X size={12} />
-                清除筛选
+                {t('library.clearFilter')}
               </button>
             )}
           </div>
@@ -611,7 +611,7 @@ export default function LibraryPage() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <Film size={48} className="mb-4 text-surface-700" />
               <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                {searchQuery || filterGenre ? '没有找到匹配的内容' : '此媒体库暂无内容'}
+                {searchQuery || filterGenre ? t('search.noMatch') : t('library.emptyLibrary')}
               </p>
               {!searchQuery && !filterGenre && isAdmin && (
                 <>
@@ -638,7 +638,7 @@ export default function LibraryPage() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <Tv size={48} className="mb-4 text-surface-700" />
               <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                {searchQuery || filterGenre ? '没有找到匹配的剧集' : '此媒体库暂无剧集合集'}
+                {searchQuery || filterGenre ? t('library.noMatchingSeries') : t('library.emptySeries')}
               </p>
             </div>
           )}
@@ -718,6 +718,7 @@ function ListMediaItem({ media }: { media: Media }) {
 
 // 列表视图的合集项
 function ListSeriesItem({ series }: { series: Series }) {
+  const { t } = useTranslation()
   return (
     <Link
       to={`/series/${series.id}`}
@@ -756,7 +757,7 @@ function ListSeriesItem({ series }: { series: Series }) {
         <div className="mt-0.5 flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
           {series.year > 0 && <span>{series.year}</span>}
           <span style={{ color: 'var(--text-muted)' }}>·</span>
-          <span>{series.season_count} 季 · {series.episode_count} 集</span>
+          <span>{t('library.seasonEpisode', { seasons: series.season_count, episodes: series.episode_count })}</span>
         </div>
       </div>
 
@@ -773,14 +774,15 @@ function ListSeriesItem({ series }: { series: Series }) {
 
 // 剧集合集卡片
 function SeriesCard({ series }: { series: Series }) {
+  const { t } = useTranslation()
   // C 方案：根据刮削状态给出徽章
   const scrapeBadge = (() => {
     const st = series.scrape_status
     // 已识别成功（有海报或简介）不显示额外徽章
     if (!st || st === 'scraped' || st === 'manual') return null
-    if (st === 'failed') return { text: '未识别', className: 'bg-red-500/80 text-white' }
-    if (st === 'partial') return { text: '部分识别', className: 'bg-amber-500/80 text-white' }
-    if (st === 'pending') return { text: '待识别', className: 'bg-slate-500/70 text-white' }
+    if (st === 'failed') return { text: t('library.scrapeUnidentified'), className: 'bg-red-500/80 text-white' }
+    if (st === 'partial') return { text: t('library.scrapePartial'), className: 'bg-amber-500/80 text-white' }
+    if (st === 'pending') return { text: t('library.scrapePending'), className: 'bg-slate-500/70 text-white' }
     return null
   })()
 
@@ -804,7 +806,7 @@ function SeriesCard({ series }: { series: Series }) {
         )}
         {/* 集数标签 */}
         <div className="badge-neon-overlay absolute bottom-2 right-2">
-          {series.season_count} 季 · {series.episode_count} 集
+          {t('library.seasonEpisode', { seasons: series.season_count, episodes: series.episode_count })}
         </div>
         {/* C 方案：刮削状态徽章（左上角） */}
         {scrapeBadge && (

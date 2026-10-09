@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { pageVariants, staggerContainerVariants, staggerItemVariants, easeSmooth, durations } from '@/lib/motion'
+import { useTranslation } from '@/i18n'
 
 // ==================== P3: 数值变化动画 Hook ====================
 function useAnimatedCounter(value: number, duration = 600): number {
@@ -135,15 +136,7 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 100 || i === 0 ? 0 : value >= 10 ? 1 : 2)} ${units[i]}`
 }
 
-const statusLabels: Record<string, string> = {
-  pending: '等待中',
-  queued: '排队中',
-  running: '处理中',
-  paused: '已暂停',
-  completed: '已完成',
-  failed: '失败',
-  cancelled: '已取消',
-}
+
 
 const statusIcons: Record<string, React.ReactNode> = {
   pending: <Clock size={14} />,
@@ -156,11 +149,22 @@ const statusIcons: Record<string, React.ReactNode> = {
 }
 
 export default function PreprocessPage() {
+  const { t } = useTranslation()
   const toast = useToast()
   const dialog = useDialog()
   const toastRef = useRef(toast)
   toastRef.current = toast
   const { on, off } = useWebSocket()
+  // 任务状态标签（随语言切换重建）
+  const statusLabels: Record<string, string> = {
+    pending: t('common.statusPending'),
+    queued: t('common.statusQueued'),
+    running: t('common.statusProcessing'),
+    paused: t('common.statusPaused'),
+    completed: t('common.statusCompleted'),
+    failed: t('common.statusFailed'),
+    cancelled: t('common.statusCancelled'),
+  }
   const [tasks, setTasks] = useState<PreprocessTask[]>([])
   const [total, setTotal] = useState(0)
   const { page, size: pageSize, setPage, setSize, totalPages: calcTotalPages } = usePagination({ initialSize: 10 })
@@ -296,7 +300,7 @@ export default function PreprocessPage() {
       setTasks(res.data.data.tasks || [])
       setTotal(res.data.data.total)
     } catch {
-      toastRef.current.error('加载预处理任务失败')
+      toastRef.current.error(t('preprocess.loadTasksFailed'))
     }
   }, [page, pageSize, statusFilter])
 
@@ -322,21 +326,21 @@ export default function PreprocessPage() {
       const res = await preprocessApi.getStorageUsage(limit)
       setStorage(res.data.data)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '存储占用统计失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.storageLoadFailed'))
     } finally {
       setStorageLoading(false)
     }
   }, [])
 
   // 加载整个 cache/ 目录的分类占用
-  // force=true 跳过后端 30s 内存缓存（用户主动点"重新扫描"时使用）
+  // force=true 跳过后端 30s 内存缓存（用户主动点"{t('preprocess.rescan')}"时使用）
   const loadCacheUsage = useCallback(async (force = false) => {
     setCacheLoading(true)
     try {
       const res = await preprocessApi.getCacheUsage(force)
       setCacheUsage(res.data.data)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '缓存占用统计失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.cacheLoadFailed'))
     } finally {
       setCacheLoading(false)
     }
@@ -353,9 +357,9 @@ export default function PreprocessPage() {
   const handleCleanOrphan = useCallback(async () => {
     if (!storage || storage.orphan_count === 0) return
     const ok = await dialog.confirm({
-      title: '清理孤儿预处理目录',
-      message: `确认清理 ${storage.orphan_count} 个孤儿预处理目录？此操作不可恢复。`,
-      confirmText: '清理',
+      title: t('preprocess.titleCleanOrphans'),
+      message: t('preprocess.confirmCleanOrphans', { count: storage.orphan_count }),
+      confirmText: t('preprocess.clean'),
       variant: 'danger',
     })
     if (!ok) return
@@ -363,12 +367,12 @@ export default function PreprocessPage() {
     try {
       const res = await preprocessApi.cleanOrphanCache()
       const { cleaned, freed_bytes } = res.data.data
-      toastRef.current.success(`已清理 ${cleaned} 个目录，释放 ${formatBytes(freed_bytes)}`)
+      toastRef.current.success(t('preprocess.cleanedOrphans', { count: cleaned, size: formatBytes(freed_bytes) }))
       await loadStorage(20)
       // 后端 CleanOrphanCache 已主动 invalidate，这里强制刷一次拿到最新值
       await loadCacheUsage(true)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '清理失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.cleanFailed'))
     } finally {
       setCleaningOrphan(false)
     }
@@ -377,19 +381,19 @@ export default function PreprocessPage() {
   // 清理单个媒体的预处理缓存（弹窗内用）
   const handleCleanOne = useCallback(async (mediaId: string, mediaTitle: string) => {
     const ok = await dialog.confirm({
-      title: '清理预处理缓存',
-      message: `确认清理「${mediaTitle || mediaId}」的预处理缓存？`,
-      confirmText: '清理',
+      title: t('preprocess.titleCleanCache'),
+      message: t('preprocess.confirmCleanCache', { name: mediaTitle || mediaId }),
+      confirmText: t('preprocess.clean'),
       variant: 'danger',
     })
     if (!ok) return
     try {
       await preprocessApi.cleanCache(mediaId)
-      toastRef.current.success('已清理')
+      toastRef.current.success(t('preprocess.cleaned'))
       await loadStorage(20)
       await loadCacheUsage(true)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '清理失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.cleanFailed'))
     }
   }, [loadStorage])
 
@@ -401,12 +405,12 @@ export default function PreprocessPage() {
     if (cleaningCategory) return
     const sizeText = formatBytes(size)
     const tip = key === 'preprocess'
-      ? `确认清空「${label}」？\n这将删除该目录下全部 ${sizeText} 内容（约等于把所有已预处理过的影视重置为「未处理」），下次播放时系统会按需重新生成。\n正在运行的预处理任务不会被中断。\n如果只想清理「数据库中已无对应任务」的孤儿目录，请展开预处理产物分类后使用「一键清理孤儿」按钮。`
-      : `确认清空「${label}」？\n这将删除该目录下全部 ${sizeText} 内容，系统会在需要时自动重新生成。`
+      ? t('preprocess.confirmClearCategory', { label, size: sizeText })
+      : t('preprocess.confirmClearCategorySimple', { label, size: sizeText })
     const ok = await dialog.confirm({
-      title: `清空缓存：${label}`,
+      title: t('preprocess.titleClearCache', { label }),
       message: tip,
-      confirmText: '清空',
+      confirmText: t('preprocess.clear'),
       variant: 'danger',
     })
     if (!ok) return
@@ -415,19 +419,19 @@ export default function PreprocessPage() {
       const res = await preprocessApi.cleanCacheCategory(key, 'all')
       const { freed_bytes, freed_count, skipped, skipped_note } = res.data.data
       if (skipped) {
-        toastRef.current.info(`已跳过「${label}」：${skipped_note || '无可清理内容'}`)
+        toastRef.current.info(t('preprocess.skippedClean', { label, note: skipped_note || t('preprocess.nothingCleanable') }))
       } else if (freed_bytes === 0 && freed_count === 0) {
         toastRef.current.info(skipped_note
-          ? `「${label}」无可清理内容（${skipped_note}）`
-          : `「${label}」当前无可清理内容`)
+          ? t('preprocess.noCleanableNote', { label, note: skipped_note })
+          : t('preprocess.noCleanable', { label }))
       } else {
         const note = skipped_note ? `，${skipped_note}` : ''
-        toastRef.current.success(`已清理「${label}」，释放 ${formatBytes(freed_bytes)}（${freed_count} 文件）${note}`)
+        toastRef.current.success(t('preprocess.cleanedCategory', { label, size: formatBytes(freed_bytes), count: freed_count, note }))
       }
       await loadStorage(20)
       await loadCacheUsage(true)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '清理失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.cleanFailed'))
     } finally {
       setCleaningCategory(null)
     }
@@ -437,9 +441,9 @@ export default function PreprocessPage() {
   const handleCleanOrphanCategory = useCallback(async (key: string, label: string) => {
     if (cleaningCategory) return
     const ok = await dialog.confirm({
-      title: `清理孤儿：${label}`,
-      message: `确认清理「${label}」中已无对应媒体/合集/人物记录的孤儿目录？\n正在使用的海报/封面不会被删除，删除仅回收磁盘空间，不影响媒体墙与播放器显示。`,
-      confirmText: '清理孤儿',
+      title: t('preprocess.titleCleanOrphanCategory', { label }),
+      message: t('preprocess.confirmCleanOrphanCategory', { label }),
+      confirmText: t('preprocess.cleanOrphans'),
       variant: 'danger',
     })
     if (!ok) return
@@ -448,13 +452,13 @@ export default function PreprocessPage() {
       const res = await preprocessApi.cleanCacheCategory(key, 'orphan')
       const { freed_bytes, freed_count, skipped_note } = res.data.data
       if (freed_count === 0) {
-        toastRef.current.info(`「${label}」没有可清理的孤儿目录${skipped_note ? `（${skipped_note}）` : ''}`)
+        toastRef.current.info(t('preprocess.noOrphans', { label, note: skipped_note ? `（${skipped_note}）` : '' }))
       } else {
-        toastRef.current.success(`已清理「${label}」的 ${freed_count} 个孤儿目录，释放 ${formatBytes(freed_bytes)}`)
+        toastRef.current.success(t('preprocess.orphansCleaned', { label, count: freed_count, size: formatBytes(freed_bytes) }))
       }
       await loadCacheUsage(true)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '清理失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.cleanFailed'))
     } finally {
       setCleaningCategory(null)
     }
@@ -465,9 +469,9 @@ export default function PreprocessPage() {
     if (cleaningCategory) return
     if (!cacheUsage) return
     const ok = await dialog.confirm({
-      title: '一键清空所有缓存',
-      message: '确认一键清空所有可清理的缓存分类？\n这会清空：在线转码缓存、自适应码率缓存、缩略图/雪碧图、WebDAV 临时下载，并清理预处理的孤儿目录。\n海报/字幕/离线下载等不会被删除。此操作不可恢复。',
-      confirmText: '全部清空',
+      title: t('preprocess.titleCleanAll'),
+      message: t('preprocess.confirmCleanAll'),
+      confirmText: t('preprocess.cleanAll'),
       variant: 'danger',
     })
     if (!ok) return
@@ -475,11 +479,11 @@ export default function PreprocessPage() {
     try {
       const res = await preprocessApi.cleanAllCache()
       const { total_freed, total_count, category_num } = res.data.data
-      toastRef.current.success(`已清理 ${category_num} 个分类，释放 ${formatBytes(total_freed)}（${total_count} 文件）`)
+      toastRef.current.success(t('preprocess.cleanedAll', { num: category_num, size: formatBytes(total_freed), count: total_count }))
       await loadStorage(20)
       await loadCacheUsage(true)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '一键清理失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.cleanAllFailed'))
     } finally {
       setCleaningCategory(null)
     }
@@ -492,7 +496,7 @@ export default function PreprocessPage() {
       const res = await preprocessApi.previewByFilter(filter)
       setFilterPreview(res.data.data)
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '预览失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.previewFailed'))
     } finally {
       setPreviewing(false)
     }
@@ -501,13 +505,13 @@ export default function PreprocessPage() {
   // 自定义筛选 - 提交
   const handleSubmitFilter = useCallback(async () => {
     if (!filterPreview || filterPreview.matched_count === 0) {
-      toastRef.current.error('请先预览，确认有命中再提交')
+      toastRef.current.error(t('preprocess.previewFirst'))
       return
     }
     const ok = await dialog.confirm({
-      title: '提交预处理任务',
-      message: `确认按当前筛选条件提交 ${filterPreview.matched_count} 个预处理任务？`,
-      confirmText: '提交',
+      title: t('preprocess.titleSubmit'),
+      message: t('preprocess.confirmSubmit', { count: filterPreview.matched_count }),
+      confirmText: t('common.submit'),
       variant: 'primary',
     })
     if (!ok) return
@@ -515,13 +519,13 @@ export default function PreprocessPage() {
     try {
       const res = await preprocessApi.submitByFilter(filter, 0, filterForce)
       const { submitted, skipped } = res.data.data
-      toastRef.current.success(`已提交 ${submitted} 个任务${skipped ? `，跳过 ${skipped} 个` : ''}`)
+      toastRef.current.success(skipped ? t('preprocess.submittedTasksSkipped', { count: submitted, skipped }) : t('preprocess.submittedTasks', { count: submitted }))
       setFilterOpen(false)
       setFilterPreview(null)
       loadTasks()
       loadStats()
     } catch (e: any) {
-      toastRef.current.error(e?.response?.data?.error || '提交失败')
+      toastRef.current.error(e?.response?.data?.error || t('preprocess.submitFailed'))
     } finally {
       setSubmittingFilter(false)
     }
@@ -568,7 +572,7 @@ export default function PreprocessPage() {
       setCandidates(list?.items || [])
       setCandidatesTotal(list?.total || 0)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '加载候选影视失败'
+      const msg = e instanceof Error ? e.message : t('preprocess.loadCandidatesFailed')
       toastRef.current.error(msg)
     } finally {
       setCandidatesLoading(false)
@@ -644,41 +648,41 @@ export default function PreprocessPage() {
   const handlePause = async (id: string) => {
     try {
       await preprocessApi.pauseTask(id)
-      toastRef.current.success('任务已暂停')
+      toastRef.current.success(t('preprocess.taskPaused'))
       loadTasks()
-    } catch { toastRef.current.error('暂停失败') }
+    } catch { toastRef.current.error(t('preprocess.pauseFailed')) }
   }
 
   const handleResume = async (id: string) => {
     try {
       await preprocessApi.resumeTask(id)
-      toastRef.current.success('任务已恢复')
+      toastRef.current.success(t('preprocess.taskResumed'))
       loadTasks()
-    } catch { toastRef.current.error('恢复失败') }
+    } catch { toastRef.current.error(t('preprocess.resumeFailed')) }
   }
 
   const handleCancel = async (id: string) => {
     try {
       await preprocessApi.cancelTask(id)
-      toastRef.current.success('任务已取消')
+      toastRef.current.success(t('preprocess.taskCancelled'))
       loadTasks()
-    } catch { toastRef.current.error('取消失败') }
+    } catch { toastRef.current.error(t('preprocess.cancelFailed')) }
   }
 
   const handleRetry = async (id: string) => {
     try {
       await preprocessApi.retryTask(id)
-      toastRef.current.success('任务已重新提交')
+      toastRef.current.success(t('preprocess.taskRetried'))
       loadTasks()
-    } catch { toastRef.current.error('重试失败') }
+    } catch { toastRef.current.error(t('preprocess.retryFailed')) }
   }
 
   const handleDelete = async (id: string) => {
     try {
       await preprocessApi.deleteTask(id)
-      toastRef.current.success('任务已删除')
+      toastRef.current.success(t('preprocess.taskDeleted'))
       loadTasks()
-    } catch { toastRef.current.error('删除失败') }
+    } catch { toastRef.current.error(t('preprocess.deleteFailed')) }
   }
 
   // 批量操作
@@ -688,12 +692,12 @@ export default function PreprocessPage() {
     try {
       const res = await preprocessApi.batchDeleteTasks(Array.from(selectedIds))
       const deleted = res.data.data.deleted
-      toastRef.current.success(`已删除 ${deleted} 个任务`)
+      toastRef.current.success(t('preprocess.deletedTasks', { count: deleted }))
       setSelectedIds(new Set())
       loadTasks()
       loadStats()
     } catch {
-      toastRef.current.error('批量删除失败')
+      toastRef.current.error(t('preprocess.batchDeleteFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -705,12 +709,12 @@ export default function PreprocessPage() {
     try {
       const res = await preprocessApi.batchCancelTasks(Array.from(selectedIds))
       const cancelled = res.data.data.cancelled
-      toastRef.current.success(`已取消 ${cancelled} 个任务`)
+      toastRef.current.success(t('preprocess.cancelledTasks', { count: cancelled }))
       setSelectedIds(new Set())
       loadTasks()
       loadStats()
     } catch {
-      toastRef.current.error('批量取消失败')
+      toastRef.current.error(t('preprocess.batchCancelFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -722,12 +726,12 @@ export default function PreprocessPage() {
     try {
       const res = await preprocessApi.batchRetryTasks(Array.from(selectedIds))
       const retried = res.data.data.retried
-      toastRef.current.success(`已重试 ${retried} 个任务`)
+      toastRef.current.success(t('preprocess.retriedTasks', { count: retried }))
       setSelectedIds(new Set())
       loadTasks()
       loadStats()
     } catch {
-      toastRef.current.error('批量重试失败')
+      toastRef.current.error(t('preprocess.batchRetryFailed'))
     } finally {
       setBatchLoading(false)
     }
@@ -740,14 +744,14 @@ export default function PreprocessPage() {
       const res = await preprocessApi.submitLibrary(libraryId)
       const count = res.data.data.submitted
       if (count > 0) {
-        toastRef.current.success(`已提交 ${count} 个预处理任务`)
+        toastRef.current.success(t('preprocess.submittedCount', { count }))
         loadTasks()
         loadStats()
       } else {
-        toastRef.current.info('该媒体库没有需要预处理的视频')
+        toastRef.current.info(t('preprocess.noVideos'))
       }
     } catch {
-      toastRef.current.error('提交失败')
+      toastRef.current.error(t('preprocess.submitFailed'))
     } finally {
       setSubmitting(null)
     }
@@ -828,10 +832,10 @@ export default function PreprocessPage() {
         <div>
           <h1 className="text-2xl font-display font-bold flex items-center gap-2 text-gradient">
             <Zap className="text-neon-blue animate-neon-breathe" size={24} />
-            视频预处理
+            {t('preprocess.pageTitle')}
           </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            自动转码生成多码率 HLS 流，实现秒开播放
+            {t('preprocess.pageSubtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -841,7 +845,7 @@ export default function PreprocessPage() {
             style={{ background: 'var(--neon-blue-6)', color: 'var(--text-secondary)' }}
           >
             <RefreshCw size={14} />
-            刷新
+            {t('preprocess.refresh')}
           </button>
         </div>
       </div>
@@ -860,11 +864,11 @@ export default function PreprocessPage() {
               <div>
                 <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
                   <Activity size={14} className="text-neon-blue" />
-                  处理中
+                  {t('common.statusProcessing')}
                 </div>
                 <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{animRunning}</div>
                 <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  {stats.active_workers}/{sysLoad.cur_workers || stats.max_workers} 工作线程
+                  {stats.active_workers}/{sysLoad.cur_workers || stats.max_workers} {t('preprocess.workers')}
                 </div>
               </div>
               {/* P2: 环形进度 — 工作线程利用率 */}
@@ -886,18 +890,18 @@ export default function PreprocessPage() {
             <div className="absolute top-0 left-0 right-0 h-[1px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent, var(--border-strong), transparent)' }} />
             <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
               <Clock size={14} className="text-yellow-400" />
-              队列
+              {t('preprocess.queue')}
             </div>
             <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{animQueue}</div>
             <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              等待处理
+              {t('preprocess.waitingToProcess')}
             </div>
           </motion.div>
 
           <motion.div variants={staggerItemVariants} className="relative overflow-hidden rounded-xl p-4 group transition-shadow duration-300 hover:shadow-card-hover" style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}>
             <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
               <Cpu size={14} className="text-emerald-400" />
-              系统负载
+              {t('preprocess.systemLoad')}
             </div>
             <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
               {sysLoad.cpu_percent != null ? `${sysLoad.cpu_percent.toFixed(0)}%` : `${sysLoad.mem_alloc_mb.toFixed(0)} MB`}
@@ -925,14 +929,14 @@ export default function PreprocessPage() {
             <div className="absolute top-0 left-0 right-0 h-[1px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent, var(--neon-purple), transparent)' }} />
             <div className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
               <HardDrive size={14} className="text-purple-400" />
-              硬件加速
+              {t('preprocess.hardwareAccel')}
             </div>
             <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{stats.hw_accel || 'CPU'}</div>
             <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
               {sysLoad.gpu_status?.degraded ? (
-                <span className="text-red-400">⚠ GPU 过载 · 已降级为 CPU</span>
+                <span className="text-red-400">{t('preprocess.gpuOverloaded')}</span>
               ) : (
-                <>已完成 {stats.status_counts?.completed || 0} 个</>
+                <>{t('preprocess.completedCount', { count: stats.status_counts?.completed || 0 })}</>
               )}
             </div>
             {/* GPU 使用率进度条 */}
@@ -958,13 +962,13 @@ export default function PreprocessPage() {
             onClick={() => { setStorageOpen(true); loadStorage(0); loadCacheUsage(false) }}
             className="relative overflow-hidden rounded-xl p-4 text-left group transition-shadow duration-300 hover:shadow-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50"
             style={{ background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)' }}
-            title="点击查看缓存占用明细（preprocess + transcode + thumbnails 等）"
+            title={t('preprocess.cacheUsageHint')}
           >
             <div className="absolute top-0 left-0 right-0 h-[1px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }} />
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                 <Database size={14} className="text-amber-400" />
-                缓存占用
+                {t('preprocess.cacheUsage')}
               </div>
               {(storageLoading || cacheLoading) && <Loader2 size={12} className="animate-spin" style={{ color: 'var(--text-muted)' }} />}
             </div>
@@ -974,20 +978,20 @@ export default function PreprocessPage() {
             <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
               {cacheUsage ? (
                 <>
-                  {cacheUsage.total_count.toLocaleString()} 文件 · {cacheUsage.categories.length} 个分类
+                  {t('preprocess.cacheFilesCategories', { count: cacheUsage.total_count.toLocaleString(), cats: cacheUsage.categories.length })}
                   {storage && storage.orphan_count > 0 && (
-                    <span className="ml-1 text-red-400">· 孤儿 {storage.orphan_count}</span>
+                    <span className="ml-1 text-red-400">{t('preprocess.orphanBadge', { count: storage.orphan_count })}</span>
                   )}
                 </>
               ) : storage ? (
                 <>
-                  {storage.total_count} 个目录
+                  {t('preprocess.dirsCount', { count: storage.total_count })}
                   {storage.orphan_count > 0 && (
-                    <span className="ml-1 text-red-400">· 孤儿 {storage.orphan_count}</span>
+                    <span className="ml-1 text-red-400">{t('preprocess.orphanBadge', { count: storage.orphan_count })}</span>
                   )}
                 </>
               ) : (
-                '点击加载'
+                t('preprocess.clickLoad')
               )}
             </div>
             {/* 孤儿占比进度条（基于 cache 总占用，更直观地反映孤儿在整盘的占比） */}
@@ -1020,15 +1024,15 @@ export default function PreprocessPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
               <FolderOpen size={16} className="text-neon-blue" />
-              媒体库批量预处理
+              {t('preprocess.libraryBatchTitle')}
             </h2>
             <button
               onClick={() => { setFilterOpen(true); setFilterPreview(null) }}
               className="nv-amber-soft-btn flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
-              title="按条件自定义选择哪些影视进行预处理"
+              title={t('preprocess.customFilterHint')}
             >
               <Filter size={12} />
-              自定义筛选
+              {t('preprocess.customFilter')}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1056,9 +1060,9 @@ export default function PreprocessPage() {
       {/* 主区域 Tab 切换：选源提交 / 处理进度 / 转码任务 —— 避免多块同时铺开造成页面过长 */}
       <div className="flex items-center gap-2 flex-wrap">
         {([
-          { key: 'submit', label: '选源提交', count: candidatesTotal },
-          { key: 'tasks', label: '处理进度', count: total },
-          { key: 'transcode', label: '转码任务', count: 0 },
+          { key: 'submit', label: t('preprocess.tabSubmit'), count: candidatesTotal },
+          { key: 'tasks', label: t('preprocess.tabTasks'), count: total },
+          { key: 'transcode', label: t('preprocess.tabTranscode'), count: 0 },
         ] as const).map((t) => {
           const active = mainTab === t.key
           return (
@@ -1096,14 +1100,14 @@ export default function PreprocessPage() {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
             <Film size={16} className="text-neon-blue" />
-            影视文件列表
+            {t('preprocess.candidateList')}
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              （共 {candidatesTotal.toLocaleString()} 条）
+              {t('preprocess.totalCandidates', { count: candidatesTotal.toLocaleString() })}
             </span>
           </h2>
           <div className="flex items-center gap-2">
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              已选 <span style={{ color: 'var(--neon-blue)' }}>{candSelected.size}</span> 项
+              {t('preprocess.selectedCount', { count: candSelected.size })}
             </span>
             <button
               type="button"
@@ -1112,7 +1116,7 @@ export default function PreprocessPage() {
               className="text-xs px-2 py-1 rounded transition disabled:opacity-40"
               style={{ background: 'var(--surface-glass-2)', color: 'var(--text-secondary)' }}
             >
-              清空
+              {t('preprocess.clearSelection')}
             </button>
             <button
               type="button"
@@ -1124,13 +1128,13 @@ export default function PreprocessPage() {
                   const ids = Array.from(candSelected)
                   const res = await preprocessApi.batchSubmit(ids, 0, false)
                   const submitted = res.data.data?.submitted || 0
-                  toast.success(`已提交 ${submitted} / ${ids.length} 个预处理任务`)
+                  toast.success(t('preprocess.submittedPartial', { done: submitted, total: ids.length }))
                   setCandSelected(new Set())
                   loadCandidates()
                   loadTasks()
                   loadStats()
                 } catch (e) {
-                  const msg = e instanceof Error ? e.message : '批量提交失败'
+                  const msg = e instanceof Error ? e.message : t('preprocess.batchSubmitFailed')
                   toast.error(msg)
                 } finally {
                   setCandSubmitting(false)
@@ -1140,7 +1144,7 @@ export default function PreprocessPage() {
               style={{ background: 'var(--bg-overlay)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}
             >
               {candSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              提交预处理（{candSelected.size}）
+              {t('preprocess.submitPreprocess', { count: candSelected.size })}
             </button>
           </div>
         </div>
@@ -1157,7 +1161,7 @@ export default function PreprocessPage() {
                   setCandKeyword(candKeywordInput.trim())
                 }
               }}
-              placeholder="搜索标题 / 原名 / 番号，回车确认"
+              placeholder={t('preprocess.searchPlaceholder')}
               className="w-full px-3 py-1.5 text-sm rounded-md outline-none"
               style={{ background: 'var(--surface-glass-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
             />
@@ -1168,7 +1172,7 @@ export default function PreprocessPage() {
             className="px-2 py-1.5 text-sm rounded-md outline-none"
             style={{ background: 'var(--surface-glass-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
           >
-            <option value="">全部媒体库</option>
+            <option value="">{t('preprocess.allLibraries')}</option>
             {libraries.map((lib) => (
               <option key={lib.id} value={lib.id}>{lib.name}</option>
             ))}
@@ -1179,9 +1183,9 @@ export default function PreprocessPage() {
             className="px-2 py-1.5 text-sm rounded-md outline-none"
             style={{ background: 'var(--surface-glass-2)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
           >
-            <option value="">全部类型</option>
-            <option value="movie">电影</option>
-            <option value="episode">剧集</option>
+            <option value="">{t('preprocess.allTypes')}</option>
+            <option value="movie">{t('media.movie')}</option>
+            <option value="episode">{t('media.episode')}</option>
           </select>
           <label className="flex items-center gap-1.5 text-xs cursor-pointer px-2 py-1.5 rounded-md"
             style={{ background: 'var(--surface-glass-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
@@ -1191,7 +1195,7 @@ export default function PreprocessPage() {
               onChange={(e) => { setCandPage(1); setCandOnlyNeed(e.target.checked) }}
               className="accent-neon-blue"
             />
-            仅显示需要预处理
+            {t('preprocess.onlyNeeded')}
           </label>
           <button
             type="button"
@@ -1199,10 +1203,10 @@ export default function PreprocessPage() {
             disabled={candidatesLoading}
             className="px-2 py-1.5 text-xs rounded-md flex items-center gap-1 transition"
             style={{ background: 'var(--surface-glass-2)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
-            title="刷新"
+            title={t('preprocess.refresh')}
           >
             <RefreshCw size={12} className={candidatesLoading ? 'animate-spin' : ''} />
-            刷新
+            {t('preprocess.refresh')}
           </button>
         </div>
 
@@ -1224,26 +1228,26 @@ export default function PreprocessPage() {
                 setCandSelected(next)
               }}
               className="flex items-center gap-1 hover:text-neon-blue transition"
-              title="全选 / 取消全选当前页可选项"
+              title={t('preprocess.selectPageTitle')}
             >
               {(() => {
                 const eligible = candidates.filter((c) => !c.is_strm && c.preprocess_status !== 'completed' && c.preprocess_status !== 'running' && c.preprocess_status !== 'queued' && c.preprocess_status !== 'pending')
                 const allSelected = eligible.length > 0 && eligible.every((c) => candSelected.has(c.media_id))
                 return allSelected ? <CheckSquare size={14} className="text-neon-blue" /> : <Square size={14} />
               })()}
-              当前页全选
+              {t('preprocess.selectPage')}
             </button>
-            <span className="ml-auto">第 {candPage} / {candCalcTotalPages(candidatesTotal) || 1} 页</span>
+            <span className="ml-auto">{t('preprocess.pageInfo', { cur: candPage, total: candCalcTotalPages(candidatesTotal) || 1 })}</span>
           </div>
 
           {candidatesLoading && candidates.length === 0 ? (
             <div className="p-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
               <Loader2 size={16} className="inline animate-spin mr-2" />
-              加载中...
+              {t('common.loading')}
             </div>
           ) : candidates.length === 0 ? (
             <div className="p-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-              暂无匹配的影视
+              {t('preprocess.noCandidates')}
             </div>
           ) : (
             <ul className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -1295,16 +1299,16 @@ export default function PreprocessPage() {
                                 <span
                                   className="text-[10px] font-medium px-1.5 py-0.5 rounded"
                                   style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.35)' }}
-                                  title="该影视文件未完成刮削，下方展示的是源文件名"
+                                  title={t('preprocess.unsrapedHint')}
                                 >
-                                  未刮削
+                                  {t('preprocess.unsraped')}
                                 </span>
                                 <span
                                   className="text-sm font-medium truncate"
                                   style={{ color: 'var(--text-secondary)' }}
                                   title={fileName || c.file_path}
                                 >
-                                  {fileName || c.title || '(无文件名)'}
+                                  {fileName || c.title || t('preprocess.noFileName')}
                                 </span>
                               </>
                             )
@@ -1313,7 +1317,7 @@ export default function PreprocessPage() {
                           return (
                             <>
                               <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                                {c.title || c.orig_title || '(无标题)'}
+                                {c.title || c.orig_title || t('preprocess.noTitle')}
                               </span>
                               {c.media_type === 'episode' && (c.season_num || c.episode_num) ? (
                                 <span
@@ -1341,7 +1345,7 @@ export default function PreprocessPage() {
                           )
                         })()}
                         <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-glass-2)', color: 'var(--text-muted)' }}>
-                          {c.media_type === 'episode' ? '剧集' : '电影'}
+                          {c.media_type === 'episode' ? t('media.episode') : t('media.movie')}
                         </span>
                         {c.is_strm && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded text-amber-400" style={{ background: 'rgba(245,158,11,0.1)' }}>
@@ -1350,7 +1354,7 @@ export default function PreprocessPage() {
                         )}
                         {c.can_play_directly && !c.is_strm && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded text-emerald-400" style={{ background: 'rgba(16,185,129,0.1)' }}>
-                            可直接播放
+                            {t('preprocess.playable')}
                           </span>
                         )}
                         {c.preprocess_status !== 'none' && (
@@ -1363,7 +1367,7 @@ export default function PreprocessPage() {
                         {c.resolution && <span>{c.resolution}</span>}
                         {c.video_codec && <span>{c.video_codec}</span>}
                         {c.audio_codec && <span>{c.audio_codec}</span>}
-                        {c.duration > 0 && <span>{Math.round(c.duration / 60)} 分钟</span>}
+                        {c.duration > 0 && <span>{t('timeFormat.minutes', { minutes: Math.round(c.duration / 60) })}</span>}
                         {c.file_size > 0 && <span>{formatBytes(c.file_size)}</span>}
                       </div>
                     </div>
@@ -1414,7 +1418,7 @@ export default function PreprocessPage() {
             )}
             style={statusFilter === s ? { background: 'var(--neon-blue-15)', border: '1px solid var(--neon-blue-30)', color: 'var(--text-primary)' } : { background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-6)', color: 'var(--text-muted)' }}
           >
-            {s === '' ? '全部' : statusLabels[s] || s}
+            {s === '' ? t('common.all') : statusLabels[s] || s}
             {s && stats?.status_counts?.[s] ? ` (${stats.status_counts[s]})` : ''}
           </button>
         ))}
@@ -1437,11 +1441,11 @@ export default function PreprocessPage() {
             style={{ color: 'var(--text-primary)' }}
           >
             {isAllSelected ? <CheckSquare size={14} className="text-neon-blue" /> : <Square size={14} />}
-            {isAllSelected ? '取消全选' : '全选当前页'}
+            {isAllSelected ? t('common.deselectAll') : t('preprocess.selectPage')}
           </button>
 
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            已选择 <span className="font-medium text-neon-blue">{selectedIds.size}</span> 项
+            {t('preprocess.selectedCount', { count: selectedIds.size })}
           </span>
 
           <div className="flex-1" />
@@ -1453,7 +1457,7 @@ export default function PreprocessPage() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             <XCircle size={12} />
-            批量取消
+            {t('preprocess.batchCancel')}
           </button>
 
           <button
@@ -1463,7 +1467,7 @@ export default function PreprocessPage() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             <RotateCcw size={12} />
-            批量重试
+            {t('preprocess.batchRetry')}
           </button>
 
           <button
@@ -1473,7 +1477,7 @@ export default function PreprocessPage() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--neon-blue-6)' }}
           >
             {batchLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-            批量删除
+            {t('preprocess.batchDelete')}
           </button>
 
           <button
@@ -1481,7 +1485,7 @@ export default function PreprocessPage() {
             className="text-xs transition-colors hover:text-red-400"
             style={{ color: 'var(--text-muted)' }}
           >
-            清除选择
+            {t('preprocess.clearSelectionBtn')}
           </button>
         </motion.div>
       )}
@@ -1508,10 +1512,10 @@ export default function PreprocessPage() {
               ) : (
                 <Square size={16} />
               )}
-              {isAllSelected ? '取消全选' : '全选'}
+              {isAllSelected ? t('common.deselectAll') : t('common.selectAll')}
             </button>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              共 {total} 条，当前第 {page}/{totalPages} 页
+              {t('preprocess.taskPagination', { total, page, pages: totalPages })}
             </span>
           </div>
         )}
@@ -1525,8 +1529,8 @@ export default function PreprocessPage() {
             style={{ color: 'var(--text-muted)' }}
           >
             <Film size={48} className="mb-4 opacity-30" />
-            <p>暂无预处理任务</p>
-            <p className="text-xs mt-1">扫描媒体库后将自动提交预处理任务</p>
+            <p>{t('preprocess.noTasks')}</p>
+            <p className="text-xs mt-1">{t('preprocess.noTasksHint')}</p>
           </motion.div>
         ) : (
           tasks.map((task) => (
@@ -1598,10 +1602,10 @@ export default function PreprocessPage() {
                       <span>{formatDuration(task.source_duration)}</span>
                     )}
                     {task.speed_ratio > 0 && task.status === 'running' && (
-                      <span className="text-neon-blue">{task.speed_ratio.toFixed(1)}x 速度</span>
+                      <span className="text-neon-blue">{t('preprocess.speed', { value: task.speed_ratio.toFixed(1) })}</span>
                     )}
                     {task.elapsed_sec > 0 && (
-                      <span>耗时 {formatDuration(task.elapsed_sec)}</span>
+                      <span>{t('preprocess.elapsed', { time: formatDuration(task.elapsed_sec) })}</span>
                     )}
                     {task.error && (
                       <span className="text-red-400">{task.error}</span>
@@ -1612,27 +1616,27 @@ export default function PreprocessPage() {
                 {/* 操作按钮 */}
                 <div className="flex items-center gap-1 shrink-0">
                   {task.status === 'running' && (
-                    <button onClick={() => handlePause(task.id)} className="p-1.5 rounded-lg hover:text-yellow-400 hover:bg-yellow-400/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title="暂停">
+                    <button onClick={() => handlePause(task.id)} className="p-1.5 rounded-lg hover:text-yellow-400 hover:bg-yellow-400/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title={t('preprocess.pause')}>
                       <Pause size={14} />
                     </button>
                   )}
                   {task.status === 'paused' && (
-                    <button onClick={() => handleResume(task.id)} className="p-1.5 rounded-lg hover:text-emerald-400 hover:bg-emerald-400/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title="恢复">
+                    <button onClick={() => handleResume(task.id)} className="p-1.5 rounded-lg hover:text-emerald-400 hover:bg-emerald-400/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title={t('preprocess.resume')}>
                       <Play size={14} />
                     </button>
                   )}
                   {(task.status === 'running' || task.status === 'paused' || task.status === 'pending' || task.status === 'queued') && (
-                    <button onClick={() => handleCancel(task.id)} className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title="取消">
+                    <button onClick={() => handleCancel(task.id)} className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title={t('common.cancel')}>
                       <XCircle size={14} />
                     </button>
                   )}
                   {task.status === 'failed' && (
-                    <button onClick={() => handleRetry(task.id)} className="p-1.5 rounded-lg hover:text-neon-blue hover:bg-neon-blue/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title="重试">
+                    <button onClick={() => handleRetry(task.id)} className="p-1.5 rounded-lg hover:text-neon-blue hover:bg-neon-blue/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title={t('preprocess.retry')}>
                       <RotateCcw size={14} />
                     </button>
                   )}
                   {(task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') && (
-                    <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title="删除">
+                    <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded-lg hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-all" style={{ color: 'var(--text-muted)' }} title={t('common.delete')}>
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -1686,17 +1690,17 @@ export default function PreprocessPage() {
                   <Database size={18} className="text-amber-400" />
                   <div>
                     <div className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      缓存占用总览
+                      {t('preprocess.cacheOverview')}
                     </div>
                     {cacheUsage ? (
                       <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        根目录: <span className="font-mono">{cacheUsage.root_dir}</span>
-                        {' · '}扫描耗时 {cacheUsage.scan_duration_ms} ms
-                        {cacheUsage.from_cache && <span className="ml-1 text-amber-400" title="数据来自后端 30s 内存缓存，点击刷新可强制重扫">（缓存）</span>}
+                        {t('preprocess.rootDir', { path: cacheUsage.root_dir })}
+                        {' · '}{t('preprocess.scanCost', { ms: cacheUsage.scan_duration_ms })}
+                        {cacheUsage.from_cache && <span className="ml-1 text-amber-400" title={t('preprocess.cachedDataHint')}>{t('preprocess.cachedBadge')}</span>}
                       </div>
                     ) : (
                       <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {(storageLoading || cacheLoading) ? '正在扫描 cache 根目录...' : '点击右上角"重新扫描"获取最新数据'}
+                        {(storageLoading || cacheLoading) ? t('preprocess.scanningCache') : t('preprocess.rescanHint')}
                       </div>
                     )}
                   </div>
@@ -1711,26 +1715,26 @@ export default function PreprocessPage() {
                       border: '1px solid rgba(239, 68, 68, 0.28)',
                       color: '#ef4444',
                     }}
-                    title="一键清空所有可清理分类（转码 / ABR / 缩略图 / WebDAV 临时下载，并清理预处理孤儿）"
+                    title={t('preprocess.cleanAllTitle')}
                   >
                     {cleaningCategory === '__all__' ? <Loader2 size={12} className="animate-spin" /> : <Eraser size={12} />}
-                    一键清空
+                    {t('preprocess.cleanAllShort')}
                   </button>
                   <button
                     onClick={() => { loadStorage(0); loadCacheUsage(true) }}
                     disabled={storageLoading || cacheLoading}
                     className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50"
                     style={{ background: 'var(--neon-blue-6)', color: 'var(--text-secondary)' }}
-                    title="重新扫描（强制刷新整个 cache 目录）"
+                    title={t('preprocess.rescanTitle')}
                   >
                     {(storageLoading || cacheLoading) ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                    重新扫描
+                    {t('preprocess.rescan')}
                   </button>
                   <button
                     onClick={() => setStorageOpen(false)}
                     className="rounded-lg p-1.5 transition-colors"
                     style={{ background: 'var(--neon-blue-6)', color: 'var(--text-secondary)' }}
-                    aria-label="关闭"
+                    aria-label={t('common.close')}
                   >
                     <X size={14} />
                   </button>
@@ -1742,10 +1746,10 @@ export default function PreprocessPage() {
                 <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--storage-enable-row-border, var(--border-strong))' }}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                      按分类汇总
+                      {t('preprocess.byCategory')}
                     </div>
                     <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      合计 <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{formatBytes(cacheUsage.total_size)}</span> · {cacheUsage.total_count.toLocaleString()} 文件
+                      {t('preprocess.totalFiles', { size: formatBytes(cacheUsage.total_size), count: cacheUsage.total_count.toLocaleString() })}
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -1778,7 +1782,7 @@ export default function PreprocessPage() {
                             border: isExpanded ? '1px solid rgba(96,165,250,0.35)' : '1px solid transparent',
                             opacity: anyCleaning && !isThisCleaning ? 0.6 : 1,
                           }}
-                          title={isPreprocess ? '展开下方查看预处理产物明细' : cat.path}
+                          title={isPreprocess ? t('preprocess.expandDetail') : cat.path}
                         >
                           <div className="flex items-center gap-3">
                             <div className="flex-1 min-w-0">
@@ -1788,17 +1792,17 @@ export default function PreprocessPage() {
                                 </span>
                                 {isPreprocess && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.18)', color: '#93c5fd' }}>
-                                    可钻取
+                                    {t('preprocess.drillable')}
                                   </span>
                                 )}
                                 {cat.cleanable && !isPreprocess && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7' }} title="此目录可安全清空，删除后系统会按需重新生成">
-                                    可清理
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7' }} title={t('preprocess.cleanableTitle')}>
+                                    {t('preprocess.cleanable')}
                                   </span>
                                 )}
                                 {!cat.cleanable && cat.orphan_cleanable && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd' }} title="可回收「数据库已无引用」的孤儿目录；正在使用的图片不会被删除">
-                                    可清孤儿
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd' }} title={t('preprocess.orphanCleanableTitle')}>
+                                    {t('preprocess.orphanCleanable')}
                                   </span>
                                 )}
                               </div>
@@ -1821,7 +1825,7 @@ export default function PreprocessPage() {
                                 {formatBytes(cat.size)}
                               </div>
                               <div className="text-[11px] tabular-nums" style={{ color: 'var(--text-tertiary)' }}>
-                                {cat.count.toLocaleString()} 文件 · {pct.toFixed(1)}%
+                                {t('preprocess.filesPct', { count: cat.count.toLocaleString(), pct: pct.toFixed(1) })}
                               </div>
                             </div>
                             {/* 手动清理按钮：仅对 cleanable 分类显示 */}
@@ -1839,10 +1843,10 @@ export default function PreprocessPage() {
                                   border: '1px solid rgba(239, 68, 68, 0.25)',
                                   color: '#ef4444',
                                 }}
-                                title={isPreprocess ? `清空所有预处理产物（${formatBytes(cat.size)}），运行中任务受保护` : `清空「${cat.label}」目录（${formatBytes(cat.size)}）`}
+                                title={isPreprocess ? t('preprocess.clearAllProductsTitle', { size: formatBytes(cat.size) }) : t('preprocess.clearCategoryTitle', { label: cat.label, size: formatBytes(cat.size) })}
                               >
                                 {isThisCleaning ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
-                                清理
+                                {t('preprocess.clean')}
                               </button>
                             )}
                             {/* 仅支持孤儿清理的分类（orphan_cleanable）：只提供"清理孤儿"入口 */}
@@ -1860,10 +1864,10 @@ export default function PreprocessPage() {
                                   border: '1px solid rgba(96, 165, 250, 0.28)',
                                   color: '#60a5fa',
                                 }}
-                                title={`清理「${cat.label}」中已无对应媒体/合集/人物记录的孤儿目录（正在使用的图片不受影响）`}
+                                title={t('preprocess.orphanCleanCategoryTitle', { label: cat.label })}
                               >
                                 {isThisCleaning ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
-                                清理孤儿
+                                {t('preprocess.cleanOrphans')}
                               </button>
                             )}
                           </div>
@@ -1872,7 +1876,7 @@ export default function PreprocessPage() {
                     })}
                   </div>
                   <div className="mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    提示：仅"可清理"分类（绿色标签）支持清空，删除后系统会在需要时自动重新生成；海报 / AI 字幕 / 离线下载等不在自动重建范围内，因此不提供清空按钮。海报/封面归类为"可清孤儿"（蓝色标签）：系统每天会自动回收其中已无对应媒体/合集/人物记录的目录，也可以点「清理孤儿」手动触发——正在使用的图片不会被删除。预处理产物的「清理」按钮会清空所有产物并把对应任务重置为待处理状态，正在运行的任务不会被中断；如仅想清理孤儿目录（数据库已无对应任务），请展开预处理产物后使用「一键清理孤儿」按钮。
+                      {t('preprocess.categoryHint')}
                   </div>
                 </div>
               )}
@@ -1881,33 +1885,33 @@ export default function PreprocessPage() {
               {expandedCategoryKey === 'preprocess' && storage ? (
                 <div className="grid grid-cols-3 gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--storage-enable-row-border, var(--border-strong))' }}>
                   <div className="rounded-lg px-3 py-2.5" style={{ background: 'var(--storage-enable-row-bg, var(--nav-hover-bg))' }}>
-                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>预处理总占用</div>
+                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('preprocess.productsTotal')}</div>
                     <div className="text-lg font-bold mt-0.5" style={{ color: 'var(--text-primary)' }}>
                       {formatBytes(storage.total_size)}
                     </div>
                     <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                      {storage.total_count} 个目录
+                      {t('preprocess.dirsCount', { count: storage.total_count })}
                     </div>
                   </div>
                   <div className="rounded-lg px-3 py-2.5" style={{ background: 'var(--storage-enable-row-bg, var(--nav-hover-bg))' }}>
-                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>有效任务</div>
+                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('preprocess.validTasks')}</div>
                     <div className="text-lg font-bold mt-0.5 text-emerald-400">
                       {formatBytes(storage.task_size)}
                     </div>
                     <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                      {storage.total_count - storage.orphan_count} 个目录
+                      {t('preprocess.dirsCount', { count: storage.total_count - storage.orphan_count })}
                     </div>
                   </div>
                   <div className="rounded-lg px-3 py-2.5" style={{ background: storage.orphan_count > 0 ? 'rgba(239,68,68,0.08)' : 'var(--storage-enable-row-bg, var(--nav-hover-bg))', border: storage.orphan_count > 0 ? '1px solid rgba(239,68,68,0.25)' : undefined }}>
                     <div className="text-[11px] flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                      孤儿目录
+                      {t('preprocess.orphanDirs')}
                       {storage.orphan_count > 0 && <AlertCircle size={11} className="text-red-400" />}
                     </div>
                     <div className={clsx('text-lg font-bold mt-0.5', storage.orphan_count > 0 ? 'text-red-400' : '')} style={storage.orphan_count === 0 ? { color: 'var(--text-primary)' } : undefined}>
                       {formatBytes(storage.orphan_size)}
                     </div>
                     <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                      {storage.orphan_count} 个无主目录
+                      {t('preprocess.orphanDirsCount', { count: storage.orphan_count })}
                     </div>
                   </div>
                 </div>
@@ -1927,7 +1931,7 @@ export default function PreprocessPage() {
               {expandedCategoryKey === 'preprocess' && storage && storage.orphan_count > 0 && (
                 <div className="flex items-center justify-between gap-3 px-5 py-3" style={{ background: 'rgba(239,68,68,0.05)', borderBottom: '1px solid var(--storage-enable-row-border, var(--border-strong))' }}>
                   <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    检测到 <span className="font-semibold text-red-400">{storage.orphan_count}</span> 个孤儿目录（数据库中已无对应任务记录），可一键清理释放 <span className="font-semibold text-red-400">{formatBytes(storage.orphan_size)}</span>。
+                      {t('preprocess.orphanDetected', { count: storage.orphan_count, size: formatBytes(storage.orphan_size) })}
                   </div>
                   <button
                     onClick={handleCleanOrphan}
@@ -1936,7 +1940,7 @@ export default function PreprocessPage() {
                     style={{ background: 'rgba(239,68,68,0.18)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.35)' }}
                   >
                     {cleaningOrphan ? <Loader2 size={12} className="animate-spin" /> : <Eraser size={12} />}
-                    一键清理孤儿
+                    {t('preprocess.cleanOrphansNow')}
                   </button>
                 </div>
               )}
@@ -1946,33 +1950,33 @@ export default function PreprocessPage() {
                 {expandedCategoryKey !== 'preprocess' ? (
                   <div className="py-12 px-5 text-center text-sm flex flex-col items-center gap-2" style={{ color: 'var(--text-tertiary)' }}>
                     <Database size={20} className="opacity-40" />
-                    <div>该分类暂未提供明细钻取</div>
+                    <div>{t('preprocess.noDrilldown')}</div>
                     <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      仅"预处理产物"支持按媒体钻取与清理；其他分类暂时只展示总量。
+                      {t('preprocess.drilldownHint')}
                     </div>
                   </div>
                 ) : storageLoading && !storage ? (
                   <div className="py-16 text-center text-sm flex flex-col items-center gap-2" style={{ color: 'var(--text-tertiary)' }}>
                     <Loader2 size={20} className="animate-spin text-neon-blue" />
-                    正在扫描预处理目录...
+                    {t('preprocess.scanningProducts')}
                   </div>
                 ) : !storage ? (
                   <div className="py-16 text-center text-sm flex flex-col items-center gap-3" style={{ color: 'var(--text-tertiary)' }}>
                     <AlertCircle size={20} className="text-amber-400" />
-                    <div>未能获取存储占用数据</div>
+                    <div>{t('preprocess.storageLoadFailed')}</div>
                     <button
                       onClick={() => loadStorage(0)}
                       className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs transition-colors"
                       style={{ background: 'var(--neon-blue-6)', color: 'var(--text-secondary)' }}
                     >
                       <RefreshCw size={12} />
-                      重新扫描
+                      {t('preprocess.rescan')}
                     </button>
                   </div>
                 ) : storage.items.length === 0 ? (
                   <div className="py-16 text-center text-sm flex flex-col items-center gap-2" style={{ color: 'var(--text-tertiary)' }}>
                     <Database size={20} className="opacity-40" />
-                    暂无预处理产物
+                    {t('preprocess.noProducts')}
                   </div>
                 ) : (
                   <ul className="divide-y" style={{ borderColor: 'var(--storage-enable-row-border, var(--border-strong))' }}>
@@ -1988,7 +1992,7 @@ export default function PreprocessPage() {
                             {item.media_title || item.media_id}
                             {item.is_orphan && (
                               <span className="ml-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'rgba(239,68,68,0.18)', color: '#fca5a5' }}>
-                                孤儿
+                                {t('preprocess.orphan')}
                               </span>
                             )}
                             {!item.is_orphan && item.status && (
@@ -2008,7 +2012,7 @@ export default function PreprocessPage() {
                           onClick={() => handleCleanOne(item.media_id, item.media_title)}
                           className="rounded-lg p-1.5 transition-colors flex-shrink-0"
                           style={{ background: 'var(--neon-blue-6)', color: 'var(--text-tertiary)' }}
-                          title="清理此预处理缓存"
+                          title={t('preprocess.cleanProductTitle')}
                         >
                           <Trash2 size={12} />
                         </button>
@@ -2039,10 +2043,10 @@ export default function PreprocessPage() {
                   <Filter size={18} className="text-amber-400" />
                   <div>
                     <div className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      自定义筛选预处理
+                      {t('preprocess.customFilterTitle')}
                     </div>
                     <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      多条件组合，先预览命中数量，确认后批量提交
+                      {t('preprocess.customFilterDesc')}
                     </div>
                   </div>
                 </div>
@@ -2050,7 +2054,7 @@ export default function PreprocessPage() {
                   onClick={() => setFilterOpen(false)}
                   className="rounded-lg p-1.5 transition-colors"
                   style={{ background: 'var(--neon-blue-6)', color: 'var(--text-secondary)' }}
-                  aria-label="关闭"
+                  aria-label={t('common.close')}
                 >
                   <X size={14} />
                 </button>
@@ -2060,7 +2064,7 @@ export default function PreprocessPage() {
               <div className="overflow-y-auto px-5 py-4 space-y-5" style={{ flex: 1 }}>
                 {/* 媒体库 */}
                 {libraries.length > 0 && (
-                  <FilterSection title="媒体库" hint="不选 = 全部">
+                  <FilterSection title={t('preprocess.filterLibrary')} hint={t('preprocess.hintAll')}>
                     {libraries.map((lib) => {
                       const checked = filter.library_ids?.includes(lib.id) ?? false
                       return (
@@ -2076,8 +2080,8 @@ export default function PreprocessPage() {
                 )}
 
                 {/* 媒体类型 */}
-                <FilterSection title="媒体类型" hint="不选 = 全部">
-                  {[{ k: 'movie', l: '电影' }, { k: 'episode', l: '剧集' }].map((it) => (
+                <FilterSection title={t('preprocess.filterMediaType')} hint={t('preprocess.hintAll')}>
+                  {[{ k: 'movie', l: t('media.movie') }, { k: 'episode', l: t('media.episode') }].map((it) => (
                     <FilterChip
                       key={it.k}
                       label={it.l}
@@ -2088,7 +2092,7 @@ export default function PreprocessPage() {
                 </FilterSection>
 
                 {/* 视频编码 */}
-                <FilterSection title="视频编码" hint="只选不可零转码直接播放的编码可以高效筛出待预处理目标">
+                <FilterSection title={t('preprocess.filterCodec')} hint={t('preprocess.hintCodec')}>
                   {['h264', 'hevc', 'av1', 'vp9', 'mpeg4', 'wmv3'].map((c) => (
                     <FilterChip
                       key={c}
@@ -2100,7 +2104,7 @@ export default function PreprocessPage() {
                 </FilterSection>
 
                 {/* 容器格式 */}
-                <FilterSection title="容器格式" hint="按文件扩展名匹配">
+                <FilterSection title={t('preprocess.filterContainer')} hint={t('preprocess.hintContainer')}>
                   {['mkv', 'mp4', 'avi', 'mov', 'ts', 'flv', 'webm', 'wmv', 'rmvb'].map((c) => (
                     <FilterChip
                       key={c}
@@ -2112,7 +2116,7 @@ export default function PreprocessPage() {
                 </FilterSection>
 
                 {/* 分辨率 */}
-                <FilterSection title="分辨率">
+                <FilterSection title={t('preprocess.filterResolution')}>
                   {['480p', '720p', '1080p', '2K', '4K'].map((c) => (
                     <FilterChip
                       key={c}
@@ -2126,7 +2130,7 @@ export default function PreprocessPage() {
                 {/* 数值区间 */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <RangeInput
-                    label="文件大小（GB）"
+                    label={t('preprocess.fileSizeGB')}
                     minValue={filter.min_size_bytes ? filter.min_size_bytes / (1024 ** 3) : undefined}
                     maxValue={filter.max_size_bytes ? filter.max_size_bytes / (1024 ** 3) : undefined}
                     onChange={(min, max) => {
@@ -2140,7 +2144,7 @@ export default function PreprocessPage() {
                     step={0.5}
                   />
                   <RangeInput
-                    label="年份"
+                    label={t('media.year')}
                     minValue={filter.min_year || undefined}
                     maxValue={filter.max_year || undefined}
                     onChange={(min, max) => {
@@ -2150,7 +2154,7 @@ export default function PreprocessPage() {
                     step={1}
                   />
                   <RangeInput
-                    label="时长（分钟）"
+                    label={t('preprocess.durationMinutes')}
                     minValue={filter.min_duration ? Math.round(filter.min_duration / 60) : undefined}
                     maxValue={filter.max_duration ? Math.round(filter.max_duration / 60) : undefined}
                     onChange={(min, max) => {
@@ -2167,7 +2171,7 @@ export default function PreprocessPage() {
 
                 {/* 关键词 */}
                 <div>
-                  <div className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>关键词（标题/原标题/番号）</div>
+                  <div className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>{t('preprocess.filterKeyword')}</div>
                   <input
                     type="text"
                     value={filter.keyword ?? ''}
@@ -2175,7 +2179,7 @@ export default function PreprocessPage() {
                       setFilter((p) => ({ ...p, keyword: e.target.value }))
                       setFilterPreview(null)
                     }}
-                    placeholder="留空则不限制"
+                    placeholder={t('preprocess.hintNoLimit')}
                     className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
                     style={{
                       background: 'var(--storage-enable-row-bg, var(--nav-hover-bg))',
@@ -2186,9 +2190,9 @@ export default function PreprocessPage() {
                 </div>
 
                 {/* 排除策略 */}
-                <FilterSection title="排除策略" hint="未勾选 = 不排除该类媒体（不推荐关闭）">
+                <FilterSection title={t('preprocess.filterExclude')} hint={t('preprocess.hintExclude')}>
                   <ExcludeToggle
-                    label="排除已有预处理任务的媒体"
+                    label={t('preprocess.excludeExisting')}
                     checked={filter.exclude_already_preprocessed !== false}
                     onChange={(v) => {
                       setFilter((p) => ({ ...p, exclude_already_preprocessed: v }))
@@ -2196,7 +2200,7 @@ export default function PreprocessPage() {
                     }}
                   />
                   <ExcludeToggle
-                    label="排除浏览器可零转码直接播放的"
+                    label={t('preprocess.excludePlayable')}
                     checked={filter.exclude_directly_playable !== false}
                     onChange={(v) => {
                       setFilter((p) => ({ ...p, exclude_directly_playable: v }))
@@ -2204,7 +2208,7 @@ export default function PreprocessPage() {
                     }}
                   />
                   <ExcludeToggle
-                    label="排除 STRM 远程流"
+                    label={t('preprocess.excludeStrm')}
                     checked={filter.exclude_strm !== false}
                     onChange={(v) => {
                       setFilter((p) => ({ ...p, exclude_strm: v }))
@@ -2217,23 +2221,23 @@ export default function PreprocessPage() {
                 {filterPreview && (
                   <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--storage-enable-row-bg, var(--nav-hover-bg))', border: '1px solid var(--neon-blue-15)' }}>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <PreviewStat label="命中" value={filterPreview.matched_count.toString()} accent="text-amber-400" />
-                      <PreviewStat label="原始命中" value={filterPreview.raw_count.toString()} />
-                      <PreviewStat label="总大小" value={formatBytes(filterPreview.total_size)} />
+                      <PreviewStat label={t('preprocess.hit')} value={filterPreview.matched_count.toString()} accent="text-amber-400" />
+                      <PreviewStat label={t('preprocess.rawHit')} value={filterPreview.raw_count.toString()} />
+                      <PreviewStat label={t('preprocess.totalSize')} value={formatBytes(filterPreview.total_size)} />
                       <PreviewStat
-                        label="排除合计"
+                        label={t('preprocess.excludedTotal')}
                         value={(filterPreview.excluded_already + filterPreview.excluded_playable + filterPreview.excluded_strm).toString()}
                       />
                     </div>
                     {(filterPreview.excluded_already + filterPreview.excluded_playable + filterPreview.excluded_strm) > 0 && (
                       <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                        已排除：已预处理 {filterPreview.excluded_already} · 可直接播放 {filterPreview.excluded_playable} · STRM {filterPreview.excluded_strm}
+                        {t('preprocess.excludedDetail', { a: filterPreview.excluded_already, b: filterPreview.excluded_playable, c: filterPreview.excluded_strm })}
                       </div>
                     )}
                     {/* 编码分布 */}
                     {Object.keys(filterPreview.codec_histogram).length > 0 && (
                       <div>
-                        <div className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>编码分布</div>
+                        <div className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>{t('preprocess.codecDist')}</div>
                         <div className="flex flex-wrap gap-1.5">
                           {Object.entries(filterPreview.codec_histogram).map(([k, v]) => (
                             <span key={k} className="rounded px-2 py-0.5 text-[11px]" style={{ background: 'var(--neon-blue-6)', color: 'var(--text-secondary)' }}>
@@ -2247,7 +2251,7 @@ export default function PreprocessPage() {
                     {filterPreview.sample.length > 0 && (
                       <div>
                         <div className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                          抽样预览（前 {filterPreview.sample.length} 条）
+                          {t('preprocess.samplePreview', { count: filterPreview.sample.length })}
                         </div>
                         <ul className="rounded-lg divide-y max-h-56 overflow-y-auto" style={{ background: 'var(--glass-bg)', borderColor: 'var(--storage-enable-row-border, var(--border-strong))' }}>
                           {filterPreview.sample.map((s) => (
@@ -2277,7 +2281,7 @@ export default function PreprocessPage() {
                     onChange={(e) => setFilterForce(e.target.checked)}
                     className="rounded"
                   />
-                  强制（绕过"可直接播放则跳过"判定）
+                  {t('preprocess.forceLabel')}
                 </label>
                 <div className="flex items-center gap-2">
                   <button
@@ -2287,17 +2291,17 @@ export default function PreprocessPage() {
                     style={{ background: 'var(--neon-blue-6)', border: '1px solid var(--neon-blue-15)', color: 'var(--text-primary)' }}
                   >
                     {previewing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                    预览
+                    {t('preprocess.preview')}
                   </button>
                   <button
                     onClick={handleSubmitFilter}
                     disabled={submittingFilter || !filterPreview || filterPreview.matched_count === 0}
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
                     style={{ background: 'var(--accent-amber-bg)', border: '1px solid var(--accent-amber-border)', color: 'var(--accent-amber-text)' }}
-                    title={!filterPreview ? '请先预览' : filterPreview.matched_count === 0 ? '当前条件无命中' : ''}
+                    title={!filterPreview ? t('preprocess.previewFirst') : filterPreview.matched_count === 0 ? t('preprocess.noHit') : ''}
                   >
                     {submittingFilter ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                    {filterPreview ? `提交 ${filterPreview.matched_count} 个` : '提交'}
+                    {filterPreview ? t('preprocess.submitCount', { count: filterPreview.matched_count }) : t('common.submit')}
                   </button>
                 </div>
               </div>
@@ -2357,6 +2361,7 @@ interface RangeInputProps {
   step?: number
 }
 function RangeInput({ label, minValue, maxValue, onChange, step = 1 }: RangeInputProps) {
+  const { t } = useTranslation()
   const inputCls = 'w-full rounded-lg px-2 py-1.5 text-xs focus:outline-none tabular-nums'
   const inputStyle: React.CSSProperties = {
     background: 'var(--storage-enable-row-bg, var(--nav-hover-bg))',
@@ -2376,7 +2381,7 @@ function RangeInput({ label, minValue, maxValue, onChange, step = 1 }: RangeInpu
             const v = e.target.value === '' ? undefined : Number(e.target.value)
             onChange(v, maxValue)
           }}
-          placeholder="最小"
+          placeholder={t('preprocess.min')}
           className={inputCls}
           style={inputStyle}
         />
@@ -2390,7 +2395,7 @@ function RangeInput({ label, minValue, maxValue, onChange, step = 1 }: RangeInpu
             const v = e.target.value === '' ? undefined : Number(e.target.value)
             onChange(minValue, v)
           }}
-          placeholder="最大"
+          placeholder={t('preprocess.max')}
           className={inputCls}
           style={inputStyle}
         />

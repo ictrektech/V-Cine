@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import { useTranslation } from '@/i18n'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
@@ -26,9 +27,10 @@ const embeddingModeLabel = (mode: string): string => {
   return labels[mode] ?? mode
 }
 
-function ServiceBadge({ ok, okText = '在线', failText = '离线' }: { ok: boolean | null; okText?: string; failText?: string }) {
+function ServiceBadge({ ok, okText, failText }: { ok: boolean | null; okText?: string; failText?: string }) {
+  const { t } = useTranslation()
   if (ok === null) {
-    return <Badge variant="outline" className="text-muted-foreground">检查中</Badge>
+    return <Badge variant="outline" className="text-muted-foreground">{t('va.checking')}</Badge>
   }
   return ok ? (
     <Badge className="border-emerald-500/20 bg-emerald-500/10 text-emerald-400">✓ {okText}</Badge>
@@ -40,6 +42,7 @@ function ServiceBadge({ ok, okText = '在线', failText = '离线' }: { ok: bool
 }
 
 export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI }: VideoAnalysisDrawerProps) {
+  const { t } = useTranslation()
   const [health, setHealth] = useState<VideoAnalysisHealthInfo | null>(null)
   const [error, setError] = useState('')
   const [settings, setSettings] = useState<VideoAnalysisSettings | null>(null)
@@ -59,7 +62,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
       const healthRes = await videoAnalysisApi.getHealth()
       setHealth(healthRes.data.data)
     } catch (e) {
-      setError(extractErrMsg(e) || '无法获取视频分析服务状态')
+      setError(extractErrMsg(e) || t('va.loadStatusFailed'))
     }
   }, [])
 
@@ -71,7 +74,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
       const res = await videoAnalysisApi.getSettings()
       setSettings(res.data.data)
     } catch (e) {
-      setError(extractErrMsg(e) || '无法读取视频分析设置')
+      setError(extractErrMsg(e) || t('va.loadSettingsFailed'))
     } finally {
       setSettingsLoading(false)
     }
@@ -122,7 +125,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
       await load()
       await loadAIModels()
     } catch (e) {
-      setError(extractErrMsg(e) || '保存配置失败')
+      setError(extractErrMsg(e) || t('va.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -133,12 +136,12 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent size="xl" title="视频分析" description="场景检测 / 结构分析 / 场景描述">
+      <DrawerContent size="xl" title={t('va.title')} description={t('admin.ovCardVaDesc')}>
         <div className="space-y-5">
           {settingsLoading && !settings && (
             <div className="py-16 text-center" aria-busy="true">
               <Loader2 className="mx-auto animate-spin text-neon" />
-              <p className="mt-2 text-sm text-surface-400">正在读取设置…</p>
+              <p className="mt-2 text-sm text-surface-400">{t('va.loading')}</p>
             </div>
           )}
 
@@ -147,8 +150,8 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
               {/* 总开关：主视觉，第一眼焦点 */}
               <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                 <div className="space-y-0.5">
-                  <p className="text-sm font-semibold text-theme-primary">启用视频结构化分析</p>
-                  <p className="text-xs text-surface-500">开启后，媒体转码完成自动提交结构与场景分析任务</p>
+                  <p className="text-sm font-semibold text-theme-primary">{t('va.enableTitle')}</p>
+                  <p className="text-xs text-surface-500">{t('va.enableDesc')}</p>
                 </div>
                 <Switch checked={settings.enabled} onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })} />
               </div>
@@ -156,18 +159,18 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
               {/* 服务地址 + V-Router 视觉嵌入：分组卡片，简洁 shadcn 样式 */}
               <section aria-disabled={gated} className={cn('space-y-3 transition-opacity', gated && 'pointer-events-none opacity-50')}>
                 <div className="rounded-lg border p-5">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">服务地址</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('va.serviceAddr')}</h3>
                   <div className="mt-3 space-y-3">
                     <div>
                       <div className="mb-1 flex items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground">Scene 场景检测地址</span>
+                        <span className="text-xs font-medium text-muted-foreground">{t('va.sceneAddr')}</span>
                         <ServiceBadge ok={sceneOk} />
                       </div>
                       <Input value={settings.scene_base_url} onChange={(e) => setSettings({ ...settings, scene_base_url: e.target.value })} disabled={gated} placeholder="http://scene-detection:8910" />
                     </div>
                     <div>
                       <div className="mb-1 flex items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground">Structure 结构分析地址</span>
+                        <span className="text-xs font-medium text-muted-foreground">{t('va.structureAddr')}</span>
                         <ServiceBadge ok={structureOk} />
                       </div>
                       <Input value={settings.structure_base_url} onChange={(e) => setSettings({ ...settings, structure_base_url: e.target.value })} disabled={gated} placeholder="http://structure:8911" />
@@ -187,7 +190,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
                         <Layers className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <p className="text-sm font-medium text-foreground">V-Router 视觉嵌入模型</p>
+                        <p className="text-sm font-medium text-foreground">{t('va.embedModel')}</p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         <code className="rounded bg-muted px-2 py-0.5 font-mono text-sm text-foreground">
@@ -195,15 +198,15 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                         </code>
                         {health?.embedding_mode && (
                           <span className="inline-flex items-center rounded-md border bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                            {embeddingModeLabel(health.embedding_mode)} 路由 · 768 维向量
+                            {t('va.embedLine', { mode: embeddingModeLabel(health.embedding_mode) })}
                           </span>
                         )}
                       </div>
                       <p className="max-w-xl pt-1 text-xs leading-relaxed text-muted-foreground">
-                        为场景检测的场景帧与场景描述生成向量，支撑场景向量检索（文搜图 / 文搜文）
+                        {t('va.embedDesc')}
                       </p>
                     </div>
-                    <ServiceBadge ok={embeddingOk} okText="可用" failText="不可用" />
+                    <ServiceBadge ok={embeddingOk} okText={t('va.available')} failText={t('va.unavailable')} />
                   </div>
                   {health?.embedding_error && !embeddingOk && (
                     <p className="mt-2 flex items-start gap-1.5 break-all text-xs text-red-400">
@@ -218,19 +221,19 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
 
               {/* 功能开关 */}
               <section aria-disabled={gated} className={cn('space-y-3 transition-opacity', gated && 'pointer-events-none opacity-50')}>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">功能</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('va.featuresTitle')}</h3>
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <p className="text-sm font-semibold text-theme-primary">远程视频结构化</p>
-                    <p className="text-xs text-surface-500">通过 URL 拉流分析远程视频（webdav / alist / s3），会消耗网络带宽</p>
+                    <p className="text-sm font-semibold text-theme-primary">{t('va.remoteTitle')}</p>
+                    <p className="text-xs text-surface-500">{t('va.remoteDesc')}</p>
                   </div>
                   <Switch checked={settings.remote_video_enabled} onCheckedChange={(checked) => setSettings({ ...settings, remote_video_enabled: checked })} disabled={gated} />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <p className="text-sm font-semibold text-theme-primary">场景描述</p>
-                    <p className="text-xs text-surface-500">为媒体生成场景描述，需要视觉模型</p>
+                    <p className="text-sm font-semibold text-theme-primary">{t('va.sceneDescTitle')}</p>
+                    <p className="text-xs text-surface-500">{t('va.sceneDescDesc')}</p>
                   </div>
                   <Switch checked={settings.describe_enabled} onCheckedChange={(checked) => setSettings({ ...settings, describe_enabled: checked })} disabled={gated} />
                 </div>
@@ -238,8 +241,8 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                   <div className="space-y-1">
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-0.5">
-                        <div className="text-xs font-medium text-muted-foreground">自定义场景描述 VLM 视觉模型</div>
-                        <p className="text-xs text-surface-500">不选择默认用结构化服务的默认模型（推荐）</p>
+                        <div className="text-xs font-medium text-muted-foreground">{t('va.customVlm')}</div>
+                        <p className="text-xs text-surface-500">{t('va.customVlmHint')}</p>
                       </div>
                       {/* shadcn/ui Checkbox：小号，区别于上层 section 级 Switch，视觉上表达从属关系 */}
                       <Checkbox
@@ -250,9 +253,9 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                     </div>
                     {!useCustomModel ? null : visionModels.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
-                        当前没有可用的视觉模型，
+                        {t('va.noVlmModel')}
                         <button type="button" onClick={onNavigateToAI} className="underline-offset-2 hover:text-neon hover:underline">
-                          前往 AI 服务配置 →
+                          {t('va.goAiConfig')}
                         </button>
                       </p>
                     ) : (
@@ -266,7 +269,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                           }
                         }}
                       >
-                        <SelectTrigger className="w-full" disabled={gated}><SelectValue placeholder="请选择场景描述模型" /></SelectTrigger>
+                        <SelectTrigger className="w-full" disabled={gated}><SelectValue placeholder={t('va.pickDescModel')} /></SelectTrigger>
                         <SelectContent>
                           {visionModels.map((m, idx) => (
                             <SelectItem key={idx} value={`${m.providerID}::${m.model}`}>{m.model} ({m.providerName})</SelectItem>
@@ -280,10 +283,10 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
 
               {/* 保存 */}
               <div className="flex items-center justify-end gap-3">
-                {saved && <span className="text-xs text-emerald-400">已保存，所有设置已立即生效。</span>}
+                {saved && <span className="text-xs text-emerald-400">{t('va.savedHint')}</span>}
                 <Button onClick={save} disabled={saving}>
                   <RefreshCw className={cn('h-4 w-4', saving && 'animate-spin')} />
-                  保存更改
+                  {t('va.saveBtn')}
                 </Button>
               </div>
             </>

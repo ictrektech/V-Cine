@@ -1,4 +1,5 @@
 import { ChevronRight, Home } from 'lucide-react'
+import { useTranslation } from '@/i18n'
 
 interface BreadcrumbProps {
   /** 当前选中的文件夹路径 */
@@ -10,6 +11,7 @@ interface BreadcrumbProps {
 }
 
 export default function Breadcrumb({ folderPath, onNavigate, onGoHome }: BreadcrumbProps) {
+  const { t } = useTranslation()
   if (!folderPath) return null
 
   // 标准化路径分隔符
@@ -34,7 +36,7 @@ export default function Breadcrumb({ folderPath, onNavigate, onGoHome }: Breadcr
         style={{ color: 'var(--text-secondary)' }}
       >
         <Home size={14} />
-        <span>全部</span>
+        <span>{t('common.all')}</span>
       </button>
 
       {/* 路径项 */}

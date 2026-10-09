@@ -56,9 +56,9 @@ interface HeroSectionProps {
 
 function getPlaybackLabel(playInfo: MediaPlayInfo | null, t: (key: string) => string): string {
   if (!playInfo) return ''
-  if (playInfo.is_strm) return 'STRM 远程流'
+  if (playInfo.is_strm) return t('hero.strmLabel')
   if (playInfo.is_preprocessed) {
-    return playInfo.hls_resolution ? `HLS · ${playInfo.hls_resolution}` : 'HLS 秒开'
+    return playInfo.hls_resolution ? `HLS · ${playInfo.hls_resolution}` : t('hero.hlsLabel')
   }
   if (playInfo.can_direct_play) return t('hero.directPlay')
   return playInfo.hls_resolution ? `HLS · ${playInfo.hls_resolution}` : t('hero.needTranscode')

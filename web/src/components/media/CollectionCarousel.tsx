@@ -67,7 +67,7 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
         <div className="flex items-center gap-2">
           <h3 className="flex items-center gap-2 font-display text-base font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
             <Layers size={16} className="text-neon/60" />
-            系列合集
+            {t('cc.title')}
             <Link
               to={`/collections/${collection.id}`}
               className="ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-all hover:scale-105"
@@ -433,7 +433,7 @@ function CollectionListItem({ group, index, isCurrent }: {
                       style={{
                         background: 'var(--bg-overlay)',
                         color: '#fff',
-                      }}>当前</span>
+                      }}>{t('collections.current')}</span>
                   )}
                 </Link>
               )

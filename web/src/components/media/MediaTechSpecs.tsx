@@ -26,6 +26,8 @@ import {
   FileText,
   HelpCircle,
 } from 'lucide-react'
+import { t as i18n } from '@/i18n'
+import { useTranslation } from '@/i18n'
 
 // ==================== 工具函数 ====================
 
@@ -51,21 +53,21 @@ function formatSampleRate(rate?: string): string {
 function formatChannels(channels?: number, layout?: string): string {
   if (layout) {
     const layoutMap: Record<string, string> = {
-      'mono': '单声道',
-      'stereo': '立体声',
-      '5.1': '5.1 环绕声',
-      '5.1(side)': '5.1 环绕声',
-      '7.1': '7.1 环绕声',
-      '7.1(wide)': '7.1 环绕声',
+      'mono': i18n('tech.chMono'),
+      'stereo': i18n('tech.chStereo'),
+      '5.1': i18n('tech.ch51'),
+      '5.1(side)': i18n('tech.ch51'),
+      '7.1': i18n('tech.ch71'),
+      '7.1(wide)': i18n('tech.ch71'),
     }
     return layoutMap[layout] || layout
   }
   if (!channels) return '-'
-  if (channels === 1) return '单声道'
-  if (channels === 2) return '立体声'
-  if (channels === 6) return '5.1 环绕声'
-  if (channels === 8) return '7.1 环绕声'
-  return `${channels} 声道`
+  if (channels === 1) return i18n('tech.chMono')
+  if (channels === 2) return i18n('tech.chStereo')
+  if (channels === 6) return i18n('tech.ch51')
+  if (channels === 8) return i18n('tech.ch71')
+  return i18n('tech.chCount', { count: channels })
 }
 
 /** 格式化编码器名称 */
@@ -91,7 +93,7 @@ function formatCodecName(name: string, longName?: string): string {
     'srt': 'SRT',
     'ass': 'ASS/SSA',
     'subrip': 'SRT',
-    'hdmv_pgs_subtitle': 'PGS (蓝光)',
+    'hdmv_pgs_subtitle': i18n('tech.pgsBluray'),
     'dvd_subtitle': 'VobSub',
     'webvtt': 'WebVTT',
     'mov_text': 'MOV Text',
@@ -115,21 +117,21 @@ function formatContainerName(name: string): string {
 
 /** 格式化语言代码 */
 function formatLanguage(lang?: string): string {
-  if (!lang || lang === 'und') return '未知'
+  if (!lang || lang === 'und') return i18n('tech.langUnknown')
   const langMap: Record<string, string> = {
-    'chi': '中文', 'zho': '中文', 'zh': '中文',
-    'eng': '英语', 'en': '英语',
-    'jpn': '日语', 'ja': '日语',
-    'kor': '韩语', 'ko': '韩语',
-    'fre': '法语', 'fra': '法语', 'fr': '法语',
-    'ger': '德语', 'deu': '德语', 'de': '德语',
-    'spa': '西班牙语', 'es': '西班牙语',
-    'ita': '意大利语', 'it': '意大利语',
-    'por': '葡萄牙语', 'pt': '葡萄牙语',
-    'rus': '俄语', 'ru': '俄语',
-    'tha': '泰语', 'th': '泰语',
-    'vie': '越南语', 'vi': '越南语',
-    'ara': '阿拉伯语', 'ar': '阿拉伯语',
+    'chi': i18n('tech.langZh'), 'zho': i18n('tech.langZh'), 'zh': i18n('tech.langZh'),
+    'eng': i18n('tech.langEn'), 'en': i18n('tech.langEn'),
+    'jpn': i18n('tech.langJa'), 'ja': i18n('tech.langJa'),
+    'kor': i18n('tech.langKo'), 'ko': i18n('tech.langKo'),
+    'fre': i18n('tech.langFr'), 'fra': i18n('tech.langFr'), 'fr': i18n('tech.langFr'),
+    'ger': i18n('tech.langDe'), 'deu': i18n('tech.langDe'), 'de': i18n('tech.langDe'),
+    'spa': i18n('tech.langEs'), 'es': i18n('tech.langEs'),
+    'ita': i18n('tech.langIt'), 'it': i18n('tech.langIt'),
+    'por': i18n('tech.langPt'), 'pt': i18n('tech.langPt'),
+    'rus': i18n('tech.langRu'), 'ru': i18n('tech.langRu'),
+    'tha': i18n('tech.langTh'), 'th': i18n('tech.langTh'),
+    'vie': i18n('tech.langVi'), 'vi': i18n('tech.langVi'),
+    'ara': i18n('tech.langAr'), 'ar': i18n('tech.langAr'),
   }
   return langMap[lang] || lang
 }
@@ -182,35 +184,7 @@ function formatColorPrimaries(primaries?: string): string {
   return map[primaries] || primaries
 }
 
-/** 参数说明映射 */
-const paramHints: Record<string, string> = {
-  '编码器': '视频/音频数据的压缩编码格式',
-  '配置': '编码器使用的预设配置档次',
-  '等级': '编码器的复杂度等级',
-  '分辨率': '视频画面的像素宽度×高度',
-  '帧率': '每秒显示的画面帧数',
-  '码率': '每秒传输的数据量，越高画质越好',
-  '位深度': '每个像素的色彩精度，10-bit 色彩更丰富',
-  '像素格式': '像素数据的存储格式和色度采样方式',
-  '视频动态范围': 'SDR 为标准动态范围，HDR 提供更高亮度和对比度',
-  '宽高比': '画面的宽度与高度之比',
-  '色彩空间': '定义颜色的数学模型',
-  '色彩转换': '亮度信号的传输特性曲线',
-  '色彩原色': '定义红绿蓝三原色的色度坐标',
-  '色彩范围': 'TV 为有限范围(16-235)，PC 为完整范围(0-255)',
-  '隔行扫描': '是否使用隔行扫描（交错显示奇偶行）',
-  '参考帧': '编码时参考的前后帧数量',
-  '总帧数': '视频流中的总帧数',
-  '语言': '音频/字幕轨道的语言',
-  '布局': '音频声道的空间布局方式',
-  '声道': '音频的声道数量',
-  '采样率': '每秒采集的音频样本数，越高音质越好',
-  '位深': '每个音频样本的精度',
-  'MIME 类型': '文件的互联网媒体类型标识',
-  'MD5': '文件内容的 MD5 哈希校验值',
-  '精确时长': '基于容器元数据的精确播放时长',
-  '总码率': '所有流（视频+音频+字幕）的总数据传输速率',
-}
+
 
 // ==================== 标签页定义 ====================
 type TabKey = 'overview' | 'video' | 'audio' | 'file' | 'stats'
@@ -234,8 +208,10 @@ interface MediaTechSpecsProps {
 }
 
 export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, playbackStats, loading, isAdmin }: MediaTechSpecsProps) {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [expanded, setExpanded] = useState(false)
+
 
   /** 导出技术规格为JSON */
   const exportJSON = useCallback(() => {
@@ -300,14 +276,14 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
 
   // 构建标签页列表
   const tabs: TabDef[] = [
-    { key: 'overview', label: '概览', icon: <Cpu size={14} /> },
-    { key: 'video', label: '视频', icon: <Monitor size={14} />, badge: videoStreams.length > 0 ? undefined : undefined },
-    { key: 'audio', label: '音频', icon: <Music size={14} />, badge: audioStreams.length > 1 ? `${audioStreams.length}轨` : undefined },
-    { key: 'file', label: '文件', icon: <Layers size={14} /> },
+    { key: 'overview', label: t('tech.tabOverview'), icon: <Cpu size={14} /> },
+    { key: 'video', label: t('tech.tabVideo'), icon: <Monitor size={14} />, badge: videoStreams.length > 0 ? undefined : undefined },
+    { key: 'audio', label: t('tech.tabAudio'), icon: <Music size={14} />, badge: audioStreams.length > 1 ? t('tech.trackCount', { count: audioStreams.length }) : undefined },
+    { key: 'file', label: t('tech.tabFile'), icon: <Layers size={14} /> },
   ]
   // 仅管理员可见播放统计标签
   if (isAdmin && playbackStats && (playbackStats.total_play_count > 0 || playbackStats.unique_viewers > 0)) {
-    tabs.push({ key: 'stats', label: '统计', icon: <BarChart3 size={14} /> })
+    tabs.push({ key: 'stats', label: t('tech.tabStats'), icon: <BarChart3 size={14} /> })
   }
 
   return (
@@ -316,7 +292,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
       <div className="mb-2 flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
           <Cpu size={14} className="text-neon/60" />
-          文件信息与技术规格
+          {t('tech.title')}
         </h3>
         <div className="flex items-center gap-1.5">
           {/* 导出按钮 */}
@@ -326,7 +302,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 onClick={exportJSON}
                 className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors hover:text-neon"
                 style={{ color: 'var(--text-muted)', background: 'var(--nav-hover-bg)' }}
-                title="导出为 JSON"
+                title={t('tech.exportJson')}
               >
                 <FileJson size={10} /> JSON
               </button>
@@ -334,7 +310,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 onClick={exportXML}
                 className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors hover:text-neon"
                 style={{ color: 'var(--text-muted)', background: 'var(--nav-hover-bg)' }}
-                title="导出为 XML"
+                title={t('tech.exportXml')}
               >
                 <FileCode size={10} /> XML
               </button>
@@ -345,9 +321,9 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
             onClick={() => setExpanded(!expanded)}
             className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium transition-all hover:text-neon"
             style={{ color: 'var(--text-muted)', background: 'var(--nav-hover-bg)' }}
-            title={expanded ? '收起' : '展开详细信息'}
+            title={expanded ? t('tech.collapse') : t('tech.expandDetail')}
           >
-            {expanded ? <><ChevronUp size={10} />收起</> : <><ChevronDown size={10} />详情</>}
+            {expanded ? <><ChevronUp size={10} />{t('tech.collapse')}</> : <><ChevronDown size={10} />{t('tech.detail')}</>}
           </button>
         </div>
       </div>
@@ -379,7 +355,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 mainVideo.width && mainVideo.height ? `${mainVideo.width}×${mainVideo.height}` : null,
                 mainVideo.frame_rate ? `${parseFloat(mainVideo.frame_rate).toFixed(0)}fps` : null,
                 mainVideo.bit_rate ? formatBitRate(mainVideo.bit_rate) : null,
-              ].filter(Boolean).join(' · ') : '无视频流'}
+              ].filter(Boolean).join(' · ') : t('tech.noVideoStream')}
             </div>
           </div>
         </div>
@@ -403,7 +379,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 mainAudio.sample_rate ? formatSampleRate(mainAudio.sample_rate) : null,
                 mainAudio.bit_rate ? formatBitRate(mainAudio.bit_rate) : null,
                 mainAudio.language ? formatLanguage(mainAudio.language) : null,
-              ].filter(Boolean).join(' · ') : '无音频'}
+              ].filter(Boolean).join(' · ') : t('tech.noAudio')}
             </div>
           </div>
         </div>
@@ -413,7 +389,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
           <Subtitles size={14} className="shrink-0" style={{ color: 'var(--neon-green)' }} />
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-              {subtitleStreams.length > 0 ? `内嵌 ${subtitleStreams.length} 条` : '无内嵌字幕'}
+              {subtitleStreams.length > 0 ? t('tech.subtitleCount', { count: subtitleStreams.length }) : t('tech.noEmbeddedSubtitles')}
             </div>
             <div className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
               {subtitleStreams.length > 0
@@ -434,7 +410,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
             <div className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
               {techSpecs?.format ? [
                 techSpecs.format.bit_rate ? formatBitRate(techSpecs.format.bit_rate) : null,
-                techSpecs.format.stream_count ? `${techSpecs.format.stream_count}流` : null,
+                techSpecs.format.stream_count ? t('tech.streamCount', { count: techSpecs.format.stream_count }) : null,
                 formatSize(media.file_size),
               ].filter(Boolean).join(' · ') : formatSize(media.file_size)}
             </div>
@@ -476,13 +452,13 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
               <div className="glass-panel rounded-xl p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                   <FileText size={14} className="text-neon/60" />
-                  文件基本信息
+                  {t('tech.basicInfo')}
                 </h4>
 
                 {/* 文件路径（突出显示） */}
                 {media.file_path && isAdmin && (
                   <div className="mb-3 flex items-start gap-3">
-                    <span className="shrink-0 text-xs font-medium mt-1.5" style={{ color: 'var(--text-muted)' }}>路径</span>
+                    <span className="shrink-0 text-xs font-medium mt-1.5" style={{ color: 'var(--text-muted)' }}>{t('tech.path')}</span>
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <code className="flex-1 truncate rounded-lg px-3 py-1.5 text-xs"
                         style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
@@ -496,30 +472,30 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
 
                 {/* 关键信息网格 */}
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-xs sm:grid-cols-3 lg:grid-cols-4">
-                  <InfoItemWithCopy label="文件大小" value={formatSize(media.file_size)} highlight />
-                  {fileInfo?.file_ext && <InfoItemWithCopy label="文件格式" value={fileInfo.file_ext.replace('.', '').toUpperCase()} />}
-                  {media.duration > 0 && <InfoItemWithCopy label="时长" value={formatDuration(media.duration)} highlight />}
+                  <InfoItemWithCopy label={t('tech.fileSize')} value={formatSize(media.file_size)} highlight />
+                  {fileInfo?.file_ext && <InfoItemWithCopy label={t('tech.fileFormat')} value={fileInfo.file_ext.replace('.', '').toUpperCase()} />}
+                  {media.duration > 0 && <InfoItemWithCopy label={t('tech.duration')} value={formatDuration(media.duration)} highlight />}
                   {techSpecs?.format?.duration && (
-                    <InfoItemWithCopy label="精确时长" value={formatDuration(parseFloat(techSpecs.format.duration))} hint={paramHints['精确时长']} />
+                    <InfoItemWithCopy label={t('tech.lblExactDuration')} value={formatDuration(parseFloat(techSpecs.format.duration))} hint={t('tech.hintExactDuration')} />
                   )}
                   {techSpecs?.format?.bit_rate && (
-                    <InfoItemWithCopy label="总码率" value={formatBitRate(techSpecs.format.bit_rate)} hint={paramHints['总码率']} />
+                    <InfoItemWithCopy label={t('tech.lblTotalBitRate')} value={formatBitRate(techSpecs.format.bit_rate)} hint={t('tech.hintTotalBitRate')} />
                   )}
-                  {fileInfo?.mime_type && <InfoItemWithCopy label="MIME 类型" value={fileInfo.mime_type} hint={paramHints['MIME 类型']} />}
-                  <InfoItemWithCopy label="创建时间" value={fileInfo?.created_at ? formatDate(fileInfo.created_at) : formatDate(media.created_at)} />
-                  {fileInfo?.modified_at && <InfoItemWithCopy label="修改时间" value={formatDate(fileInfo.modified_at)} />}
+                  {fileInfo?.mime_type && <InfoItemWithCopy label={t('tech.lblMime')} value={fileInfo.mime_type} hint={t('tech.hintMime')} />}
+                  <InfoItemWithCopy label={t('tech.createdAt')} value={fileInfo?.created_at ? formatDate(fileInfo.created_at) : formatDate(media.created_at)} />
+                  {fileInfo?.modified_at && <InfoItemWithCopy label={t('tech.modifiedAt')} value={formatDate(fileInfo.modified_at)} />}
                   {fileInfo?.permissions && fileInfo.permissions !== '-' && (
-                    <InfoItemWithCopy label="权限" value={fileInfo.permissions} icon={<Shield size={10} />} />
+                    <InfoItemWithCopy label={t('tech.permissions')} value={fileInfo.permissions} icon={<Shield size={10} />} />
                   )}
                   {fileInfo?.owner && fileInfo.owner !== '-' && (
-                    <InfoItemWithCopy label="所有者" value={fileInfo.owner} icon={<User size={10} />} />
+                    <InfoItemWithCopy label={t('tech.owner')} value={fileInfo.owner} icon={<User size={10} />} />
                   )}
                 </div>
 
                 {/* 哈希值（单独一行，突出显示） */}
                 {fileInfo?.md5 && (
                   <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-default)' }}>
-                    <InfoItemWithCopy label="MD5" value={fileInfo.md5} icon={<Hash size={10} />} mono hint={paramHints['MD5']} />
+                    <InfoItemWithCopy label={t('tech.lblMd5')} value={fileInfo.md5} icon={<Hash size={10} />} mono hint={t('tech.hintMd5')} />
                   </div>
                 )}
               </div>
@@ -529,17 +505,17 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 <div className="glass-panel rounded-xl p-4">
                   <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                     <FolderOpen size={14} className="text-neon/60" />
-                    所属媒体库
+                    {t('tech.library')}
                   </h4>
                   <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
                     <div>
-                      <span style={{ color: 'var(--text-muted)' }}>名称：</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('tech.nameLabel')}</span>
                       <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{library.name}</span>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-muted)' }}>类型：</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{t('tech.typeLabel')}</span>
                       <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                        {{ movie: '电影', tvshow: '电视剧', mixed: '混合', other: '其他' }[library.type] || library.type}
+                        {{ movie: t('media.movie'), tvshow: t('media.tvshow'), mixed: t('media.mixed'), other: t('media.other') }[library.type] || library.type}
                       </span>
                     </div>
                   </div>
@@ -551,7 +527,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 <div className="glass-panel rounded-xl p-4">
                   <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                     <Info size={14} className="text-neon/60" />
-                    元数据标签
+                    {t('tech.metadataTags')}
                   </h4>
                   <div className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
                     {Object.entries(techSpecs.format.tags).map(([key, value]) => (
@@ -572,13 +548,13 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                   <div className="mb-3 flex items-center gap-2 flex-wrap">
                     <Monitor size={14} className="text-neon/60" />
                     <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      视频流 #{stream.index}
+                      {t('tech.videoStreamN', { n: stream.index })}
                     </span>
                     <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
                       {stream.width && stream.height ? `${stream.height}p` : ''} {formatCodecName(stream.codec_name)} {getHDRLabel(stream)}
                     </span>
                     {stream.is_default && (
-                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)' }}>默认</span>
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)' }}>{t('tech.defaultBadge')}</span>
                     )}
                     {isHDR(stream) && (
                       <span className="rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#FBBF24' }}>{getHDRLabel(stream)}</span>
@@ -586,33 +562,33 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                   </div>
                   {/* 详细参数表格 */}
                   <div className="grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
-                    <InfoItemWithCopy label="编码器" value={formatCodecName(stream.codec_name, stream.codec_long_name)} hint={paramHints['编码器']} />
-                    {stream.profile && <InfoItemWithCopy label="配置" value={stream.profile} hint={paramHints['配置']} />}
-                    {stream.level ? <InfoItemWithCopy label="等级" value={String(stream.level)} hint={paramHints['等级']} /> : null}
-                    <InfoItemWithCopy label="分辨率" value={stream.width && stream.height ? `${stream.width} × ${stream.height}` : '-'} highlight hint={paramHints['分辨率']} />
-                    <InfoItemWithCopy label="帧率" value={stream.frame_rate ? `${parseFloat(stream.frame_rate).toFixed(2)} fps` : '-'} hint={paramHints['帧率']} />
-                    <InfoItemWithCopy label="码率" value={formatBitRate(stream.bit_rate)} hint={paramHints['码率']} />
-                    {stream.bit_depth ? <InfoItemWithCopy label="位深度" value={`${stream.bit_depth} bit`} hint={paramHints['位深度']} /> : null}
-                    <InfoItemWithCopy label="像素格式" value={formatPixFmt(stream.pix_fmt)} hint={paramHints['像素格式']} />
-                    <InfoItemWithCopy label="视频动态范围" value={getHDRLabel(stream)} hint={paramHints['视频动态范围']} />
-                    {stream.aspect_ratio && <InfoItemWithCopy label="宽高比" value={stream.aspect_ratio} hint={paramHints['宽高比']} />}
-                    {stream.color_space && <InfoItemWithCopy label="色彩空间" value={stream.color_space} hint={paramHints['色彩空间']} />}
-                    {stream.color_transfer && <InfoItemWithCopy label="色彩转换" value={stream.color_transfer} hint={paramHints['色彩转换']} />}
-                    {stream.color_primaries && <InfoItemWithCopy label="色彩原色" value={formatColorPrimaries(stream.color_primaries)} hint={paramHints['色彩原色']} />}
-                    {stream.color_range && <InfoItemWithCopy label="色彩范围" value={stream.color_range === 'tv' ? 'TV (Limited)' : stream.color_range === 'pc' ? 'PC (Full)' : stream.color_range} hint={paramHints['色彩范围']} />}
-                    <InfoItemWithCopy label="隔行扫描" value={stream.is_interlaced ? '是' : '否'} hint={paramHints['隔行扫描']} />
-                    {stream.ref_frames ? <InfoItemWithCopy label="参考帧" value={String(stream.ref_frames)} hint={paramHints['参考帧']} /> : null}
-                    {stream.nb_frames && <InfoItemWithCopy label="总帧数" value={stream.nb_frames} hint={paramHints['总帧数']} />}
+                    <InfoItemWithCopy label={t('tech.lblCodec')} value={formatCodecName(stream.codec_name, stream.codec_long_name)} hint={t('tech.hintCodec')} />
+                    {stream.profile && <InfoItemWithCopy label={t('tech.lblProfile')} value={stream.profile} hint={t('tech.hintProfile')} />}
+                    {stream.level ? <InfoItemWithCopy label={t('tech.lblLevel')} value={String(stream.level)} hint={t('tech.hintLevel')} /> : null}
+                    <InfoItemWithCopy label={t('tech.lblResolution')} value={stream.width && stream.height ? `${stream.width} × ${stream.height}` : '-'} highlight hint={t('tech.hintResolution')} />
+                    <InfoItemWithCopy label={t('tech.lblFrameRate')} value={stream.frame_rate ? `${parseFloat(stream.frame_rate).toFixed(2)} fps` : '-'} hint={t('tech.hintFrameRate')} />
+                    <InfoItemWithCopy label={t('tech.lblBitRate')} value={formatBitRate(stream.bit_rate)} hint={t('tech.hintBitRate')} />
+                    {stream.bit_depth ? <InfoItemWithCopy label={t('tech.lblBitDepth')} value={`${stream.bit_depth} bit`} hint={t('tech.hintBitDepth')} /> : null}
+                    <InfoItemWithCopy label={t('tech.lblPixFmt')} value={formatPixFmt(stream.pix_fmt)} hint={t('tech.hintPixFmt')} />
+                    <InfoItemWithCopy label={t('tech.lblDynamicRange')} value={getHDRLabel(stream)} hint={t('tech.hintDynamicRange')} />
+                    {stream.aspect_ratio && <InfoItemWithCopy label={t('tech.lblAspect')} value={stream.aspect_ratio} hint={t('tech.hintAspect')} />}
+                    {stream.color_space && <InfoItemWithCopy label={t('tech.lblColorSpace')} value={stream.color_space} hint={t('tech.hintColorSpace')} />}
+                    {stream.color_transfer && <InfoItemWithCopy label={t('tech.lblColorTransfer')} value={stream.color_transfer} hint={t('tech.hintColorTransfer')} />}
+                    {stream.color_primaries && <InfoItemWithCopy label={t('tech.lblColorPrimaries')} value={formatColorPrimaries(stream.color_primaries)} hint={t('tech.hintColorPrimaries')} />}
+                    {stream.color_range && <InfoItemWithCopy label={t('tech.lblColorRange')} value={stream.color_range === 'tv' ? 'TV (Limited)' : stream.color_range === 'pc' ? 'PC (Full)' : stream.color_range} hint={t('tech.hintColorRange')} />}
+                    <InfoItemWithCopy label={t('tech.lblInterlaced')} value={stream.is_interlaced ? t('common.yes') : t('common.no')} hint={t('tech.hintInterlaced')} />
+                    {stream.ref_frames ? <InfoItemWithCopy label={t('tech.lblRefFrames')} value={String(stream.ref_frames)} hint={t('tech.hintRefFrames')} /> : null}
+                    {stream.nb_frames && <InfoItemWithCopy label={t('tech.lblNbFrames')} value={stream.nb_frames} hint={t('tech.hintNbFrames')} />}
                   </div>
                 </div>
               )) : (
                 <div className="glass-panel rounded-xl p-8 text-center">
                   <Monitor size={32} className="mx-auto mb-2 opacity-30" style={{ color: 'var(--text-muted)' }} />
                   <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    {media.video_codec ? `视频编码: ${media.video_codec}` : '无详细视频流信息'}
+                    {media.video_codec ? t('tech.videoCodec', { codec: media.video_codec }) : t('tech.noVideoDetail')}
                   </p>
                   {media.resolution && (
-                    <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>分辨率: {media.resolution}</p>
+                    <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>{t('tech.resolutionLabel', { r: media.resolution })}</p>
                   )}
                 </div>
               )}
@@ -622,7 +598,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 <div className="glass-panel rounded-xl p-4">
                   <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                     <Subtitles size={14} style={{ color: 'var(--neon-green)', opacity: 0.6 }} />
-                    字幕轨道 ({subtitleStreams.length})
+                    {t('tech.subtitleTrack', { count: subtitleStreams.length })}
                   </h4>
                   <div className="space-y-1.5">
                     {subtitleStreams.map((stream, idx) => (
@@ -639,10 +615,10 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                         )}
                         <div className="ml-auto flex gap-1.5">
                           {stream.is_default && (
-                            <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)' }}>默认</span>
+                            <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)' }}>{t('tech.defaultBadge')}</span>
                           )}
                           {stream.is_forced && (
-                            <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'rgba(255,165,0,0.1)', color: '#FFA500' }}>强制</span>
+                            <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'rgba(255,165,0,0.1)', color: '#FFA500' }}>{t('tech.forcedBadge')}</span>
                           )}
                         </div>
                       </div>
@@ -661,7 +637,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                   <div className="mb-3 flex items-center gap-2 flex-wrap">
                     <Music size={14} className="text-purple-400/60" />
                     <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                      音频轨道 #{stream.index}
+                      {t('tech.audioTrackN', { n: stream.index })}
                     </span>
                     <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>
                       {formatCodecName(stream.codec_name)} {formatChannels(stream.channels, stream.channel_layout)}
@@ -670,29 +646,29 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— {stream.title}</span>
                     )}
                     {stream.is_default && (
-                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)' }}>默认</span>
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)' }}>{t('tech.defaultBadge')}</span>
                     )}
                     {stream.is_forced && (
-                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'rgba(255,165,0,0.1)', color: '#FFA500' }}>强制</span>
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'rgba(255,165,0,0.1)', color: '#FFA500' }}>{t('tech.forcedBadge')}</span>
                     )}
                   </div>
                   <div className="grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
-                    <InfoItemWithCopy label="语言" value={formatLanguage(stream.language)} hint={paramHints['语言']} />
-                    <InfoItemWithCopy label="编码器" value={formatCodecName(stream.codec_name, stream.codec_long_name)} hint={paramHints['编码器']} />
-                    {stream.profile && <InfoItemWithCopy label="配置" value={stream.profile} hint={paramHints['配置']} />}
-                    <InfoItemWithCopy label="布局" value={stream.channel_layout || '-'} hint={paramHints['布局']} />
-                    <InfoItemWithCopy label="声道" value={stream.channels ? `${stream.channels} ch` : '-'} hint={paramHints['声道']} />
-                    <InfoItemWithCopy label="采样率" value={formatSampleRate(stream.sample_rate)} hint={paramHints['采样率']} />
-                    <InfoItemWithCopy label="码率" value={formatBitRate(stream.bit_rate)} hint={paramHints['码率']} />
-                    {stream.bits_per_sample && stream.bits_per_sample > 0 && <InfoItemWithCopy label="位深" value={`${stream.bits_per_sample}-bit`} hint={paramHints['位深']} />}
-                    <InfoItemWithCopy label="默认" value={stream.is_default ? '是' : '否'} />
+                    <InfoItemWithCopy label={t('tech.lblLanguage')} value={formatLanguage(stream.language)} hint={t('tech.hintLanguage')} />
+                    <InfoItemWithCopy label={t('tech.lblCodec')} value={formatCodecName(stream.codec_name, stream.codec_long_name)} hint={t('tech.hintCodec')} />
+                    {stream.profile && <InfoItemWithCopy label={t('tech.lblProfile')} value={stream.profile} hint={t('tech.hintProfile')} />}
+                    <InfoItemWithCopy label={t('tech.lblLayout')} value={stream.channel_layout || '-'} hint={t('tech.hintLayout')} />
+                    <InfoItemWithCopy label={t('tech.lblChannels')} value={stream.channels ? `${stream.channels} ch` : '-'} hint={t('tech.hintChannels')} />
+                    <InfoItemWithCopy label={t('tech.lblSampleRate')} value={formatSampleRate(stream.sample_rate)} hint={t('tech.hintSampleRate')} />
+                    <InfoItemWithCopy label={t('tech.lblBitRate')} value={formatBitRate(stream.bit_rate)} hint={t('tech.hintBitRate')} />
+                    {stream.bits_per_sample && stream.bits_per_sample > 0 && <InfoItemWithCopy label={t('tech.lblSampleBitDepth')} value={`${stream.bits_per_sample}-bit`} hint={t('tech.hintSampleBitDepth')} />}
+                    <InfoItemWithCopy label={t('tech.defaultBadge')} value={stream.is_default ? t('common.yes') : t('common.no')} />
                   </div>
                 </div>
               )) : (
                 <div className="glass-panel rounded-xl p-8 text-center">
                   <Music size={32} className="mx-auto mb-2 opacity-30" style={{ color: 'var(--text-muted)' }} />
                   <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    {media.audio_codec ? `音频编码: ${media.audio_codec}` : '无详细音频流信息'}
+                    {media.audio_codec ? t('tech.audioCodec', { codec: media.audio_codec }) : t('tech.noAudioDetail')}
                   </p>
                 </div>
               )}
@@ -706,13 +682,13 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
               <div className="glass-panel rounded-xl p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                   <Layers size={14} className="text-neon/60" />
-                  文件详情
+                  {t('tech.fileDetail')}
                 </h4>
 
                 {/* 文件路径（管理员可见） */}
                 {media.file_path && isAdmin && (
                   <div className="mb-3 flex items-start gap-3">
-                    <span className="shrink-0 text-xs font-medium mt-1.5" style={{ color: 'var(--text-muted)' }}>完整路径</span>
+                    <span className="shrink-0 text-xs font-medium mt-1.5" style={{ color: 'var(--text-muted)' }}>{t('tech.fullPath')}</span>
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <code className="flex-1 truncate rounded-lg px-3 py-1.5 text-xs"
                         style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
@@ -725,23 +701,23 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 )}
 
                 <div className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
-                  {fileInfo && <InfoItemWithCopy label="文件名" value={fileInfo.file_name} />}
-                  <InfoItemWithCopy label="文件格式" value={fileInfo?.file_ext?.replace('.', '').toUpperCase() || '-'} />
-                  <InfoItemWithCopy label="文件大小" value={formatSize(media.file_size)} highlight />
-                  {fileInfo?.mime_type && <InfoItemWithCopy label="MIME 类型" value={fileInfo.mime_type} hint={paramHints['MIME 类型']} />}
+                  {fileInfo && <InfoItemWithCopy label={t('tech.fileName')} value={fileInfo.file_name} />}
+                  <InfoItemWithCopy label={t('tech.fileFormat')} value={fileInfo?.file_ext?.replace('.', '').toUpperCase() || '-'} />
+                  <InfoItemWithCopy label={t('tech.fileSize')} value={formatSize(media.file_size)} highlight />
+                  {fileInfo?.mime_type && <InfoItemWithCopy label={t('tech.lblMime')} value={fileInfo.mime_type} hint={t('tech.hintMime')} />}
                   {techSpecs?.format?.duration && (
-                    <InfoItemWithCopy label="精确时长" value={formatDuration(parseFloat(techSpecs.format.duration))} hint={paramHints['精确时长']} />
+                    <InfoItemWithCopy label={t('tech.lblExactDuration')} value={formatDuration(parseFloat(techSpecs.format.duration))} hint={t('tech.hintExactDuration')} />
                   )}
                   {techSpecs?.format?.bit_rate && (
-                    <InfoItemWithCopy label="总码率" value={formatBitRate(techSpecs.format.bit_rate)} hint={paramHints['总码率']} />
+                    <InfoItemWithCopy label={t('tech.lblTotalBitRate')} value={formatBitRate(techSpecs.format.bit_rate)} hint={t('tech.hintTotalBitRate')} />
                   )}
-                  <InfoItemWithCopy label="创建时间" value={fileInfo?.created_at ? formatDate(fileInfo.created_at) : formatDate(media.created_at)} />
-                  {fileInfo?.modified_at && <InfoItemWithCopy label="修改时间" value={formatDate(fileInfo.modified_at)} />}
+                  <InfoItemWithCopy label={t('tech.createdAt')} value={fileInfo?.created_at ? formatDate(fileInfo.created_at) : formatDate(media.created_at)} />
+                  {fileInfo?.modified_at && <InfoItemWithCopy label={t('tech.modifiedAt')} value={formatDate(fileInfo.modified_at)} />}
                   {fileInfo?.permissions && fileInfo.permissions !== '-' && (
-                    <InfoItemWithCopy label="权限" value={fileInfo.permissions} icon={<Shield size={10} />} />
+                    <InfoItemWithCopy label={t('tech.permissions')} value={fileInfo.permissions} icon={<Shield size={10} />} />
                   )}
                   {fileInfo?.owner && fileInfo.owner !== '-' && (
-                    <InfoItemWithCopy label="所有者" value={fileInfo.owner} icon={<User size={10} />} />
+                    <InfoItemWithCopy label={t('tech.owner')} value={fileInfo.owner} icon={<User size={10} />} />
                   )}
                 </div>
 
@@ -749,7 +725,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 {fileInfo?.md5 && (
                   <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-default)' }}>
                     <div className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-1">
-                      <InfoItemWithCopy label="MD5" value={fileInfo.md5} icon={<Hash size={10} />} mono hint={paramHints['MD5']} />
+                      <InfoItemWithCopy label={t('tech.lblMd5')} value={fileInfo.md5} icon={<Hash size={10} />} mono hint={t('tech.hintMd5')} />
                     </div>
                   </div>
                 )}
@@ -760,14 +736,14 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 <div className="glass-panel rounded-xl p-4">
                   <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                     <HardDrive size={14} style={{ color: '#FFA500', opacity: 0.6 }} />
-                    容器格式
+                    {t('tech.container')}
                   </h4>
                   <div className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
-                    <InfoItemWithCopy label="格式名称" value={formatContainerName(techSpecs.format.format_name)} />
-                    {techSpecs.format.format_long_name && <InfoItemWithCopy label="完整名称" value={techSpecs.format.format_long_name} />}
-                    <InfoItemWithCopy label="流数量" value={`${techSpecs.format.stream_count} 个`} />
-                    {techSpecs.format.size && <InfoItemWithCopy label="容器大小" value={formatSize(parseInt(techSpecs.format.size))} />}
-                    {techSpecs.format.start_time && <InfoItemWithCopy label="起始时间" value={`${parseFloat(techSpecs.format.start_time).toFixed(3)}s`} />}
+                    <InfoItemWithCopy label={t('tech.formatName')} value={formatContainerName(techSpecs.format.format_name)} />
+                    {techSpecs.format.format_long_name && <InfoItemWithCopy label={t('tech.longName')} value={techSpecs.format.format_long_name} />}
+                    <InfoItemWithCopy label={t('tech.streamCountLabel')} value={t('tech.streamCountValue', { count: techSpecs.format.stream_count })} />
+                    {techSpecs.format.size && <InfoItemWithCopy label={t('tech.containerSize')} value={formatSize(parseInt(techSpecs.format.size))} />}
+                    {techSpecs.format.start_time && <InfoItemWithCopy label={t('tech.startTime')} value={`${parseFloat(techSpecs.format.start_time).toFixed(3)}s`} />}
                   </div>
                 </div>
               )}
@@ -777,7 +753,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                 <div className="glass-panel rounded-xl p-4">
                   <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                     <Info size={14} className="text-neon/60" />
-                    元数据标签
+                    {t('tech.metadataTags')}
                   </h4>
                   <div className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
                     {Object.entries(techSpecs.format.tags).map(([key, value]) => (
@@ -795,7 +771,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
               <div className="glass-panel rounded-xl p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                   <BarChart3 size={14} className="text-neon/60" />
-                  播放统计
+                  {t('tech.playStats')}
                 </h4>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <div className="text-center">
@@ -803,14 +779,14 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                       <Play size={16} />
                       {playbackStats.total_play_count}
                     </div>
-                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>总播放次数</div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('tech.totalPlays')}</div>
                   </div>
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1 text-lg font-bold" style={{ color: 'var(--neon-blue)' }}>
                       <Users size={16} />
                       {playbackStats.unique_viewers}
                     </div>
-                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>观看人数</div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('tech.uniqueViewers')}</div>
                   </div>
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1 text-lg font-bold" style={{ color: 'var(--neon-blue)' }}>
@@ -820,14 +796,14 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
                         : `${playbackStats.total_watch_minutes.toFixed(0)}m`
                       }
                     </div>
-                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>总观看时长</div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('tech.totalWatchTime')}</div>
                   </div>
                   {playbackStats.last_played_at && (
                     <div className="text-center">
                       <div className="text-sm font-bold" style={{ color: 'var(--neon-blue)' }}>
                         {formatDate(playbackStats.last_played_at)}
                       </div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>最后播放</div>
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('tech.lastPlayed')}</div>
                     </div>
                   )}
                 </div>
@@ -844,6 +820,7 @@ export default function MediaTechSpecs({ media, techSpecs, fileInfo, library, pl
 
 /** 复制按钮组件 */
 function CopyButton({ value }: { value: string }) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
 
   const handleCopy = useCallback(() => {
@@ -858,7 +835,7 @@ function CopyButton({ value }: { value: string }) {
       onClick={handleCopy}
       className="shrink-0 rounded-lg p-1.5 transition-all hover:text-neon hover:bg-neon-blue/5"
       style={{ color: copied ? 'var(--neon-green)' : 'var(--text-muted)' }}
-      title={copied ? '已复制' : '复制'}
+      title={copied ? t('tech.copied') : t('tech.copy')}
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
     </button>
@@ -874,6 +851,7 @@ function InfoItemWithCopy({ label, value, highlight, icon, mono, hint }: {
   mono?: boolean
   hint?: string
 }) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const [showHint, setShowHint] = useState(false)
 
@@ -911,9 +889,9 @@ function InfoItemWithCopy({ label, value, highlight, icon, mono, hint }: {
         className={`${highlight ? 'font-semibold' : 'font-medium'} ${mono ? 'font-mono text-[11px] break-all' : ''} cursor-pointer transition-colors hover:text-neon`}
         style={{ color: copied ? 'var(--neon-green)' : highlight ? '#FBBF24' : 'var(--text-primary)' }}
         onClick={handleCopy}
-        title="点击复制"
+        title={t('tech.clickCopy')}
       >
-        {copied ? '✓ 已复制' : value}
+        {copied ? t('tech.copiedTick') : value}
       </span>
     </div>
   )
