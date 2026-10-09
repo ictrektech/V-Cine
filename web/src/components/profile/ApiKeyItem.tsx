@@ -3,6 +3,7 @@ import { Eye, EyeOff, Copy, Trash2, Check, XCircle } from 'lucide-react'
 import { useToast } from '@/components/Toast'
 import { copyToClipboard } from '@/lib/clipboard'
 import type { ApiKey } from '@/api/apiKey'
+import { useTranslation } from '@/i18n'
 
 interface ApiKeyItemProps {
   item: ApiKey
@@ -11,6 +12,7 @@ interface ApiKeyItemProps {
 }
 
 export default function ApiKeyItem({ item, onRevoke, onDelete }: ApiKeyItemProps) {
+  const { t } = useTranslation()
   const toast = useToast()
   const [showKey, setShowKey] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -18,12 +20,12 @@ export default function ApiKeyItem({ item, onRevoke, onDelete }: ApiKeyItemProps
   const handleCopy = async () => {
     await copyToClipboard(item.key)
     setCopied(true)
-    toast.success('已复制到剪贴板')
+    toast.success(t('ak.copied'))
     setTimeout(() => setCopied(false), 2000)
   }
 
   const handleRevoke = () => {
-    if (window.confirm(`确定撤销 API Key「${item.name}」？撤销后无法恢复。`)) {
+    if (window.confirm(t('ak.revokeConfirm', { name: item.name }))) {
       onRevoke(item.id)
     }
   }
@@ -40,7 +42,7 @@ export default function ApiKeyItem({ item, onRevoke, onDelete }: ApiKeyItemProps
           <span className="text-sm font-medium text-theme-primary">{item.name}</span>
           <code className="text-xs text-theme-muted font-mono">{item.key_prefix}...</code>
           {item.is_revoked && (
-            <span className="text-xs text-red-400 font-medium">已撤销</span>
+            <span className="text-xs text-red-400 font-medium">{t('ak.revokedBadge')}</span>
           )}
         </div>
         <div className="mt-1 flex items-center gap-2">
@@ -50,7 +52,7 @@ export default function ApiKeyItem({ item, onRevoke, onDelete }: ApiKeyItemProps
           <button
             onClick={() => setShowKey(!showKey)}
             className="flex-shrink-0 text-surface-500 hover:text-surface-300 transition-colors"
-            title={showKey ? '隐藏' : '显示'}
+            title={showKey ? t('ac.hide') : t('ac.show')}
           >
             {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
@@ -59,14 +61,14 @@ export default function ApiKeyItem({ item, onRevoke, onDelete }: ApiKeyItemProps
               onClick={handleCopy}
               className="flex-shrink-0 transition-colors"
               style={{ color: copied ? 'var(--neon-green)' : 'var(--text-muted)' }}
-              title="复制"
+              title={t('common.copy')}
             >
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
           )}
           {item.last_used_at && (
             <span className="flex-shrink-0 text-xs text-theme-muted">
-              上次使用: {new Date(item.last_used_at).toLocaleDateString()}
+              {t('ak.lastUsed', { date: new Date(item.last_used_at).toLocaleDateString() })}
             </span>
           )}
         </div>
@@ -76,19 +78,19 @@ export default function ApiKeyItem({ item, onRevoke, onDelete }: ApiKeyItemProps
           <button
             onClick={handleRevoke}
             className="rounded-lg p-2 text-amber-400 transition-colors hover:bg-amber-400/10"
-            title="撤销"
+            title={t('ak.revoke')}
           >
             <XCircle size={14} />
           </button>
         )}
         <button
           onClick={() => {
-            if (window.confirm(`确定彻底删除 API Key「${item.name}」？此操作不可恢复。`)) {
+            if (window.confirm(t('ak.deleteConfirm', { name: item.name }))) {
               onDelete(item.id)
             }
           }}
           className="rounded-lg p-2 text-red-400 transition-colors hover:bg-red-400/10"
-          title="删除"
+          title={t('common.delete')}
         >
           <Trash2 size={14} />
         </button>

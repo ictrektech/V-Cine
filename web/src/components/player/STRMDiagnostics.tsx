@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { streamApi, strmApi, type MediaSTRMInfo } from '@/api'
+import { useTranslation } from '@/i18n'
 import {
   Loader2,
   Activity,
@@ -38,6 +39,7 @@ type CheckResult = {
  * - 支持复制排错信息到剪贴板
  */
 export default function STRMDiagnostics({ mediaId, compact = false }: STRMDiagnosticsProps) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<CheckResult | null>(null)
@@ -50,7 +52,7 @@ export default function STRMDiagnostics({ mediaId, compact = false }: STRMDiagno
       setResult(res.data.data)
       setOpen(true)
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '诊断请求失败'
+      const msg = e instanceof Error ? e.message : t('sd.requestFailed')
       setResult({
         media_id: mediaId,
         url: '',
@@ -68,19 +70,19 @@ export default function STRMDiagnostics({ mediaId, compact = false }: STRMDiagno
   const copyDiag = () => {
     if (!result) return
     const text = [
-      `STRM 诊断报告`,
-      `时间: ${new Date().toISOString()}`,
+      t('sd.reportTitle'),
+      `${t('sd.reportTime')}${new Date().toISOString()}`,
       `Media: ${result.media_id}`,
       `URL: ${result.url || '-'}`,
-      `状态: ${result.ok ? 'OK' : 'FAIL'}  HTTP ${result.status_code}`,
-      `耗时: ${result.response_ms}ms`,
+      `${t('sd.reportStatus')}${result.ok ? 'OK' : 'FAIL'}  HTTP ${result.status_code}`,
+      `${t('sd.reportElapsed')}${result.response_ms}ms`,
       `Content-Type: ${result.content_type || '-'}`,
       `Content-Length: ${result.content_length ?? '-'}`,
       `Accept-Ranges: ${result.accept_ranges || '-'}`,
-      result.effective_url ? `最终 URL: ${result.effective_url}` : '',
-      result.error ? `错误: ${result.error}` : '',
+      result.effective_url ? `${t('sd.reportFinalUrl')}${result.effective_url}` : '',
+      result.error ? `${t('sd.reportError')}${result.error}` : '',
       result.headers
-        ? `响应头:\n${Object.entries(result.headers)
+        ? `${t('sd.reportHeaders')}\n${Object.entries(result.headers)
             .map(([k, v]) => `  ${k}: ${v}`)
             .join('\n')}`
         : '',
@@ -101,14 +103,14 @@ export default function STRMDiagnostics({ mediaId, compact = false }: STRMDiagno
           border: '1px solid var(--neon-blue-15)',
           color: '#e5e7eb',
         }}
-        title="一键诊断远程流链路"
+        title={t('sd.diagTitle')}
       >
         {loading ? (
           <Loader2 size={12} className="animate-spin" />
         ) : (
           <Activity size={12} />
         )}
-        <span>STRM 诊断</span>
+        <span>{t('sd.diagBtn')}</span>
         {result ? (open ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null}
       </button>
 
@@ -121,12 +123,12 @@ export default function STRMDiagnostics({ mediaId, compact = false }: STRMDiagno
             {result.ok ? (
               <>
                 <CheckCircle2 size={14} className="text-emerald-400" />
-                <span className="font-medium text-emerald-400">连通正常</span>
+                <span className="font-medium text-emerald-400">{t('sd.okText')}</span>
               </>
             ) : (
               <>
                 <XCircle size={14} className="text-rose-400" />
-                <span className="font-medium text-rose-400">连通异常</span>
+                <span className="font-medium text-rose-400">{t('sd.failText')}</span>
               </>
             )}
             <span className="ml-auto text-gray-400">{result.response_ms}ms</span>
@@ -173,7 +175,7 @@ export default function STRMDiagnostics({ mediaId, compact = false }: STRMDiagno
                 color: '#e5e7eb',
               }}
             >
-              复制诊断信息
+              {t('sd.copyBtn')}
             </button>
             <button
               onClick={runCheck}
@@ -183,7 +185,7 @@ export default function STRMDiagnostics({ mediaId, compact = false }: STRMDiagno
                 color: '#e5e7eb',
               }}
             >
-              重试
+              {t('common.retry')}
             </button>
             <button
               onClick={() => setEditorOpen(true)}
@@ -192,9 +194,9 @@ export default function STRMDiagnostics({ mediaId, compact = false }: STRMDiagno
                 background: 'rgba(255,255,255,0.05)',
                 color: '#e5e7eb',
               }}
-              title="手动覆盖 UA / Referer / Cookie（会立即生效）"
+              title={t('sd.editTitle')}
             >
-              <Settings2 size={10} /> 编辑请求头
+              <Settings2 size={10} /> {t('sd.editBtn')}
             </button>
           </div>
         </div>
@@ -224,6 +226,7 @@ interface EditorProps {
 }
 
 function STRMHeaderEditor({ mediaId, onClose, onSaved }: EditorProps) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -256,7 +259,7 @@ function STRMHeaderEditor({ mediaId, onClose, onSaved }: EditorProps) {
           setHeadersText('')
         }
       } catch (e) {
-        if (alive) setErr(e instanceof Error ? e.message : '加载失败')
+        if (alive) setErr(e instanceof Error ? e.message : t('sd.loadFailed'))
       } finally {
         if (alive) setLoading(false)
       }
@@ -295,7 +298,7 @@ function STRMHeaderEditor({ mediaId, onClose, onSaved }: EditorProps) {
       })
       onSaved()
     } catch (e) {
-      setErr(e instanceof Error ? e.message : '保存失败')
+      setErr(e instanceof Error ? e.message : t('sd.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -319,33 +322,33 @@ function STRMHeaderEditor({ mediaId, onClose, onSaved }: EditorProps) {
       >
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <div className="text-sm font-semibold">STRM 请求头覆写</div>
+            <div className="text-sm font-semibold">{t('sd.editorTitle')}</div>
             <div className="text-[11px]" style={{ color: 'var(--text-secondary, #9ca3af)' }}>
-              只影响当前这条媒体；粘贴后立即生效，不需重新扫描
+              {t('sd.editorHint')}
             </div>
           </div>
-          <button onClick={onClose} title="关闭">
+          <button onClick={onClose} title={t('common.close')}>
             <X size={16} />
           </button>
         </div>
 
         {loading ? (
           <div className="flex items-center gap-2 py-8 text-xs text-gray-400">
-            <Loader2 size={12} className="animate-spin" /> 加载中...
+            <Loader2 size={12} className="animate-spin" /> {t('sd.loading')}
           </div>
         ) : (
           <div className="space-y-2.5 text-xs">
             {info && !info.is_strm && (
               <div className="rounded-md px-2 py-1.5 text-[11px]" style={{ background: 'rgba(244,63,94,0.12)', color: '#f43f5e' }}>
-                当前媒体不是 STRM 远程流，覆写无效
+                {t('sd.notStrm')}
               </div>
             )}
-            <LabeledInput label="远程 URL (可选，token 过期时手动刷新)" value={url} onChange={setURL} placeholder="https://..." />
+            <LabeledInput label={t('sd.urlLabel')} value={url} onChange={setURL} placeholder="https://..." />
             <LabeledInput label="User-Agent" value={ua} onChange={setUA} placeholder="Mozilla/5.0 ..." />
             <LabeledInput label="Referer" value={referer} onChange={setReferer} placeholder="https://example.com/" />
             <LabeledInput label="Cookie" value={cookie} onChange={setCookie} placeholder="sid=xxx; uid=yyy" textarea />
             <LabeledInput
-              label="额外 Header（每行 Key: Value）"
+              label={t('sd.extraHeadersLabel')}
               value={headersText}
               onChange={setHeadersText}
               placeholder={'X-Auth: secret-token\nAccept: */*'}
@@ -367,14 +370,14 @@ function STRMHeaderEditor({ mediaId, onClose, onSaved }: EditorProps) {
                 style={{ background: 'var(--neon-blue, #0ea5e9)' }}
               >
                 {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                保存并重试
+                {t('sd.saveRetry')}
               </button>
               <button
                 onClick={onClose}
                 className="rounded-md px-3 py-1.5 text-xs"
                 style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-primary, #e5e7eb)' }}
               >
-                取消
+                {t('common.cancel')}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Loader2, X } from 'lucide-react'
-import { useNotificationCenterStore, TYPE_ICONS, TYPE_LABELS, STATUS_META, type NotificationItem } from '@/stores/notificationCenter'
+import { useNotificationCenterStore, TYPE_ICONS, TYPE_LABEL_KEYS, STATUS_META, type NotificationItem } from '@/stores/notificationCenter'
+import { useTranslation } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 // ==================== 右上角通知弹窗（紧凑版，自动消失） ====================
@@ -11,6 +12,7 @@ const POPUP_MAX = 3
 const POPUP_DISMISS_MS = 4500
 
 export default function NotificationToaster() {
+  const { t } = useTranslation()
   const notifications = useNotificationCenterStore((s) => s.notifications)
   const open = useNotificationCenterStore((s) => s.open)
   const setOpen = useNotificationCenterStore((s) => s.setOpen)
@@ -98,7 +100,7 @@ export default function NotificationToaster() {
                 <div className="flex min-w-0 items-center gap-1.5">
                   <span className="inline-flex flex-shrink-0 items-center gap-1 rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)]">
                     {(() => { const Icon = TYPE_ICONS[item.type]; return <Icon size={10} /> })()}
-                    {TYPE_LABELS[item.type]}
+                    {t(TYPE_LABEL_KEYS[item.type])}
                   </span>
                   <p className="truncate text-xs font-medium text-[var(--text-secondary)]">{item.title}</p>
                 </div>
@@ -107,7 +109,7 @@ export default function NotificationToaster() {
               <p className="line-clamp-2 text-sm leading-snug text-[var(--text-primary)]">{item.message}</p>
               {source && (
                 <p className="text-[10px] text-[var(--text-secondary)]">
-                  来源: <span className="font-medium text-emerald-500">{source}</span>
+                  {t('nb.sourceLabel')}<span className="font-medium text-emerald-500">{source}</span>
                 </p>
               )}
             </div>
@@ -118,7 +120,7 @@ export default function NotificationToaster() {
                 dismiss(item.id)
               }}
               className="flex-shrink-0 rounded p-0.5 text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
-              title="关闭"
+              title={t('common.close')}
             >
               <X size={12} />
             </button>
@@ -130,6 +132,7 @@ export default function NotificationToaster() {
 }
 
 function StatusBadge({ status }: { status: NotificationItem['status'] }) {
+  const { t } = useTranslation()
   const meta = STATUS_META[status] || STATUS_META.info
   return (
     <span
@@ -139,7 +142,7 @@ function StatusBadge({ status }: { status: NotificationItem['status'] }) {
       )}
     >
       {status === 'running' && <Loader2 size={9} className="animate-spin" />}
-      {meta.label}
+      {t(meta.labelKey)}
     </span>
   )
 }

@@ -63,8 +63,8 @@ export default function CommentSection({ mediaId }: CommentSectionProps) {
   const handleDelete = async (id: string) => {
     const ok = await dialog.confirm({
       title: t('comment.deleteConfirm'),
-      confirmText: t('common.delete') ?? '删除',
-      cancelText: t('common.cancel') ?? '取消',
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
       variant: 'danger',
     })
     if (!ok) return
@@ -171,7 +171,7 @@ style={{ background: 'var(--neon-blue)', boxShadow: 'var(--shadow-neon)' }}
                   </div>
                   <div>
                     <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                      {comment.user?.username || '未知用户'}
+                      {comment.user?.username || t('comment.unknownUser')}
                     </span>
                     <span className="ml-2 text-xs text-surface-500">{formatDate(comment.created_at)}</span>
                   </div>

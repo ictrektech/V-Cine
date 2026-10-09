@@ -13,8 +13,10 @@ import { useEffect, useState, useCallback, memo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Minus, Square, Copy, X, Search } from 'lucide-react'
 import { desktop } from '@/desktop/bridge'
+import { useTranslation } from '@/i18n'
 
 function TitleBarImpl() {
+  const { t } = useTranslation()
   const [maximized, setMaximized] = useState(false)
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
@@ -132,7 +134,7 @@ function TitleBarImpl() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="搜索影片、剧集、演员..."
+            placeholder={t('common.searchPlaceholder')}
             style={{
               flex: 1,
               background: 'transparent',
@@ -151,17 +153,17 @@ function TitleBarImpl() {
         style={{ display: 'flex', flex: '0 0 auto', pointerEvents: 'auto' }}
       >
         <TitleBarButton
-          label="最小化"
+          label={t('common.minimize')}
           onClick={onMinimize}
           icon={<Minus size={14} />}
         />
         <TitleBarButton
-          label={maximized ? '还原' : '最大化'}
+          label={maximized ? t('common.restore') : t('common.maximize')}
           onClick={onToggleMax}
           icon={maximized ? <Copy size={14} /> : <Square size={14} />}
         />
         <TitleBarButton
-          label="关闭"
+          label={t('common.close')}
           onClick={onClose}
           icon={<X size={14} />}
           danger

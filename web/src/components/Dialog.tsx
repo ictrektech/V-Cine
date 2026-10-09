@@ -8,6 +8,7 @@ import {
   useEffect,
   type ReactNode,
 } from 'react'
+import { useTranslation } from '@/i18n'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import clsx from 'clsx'
 import {
@@ -179,6 +180,7 @@ function DialogShell({
   onClose: (result: any) => void
 }) {
   const { kind, options } = state
+  const { t } = useTranslation()
   const variant: Variant = options.variant ?? (kind === 'confirm' ? 'default' : 'info')
   const dismissible = options.dismissible !== false
 
@@ -227,7 +229,7 @@ function DialogShell({
           {dismissible && (
             <button
               type="button"
-              aria-label="关闭"
+              aria-label={t('common.close')}
               onClick={handleDismiss}
               className="absolute right-3 top-3 rounded-lg p-1.5 text-surface-500 transition-colors hover:bg-white/5 hover:text-white"
             >
@@ -278,6 +280,7 @@ function ConfirmBody({
     confirmRef.current?.focus()
   }, [])
 
+  const { t } = useTranslation()
   return (
     <div className="px-6 pb-6 pt-7">
       <div className="flex items-start gap-3">
@@ -312,7 +315,7 @@ function ConfirmBody({
             border: '1px solid rgba(255,255,255,0.08)',
           }}
         >
-          {options.cancelText ?? '取消'}
+          {options.cancelText ?? t('common.cancel')}
         </button>
         <button
           ref={confirmRef}
@@ -323,7 +326,7 @@ function ConfirmBody({
           }}
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${variantBtnMap[variant]}`}
         >
-          {options.confirmText ?? '确定'}
+          {options.confirmText ?? t('common.confirm')}
         </button>
       </div>
     </div>
@@ -346,6 +349,7 @@ function AlertBody({
     okRef.current?.focus()
   }, [])
 
+  const { t } = useTranslation()
   return (
     <div className="px-6 pb-6 pt-7">
       <div className="flex items-start gap-3">
@@ -380,7 +384,7 @@ function AlertBody({
           }}
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${variantBtnMap[variant]}`}
         >
-          {options.okText ?? '知道了'}
+          {options.okText ?? t('common.gotIt')}
         </button>
       </div>
     </div>
@@ -398,6 +402,7 @@ function PromptBody({
   variant: Variant
   onClose: (result: string | null) => void
 }) {
+  const { t } = useTranslation()
   const [value, setValue] = useState(options.defaultValue ?? '')
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
@@ -501,14 +506,14 @@ function PromptBody({
             border: '1px solid rgba(255,255,255,0.08)',
           }}
         >
-          {options.cancelText ?? '取消'}
+          {options.cancelText ?? t('common.cancel')}
         </button>
         <button
           type="button"
           onClick={submit}
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${variantBtnMap[variant]}`}
         >
-          {options.confirmText ?? '确定'}
+          {options.confirmText ?? t('common.confirm')}
         </button>
       </div>
     </div>

@@ -5,12 +5,13 @@ import { adultScraperApi } from '@/api'
 import { Cookie, Save, TestTube2, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 import clsx from 'clsx'
 import { useDialog } from '@/components/Dialog'
+import { useTranslation } from '@/i18n'
 
 interface SiteDef {
   id: string
   name: string
   home: string
-  tips: string
+  tipKey: string
 }
 
 const SITES: SiteDef[] = [
@@ -18,49 +19,50 @@ const SITES: SiteDef[] = [
     id: 'javbus',
     name: 'JavBus',
     home: 'https://www.javbus.com/',
-    tips: '登录后可访问无码区（havf/uncensored）',
+    tipKey: 'ac.tipUncensored',
   },
   {
     id: 'javdb',
     name: 'JavDB',
     home: 'https://javdb.com/',
-    tips: '强烈建议配置。登录后：高清封面、完整演员、评分、预告片全部可用',
+    tipKey: 'ac.tipRecommended',
   },
   {
     id: 'freejavbt',
     name: 'Freejavbt',
     home: 'https://freejavbt.com/',
-    tips: '可选，偶发性 CF 验证时建议设置',
+    tipKey: 'ac.tipOptionalCf',
   },
   {
     id: 'jav321',
     name: 'JAV321',
     home: 'https://www.jav321.com/',
-    tips: '可选，一般无需 Cookie',
+    tipKey: 'ac.tipOptionalCookie',
   },
   {
     id: 'fanza',
     name: 'Fanza (DMM)',
     home: 'https://www.dmm.co.jp/',
-    tips: '访问日本区资源建议配置 DMM 账号 Cookie',
+    tipKey: 'ac.tipDmm',
   },
   {
     id: 'mgstage',
     name: 'MGStage',
     home: 'https://www.mgstage.com/',
-    tips: '素人番号（MGS / 200GANA）建议登录态',
+    tipKey: 'ac.tipMgs',
   },
   {
     id: 'fc2hub',
     name: 'FC2Hub',
     home: 'https://fc2hub.com/',
-    tips: 'FC2-PPV 番号可选登录态',
+    tipKey: 'ac.tipFc2',
   },
 ]
 
 type CookieMap = Record<string, string>
 
 export default function AdultCookieLoginPanel() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [cookies, setCookies] = useState<CookieMap>({})
   const [visible, setVisible] = useState<Record<string, boolean>>({})
@@ -101,10 +103,10 @@ export default function AdultCookieLoginPanel() {
         cookie_mgstage: cookies.mgstage,
         cookie_fc2hub: cookies.fc2hub,
       })
-      await dialog.alert({ title: 'Cookie 已保存', variant: 'success' })
+      await dialog.alert({ title: t('ac.saved'), variant: 'success' })
     } catch (err: any) {
       await dialog.alert({
-        title: '保存失败',
+        title: t('ac.saveFailed'),
         message: err?.response?.data?.error || err?.message,
         variant: 'error',
       })
@@ -122,7 +124,7 @@ export default function AdultCookieLoginPanel() {
     } catch (err: any) {
       setTestResults({
         ...testResults,
-        [siteId]: { ok: false, message: err?.response?.data?.error || err?.message || '测试失败' },
+        [siteId]: { ok: false, message: err?.response?.data?.error || err?.message || t('ac.testFailed') },
       })
     } finally {
       setTesting('')
@@ -138,11 +140,11 @@ export default function AdultCookieLoginPanel() {
         color: 'var(--text-secondary)',
       }}>
         <div className="mb-1 flex items-center gap-1 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-          <Cookie className="h-4 w-4 text-amber-500" /> Cookie 登录（参考 mdcx 设计）
+          <Cookie className="h-4 w-4 text-amber-500" /> {t('ac.title')}
         </div>
-        <p>为每个站点配置登录态 Cookie 可解锁：<strong>高清封面、完整演员、评分、预告片、无码区资源</strong>等。</p>
+        <p>{t('ac.desc')}</p>
         <p className="mt-1">
-          <strong>获取方法</strong>：浏览器登录站点 → <kbd className="rounded bg-gray-500/20 px-1">F12</kbd> → Network → 任一请求 → 复制 <code>Cookie:</code> 头的完整字符串（不要加 "Cookie: " 前缀）
+          <strong>{t('ac.getMethodHead')}</strong>{t('ac.getMethod')}
         </p>
       </div>
 
@@ -160,17 +162,17 @@ export default function AdultCookieLoginPanel() {
                 <a href={site.home} target="_blank" rel="noreferrer"
                   className="text-xs text-blue-500 hover:underline">{site.home}</a>
                 <span className="ml-auto text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {val ? `${val.length} 字符` : '未设置'}
+                  {val ? t('ac.charCount', { n: val.length }) : t('ac.notSet')}
                 </span>
               </div>
-              <div className="mb-2 text-xs" style={{ color: 'var(--text-secondary)' }}>💡 {site.tips}</div>
+              <div className="mb-2 text-xs" style={{ color: 'var(--text-secondary)' }}>💡 {t(site.tipKey)}</div>
               <div className="flex gap-2">
                 <textarea
                   rows={2}
                   value={show ? val : val ? '•'.repeat(Math.min(val.length, 60)) : ''}
                   readOnly={!show}
                   onChange={(e) => setCookies({ ...cookies, [site.id]: e.target.value })}
-                  placeholder={loaded ? '粘贴完整 Cookie 字符串，如 _jdb_session=xxx; locale=zh; ...' : '加载中...'}
+                  placeholder={loaded ? t('ac.placeholder') : t('common.loading')}
                   className="flex-1 rounded px-2 py-1 font-mono text-xs"
                   style={{
                     background: 'var(--nav-hover-bg)',
@@ -182,7 +184,7 @@ export default function AdultCookieLoginPanel() {
                 <div className="flex flex-col gap-1">
                   <button
                     onClick={() => setVisible({ ...visible, [site.id]: !show })}
-                    title={show ? '隐藏' : '显示'}
+                    title={show ? t('ac.hide') : t('ac.show')}
                     className="rounded p-1 hover:bg-[var(--nav-hover-bg)]"
                     style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
                   >
@@ -191,7 +193,7 @@ export default function AdultCookieLoginPanel() {
                   <button
                     onClick={() => handleTest(site.id)}
                     disabled={testing === site.id}
-                    title="测试连通性"
+                    title={t('ac.test')}
                     className="rounded p-1 hover:bg-[var(--nav-hover-bg)]"
                     style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
                   >
@@ -220,7 +222,7 @@ export default function AdultCookieLoginPanel() {
           className="rounded px-3 py-1.5 text-sm hover:bg-[var(--nav-hover-bg)]"
           style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
         >
-          重新加载
+          {t('ac.reload')}
         </button>
         <button
           onClick={handleSave}
@@ -228,7 +230,7 @@ export default function AdultCookieLoginPanel() {
           className="flex items-center gap-1.5 rounded bg-purple-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-purple-600 disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          保存所有 Cookie
+          {t('ac.saveAll')}
         </button>
       </div>
     </div>

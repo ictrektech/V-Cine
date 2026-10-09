@@ -4,6 +4,7 @@ import { X, Wand2 } from 'lucide-react'
 import type { Library } from '@/types'
 import { getLibraryPaths } from '@/types'
 import SmartRenamePanel from './SmartRenamePanel'
+import { useTranslation } from '@/i18n'
 
 export interface SmartRenameDrawerProps {
   open: boolean
@@ -18,6 +19,7 @@ export interface SmartRenameDrawerProps {
  * - 接收 library 注入扫描根目录候选
  */
 export default function SmartRenameDrawer({ open, library, onClose }: SmartRenameDrawerProps) {
+  const { t } = useTranslation()
   // ESC 关闭
   useEffect(() => {
     if (!open) return
@@ -96,14 +98,14 @@ export default function SmartRenameDrawer({ open, library, onClose }: SmartRenam
                   className="text-base font-semibold truncate"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  智能扫描重命名
+                  {t('sr.title')}
                 </h2>
                 <p
                   className="text-xs truncate"
                   style={{ color: 'var(--text-tertiary)' }}
                   title={defaultPath}
                 >
-                  媒体库：<span style={{ color: 'var(--text-secondary)' }}>{library.name}</span>
+                  {t('sr.libraryColon')}<span style={{ color: 'var(--text-secondary)' }}>{library.name}</span>
                   {defaultPath && (
                     <>
                       <span className="mx-1.5">·</span>
@@ -116,7 +118,7 @@ export default function SmartRenameDrawer({ open, library, onClose }: SmartRenam
                 onClick={onClose}
                 className="rounded-lg p-2 transition-colors hover:bg-[var(--nav-hover-bg)]"
                 style={{ color: 'var(--text-tertiary)' }}
-                title="关闭 (Esc)"
+                title={`${t('common.close')} (Esc)`}
               >
                 <X size={18} />
               </button>

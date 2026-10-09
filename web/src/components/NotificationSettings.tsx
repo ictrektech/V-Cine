@@ -1,3 +1,4 @@
+import { useTranslation } from '@/i18n'
 import { useState, useEffect } from 'react'
 import { notificationApi } from '@/api'
 import type { NotificationConfig, WebhookNotifyConfig } from '@/types'
@@ -5,6 +6,7 @@ import { Bell, Mail, Send, Globe, Plus, Trash2, TestTube, Save, Loader2 } from '
 import clsx from 'clsx'
 
 export default function NotificationSettings() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<NotificationConfig>({
     enabled: false,
     webhooks: [],
@@ -49,9 +51,9 @@ export default function NotificationSettings() {
     setSaving(true)
     try {
       await notificationApi.updateConfig(config)
-      setMessage({ type: 'success', text: '通知配置已保存' })
+      setMessage({ type: 'success', text: t('nt.saved') })
     } catch {
-      setMessage({ type: 'error', text: '保存失败' })
+      setMessage({ type: 'error', text: t('nt.saveFailed') })
     } finally {
       setSaving(false)
       setTimeout(() => setMessage(null), 3000)
@@ -62,9 +64,9 @@ export default function NotificationSettings() {
     setTesting(channel)
     try {
       await notificationApi.test(channel)
-      setMessage({ type: 'success', text: `${channel} 测试通知已发送` })
+      setMessage({ type: 'success', text: t('nt.testSent', { channel }) })
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '测试失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('nt.testFailed') })
     } finally {
       setTesting(null)
       setTimeout(() => setMessage(null), 3000)
@@ -140,8 +142,8 @@ export default function NotificationSettings() {
           <div className="flex items-center gap-3">
             <Bell className="h-5 w-5 text-neon-blue" />
             <div>
-              <h3 className="font-display text-lg font-semibold text-white">智能通知系统</h3>
-              <p className="text-sm text-surface-400">新媒体入库、扫描完成等事件自动通知</p>
+              <h3 className="font-display text-lg font-semibold text-white">{t('nt.title')}</h3>
+              <p className="text-sm text-surface-400">{t('nt.desc')}</p>
             </div>
           </div>
           <label className="relative inline-flex cursor-pointer items-center">
@@ -158,16 +160,16 @@ export default function NotificationSettings() {
 
       {/* 事件订阅 */}
       <div className="card-glass rounded-2xl p-6">
-        <h3 className="font-display text-base font-semibold text-white mb-4">事件订阅</h3>
+        <h3 className="font-display text-base font-semibold text-white mb-4">{t('nt.eventsTitle')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[
-            { key: 'media_added', label: '新媒体入库' },
-            { key: 'scan_complete', label: '扫描完成' },
-            { key: 'scrape_complete', label: '刮削完成' },
-            { key: 'transcode_complete', label: '转码完成' },
-            { key: 'user_login', label: '用户登录' },
-            { key: 'system_error', label: '系统错误' },
-          ].map(({ key, label }) => (
+            { key: 'media_added', labelKey: 'nt.evMediaAdded' },
+            { key: 'scan_complete', labelKey: 'nt.evScanComplete' },
+            { key: 'scrape_complete', labelKey: 'nt.evScrapeComplete' },
+            { key: 'transcode_complete', labelKey: 'nt.evTranscodeComplete' },
+            { key: 'user_login', labelKey: 'nt.evUserLogin' },
+            { key: 'system_error', labelKey: 'nt.evSystemError' },
+          ].map(({ key, labelKey }) => (
             <label key={key} className="flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2 hover:bg-white/5">
               <input
                 type="checkbox"
@@ -178,7 +180,7 @@ export default function NotificationSettings() {
                 }))}
                 className="rounded border-surface-500 bg-surface-700 text-neon-blue focus:ring-neon-blue/30"
               />
-              <span className="text-sm text-surface-300">{label}</span>
+              <span className="text-sm text-surface-300">{t(labelKey)}</span>
             </label>
           ))}
         </div>
@@ -195,11 +197,11 @@ export default function NotificationSettings() {
             <button onClick={() => handleTest('webhook')} disabled={testing === 'webhook'}
               className="btn-ghost rounded-lg px-3 py-1.5 text-xs">
               {testing === 'webhook' ? <Loader2 className="h-3 w-3 animate-spin" /> : <TestTube className="h-3 w-3" />}
-              <span className="ml-1">测试</span>
+              <span className="ml-1">{t('nt.test')}</span>
             </button>
             <button onClick={addWebhook} className="btn-ghost rounded-lg px-3 py-1.5 text-xs">
               <Plus className="h-3 w-3" />
-              <span className="ml-1">添加</span>
+              <span className="ml-1">{t('nt.add')}</span>
             </button>
           </div>
         </div>
@@ -210,7 +212,7 @@ export default function NotificationSettings() {
                 type="text"
                 value={hook.name}
                 onChange={e => updateWebhook(hook.id, { name: e.target.value })}
-                placeholder="名称"
+                placeholder={t('nt.namePlaceholder')}
                 className="input-glass w-28 rounded-lg px-3 py-1.5 text-sm"
               />
               <input
@@ -235,7 +237,7 @@ export default function NotificationSettings() {
             </div>
           ))}
           {config.webhooks.length === 0 && (
-            <p className="text-center text-sm text-surface-500 py-4">暂无 Webhook 配置</p>
+            <p className="text-center text-sm text-surface-500 py-4">{t('nt.noWebhooks')}</p>
           )}
         </div>
       </div>
@@ -245,13 +247,13 @@ export default function NotificationSettings() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-neon-blue" />
-            <h3 className="font-display text-base font-semibold text-white">邮件通知</h3>
+            <h3 className="font-display text-base font-semibold text-white">{t('nt.emailTitle')}</h3>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => handleTest('email')} disabled={testing === 'email'}
               className="btn-ghost rounded-lg px-3 py-1.5 text-xs">
               {testing === 'email' ? <Loader2 className="h-3 w-3 animate-spin" /> : <TestTube className="h-3 w-3" />}
-              <span className="ml-1">测试</span>
+              <span className="ml-1">{t('nt.test')}</span>
             </button>
             <label className="relative inline-flex cursor-pointer items-center">
               <input
@@ -266,50 +268,50 @@ export default function NotificationSettings() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-surface-400">SMTP 服务器</label>
+            <label className="text-xs text-surface-400">{t('nt.smtpServer')}</label>
             <input type="text" value={config.email.smtp_host}
               onChange={e => setConfig(prev => ({ ...prev, email: { ...prev.email, smtp_host: e.target.value } }))}
               placeholder="smtp.example.com" className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-surface-400">端口</label>
+            <label className="text-xs text-surface-400">{t('nt.port')}</label>
             <input type="number" value={config.email.smtp_port}
               onChange={e => setConfig(prev => ({ ...prev, email: { ...prev.email, smtp_port: parseInt(e.target.value) || 587 } }))}
               className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-surface-400">用户名</label>
+            <label className="text-xs text-surface-400">{t('nt.username')}</label>
             <input type="text" value={config.email.username}
               onChange={e => setConfig(prev => ({ ...prev, email: { ...prev.email, username: e.target.value } }))}
               className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-surface-400">密码</label>
+            <label className="text-xs text-surface-400">{t('nt.password')}</label>
             <input type="password" value={config.email.password}
               onChange={e => setConfig(prev => ({ ...prev, email: { ...prev.email, password: e.target.value } }))}
               className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-surface-400">发件人地址</label>
+            <label className="text-xs text-surface-400">{t('nt.fromAddr')}</label>
             <input type="email" value={config.email.from_addr}
               onChange={e => setConfig(prev => ({ ...prev, email: { ...prev.email, from_addr: e.target.value } }))}
               className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-surface-400">发件人名称</label>
+            <label className="text-xs text-surface-400">{t('nt.fromName')}</label>
             <input type="text" value={config.email.from_name}
               onChange={e => setConfig(prev => ({ ...prev, email: { ...prev.email, from_name: e.target.value } }))}
               className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
         <div className="mt-3">
-          <label className="text-xs text-surface-400">收件人</label>
+          <label className="text-xs text-surface-400">{t('nt.recipients')}</label>
           <div className="flex items-center gap-2 mt-1">
             <input type="email" value={recipientInput}
               onChange={e => setRecipientInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addRecipient()}
-              placeholder="输入邮箱地址后回车" className="input-glass flex-1 rounded-lg px-3 py-2 text-sm" />
-            <button onClick={addRecipient} className="btn-ghost rounded-lg px-3 py-2 text-sm">添加</button>
+              placeholder={t('nt.recipientPlaceholder')} className="input-glass flex-1 rounded-lg px-3 py-2 text-sm" />
+            <button onClick={addRecipient} className="btn-ghost rounded-lg px-3 py-2 text-sm">{t('nt.add')}</button>
           </div>
           <div className="flex flex-wrap gap-2 mt-2">
             {config.email.recipients.map(email => (
@@ -333,7 +335,7 @@ export default function NotificationSettings() {
             <button onClick={() => handleTest('telegram')} disabled={testing === 'telegram'}
               className="btn-ghost rounded-lg px-3 py-1.5 text-xs">
               {testing === 'telegram' ? <Loader2 className="h-3 w-3 animate-spin" /> : <TestTube className="h-3 w-3" />}
-              <span className="ml-1">测试</span>
+              <span className="ml-1">{t('nt.test')}</span>
             </button>
             <label className="relative inline-flex cursor-pointer items-center">
               <input
@@ -367,7 +369,7 @@ export default function NotificationSettings() {
         <button onClick={handleSave} disabled={saving}
           className="btn-neon rounded-xl px-6 py-2.5 text-sm font-medium flex items-center gap-2">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          保存配置
+          {t('nt.saveBtn')}
         </button>
       </div>
     </div>

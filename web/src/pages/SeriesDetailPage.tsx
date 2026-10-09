@@ -168,7 +168,7 @@ export default function SeriesDetailPage() {
         setIsFavorited(true)
       }
     } catch {
-      toast.error('收藏操作失败')
+      toast.error(t('mediaDetail.favoriteFailed'))
     }
   }
 
@@ -224,13 +224,13 @@ export default function SeriesDetailPage() {
     // 优先尝试直输 ID / URL 解析（支持 https://www.themoviedb.org/movie/128881-3、128881、128881-3 等）
     const direct = parseDirectMatchId(matchQuery, matchSource)
     if (direct) {
-      const sourceLabel = { tmdb: 'TMDb', douban: '豆瓣', bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[direct.source]
+      const sourceLabel = { tmdb: 'TMDb', douban: t('mediaDetail.doubanLabel'), bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[direct.source]
       // URL 中推导出的源与当前 tab 不一致，自动切换
       if (direct.source !== matchSource) {
         setMatchSource(direct.source)
-        toast.info(`已识别为 ${sourceLabel} 链接，已自动切换数据源`)
+        toast.info(t('seriesDetail.linkedDetected', { source: sourceLabel }))
       }
-      toast.success(`已识别 ${sourceLabel} ID：${direct.id}，正在绑定…`)
+      toast.success(t('seriesDetail.linkedId', { source: sourceLabel, id: direct.id }))
       // 直接走 select 流程完成绑定（剧集页是点击即绑，没有"应用"中间态）
       const idForApply: number | string = direct.source === 'douban' ? direct.id : Number(direct.id)
       // 用 microtask 延迟到下一帧执行，并显式传入来源，避免 setMatchSource 尚未完成导致走错匹配接口。
@@ -243,19 +243,19 @@ export default function SeriesDetailPage() {
         const res = await adminApi.searchMetadata(matchQuery, 'tv')
         setMatchResults(res.data.data || [])
         if ((res.data.data || []).length === 0) {
-          toast.info('TMDb 未找到匹配结果，请尝试其他关键词或切换到其他数据源')
+          toast.info(t('mediaDetail.tmdbNoResult'))
         }
       } else if (matchSource === 'douban') {
         const res = await adminApi.searchDouban(matchQuery, series?.year || undefined)
         setMatchResults(res.data.data || [])
         if ((res.data.data || []).length === 0) {
-          toast.info('豆瓣未找到匹配结果，请尝试其他关键词')
+          toast.info(t('mediaDetail.doubanNoResult'))
         }
       } else if (matchSource === 'thetvdb') {
         const res = await adminApi.searchTheTVDB(matchQuery, series?.year || undefined)
         setMatchResults(res.data.data || [])
         if ((res.data.data || []).length === 0) {
-          toast.info('TheTVDB 未找到匹配结果，请尝试其他关键词')
+          toast.info(t('mediaDetail.thetvdbNoResult'))
         }
       } else {
         // Bangumi 搜索：2=动画, 6=三次元
@@ -263,17 +263,17 @@ export default function SeriesDetailPage() {
         const res = await adminApi.searchBangumi(matchQuery, subjectType, series?.year || undefined)
         setMatchResults(res.data.data || [])
         if ((res.data.data || []).length === 0) {
-          toast.info('Bangumi 未找到匹配结果，可尝试切换类型（动画/三次元）或更换关键词')
+          toast.info(t('mediaDetail.bangumiNoResult'))
         }
       }
     } catch (err) {
       const errorMap: Record<string, string> = {
-        tmdb: '搜索失败，请检查 TMDb API Key 或网络/代理配置',
-        douban: '豆瓣搜索失败',
-        thetvdb: 'TheTVDB 搜索失败，请检查 API Key 配置',
-        bangumi: 'Bangumi 搜索失败',
+        tmdb: t('mediaDetail.tmdbSearchFailed'),
+        douban: t('mediaDetail.doubanSearchFailed'),
+        thetvdb: t('mediaDetail.thetvdbSearchFailed'),
+        bangumi: t('mediaDetail.bangumiSearchFailed'),
       }
-      toast.error(formatErrMsg(err, errorMap[matchSource] || '搜索失败'))
+      toast.error(formatErrMsg(err, errorMap[matchSource] || t('seriesDetail.searchFailed')))
     } finally {
       setMatchSearching(false)
     }
@@ -283,7 +283,7 @@ export default function SeriesDetailPage() {
     if (!id) return
     setMatchSelecting(true)
     try {
-      const sourceNameMap: Record<string, string> = { tmdb: 'TMDb', bangumi: 'Bangumi', douban: '豆瓣', thetvdb: 'TheTVDB' }
+      const sourceNameMap: Record<string, string> = { tmdb: 'TMDb', bangumi: 'Bangumi', douban: t('mediaDetail.doubanLabel'), thetvdb: 'TheTVDB' }
       if (source === 'tmdb') {
         await adminApi.matchSeriesMetadata(id, resultId as number)
       } else if (source === 'douban') {
@@ -296,9 +296,9 @@ export default function SeriesDetailPage() {
       // 重新获取剧集详情、季信息、演职人员，并强制刷新海报/背景图缓存
       await refreshSeriesDetail(id, true)
       setShowMatchModal(false)
-      toast.success(`剧集匹配成功（来源：${sourceNameMap[source]}）`)
+      toast.success(t('seriesDetail.matchSuccess', { source: sourceNameMap[source] }))
     } catch {
-      toast.error('匹配失败')
+      toast.error(t('mediaDetail.matchFailed'))
     } finally {
       setMatchSelecting(false)
     }
@@ -310,9 +310,9 @@ export default function SeriesDetailPage() {
       await adminApi.unmatchSeriesMetadata(id)
       await refreshSeriesDetail(id, true)
       setShowUnmatchConfirm(false)
-      toast.success('已解除匹配')
+      toast.success(t('mediaDetail.unmatchSuccess'))
     } catch {
-      toast.error('解除匹配失败')
+      toast.error(t('mediaDetail.unmatchFailed'))
     }
   }
 
@@ -322,9 +322,9 @@ export default function SeriesDetailPage() {
     try {
       await adminApi.scrapeSeriesMetadata(id)
       await refreshSeriesDetail(id, true)
-      toast.success('元数据刷新成功')
+      toast.success(t('mediaDetail.refreshSuccess'))
     } catch (err) {
-      toast.error(formatErrMsg(err, '元数据刷新失败'))
+      toast.error(formatErrMsg(err, t('seriesDetail.refreshFailed')))
     } finally {
       setScraping(false)
     }
@@ -352,9 +352,9 @@ export default function SeriesDetailPage() {
       await adminApi.updateSeriesMetadata(id, editForm)
       await refreshSeriesDetail(id, true)
       setShowEditModal(false)
-      toast.success('元数据已更新')
+      toast.success(t('mediaDetail.editSuccess'))
     } catch {
-      toast.error('更新元数据失败')
+      toast.error(t('mediaDetail.editFailed'))
     }
   }
 
@@ -363,17 +363,17 @@ export default function SeriesDetailPage() {
     try {
       await adminApi.deleteSeries(id)
       invalidateMediaListCaches()
-      toast.success('剧集已删除')
+      toast.success(t('seriesDetail.deleteSuccess'))
       navigate(-1)
     } catch {
-      toast.error('删除剧集失败')
+      toast.error(t('seriesDetail.deleteFailed'))
     }
   }
 
   if (loadFailed) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>加载剧集详情失败</p>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('seriesDetail.loadFailed')}</p>
         <button
           onClick={() => setReloadKey((n) => n + 1)}
           className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 text-sm"
@@ -506,7 +506,7 @@ export default function SeriesDetailPage() {
             <div className="flex min-w-0 flex-1 flex-col justify-end">
               {/* 类型标签 */}
               <div className="mb-1 flex items-center gap-2">
-                <span className="badge-accent">剧集</span>
+                <span className="badge-accent">{t('seriesDetail.badge')}</span>
               </div>
 
               {/* 标题 */}
@@ -535,7 +535,7 @@ export default function SeriesDetailPage() {
                     }}
                   >
                     <Play size={22} fill="currentColor" />
-                    播放
+                    {t('media.play')}
                   </Link>
                 ))}
 
@@ -552,7 +552,7 @@ export default function SeriesDetailPage() {
                     backdropFilter: 'blur(12px)',
                     color: isFavorited ? undefined : 'var(--text-secondary)',
                   }}
-                  title={isFavorited ? '取消收藏' : '收藏'}
+                  title={isFavorited ? t('media.removeFavorite') : t('media.favorite')}
                 >
                   {isFavorited ? <Heart size={20} fill="currentColor" /> : <Heart size={20} />}
                 </button>
@@ -601,14 +601,14 @@ export default function SeriesDetailPage() {
                       {/* 管理操作（仅管理员可见） */}
                       {isAdmin && (
                         <>
-                          <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>剧集管理</div>
+                          <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('seriesDetail.management')}</div>
                           <button
                             onClick={() => { handleManualMatch(); setShowMoreMenu(false) }}
                             className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-neon-blue/5"
                             style={{ color: 'var(--text-secondary)' }}
                           >
                             <Link2 size={14} />
-                            手动匹配剧集
+                            {t('seriesDetail.manualMatch')}
                           </button>
                           <button
                             onClick={() => { setShowUnmatchConfirm(true); setShowMoreMenu(false) }}
@@ -616,7 +616,7 @@ export default function SeriesDetailPage() {
                             style={{ color: 'var(--text-secondary)' }}
                           >
                             <Unlink size={14} />
-                            解除匹配剧集
+                            {t('seriesDetail.unmatchTitle')}
                           </button>
                           <button
                             onClick={() => { handleRefreshMetadata(); setShowMoreMenu(false) }}
@@ -625,7 +625,7 @@ export default function SeriesDetailPage() {
                             style={{ color: 'var(--text-secondary)' }}
                           >
                             <RefreshCw size={14} className={clsx(scraping && 'animate-spin')} />
-                            {scraping ? '刷新中...' : '刷新元数据'}
+                            {scraping ? t('seriesDetail.refreshing') : t('seriesDetail.refreshMetadata')}
                           </button>
                           <button
                             onClick={() => { handleEditMetadata(); setShowMoreMenu(false) }}
@@ -633,26 +633,26 @@ export default function SeriesDetailPage() {
                             style={{ color: 'var(--text-secondary)' }}
                           >
                             <Pencil size={14} />
-                            编辑元数据
+                            {t('seriesDetail.editMetadata')}
                           </button>
                           <button
                             onClick={() => { setShowDeleteConfirm(true); setShowMoreMenu(false) }}
                             className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
                           >
                             <Trash2 size={14} />
-                            删除剧集
+                            {t('seriesDetail.deleteTitle')}
                           </button>
                           <div className="my-1 mx-3 h-px" style={{ background: 'var(--border-default)' }} />
                         </>
                       )}
                       {/* 通用操作 */}
                       <button
-                        onClick={() => { navigator.clipboard.writeText(window.location.href).then(() => toast.success('链接已复制')).catch(() => {}); setShowMoreMenu(false) }}
+                        onClick={() => { navigator.clipboard.writeText(window.location.href).then(() => toast.success(t('seriesDetail.linkCopied'))).catch(() => {}); setShowMoreMenu(false) }}
                         className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-neon-blue/5"
                         style={{ color: 'var(--text-secondary)' }}
                       >
                         <Share2 size={14} />
-                        分享链接
+                        {t('seriesDetail.shareLink')}
                       </button>
                     </div>
                   )}
@@ -670,7 +670,7 @@ export default function SeriesDetailPage() {
                   <span className="rounded-lg px-2.5 py-1 text-sm"
                     style={{ background: 'var(--neon-blue-4)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
                   >
-                    {series.season_count} 季 · {series.episode_count} 集
+                    {t('library.seasonEpisode', { seasons: series.season_count, episodes: series.episode_count })}
                   </span>
                   {series.genres && series.genres.split(',').slice(0, 3).map((g) => (
                     <Link key={g} to={`/search?q=${encodeURIComponent(g.trim())}`}
@@ -695,7 +695,7 @@ export default function SeriesDetailPage() {
                   <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{series.year}</span>
                 )}
                 <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  {series.season_count} 季 · {series.episode_count} 集
+                  {t('library.seasonEpisode', { seasons: series.season_count, episodes: series.episode_count })}
                 </span>
               </div>
             </div>
@@ -728,9 +728,9 @@ export default function SeriesDetailPage() {
                 className="mt-2 flex items-center gap-1 text-xs font-medium text-neon transition-colors hover:text-neon-blue"
               >
                 {overviewExpanded ? (
-                  <><ChevronUp size={14} />收起</>
+                  <><ChevronUp size={14} />{t('collections.collapse')}</>
                 ) : (
-                  <><ChevronDown size={14} />展开全部</>
+                  <><ChevronDown size={14} />{t('seriesDetail.expandAll')}</>
                 )}
               </button>
             )}
@@ -760,7 +760,7 @@ export default function SeriesDetailPage() {
         {/* 数据来源标识 */}
         {(series.tmdb_id > 0 || series.douban_id || series.bangumi_id > 0) && (
           <section className="flex items-center gap-2 text-sm">
-            <span className="shrink-0" style={{ color: 'var(--text-muted)' }}>数据来源：</span>
+            <span className="shrink-0" style={{ color: 'var(--text-muted)' }}>{t('seriesDetail.dataSource')}</span>
             <div className="flex flex-wrap gap-1.5">
               {series.tmdb_id > 0 && (
                 <a
@@ -781,7 +781,7 @@ export default function SeriesDetailPage() {
                   className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
                   style={{ background: 'rgba(0,180,20,0.12)', color: '#00b414' }}
                 >
-                  🎯 豆瓣 #{series.douban_id}
+                  🎯 {t('mediaDetail.doubanLabel')} #{series.douban_id}
                 </a>
               )}
               {series.bangumi_id > 0 && (
@@ -817,7 +817,7 @@ export default function SeriesDetailPage() {
                 color: 'var(--neon-blue)',
               } : { border: '1px solid transparent', color: 'var(--text-secondary)' }}
             >
-              季视图
+              {t('seriesDetail.seasonView')}
             </button>
             <button
               onClick={() => setViewMode('all')}
@@ -831,7 +831,7 @@ export default function SeriesDetailPage() {
                 color: 'var(--neon-blue)',
               } : { border: '1px solid transparent', color: 'var(--text-secondary)' }}
             >
-              全部剧集
+              {t('seriesDetail.allEpisodes')}
             </button>
           </div>
 
@@ -859,8 +859,8 @@ export default function SeriesDetailPage() {
                         color: 'var(--text-secondary)',
                       }}
                     >
-                      {season.season_num === 0 ? '特别篇' : `第 ${season.season_num} 季`}
-                      <span className="ml-1.5 text-xs opacity-60">({season.episode_count}集)</span>
+                      {season.season_num === 0 ? t('seriesDetail.special') : t('seriesDetail.seasonNum', { num: season.season_num })}
+                      <span className="ml-1.5 text-xs opacity-60">({t('seriesDetail.episodeCountSuffix', { count: season.episode_count })})</span>
                     </button>
                   ))}
                 </div>
@@ -869,7 +869,7 @@ export default function SeriesDetailPage() {
               {/* 展示模式切换 */}
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                  共 {activeSeasonData?.episode_count || 0} 集
+                  {t('seriesDetail.totalEpisodes', { count: activeSeasonData?.episode_count || 0 })}
                 </span>
                 <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg-surface)' }}>
                   <button
@@ -883,7 +883,7 @@ export default function SeriesDetailPage() {
                       color: 'var(--neon-blue)',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                     } : { color: 'var(--text-muted)' }}
-                    title="幻灯片模式"
+                    title={t('seriesDetail.slideMode')}
                   >
                     <GalleryHorizontal size={14} />
                   </button>
@@ -898,7 +898,7 @@ export default function SeriesDetailPage() {
                       color: 'var(--neon-blue)',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                     } : { color: 'var(--text-muted)' }}
-                    title="列表模式"
+                    title={t('seriesDetail.listMode')}
                   >
                     <LayoutList size={14} />
                   </button>
@@ -985,9 +985,9 @@ export default function SeriesDetailPage() {
               {seasons.map((season) => (
                 <div key={season.season_num}>
                   <h4 className="mb-3 font-display text-base font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
-                    {season.season_num === 0 ? '特别篇' : `第 ${season.season_num} 季`}
+                    {season.season_num === 0 ? t('seriesDetail.special') : t('seriesDetail.seasonNum', { num: season.season_num })}
                     <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
-                      {season.episode_count} 集
+                      {t('seriesDetail.episodeCountSuffix2', { count: season.episode_count })}
                     </span>
                   </h4>
                   <div className="space-y-2">
@@ -1011,7 +1011,7 @@ export default function SeriesDetailPage() {
       {showMatchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="relative w-full max-w-2xl rounded-2xl p-6 shadow-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}>
-            <h3 className="mb-4 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>手动匹配剧集</h3>
+            <h3 className="mb-4 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{t('seriesDetail.manualMatch')}</h3>
             {/* 数据源切换 */}
             <div className="mb-4 flex flex-wrap gap-2">
               <button
@@ -1034,7 +1034,7 @@ export default function SeriesDetailPage() {
                   border: matchSource === 'douban' ? 'none' : '1px solid var(--border-default)',
                 }}
               >
-                🎯 豆瓣
+                🎯 {t('mediaDetail.doubanLabel')}
               </button>
               <button
                 onClick={() => { setMatchSource('bangumi'); setMatchResults([]) }}
@@ -1061,10 +1061,10 @@ export default function SeriesDetailPage() {
             </div>
             <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
               {{
-                tmdb: '搜索 TMDb 数据库，适合欧美电视剧。',
-                douban: '搜索豆瓣数据库，适合国产剧集和电影。',
-                bangumi: '搜索 Bangumi (bgm.tv) 数据库，适合日本动画/日剧。',
-                thetvdb: '搜索 TheTVDB 数据库，适合各类电视剧集。',
+                tmdb: t('mediaDetail.tmdbDesc'),
+                douban: t('mediaDetail.doubanDesc'),
+                bangumi: t('mediaDetail.bangumiDesc'),
+                thetvdb: t('mediaDetail.thetvdbDesc'),
               }[matchSource]}
             </p>
             <div className="mb-4 flex gap-2">
@@ -1072,7 +1072,7 @@ export default function SeriesDetailPage() {
                 value={matchQuery}
                 onChange={(e) => setMatchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleMatchSearch()}
-                placeholder="输入名称 / TMDb·豆瓣·Bangumi 链接 / ID（如 1399）"
+                placeholder={t('seriesDetail.matchPlaceholder')}
                 className="flex-1 rounded-xl px-4 py-2.5 text-sm outline-none"
                 style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                 autoFocus
@@ -1083,7 +1083,7 @@ export default function SeriesDetailPage() {
                 className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
                 style={{ background: { tmdb: 'var(--neon-blue)', douban: '#00b414', bangumi: '#f09199', thetvdb: '#6dc849' }[matchSource] }}
               >
-                {matchSearching ? '搜索中...' : '搜索'}
+                {matchSearching ? t('mediaDetail.searching') : t('mediaDetail.searchBtn')}
               </button>
             </div>
             <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
@@ -1144,7 +1144,7 @@ export default function SeriesDetailPage() {
                         </div>
                         {matchSource === 'bangumi' && (
                           <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'rgba(240,145,153,0.15)', color: '#f09199' }}>
-                            {result.type === 2 ? '动画' : result.type === 6 ? '三次元' : 'BGM'}
+                            {result.type === 2 ? t('seriesDetail.typeAnime') : result.type === 6 ? t('seriesDetail.typeLiveAction') : 'BGM'}
                           </span>
                         )}
                         {matchSource === 'douban' && result.genres && (
@@ -1162,7 +1162,7 @@ export default function SeriesDetailPage() {
                           <span className="text-yellow-400">★ {displayRating.toFixed(1)}</span>
                         )}
                         {matchSource === 'bangumi' && result.eps > 0 && (
-                          <span>{result.eps}话</span>
+                          <span>{t('seriesDetail.epsCount', { count: result.eps })}</span>
                         )}
                       </div>
                       {displayOverview && (
@@ -1174,7 +1174,7 @@ export default function SeriesDetailPage() {
               })}
               {matchResults.length === 0 && !matchSearching && (
                 <div className="py-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                  输入关键词搜索 {{ tmdb: 'TMDb', douban: '豆瓣', bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[matchSource]} 数据库，或直接粘贴 URL / ID
+                  {t('mediaDetail.searchHint', { source: matchSource === 'douban' ? t('mediaDetail.doubanLabel') : { tmdb: 'TMDb', bangumi: 'Bangumi', thetvdb: 'TheTVDB' }[matchSource] })}
                 </div>
               )}
             </div>
@@ -1185,15 +1185,15 @@ export default function SeriesDetailPage() {
                 className="rounded-xl px-5 py-2 text-sm font-medium transition-colors hover:opacity-80 disabled:opacity-50"
                 style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
               >
-                取消
+                {t('common.cancel')}
               </button>
             </div>
             {/* 匹配中 loading 遮罩 */}
             {matchSelecting && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
                 <RefreshCw size={32} className="animate-spin text-neon mb-3" />
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>正在匹配元数据...</p>
-                <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>请稍候，正在获取并同步剧集信息</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('seriesDetail.matching')}</p>
+                <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>{t('seriesDetail.matchingHint')}</p>
               </div>
             )}
           </div>
@@ -1204,9 +1204,9 @@ export default function SeriesDetailPage() {
       {showUnmatchConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}>
-            <h3 className="mb-2 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>解除匹配剧集</h3>
+            <h3 className="mb-2 text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{t('seriesDetail.unmatchTitle')}</h3>
             <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              确定要解除此剧集的元数据匹配吗？这将清除所有从 TMDb/豆瓣获取的信息（简介、海报、评分等），但保留原始的剧集名称。
+              {t('seriesDetail.unmatchDesc')}
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -1214,13 +1214,13 @@ export default function SeriesDetailPage() {
                 className="rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
                 style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleUnmatch}
                 className="rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-orange-500"
               >
-                确认解除
+                {t('mediaDetail.unmatchConfirm')}
               </button>
             </div>
           </div>
@@ -1248,12 +1248,12 @@ export default function SeriesDetailPage() {
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}>
-            <h3 className="mb-2 text-lg font-bold text-red-400">删除剧集</h3>
+            <h3 className="mb-2 text-lg font-bold text-red-400">{t('seriesDetail.deleteTitle')}</h3>
             <p className="mb-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              确定要删除此剧集合集及其所有剧集记录吗？
+              {t('seriesDetail.deleteDesc')}
             </p>
             <p className="mb-6 text-xs" style={{ color: 'var(--text-muted)' }}>
-              此操作仅从数据库中移除记录，不会删除磁盘上的视频文件。重新扫描媒体库后可恢复。
+              {t('mediaDetail.deleteHint')}
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -1261,13 +1261,13 @@ export default function SeriesDetailPage() {
                 className="rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
                 style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-red-500"
               >
-                确认删除
+                {t('mediaDetail.deleteConfirm')}
               </button>
             </div>
           </div>
@@ -1279,6 +1279,7 @@ export default function SeriesDetailPage() {
 
 // 剧集卡片组件
 function EpisodeCard({ episode: ep, seriesTitle, historyRecord, posterVersion }: { episode: Media; seriesTitle: string; historyRecord?: WatchHistory; posterVersion?: number }) {
+  const { t } = useTranslation()
   const watchStatus = (() => {
     if (!historyRecord) return { watched: false, progress: 0 }
     return {
@@ -1290,7 +1291,7 @@ function EpisodeCard({ episode: ep, seriesTitle, historyRecord, posterVersion }:
   const formatDuration = (seconds: number) => {
     if (!seconds) return ''
     const m = Math.floor(seconds / 60)
-    return `${m}分钟`
+    return t('media.durationMin', { minutes: m })
   }
 
   return (
@@ -1347,10 +1348,10 @@ function EpisodeCard({ episode: ep, seriesTitle, historyRecord, posterVersion }:
           <h4 className={clsx(
             'truncate text-sm font-medium transition-colors group-hover:text-neon'
           )} style={watchStatus.watched ? { color: 'var(--text-muted)' } : { color: 'var(--text-primary)' }}>
-            {ep.episode_title || (ep.episode_num > 0 ? `第 ${ep.episode_num} 集` : seriesTitle)}
+            {ep.episode_title || (ep.episode_num > 0 ? t('seriesDetail.episodeNum', { num: ep.episode_num }) : seriesTitle)}
           </h4>
           {watchStatus.watched && (
-            <span className="flex-shrink-0 text-[10px] text-green-400/70">✓ 已看</span>
+            <span className="flex-shrink-0 text-[10px] text-green-400/70">{t('seriesDetail.watched')}</span>
           )}
         </div>
         <div className="mt-1 flex items-center gap-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -1390,6 +1391,7 @@ function EpisodeCard({ episode: ep, seriesTitle, historyRecord, posterVersion }:
 
 // 幻灯片模式的剧集卡片组件
 function EpisodeSlideCard({ episode: ep, seriesTitle, historyRecord, posterVersion }: { episode: Media; seriesTitle: string; historyRecord?: WatchHistory; posterVersion?: number }) {
+  const { t } = useTranslation()
   const watchStatus = (() => {
     if (!historyRecord) return { watched: false, progress: 0 }
     return {
@@ -1401,7 +1403,7 @@ function EpisodeSlideCard({ episode: ep, seriesTitle, historyRecord, posterVersi
   const formatDuration = (seconds: number) => {
     if (!seconds) return ''
     const m = Math.floor(seconds / 60)
-    return `${m}分钟`
+    return t('media.durationMin', { minutes: m })
   }
 
   return (
@@ -1476,11 +1478,11 @@ function EpisodeSlideCard({ episode: ep, seriesTitle, historyRecord, posterVersi
         <h4 className={clsx(
           'truncate text-xs font-medium transition-colors group-hover:text-neon'
         )} style={watchStatus.watched ? { color: 'var(--text-muted)' } : { color: 'var(--text-primary)' }}>
-          {ep.episode_title || (ep.episode_num > 0 ? `第 ${ep.episode_num} 集` : seriesTitle)}
+          {ep.episode_title || (ep.episode_num > 0 ? t('seriesDetail.episodeNum', { num: ep.episode_num }) : seriesTitle)}
         </h4>
         <div className="mt-1 flex items-center gap-2 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
           {watchStatus.watched && (
-            <span className="text-green-400/70">✓ 已看</span>
+            <span className="text-green-400/70">{t('seriesDetail.watched')}</span>
           )}
           {!watchStatus.watched && watchStatus.progress > 0 && (
             <span className="text-neon/60">{watchStatus.progress}%</span>

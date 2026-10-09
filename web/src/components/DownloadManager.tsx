@@ -6,8 +6,10 @@ import {
   HardDrive, Clock, Zap, CheckCircle, AlertCircle,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 export default function DownloadManager() {
+  const { t } = useTranslation()
   const [tasks, setTasks] = useState<DownloadTask[]>([])
   const [queue, setQueue] = useState<DownloadQueueInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,7 +47,7 @@ export default function DownloadManager() {
       }
       loadData()
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '操作失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('dl.operationFailed') })
       setTimeout(() => setMessage(null), 3000)
     }
   }
@@ -64,9 +66,9 @@ export default function DownloadManager() {
 
   const formatETA = (seconds: number) => {
     if (seconds <= 0) return '--'
-    if (seconds < 60) return `${seconds}秒`
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`
-    return `${Math.floor(seconds / 3600)}时${Math.floor((seconds % 3600) / 60)}分`
+    if (seconds < 60) return t('dl.seconds', { n: seconds })
+    if (seconds < 3600) return t('dl.minutes', { n: Math.floor(seconds / 60), m: seconds % 60 })
+    return t('dl.hours', { n: Math.floor(seconds / 3600), m: Math.floor((seconds % 3600) / 60) })
   }
 
   const getStatusIcon = (status: string) => {
@@ -81,8 +83,8 @@ export default function DownloadManager() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      pending: '等待中', downloading: '下载中', paused: '已暂停',
-      completed: '已完成', failed: '失败', cancelled: '已取消',
+      pending: t('dl.statusPending'), downloading: t('dl.statusDownloading'), paused: t('dl.statusPaused'),
+      completed: t('dl.statusCompleted'), failed: t('dl.statusFailed'), cancelled: t('dl.statusCancelled'),
     }
     return labels[status] || status
   }
@@ -144,11 +146,11 @@ export default function DownloadManager() {
       {queue && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: '总计', value: queue.total, color: 'text-white' },
-            { label: '下载中', value: queue.downloading, color: 'text-neon-blue' },
-            { label: '等待中', value: queue.pending, color: 'text-yellow-400' },
-            { label: '已完成', value: queue.completed, color: 'text-green-400' },
-            { label: '失败', value: queue.failed, color: 'text-red-400' },
+            { label: t('dl.statTotal'), value: queue.total, color: 'text-white' },
+            { label: t('dl.statusDownloading'), value: queue.downloading, color: 'text-neon-blue' },
+            { label: t('dl.statusPending'), value: queue.pending, color: 'text-yellow-400' },
+            { label: t('dl.statusCompleted'), value: queue.completed, color: 'text-green-400' },
+            { label: t('dl.statusFailed'), value: queue.failed, color: 'text-red-400' },
           ].map(({ label, value, color }) => (
             <div key={label} className="card-glass rounded-xl p-4 text-center">
               <p className={clsx('font-display text-2xl font-bold', color)}>{value}</p>
@@ -161,15 +163,15 @@ export default function DownloadManager() {
       {/* 筛选 */}
       <div className="flex items-center gap-2">
         <Download className="h-5 w-5 text-neon-blue" />
-        <h2 className="font-display text-xl font-semibold text-white flex-1">离线下载</h2>
+        <h2 className="font-display text-xl font-semibold text-white flex-1">{t('dl.title')}</h2>
         <select value={filter} onChange={e => setFilter(e.target.value)}
           className="input-glass rounded-lg px-3 py-2 text-sm">
-          <option value="">全部</option>
-          <option value="downloading">下载中</option>
-          <option value="pending">等待中</option>
-          <option value="completed">已完成</option>
-          <option value="failed">失败</option>
-          <option value="paused">已暂停</option>
+          <option value="">{t('common.all')}</option>
+          <option value="downloading">{t('dl.statusDownloading')}</option>
+          <option value="pending">{t('dl.statusPending')}</option>
+          <option value="completed">{t('dl.statusCompleted')}</option>
+          <option value="failed">{t('dl.statusFailed')}</option>
+          <option value="paused">{t('dl.statusPaused')}</option>
         </select>
       </div>
 
@@ -224,25 +226,25 @@ export default function DownloadManager() {
               <div className="flex items-center gap-1 shrink-0">
                 {task.status === 'downloading' && (
                   <button onClick={() => handleAction('pause', task.id)}
-                    className="btn-ghost rounded-lg p-2 text-xs" title="暂停">
+                    className="btn-ghost rounded-lg p-2 text-xs" title={t('dl.pause')}>
                     <Pause className="h-4 w-4" />
                   </button>
                 )}
                 {task.status === 'paused' && (
                   <button onClick={() => handleAction('resume', task.id)}
-                    className="btn-ghost rounded-lg p-2 text-xs" title="恢复">
+                    className="btn-ghost rounded-lg p-2 text-xs" title={t('dl.resume')}>
                     <Play className="h-4 w-4" />
                   </button>
                 )}
                 {(task.status === 'downloading' || task.status === 'pending' || task.status === 'paused') && (
                   <button onClick={() => handleAction('cancel', task.id)}
-                    className="text-red-400 hover:text-red-300 rounded-lg p-2 text-xs" title="取消">
+                    className="text-red-400 hover:text-red-300 rounded-lg p-2 text-xs" title={t('common.cancel')}>
                     <X className="h-4 w-4" />
                   </button>
                 )}
                 {(task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') && (
                   <button onClick={() => handleAction('delete', task.id)}
-                    className="text-red-400 hover:text-red-300 rounded-lg p-2 text-xs" title="删除">
+                    className="text-red-400 hover:text-red-300 rounded-lg p-2 text-xs" title={t('common.delete')}>
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}
@@ -254,8 +256,8 @@ export default function DownloadManager() {
         {tasks.length === 0 && (
           <div className="text-center py-16 text-surface-500">
             <Download className="h-16 w-16 mx-auto mb-4 opacity-20" />
-            <p className="text-lg">暂无下载任务</p>
-            <p className="text-sm mt-1">在媒体详情页点击下载按钮开始离线下载</p>
+            <p className="text-lg">{t('dl.empty')}</p>
+            <p className="text-sm mt-1">{t('dl.emptyHint')}</p>
           </div>
         )}
       </div>

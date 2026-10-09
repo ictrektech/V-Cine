@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { modalOverlayVariants, modalContentVariants } from '@/lib/motion'
+import { useTranslation } from '@/i18n'
 
 interface TrailerModalProps {
   trailerUrl: string
@@ -13,6 +14,7 @@ interface TrailerModalProps {
  * 支持 ESC 关闭、点击遮罩关闭，framer-motion 进出场动画
  */
 export default function TrailerModal({ trailerUrl, onClose }: TrailerModalProps) {
+  const { t } = useTranslation()
   const overlayRef = useRef<HTMLDivElement>(null)
 
   // 从 YouTube URL 中提取视频 ID
@@ -61,7 +63,7 @@ export default function TrailerModal({ trailerUrl, onClose }: TrailerModalProps)
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
-      aria-label="预告片播放器"
+      aria-label={t('trailer.playerAria')}
     >
       {/* 遮罩 — 动画淡入 */}
       <motion.div
@@ -78,7 +80,7 @@ export default function TrailerModal({ trailerUrl, onClose }: TrailerModalProps)
         onClick={onClose}
         className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full text-white/60 transition-colors hover:text-white"
         style={{ background: 'rgba(255, 255, 255, 0.1)' }}
-        aria-label="关闭预告片"
+        aria-label={t('trailer.closeAria')}
       >
         <X size={22} />
       </button>
@@ -95,7 +97,7 @@ export default function TrailerModal({ trailerUrl, onClose }: TrailerModalProps)
           <iframe
             className="absolute inset-0 h-full w-full"
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`}
-            title="预告片"
+            title={t('trailer.title')}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             style={{ border: 'none' }}

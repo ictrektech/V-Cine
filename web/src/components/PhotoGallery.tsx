@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react'
 import { photoApi } from '@/api'
 import type { Photo, PhotoAlbum } from '@/types'
 import {
+
   Camera, Image, FolderOpen, Heart, Star, Search,
   Grid3X3, Loader2, X, ZoomIn, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 type Tab = 'photos' | 'albums'
 
 export default function PhotoGallery() {
+  const { t } = useTranslation()
   const [tab, setTab] = useState<Tab>('photos')
   const [photos, setPhotos] = useState<Photo[]>([])
   const [albums, setAlbums] = useState<PhotoAlbum[]>([])
@@ -87,12 +90,12 @@ export default function PhotoGallery() {
       {/* 标题和搜索 */}
       <div className="flex items-center gap-3">
         <Camera className="h-5 w-5 text-neon-blue" />
-        <h2 className="font-display text-xl font-semibold text-white">图片库</h2>
+        <h2 className="font-display text-xl font-semibold text-white">{t('photo.title')}</h2>
         <div className="flex-1" />
         <div className="flex items-center gap-2">
           <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="搜索照片..." className="input-glass rounded-lg px-3 py-2 text-sm w-48" />
+            placeholder={t('photo.searchPlaceholder')} className="input-glass rounded-lg px-3 py-2 text-sm w-48" />
           <button onClick={handleSearch} className="btn-ghost rounded-lg p-2">
             <Search className="h-4 w-4" />
           </button>
@@ -102,8 +105,8 @@ export default function PhotoGallery() {
       {/* Tab 切换 */}
       <div className="flex gap-1 rounded-xl bg-surface-800/50 p-1">
         {[
-          { key: 'photos' as Tab, label: '所有照片', icon: Grid3X3 },
-          { key: 'albums' as Tab, label: '相册', icon: FolderOpen },
+          { key: 'photos' as Tab, label: t('photo.allPhotos'), icon: Grid3X3 },
+          { key: 'albums' as Tab, label: t('photo.albums'), icon: FolderOpen },
         ].map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => { setTab(key); setPage(1) }}
             className={clsx(
@@ -151,17 +154,17 @@ export default function PhotoGallery() {
           {total > 50 && (
             <div className="flex justify-center gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="btn-ghost rounded-lg px-4 py-2 text-sm">上一页</button>
-              <span className="text-sm text-surface-400 py-2">第 {page} 页 / 共 {Math.ceil(total / 50)} 页</span>
+                className="btn-ghost rounded-lg px-4 py-2 text-sm">{t('pagination.prev')}</button>
+              <span className="text-sm text-surface-400 py-2">{t('photo.pageInfo', { page, total: Math.ceil(total / 50) })}</span>
               <button onClick={() => setPage(p => p + 1)} disabled={page * 50 >= total}
-                className="btn-ghost rounded-lg px-4 py-2 text-sm">下一页</button>
+                className="btn-ghost rounded-lg px-4 py-2 text-sm">{t('pagination.next')}</button>
             </div>
           )}
 
           {photos.length === 0 && (
             <div className="text-center py-16 text-surface-500">
               <Image className="h-16 w-16 mx-auto mb-4 opacity-20" />
-              <p className="text-lg">暂无照片</p>
+              <p className="text-lg">{t('photo.noPhotos')}</p>
             </div>
           )}
         </>
@@ -179,7 +182,7 @@ export default function PhotoGallery() {
                 )}
                 <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3">
                   <p className="text-sm font-medium text-white">{album.name}</p>
-                  <p className="text-xs text-white/60">{album.photo_count} 张照片</p>
+                  <p className="text-xs text-white/60">{t('photo.photoCount', { count: album.photo_count })}</p>
                 </div>
               </div>
             </div>
@@ -187,7 +190,7 @@ export default function PhotoGallery() {
           {albums.length === 0 && (
             <div className="col-span-full text-center py-16 text-surface-500">
               <FolderOpen className="h-16 w-16 mx-auto mb-4 opacity-20" />
-              <p>暂无相册</p>
+              <p>{t('photo.noAlbums')}</p>
             </div>
           )}
         </div>

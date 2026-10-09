@@ -25,6 +25,7 @@ import WebCodecsPlayer, { type WebCodecsPlayerHandle } from './WebCodecsPlayer'
 import { usePlayerStore } from '@/stores/player'
 import { streamApi } from '@/api/stream'
 import { userApi } from '@/api'
+import { useTranslation } from '@/i18n'
 
 interface WebCodecsPlayerShellProps {
   src: string
@@ -61,6 +62,7 @@ export default function WebCodecsPlayerShell({
   nextTitle,
   onFallback,
 }: WebCodecsPlayerShellProps) {
+  const { t } = useTranslation()
   const playerRef = useRef<WebCodecsPlayerHandle>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const controlsTimerRef = useRef<number>(0)
@@ -296,7 +298,7 @@ export default function WebCodecsPlayerShell({
       {nextCountdown !== null && nextTitle && (
         <div className="absolute right-4 bottom-24 z-40 rounded-xl p-4 backdrop-blur-md"
           style={{ background: 'rgba(11,17,32,0.85)', border: '1px solid var(--neon-blue-20)' }}>
-          <p className="text-xs text-surface-400 mb-1">即将播放</p>
+          <p className="text-xs text-surface-400 mb-1">{t('pp.nextUp')}</p>
           <p className="text-sm text-white mb-2">{nextTitle}</p>
           <div className="flex items-center gap-2">
             <button
@@ -304,13 +306,13 @@ export default function WebCodecsPlayerShell({
               className="rounded-md px-3 py-1 text-xs text-white"
               style={{ background: 'var(--neon-blue-20)' }}
             >
-              立即播放 ({nextCountdown})
+              {t('pp.playNow', { n: nextCountdown })}
             </button>
             <button
               onClick={() => setNextCountdown(null)}
               className="rounded-md px-3 py-1 text-xs text-surface-400 hover:text-white"
             >
-              取消
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -340,7 +342,7 @@ export default function WebCodecsPlayerShell({
               className="rounded-md px-2 py-0.5 text-[10px] flex items-center gap-1"
               style={{ background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.3)', color: '#67e8f9' }}
             >
-              <Cpu size={10} /> WebCodecs 硬解
+              <Cpu size={10} /> {t('pp.webcodecsBadge')}
             </span>
             {playbackRate !== 1 && (
               <span className="badge-neon text-[10px]">{playbackRate}x</span>

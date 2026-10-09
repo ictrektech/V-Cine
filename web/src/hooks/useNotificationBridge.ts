@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { t } from '@/i18n'
 import { useNotificationCenterStore, type NotificationStep, type NotificationPlanStep, type NotificationStatus } from '@/stores/notificationCenter'
 import type { VideoAnalysisTask } from '@/types/videoAnalysis'
-import { videoAnalysisStageLabels, formatVideoAnalysisError } from '@/components/video-analysis/videoAnalysisResultUtils'
+import { formatVideoAnalysisError } from '@/components/video-analysis/videoAnalysisResultUtils'
 import { routes } from '@/lib/routes'
 
 // ==================== 全局 WS 事件 → 通知中心桥接 ====================
@@ -36,6 +37,9 @@ interface GenericEventData {
   status?: string
   progress?: number
   message?: string
+  /** 结构化字段：用于按当前语言重组消息细节（与后端 JSON 字段一致） */
+  library_name?: string
+  new_found?: number
 }
 
 // 视频分析阶段状态（后端 VideoAnalysisStageStatus）→ 通知链路步骤状态
@@ -55,6 +59,29 @@ const analysisStatusMap: Record<string, NotificationStatus> = {
   failed: 'failed',
 }
 
+// 视频分析阶段 → i18n key（与结果面板的阶段标签一致）
+const analysisStageLabelKeys: Record<string, string> = {
+  detect: 'vat.stageDetect',
+  structure: 'vat.stageStructure',
+  describe: 'vat.stageDescribe',
+}
+
+/**
+ * 后端 message 形如 "xxx失败: <技术细节>"，本地化时仅提取冒号后的细节段
+ * （ffmpeg 报错等，本身非译文内容），避免整段中文文案覆盖本地化消息。
+ */
+function detailOf(message?: string): string {
+  if (!message) return ''
+  const parts = message.split(/[:：]\s?/)
+  return parts.length > 1 ? parts.slice(1).join('：') : ''
+}
+
+/** 失败通知：携带技术细节时拼接本地化文案，否则用纯文案 */
+function failMessage(detailKey: string, plainKey: string, message?: string): string {
+  const detail = detailOf(message)
+  return detail ? t(detailKey, { detail }) : t(plainKey)
+}
+
 export function useNotificationBridge() {
   const { on, off } = useWebSocket()
 
@@ -72,8 +99,8 @@ export function useNotificationBridge() {
           push({
             id: 'batch:scrape',
             type: 'system',
-            title: '批量刮削',
-            message: data.message || `进度 [${data.current}/${data.total}] 成功 ${data.success}, 失败 ${data.failed}`,
+            title: t('nb.batchScrape'),
+            message: t('nb.scrapeProgress', { current: data.current || 0, total: data.total || 0, success: data.success || 0, failed: data.failed || 0 }),
             status: data.status === 'completed' ? 'success' : 'running',
             progress: {
               current: data.current || 0,
@@ -90,8 +117,8 @@ export function useNotificationBridge() {
           push({
             id: `scrape:${data.media_id}`,
             type: 'scrape',
-            title: data.title || '未识别',
-            message: data.message || (data.status === 'failed' ? '刮削失败' : '刮削完成'),
+            title: data.title || t('library.scrapeUnidentified'),
+            message: data.status === 'failed' ? failMessage('nb.scrapeFailedDetail', 'nb.scrapeFailed', data.message) : t('nb.scrapeDone'),
             status: (data.status === 'failed' ? 'failed' : data.status === 'partial' ? 'partial' : 'success') as any,
             link: routes.tasks.files,
           })
@@ -104,11 +131,13 @@ export function useNotificationBridge() {
       push({
         id: `scrape:${data.media_id}`,
         type: 'scrape',
-        title: data.title || '未识别',
+        title: data.title || t('library.scrapeUnidentified'),
         message:
           data.status === 'running'
-            ? data.message || '正在刮削...'
-            : data.message || (data.status === 'failed' ? '刮削失败' : '刮削完成'),
+            ? t('nb.scraping')
+            : data.status === 'failed'
+              ? failMessage('nb.scrapeFailedDetail', 'nb.scrapeFailed', data.message)
+              : t('nb.scrapeDone'),
         // 后端终态是 DB 状态（scraped/partial/failed），归一化为前端通知状态
         status: (data.status === 'scraped' ? 'success' : data.status || 'running') as any,
         source: data.source,
@@ -124,16 +153,16 @@ export function useNotificationBridge() {
       push({
         id: 'scan:status',
         type: 'scan',
-        title: '媒体库扫描',
+        title: t('nb.typeScan'),
         status,
         message,
         link: routes.tasks.library,
       })
     }
 
-    const handleScanStarted = (data: GenericEventData) => scanPush('running', data?.message || '正在扫描媒体库...')
-    const handleScanCompleted = (data: GenericEventData) => scanPush('success', data?.message || '扫描完成')
-    const handleScanFailed = (data: GenericEventData) => scanPush('failed', data?.message || '扫描失败')
+    const handleScanStarted = (data: GenericEventData) => scanPush('running', data?.library_name ? t('nb.scanStarted', { name: data.library_name }) : t('nb.scanning'))
+    const handleScanCompleted = (data: GenericEventData) => scanPush('success', data?.library_name ? t('nb.scanDoneDetail', { name: data.library_name, count: data.new_found ?? 0 }) : t('nb.scanDone'))
+    const handleScanFailed = (data: GenericEventData) => scanPush('failed', failMessage('nb.scanFailedDetail', 'nb.scanFailed', data?.message))
 
     // ---------- 转码 ----------
     const handleTranscode = (data: GenericEventData, final: boolean, ok: boolean) => {
@@ -141,8 +170,10 @@ export function useNotificationBridge() {
       push({
         id: `transcode:${data?.media_id || data?.task_id || 'unknown'}`,
         type: 'transcode',
-        title: data?.title || '转码任务',
-        message: data?.message || (ok ? '转码完成' : '转码失败'),
+        title: data?.title || t('nb.transcodeTitle'),
+        message: final
+          ? ok ? t('nb.transcodeDone') : failMessage('nb.transcodeFailedDetail', 'nb.transcodeFailed', data?.message)
+          : t('nb.transcodeStarted'),
         status: final ? (ok ? 'success' : 'failed') : 'running',
         link: routes.tasks.video,
       })
@@ -161,24 +192,24 @@ export function useNotificationBridge() {
 
       // queued 归一化为 running：立即展示且不计未读
       const status: NotificationStatus = analysisStatusMap[data.status] || 'running'
-      const stageLabel = videoAnalysisStageLabels[data.stage]
+      const stageLabel = t(analysisStageLabelKeys[data.stage] || '')
       // 三阶段链路徽标：detect → structure → describe（空状态阶段不出现）
       const steps: NotificationStep[] = (['detect', 'structure', 'describe'] as const).flatMap((stage) => {
         const stepStatus = analysisStageStatusMap[data[`${stage}_status`]]
-        return stepStatus ? [{ provider: videoAnalysisStageLabels[stage], status: stepStatus }] : []
+        return stepStatus ? [{ provider: t(analysisStageLabelKeys[stage]), status: stepStatus }] : []
       })
 
       let message: string
-      if (data.status === 'queued') message = '已排队，等待视频分析'
-      else if (data.status === 'running') message = `正在${stageLabel}中 ${Math.round(data.progress ?? 0)}%`
-      else if (data.status === 'succeeded') message = '视频结构化分析完成'
-      else if (data.status === 'partial') message = '视频结构化分析部分完成'
-      else message = formatVideoAnalysisError(data.error_message) || '视频结构化分析失败'
+      if (data.status === 'queued') message = t('nb.analysisQueued')
+      else if (data.status === 'running') message = t('nb.analysisRunning', { stage: stageLabel, progress: Math.round(data.progress ?? 0) })
+      else if (data.status === 'succeeded') message = t('nb.analysisDone')
+      else if (data.status === 'partial') message = t('nb.analysisPartial')
+      else message = formatVideoAnalysisError(data.error_message, t) || t('nb.analysisFailed')
 
       push({
         id: `analysis:${data.media_id}`,
         type: 'analysis',
-        title: data.media_title || '视频分析',
+        title: data.media_title || t('nb.typeAnalysis'),
         message,
         status,
         steps: steps.length ? steps : undefined,
@@ -192,8 +223,10 @@ export function useNotificationBridge() {
       push({
         id: `subtitle:${kind}:${data?.media_id || data?.task_id || 'unknown'}`,
         type: 'subtitle',
-        title: data?.title || (kind === 'asr' ? 'AI 字幕生成' : '字幕翻译'),
-        message: data?.message || (ok ? '完成' : '失败'),
+        title: data?.title || (kind === 'asr' ? t('nb.asrTitle') : t('nb.translateTitle')),
+        message: final
+          ? ok ? t('nb.subtitleDone') : failMessage('nb.subtitleFailedDetail', 'nb.subtitleFailed', data?.message)
+          : t('nb.subtitleProcessing'),
         status: final ? (ok ? 'success' : 'failed') : 'running',
         link: routes.tasks.subtitle,
       })

@@ -5,6 +5,7 @@ import { collectionApi } from '@/api'
 import { usePosterVersion } from '@/stores/mediaRefresh'
 import type { CollectionWithMedia, CollectionMediaItem } from '@/types'
 import { groupByMovie, versionLabel } from '@/utils/collectionGroup'
+import { useTranslation } from '@/i18n'
 import { Film, Play, ChevronLeft, ChevronRight, Layers, Star, Clock, ChevronDown, ChevronUp, Copy } from 'lucide-react'
 
 interface CollectionCarouselProps {
@@ -12,6 +13,7 @@ interface CollectionCarouselProps {
 }
 
 export default function CollectionCarousel({ mediaId }: CollectionCarouselProps) {
+  const { t } = useTranslation()
   const [data, setData] = useState<CollectionWithMedia | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
@@ -65,7 +67,7 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
         <div className="flex items-center gap-2">
           <h3 className="flex items-center gap-2 font-display text-base font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
             <Layers size={16} className="text-neon/60" />
-            系列合集1
+            系列合集
             <Link
               to={`/collections/${collection.id}`}
               className="ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-all hover:scale-105"
@@ -74,11 +76,11 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
                 color: 'var(--neon-blue)',
                 border: '1px solid var(--neon-blue-20)',
               }}
-              title="查看合集详情"
+              title={t('cc.viewDetail')}
             >
-              {collection.name} · {movieCount}部
+              {t('cc.movieCount', { name: collection.name, count: movieCount })}
               {fileCount > movieCount && (
-                <span className="opacity-70">/{fileCount}个文件</span>
+                <span className="opacity-70">{t('cc.fileCount', { count: fileCount })}</span>
               )}
               <ChevronRight size={10} />
             </Link>
@@ -86,7 +88,7 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
           <button
             onClick={() => setExpanded(!expanded)}
             className="rounded-lg p-1 transition-colors hover:bg-neon-blue/5"
-            title={expanded ? '收起列表' : '展开列表'}
+            title={expanded ? t('cc.collapseList') : t('cc.expandList')}
           >
             {expanded ? (
               <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} />
@@ -101,7 +103,7 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
             {/* 系列进度指示器 */}
             {currentIndex >= 0 && (
               <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
-                第 {currentIndex + 1}/{movieCount} 部
+                {t('cc.slideN', { current: currentIndex + 1, total: movieCount })}
               </span>
             )}
             <div className="flex gap-1">
@@ -109,7 +111,7 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
                 onClick={() => scroll('left')}
                 className="rounded-lg p-1.5 transition-colors hover:bg-neon-blue/5"
                 style={{ color: 'var(--text-muted)' }}
-                aria-label="向左滚动"
+                aria-label={t('rec.scrollLeft')}
               >
                 <ChevronLeft size={18} />
               </button>
@@ -117,7 +119,7 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
                 onClick={() => scroll('right')}
                 className="rounded-lg p-1.5 transition-colors hover:bg-neon-blue/5"
                 style={{ color: 'var(--text-muted)' }}
-                aria-label="向右滚动"
+                aria-label={t('rec.scrollRight')}
               >
                 <ChevronRight size={18} />
               </button>
@@ -133,7 +135,7 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
           className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
           style={{ scrollbarWidth: 'none' }}
           role="list"
-          aria-label="系列合集电影列表"
+          aria-label={t('cc.listAria')}
         >
           {groupedMovies.map((group) => {
             const item = group.primary
@@ -157,7 +159,7 @@ export default function CollectionCarousel({ mediaId }: CollectionCarouselProps)
 
       {/* 展开的列表模式 */}
       {expanded && (
-        <div className="space-y-2" role="list" aria-label="系列合集电影列表">
+        <div className="space-y-2" role="list" aria-label={t('cc.listAria')}>
           {groupedMovies.map((group, index) => {
             const isCurrent = group.versions.some((v) => v.is_current)
             return (
@@ -182,6 +184,7 @@ function CollectionCard({ item, versionCount, isCurrent, onClick }: {
   isCurrent: boolean
   onClick: () => void
 }) {
+  const { t } = useTranslation()
   const hasMultipleVersions = versionCount > 1
   // 订阅海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
@@ -214,7 +217,7 @@ function CollectionCard({ item, versionCount, isCurrent, onClick }: {
                 color: '#fff',
                 border: '1px solid rgba(255,255,255,0.15)',
               }}
-            >当前</span>
+            >{t('collections.current')}</span>
           </div>
         )}
 
@@ -227,10 +230,10 @@ function CollectionCard({ item, versionCount, isCurrent, onClick }: {
                 background: 'rgba(0,0,0,0.7)',
                 color: '#fff',
               }}
-              title={`共有 ${versionCount} 个版本`}
+              title={t('cc.versionCountTitle', { count: versionCount })}
             >
               <Copy size={8} />
-              {versionCount}版
+              {t('cc.versionBadge', { count: versionCount })}
             </span>
           </div>
         )}
@@ -277,6 +280,7 @@ function CollectionListItem({ group, index, isCurrent }: {
   index: number
   isCurrent: boolean
 }) {
+  const { t } = useTranslation()
   const item = group.primary
   const hasMultipleVersions = group.versions.length > 1
   const [showVersions, setShowVersions] = useState(false)
@@ -332,7 +336,7 @@ function CollectionListItem({ group, index, isCurrent }: {
                 background: 'var(--bg-overlay)',
                 color: '#fff',
               }}
-            >当前</span>
+            >{t('collections.current')}</span>
           )}
           {hasMultipleVersions && (
             <span className="ml-2 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold"
@@ -341,10 +345,10 @@ function CollectionListItem({ group, index, isCurrent }: {
                 color: 'var(--neon-blue)',
                 border: '1px solid var(--neon-blue-20)',
               }}
-              title={`共有 ${group.versions.length} 个版本`}
+              title={t('cc.versionCountTitle', { count: group.versions.length })}
             >
               <Copy size={8} />
-              {group.versions.length}版
+              {t('cc.versionBadge', { count: group.versions.length })}
             </span>
           )}
         </h4>
@@ -359,7 +363,7 @@ function CollectionListItem({ group, index, isCurrent }: {
           {item.runtime > 0 && (
             <span className="flex items-center gap-0.5">
               <Clock size={10} />
-              {item.runtime}分钟
+              {t('cc.runtime', { minutes: item.runtime })}
             </span>
           )}
         </div>
@@ -384,7 +388,7 @@ function CollectionListItem({ group, index, isCurrent }: {
             background: showVersions ? 'var(--neon-blue-10)' : 'var(--bg-elevated)',
             color: showVersions ? 'var(--neon-blue)' : 'var(--text-muted)',
           }}
-          title={showVersions ? '收起版本' : '展开版本'}
+          title={showVersions ? t('cc.collapseVersions') : t('cc.expandVersions')}
         >
           <ChevronDown size={12} className={showVersions ? 'rotate-180 transition-transform' : 'transition-transform'} />
         </button>
@@ -410,7 +414,7 @@ function CollectionListItem({ group, index, isCurrent }: {
         <div className="px-3 pb-3" style={{ borderTop: '1px dashed var(--border-default)' }}>
           <div className="mt-2 space-y-1">
             {group.versions.map((v) => {
-              const label = versionLabel(v) || '默认版本'
+              const label = versionLabel(v) || t('collections.defaultVersion')
               const vIsCurrent = v.is_current
               return (
                 <Link

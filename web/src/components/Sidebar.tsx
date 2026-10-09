@@ -164,7 +164,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           <button
             onClick={(e) => { e.stopPropagation(); onMobileClose(); }}
             className="rounded-lg p-2 text-surface-400 transition-all duration-200 hover:text-neon hover:bg-neon-blue/5 md:hidden"
-            aria-label="关闭菜单"
+            aria-label={t('nav.closeMenu')}
           >
             <X size={20} />
           </button>
@@ -198,7 +198,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 background: 'var(--nav-hover-bg)',
                 color: 'var(--text-tertiary)',
               }}
-              title={`${libraries.length} 个媒体库`}
+              title={t('nav.libraryCount', { n: libraries.length })}
             >
               {libraries.length}
             </span>

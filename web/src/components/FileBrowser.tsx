@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { formatFileSize } from '@/components/file-manager/constants'
+import { useTranslation } from '@/i18n'
 
 interface FsEntry {
   name: string
@@ -22,9 +23,6 @@ interface FsEntry {
   is_dir?: boolean
   size?: number
 }
-
-// 静态快捷入口：主媒体库
-const MEDIA_ENTRY = { path: '/media', name: '主媒体库', desc: '安装时选择的媒体库目录' }
 
 // 快捷入口条目
 interface QuickEntry {
@@ -46,6 +44,7 @@ interface FileBrowserProps {
 }
 
 export default function FileBrowser({ open, onClose, onSelect, initialPath, storageType = 'local', selectMode = 'dir', fileExtensions }: FileBrowserProps) {
+  const { t } = useTranslation()
   const [currentPath, setCurrentPath] = useState(initialPath || '/')
   const [parentPath, setParentPath] = useState('')
   const [items, setItems] = useState<FsEntry[]>([])
@@ -70,7 +69,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
       setParentPath(data.parent)
       setItems(data.items || [])
     } catch {
-      setError('无法访问该目录，请检查路径是否存在及权限')
+      setError(t('fb.accessDenied'))
       setItems([])
     } finally {
       setLoading(false)
@@ -98,8 +97,9 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
     }
     ;(async () => {
       const entries: QuickEntry[] = []
-      if (await probe(MEDIA_ENTRY.path)) {
-        entries.push(MEDIA_ENTRY)
+      const mediaEntry = { path: '/media', name: t('fb.mediaLibrary'), desc: t('fb.mediaLibraryDesc') }
+      if (await probe(mediaEntry.path)) {
+        entries.push(mediaEntry)
       }
       if (cancelled) return
       let workspaces: FsEntry[] = []
@@ -115,7 +115,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
         workspaces.map(async (ws) => {
           const found: QuickEntry[] = []
           if (await probe(`${ws.path}/public`)) {
-            found.push({ path: `${ws.path}/public`, name: '公共目录', desc: `授权的公共目录（${ws.name}）` })
+            found.push({ path: `${ws.path}/public`, name: t('fb.publicDir'), desc: t('fb.publicDirDesc', { name: ws.name }) })
           }
           // 用户数据：<工作区>/users/<用户名>/data，枚举用户
           try {
@@ -125,7 +125,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
               users.map(async (u) => {
                 const dataPath = `${ws.path}/users/${u.name}/data`
                 if (await probe(dataPath)) {
-                  return { path: dataPath, name: `用户数据（${u.name}）`, desc: '授权的用户私人数据目录' }
+                  return { path: dataPath, name: t('fb.userData', { name: u.name }), desc: t('fb.userDataDesc') }
                 }
                 return null
               })
@@ -191,7 +191,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
             className="font-display text-base font-bold tracking-wide"
             style={{ color: 'var(--text-primary)' }}
           >
-            {isFileMode ? '选择服务器文件' : '选择文件夹'}
+            {isFileMode ? t('fb.pickFile') : t('fb.pickFolder')}
           </h2>
           <button
             onClick={onClose}
@@ -221,7 +221,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
           {storageType === 'local' && quickEntries.length > 0 && (
             <div className="mb-3">
               <div className="mb-1.5 px-1 text-xs font-medium text-muted-foreground">
-                快捷入口
+                {t('fb.shortcuts')}
               </div>
               <div className="space-y-1">
                 {quickEntries.map((entry) => {
@@ -258,7 +258,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
             >
               <ChevronUp size={16} className="text-neon/60" />
               <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                上级目录
+                {t('fb.parentDir')}
               </span>
             </button>
           )}
@@ -282,7 +282,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
           {!loading && !error && items.length === 0 && (
             <div className="py-12 text-center">
               <Folder size={32} className="mx-auto mb-2 text-surface-600" />
-              <p className="text-sm text-surface-500">此目录下没有子文件夹</p>
+              <p className="text-sm text-surface-500">{t('fb.emptyDir')}</p>
             </div>
           )}
 
@@ -332,10 +332,10 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
         >
           <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
             {isFileMode
-              ? (selectedFile ? `已选择: ${selectedFile}` : '未选择文件')
+              ? (selectedFile ? `${t('fb.selectedPrefix')}${selectedFile}` : t('fb.noFile'))
               : (() => {
                 const hit = quickEntries.find(e => e.path === currentPath)
-                return hit ? `已选择: ${hit.name}（${currentPath}）` : `已选择: ${currentPath}`
+                return hit ? `${t('fb.selectedPrefix')}${hit.name}（${currentPath}）` : `${t('fb.selectedPrefix')}${currentPath}`
               })()}
           </p>
           {/* shrink-0：防止左侧长路径文本触发 flex 收缩，把按钮挤成竖排文字 */}
@@ -348,7 +348,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
                 border: '1px solid var(--border-default)',
               }}
             >
-              取消
+              {t('common.cancel')}
             </button>
             <button
               onClick={() => {
@@ -367,7 +367,7 @@ export default function FileBrowser({ open, onClose, onSelect, initialPath, stor
               className="btn-primary whitespace-nowrap gap-1.5 px-4 py-2 text-sm disabled:opacity-50"
             >
               <Check size={14} />
-              {isFileMode ? '选择此文件' : '选择此文件夹'}
+              {isFileMode ? t('fb.pickThisFile') : t('fb.pickThisFolder')}
             </button>
           </div>
         </div>

@@ -1,18 +1,28 @@
 import type { VideoAnalysisStatus } from '@/types/videoAnalysis'
+import type { TFunc } from '@/i18n'
 
 export const VIDEO_ANALYSIS_SCENES_PER_PAGE = 12
 
 // 任务状态徽章的文案与配色（列表、历史、结果抽层共用），shadcn Badge 变体配色
-export const videoAnalysisStatusMeta: Record<VideoAnalysisStatus, { label: string; className: string }> = {
-  queued: { label: '排队中', className: 'border-transparent bg-secondary text-secondary-foreground' },
-  running: { label: '分析中', className: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
-  succeeded: { label: '已完成', className: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' },
-  partial: { label: '部分完成', className: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
-  failed: { label: '失败', className: 'border-red-500/20 bg-red-500/10 text-red-400' },
-  skipped: { label: '已跳过', className: 'border-transparent bg-secondary text-muted-foreground' },
+// 状态徽章配色（列表、历史、结果抽层共用）；文案走 i18n（videoAnalysisStatusKeys）
+export const videoAnalysisStatusMeta: Record<VideoAnalysisStatus, { className: string }> = {
+  queued: { className: 'border-transparent bg-secondary text-secondary-foreground' },
+  running: { className: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
+  succeeded: { className: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' },
+  partial: { className: 'border-amber-500/20 bg-amber-500/10 text-amber-400' },
+  failed: { className: 'border-red-500/20 bg-red-500/10 text-red-400' },
+  skipped: { className: 'border-transparent bg-secondary text-muted-foreground' },
 }
 
-export const videoAnalysisStageLabels = { detect: '场景检测', structure: '结构分析', describe: '场景描述', done: '完成' }
+// 任务状态文案的 i18n key（列表、历史、结果抽层共用）
+export const videoAnalysisStatusKeys: Record<VideoAnalysisStatus, string> = {
+  queued: 'vat.statusQueued',
+  running: 'vat.statusRunning',
+  succeeded: 'vat.statusSucceeded',
+  partial: 'vat.statusPartial',
+  failed: 'vat.statusFailed',
+  skipped: 'vat.statusSkipped',
+}
 
 export function formatVideoAnalysisTime(value: string | null) {
   return value ? new Date(value).toLocaleString() : '—'
@@ -35,8 +45,15 @@ const errorStageLabels: Record<string, string> = {
   describe: '场景描述',
 }
 
+// 错误信息中阶段的 i18n key（传入 translate 时按语言输出）
+const errorStageKeys: Record<string, string> = {
+  detect: 'vat.errorStageDetect',
+  structure: 'vat.errorStageStructure',
+  describe: 'vat.errorStageDescribe',
+}
+
 // 折叠重复的错误片段（如 "大模型调用失败: ... 大模型调用失败: ..."），保留首次出现
-function dedupeMessageSegments(message: string): string {
+function dedupeMessageSegments(message: string, translate?: TFunc): string {
   const seen = new Set<string>()
   const parts: string[] = []
   for (const segment of message.split(/:\s|\uFF1A/)) {
@@ -45,20 +62,26 @@ function dedupeMessageSegments(message: string): string {
     seen.add(key)
     parts.push(key)
   }
-  return parts.join('：')
+  return parts.join(translate ? ': ' : '：')
 }
 
 /**
  * 格式化视频分析错误信息为友好文案，同时保留阶段与错误码：
  * "describe stage: external job failed: code=DESCRIBE_ERROR message=X"
  * → "场景描述阶段失败（DESCRIBE_ERROR）：X"
+ * 传入 translate 时输出对应语言（如 "Scene description stage failed (DESCRIBE_ERROR): X"）
  */
-export function formatVideoAnalysisError(message?: string | null): string {
+export function formatVideoAnalysisError(message?: string | null, translate?: TFunc): string {
   if (!message) return ''
   let text = message
   const m = text.match(/^([a-z]+) stage: (?:external job failed: code=(\S+) message=)?([\s\S]+)$/)
   if (m) {
-    text = `${errorStageLabels[m[1]] || m[1]}阶段失败${m[2] ? `（${m[2]}）` : ''}：${m[3]}`
+    const stageKey = errorStageKeys[m[1]]
+    const stageLabel = stageKey ? (translate ? translate(stageKey) : errorStageLabels[m[1]]) : m[1]
+    const failedSuffix = translate ? translate('vat.errorStageFailed') : '阶段失败'
+    const code = m[2] ? (translate ? ` (${m[2]})` : `（${m[2]}）`) : ''
+    const sep = translate ? ': ' : '：'
+    text = `${stageLabel}${failedSuffix}${code}${sep}${m[3]}`
   }
-  return dedupeMessageSegments(text)
+  return dedupeMessageSegments(text, translate)
 }

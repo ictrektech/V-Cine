@@ -97,7 +97,7 @@ export default function PlayerPage() {
             setPlayInfo(playInfoRes.data.data)
           })
           .catch(() => {
-            toast.error('加载播放信息失败')
+            toast.error(t('pp.loadPlayInfoFailed'))
             navigate('/')
           })
 
@@ -114,7 +114,7 @@ export default function PlayerPage() {
         }
       })
       .catch(() => {
-        toast.error('加载播放信息失败')
+        toast.error(t('pp.loadPlayInfoFailed'))
         navigate('/')
       })
       .finally(() => {
@@ -194,13 +194,13 @@ export default function PlayerPage() {
 
   // Remux 播放失败回调：自动降级到 HLS 转码模式
   const handleRemuxFallback = useCallback(() => {
-    toast.info('当前浏览器不支持该编码格式，已自动切换到转码播放')
+    toast.info(t('pp.remuxFallback'))
     setRemuxFailed(true)
   }, [toast])
 
   // WebCodecs 播放失败回调：降级到常规模式
   const handleWebCodecsFallback = useCallback(() => {
-    toast.info('WebCodecs 播放遇到问题，已切换到兼容模式')
+    toast.info(t('pp.webcodecsFallback'))
     setWebcodecsFailed(true)
   }, [toast])
 
@@ -229,15 +229,15 @@ export default function PlayerPage() {
         >
           <WifiOff size={28} style={{ color: 'rgb(251, 191, 36)' }} />
         </div>
-        <div className="text-lg font-semibold text-white">源离线，无法播放</div>
-        <p className="text-sm text-surface-500">媒体所在远程存储连接不上，恢复后即可正常播放</p>
+        <div className="text-lg font-semibold text-white">{t('pp.sourceOfflineTitle')}</div>
+        <p className="text-sm text-surface-500">{t('pp.sourceOfflineHint')}</p>
         {hasHistoryOnMountRef.current && (
           <button
             onClick={() => navigate(-1)}
             className="mt-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all hover:bg-[var(--nav-hover-bg)]"
             style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
           >
-            返回
+            {t('common.back')}
           </button>
         )}
       </div>
@@ -249,7 +249,7 @@ export default function PlayerPage() {
       <div className="flex h-screen items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--neon-blue-30)', borderTopColor: 'transparent' }} />
-          <p className="text-sm text-surface-500">正在加载播放信息...</p>
+          <p className="text-sm text-surface-500">{t('pp.loading')}</p>
         </div>
       </div>
     )
@@ -353,17 +353,17 @@ export default function PlayerPage() {
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-center">
         <Loader2 size={32} className="animate-spin text-neon-blue" />
         <p className="text-lg font-semibold text-white">
-          {playInfo.preprocess_status === 'running' ? '视频正在预处理中' : '视频等待预处理'}
+          {playInfo.preprocess_status === 'running' ? t('pp.preprocessRunning') : t('pp.preprocessPending')}
         </p>
         <p className="max-w-md text-sm text-surface-400">
-          预处理完成后即可流畅播放，请稍后再试。
+          {t('pp.preprocessHint')}
         </p>
         <div className="flex items-center gap-3">
           <button onClick={handleBack} className="btn-ghost rounded-lg px-4 py-2 text-sm text-white/80 hover:bg-white/10">
-            返回
+            {t('common.back')}
           </button>
           <button onClick={() => navigate('/files?tab=preprocess')} className="btn-primary rounded-lg px-4 py-2 text-sm">
-            查看进度
+            {t('pp.viewProgress')}
           </button>
         </div>
       </div>
@@ -374,9 +374,9 @@ export default function PlayerPage() {
   if (mode === 'hls' && !isPreprocessed && playInfo.auto_transcode_on_play === false) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-center">
-        <p className="text-lg font-semibold text-white">该视频需要转码播放</p>
-        <p className="max-w-md text-sm text-surface-400">「播放时自动转码」已关闭，请到媒体详情页手动提交转码后再播放。</p>
-        <button onClick={handleBack} className="btn-ghost rounded-lg px-4 py-2 text-sm text-white/80 hover:bg-white/10">返回</button>
+        <p className="text-lg font-semibold text-white">{t('pp.needsTranscodeTitle')}</p>
+        <p className="max-w-md text-sm text-surface-400">{t('pp.needsTranscodeHint')}</p>
+        <button onClick={handleBack} className="btn-ghost rounded-lg px-4 py-2 text-sm text-white/80 hover:bg-white/10">{t('common.back')}</button>
       </div>
     )
   }
@@ -387,8 +387,8 @@ export default function PlayerPage() {
         {/* 左上角常驻返回按钮（不受播放器 showControls 显隐影响） */}
         <button
           onClick={handleBack}
-          aria-label="返回"
-          title="返回"
+          aria-label={t('common.back')}
+          title={t('common.back')}
           className="absolute left-4 top-4 z-[60] flex h-9 w-9 items-center justify-center rounded-full text-white backdrop-blur-md transition-all hover:scale-105"
           style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid var(--neon-blue-15)' }}
         >
@@ -421,27 +421,27 @@ export default function PlayerPage() {
               {mode === 'webcodecs' ? (
                 <>
                   <Cpu size={12} className="text-cyan-400" />
-                  <span className="text-cyan-400">WebCodecs 硬解播放</span>
+                  <span className="text-cyan-400">{t('pp.modeWebcodecs')}</span>
                 </>
               ) : canDirectHEVC ? (
                 <>
                   <Zap size={12} className="text-purple-400" />
-                  <span className="text-purple-400">HEVC 直接播放</span>
+                  <span className="text-purple-400">{t('pp.modeHevc')}</span>
                 </>
               ) : isPreprocessed ? (
                 <>
                   <Zap size={12} className="text-emerald-400" />
-                  <span className="text-emerald-400">秒开播放</span>
+                  <span className="text-emerald-400">{t('pp.modeInstant')}</span>
                 </>
               ) : playInfo.preprocess_status === 'running' ? (
                 <>
                   <Loader2 size={12} className="text-neon-blue animate-spin" />
-                  <span className="text-surface-400">正在预处理中...</span>
+                  <span className="text-surface-400">{t('pp.preprocessRunningShort')}</span>
                 </>
               ) : playInfo.preprocess_status === 'pending' || playInfo.preprocess_status === 'queued' ? (
                 <>
                   <Loader2 size={12} className="text-yellow-400" />
-                  <span className="text-surface-400">等待预处理</span>
+                  <span className="text-surface-400">{t('pp.preprocessPendingShort')}</span>
                 </>
               ) : null}
             </div>

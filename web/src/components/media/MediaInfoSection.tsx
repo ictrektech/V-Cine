@@ -77,7 +77,7 @@ export default function MediaInfoSection({ media, playInfo: _playInfo, persons }
                 border: '1px solid rgba(255,140,0,0.35)',
                 color: '#ff8c00',
               }}
-              title="番号"
+              title={t('mediaInfo.idLabel')}
             >
               {extractedNum}
             </span>
@@ -383,7 +383,7 @@ export default function MediaInfoSection({ media, playInfo: _playInfo, persons }
                       className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
                       style={{ background: 'rgba(0,180,20,0.12)', color: '#00b414' }}
                     >
-                      🎯 豆瓣 #{media.douban_id}
+                      🎯 {t('mediaDetail.doubanLabel')} #{media.douban_id}
                     </a>
                   )}
                   {media.bangumi_id > 0 && (

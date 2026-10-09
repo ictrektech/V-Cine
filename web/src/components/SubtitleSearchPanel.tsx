@@ -3,6 +3,7 @@ import { subtitleSearchApi } from '@/api'
 import type { SubtitleSearchResult } from '@/types'
 import { Search, Download, Loader2, Subtitles, Star, Globe, X } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 interface SubtitleSearchPanelProps {
   mediaId: string
@@ -16,6 +17,7 @@ interface SubtitleSearchPanelProps {
 export default function SubtitleSearchPanel({
   mediaId, title, year, type, onClose, onDownloaded,
 }: SubtitleSearchPanelProps) {
+  const { t } = useTranslation()
   const [language, setLanguage] = useState('zh-cn,en')
   const [results, setResults] = useState<SubtitleSearchResult[]>([])
   const [searching, setSearching] = useState(false)
@@ -29,10 +31,10 @@ export default function SubtitleSearchPanel({
       const res = await subtitleSearchApi.search(mediaId, { language, title, year, type })
       setResults(res.data.data || [])
       if (!res.data.data?.length) {
-        setMessage({ type: 'error', text: '未找到匹配的字幕' })
+        setMessage({ type: 'error', text: t('ssp.notFound') })
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '搜索失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('ssp.searchFailed') })
     } finally {
       setSearching(false)
     }
@@ -42,10 +44,10 @@ export default function SubtitleSearchPanel({
     setDownloading(sub.id)
     try {
       await subtitleSearchApi.download(mediaId, sub.id)
-      setMessage({ type: 'success', text: `字幕 "${sub.file_name}" 下载成功` })
+      setMessage({ type: 'success', text: t('ssp.downloaded', { file: sub.file_name }) })
       onDownloaded?.()
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '下载失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('ssp.downloadFailed') })
     } finally {
       setDownloading(null)
       setTimeout(() => setMessage(null), 3000)
@@ -65,7 +67,7 @@ export default function SubtitleSearchPanel({
           <div className="flex items-center gap-3">
             <Subtitles className="h-5 w-5 text-neon-blue" />
             <div>
-              <h3 className="font-display text-lg font-semibold" style={{ color: '#ffffff' }}>在线字幕搜索</h3>
+              <h3 className="font-display text-lg font-semibold" style={{ color: '#ffffff' }}>{t('ssp.title')}</h3>
               {title && <p className="text-xs" style={{ color: '#829ab1' }}>{title} {year ? `(${year})` : ''}</p>}
             </div>
           </div>
@@ -83,18 +85,18 @@ export default function SubtitleSearchPanel({
               border: '1px solid var(--border-default)',
               color: 'var(--text-primary)',
             }}>
-            <option value="zh-cn,en" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>中文 + 英文</option>
-            <option value="zh-cn" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>简体中文</option>
-            <option value="zh-tw" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>繁体中文</option>
+            <option value="zh-cn,en" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>{t('ssp.langZhEn')}</option>
+            <option value="zh-cn" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>{t('ssp.langZhHans')}</option>
+            <option value="zh-tw" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>{t('ssp.langZhHant')}</option>
             <option value="en" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>English</option>
-            <option value="ja" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>日本語</option>
+            <option value="ja" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>{t('ssp.langJa')}</option>
             <option value="ko" style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}>한국어</option>
           </select>
           <button onClick={handleSearch} disabled={searching}
             className="btn-neon rounded-lg px-5 py-2 text-sm font-medium flex items-center gap-2"
             style={{ color: '#ffffff' }}>
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            搜索字幕
+            {t('ssp.search')}
           </button>
         </div>
 
@@ -129,12 +131,12 @@ export default function SubtitleSearchPanel({
                     <Star className="h-3 w-3" />
                     {sub.rating.toFixed(1)}
                   </span>
-                  <span>下载 {sub.download_count}</span>
+                  <span>{t('ssp.downloadCount', { count: sub.download_count })}</span>
                   <span className={clsx(
                     'rounded-full px-2 py-0.5 text-[10px] font-medium',
                     sub.match_type === 'hash' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'
                   )}>
-                    {sub.match_type === 'hash' ? '精确匹配' : '标题匹配'}
+                    {sub.match_type === 'hash' ? t('ssp.matchHash') : t('ssp.matchTitle')}
                   </span>
                   <span className="uppercase" style={{ color: '#627d98' }}>{sub.format}</span>
                 </div>
@@ -156,7 +158,7 @@ export default function SubtitleSearchPanel({
                 ) : (
                   <Download className="h-3 w-3" />
                 )}
-                下载
+                {t('ssp.download')}
               </button>
             </div>
           ))}
@@ -164,8 +166,8 @@ export default function SubtitleSearchPanel({
           {results.length === 0 && !searching && (
             <div className="text-center py-12" style={{ color: '#627d98' }}>
               <Subtitles className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">点击「搜索字幕」开始搜索</p>
-              <p className="text-xs mt-1" style={{ color: '#627d98' }}>数据源: OpenSubtitles</p>
+              <p className="text-sm">{t('ssp.empty')}</p>
+              <p className="text-xs mt-1" style={{ color: '#627d98' }}>{t('ssp.sourceLabel')}OpenSubtitles</p>
             </div>
           )}
         </div>

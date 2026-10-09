@@ -3,6 +3,7 @@ import { bookmarkApi } from '@/api'
 import { useToast } from '@/components/Toast'
 import type { Bookmark } from '@/types'
 import { Bookmark as BookmarkIcon, Plus, Trash2, X } from 'lucide-react'
+import { useTranslation } from '@/i18n'
 
 interface BookmarkPanelProps {
   mediaId: string
@@ -11,6 +12,7 @@ interface BookmarkPanelProps {
 }
 
 export default function BookmarkPanel({ mediaId, currentTime, onSeek }: BookmarkPanelProps) {
+  const { t } = useTranslation()
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const [title, setTitle] = useState('')
@@ -27,7 +29,7 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
       const res = await bookmarkApi.listByMedia(mediaId)
       setBookmarks(res.data.data || [])
     } catch {
-      toast.error('加载书签失败')
+      toast.error(t('bmk.loadFailed'))
     }
   }
 
@@ -45,7 +47,7 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
       setShowAdd(false)
       loadBookmarks()
     } catch {
-      toast.error('添加书签失败')
+      toast.error(t('bmk.addFailed'))
     }
   }
 
@@ -54,7 +56,7 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
       await bookmarkApi.delete(id)
       loadBookmarks()
     } catch {
-      toast.error('删除书签失败')
+      toast.error(t('bmk.deleteFailed'))
     }
   }
 
@@ -76,10 +78,10 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
           border: '1px solid var(--neon-blue-10)',
           color: 'var(--text-secondary)',
         }}
-        title="书签"
+        title={t('bmk.title')}
       >
         <BookmarkIcon size={16} />
-        <span className="hidden sm:inline">书签</span>
+        <span className="hidden sm:inline">{t('bmk.title')}</span>
         {bookmarks.length > 0 && (
           <span className="ml-1 rounded-full px-1.5 text-xs font-bold"
             style={{ background: 'var(--bg-overlay)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)' }}
@@ -103,13 +105,13 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--neon-blue-8)' }}>
         <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
           <BookmarkIcon size={16} className="text-neon-blue" />
-          视频书签
+          {t('bmk.videoBookmarks')}
         </h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAdd(!showAdd)}
             className="rounded-lg p-1 text-surface-400 transition-colors hover:text-neon-blue hover:bg-neon-blue/5"
-            title="添加书签"
+            title={t('bmk.addTitle')}
           >
             <Plus size={16} />
           </button>
@@ -126,13 +128,13 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
       {showAdd && (
         <div className="p-4 space-y-2" style={{ borderBottom: '1px solid var(--neon-blue-8)' }}>
           <div className="text-xs text-surface-400">
-            在 <span className="font-display font-bold tracking-wide text-neon-blue">{formatTime(currentTime)}</span> 添加书签
+            {t('bmk.addedAtHead')}<span className="font-display font-bold tracking-wide text-neon-blue">{formatTime(currentTime)}</span>{t('bmk.addedAtTail')}
           </div>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="书签标题"
+            placeholder={t('bmk.namePlaceholder')}
             className="input py-2"
             autoFocus
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
@@ -141,7 +143,7 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="备注（可选）"
+            placeholder={t('bmk.notePlaceholder')}
             className="input py-2"
           />
           <button
@@ -149,7 +151,7 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
             disabled={!title.trim()}
             className="btn-primary w-full py-2 text-sm"
           >
-            添加
+            {t('bmk.add')}
           </button>
         </div>
       )}
@@ -158,7 +160,7 @@ export default function BookmarkPanel({ mediaId, currentTime, onSeek }: Bookmark
       <div className="max-h-64 overflow-y-auto">
         {bookmarks.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-surface-500">
-            暂无书签，点击 + 添加
+            {t('bmk.empty')}
           </div>
         ) : (
           bookmarks.map((bm) => (

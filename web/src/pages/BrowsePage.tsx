@@ -48,33 +48,33 @@ import clsx from 'clsx'
 
 // ==================== 常量定义 ====================
 
-// 排序选项
+// 排序选项（文案走 i18n）
 const SORT_OPTIONS = [
-  { value: 'created_desc', label: '最近添加', icon: Clock },
-  { value: 'rating_desc', label: '评分最高', icon: Star },
-  { value: 'year_desc', label: '年份最新', icon: Calendar },
-  { value: 'year_asc', label: '年份最早', icon: Calendar },
-  { value: 'title_asc', label: '名称 A-Z', icon: ArrowUpDown },
-  { value: 'title_desc', label: '名称 Z-A', icon: ArrowUpDown },
+  { value: 'created_desc', labelKey: 'library.sortCreatedDesc', icon: Clock },
+  { value: 'rating_desc', labelKey: 'library.sortRatingDesc', icon: Star },
+  { value: 'year_desc', labelKey: 'library.sortYearDesc', icon: Calendar },
+  { value: 'year_asc', labelKey: 'library.sortYearAsc', icon: Calendar },
+  { value: 'title_asc', labelKey: 'library.sortTitleAsc', icon: ArrowUpDown },
+  { value: 'title_desc', labelKey: 'library.sortTitleDesc', icon: ArrowUpDown },
 ]
 
 // 年份范围快捷选项
 const YEAR_RANGES = [
-  { label: '全部', min: 0, max: 0 },
-  { label: '2024-2026', min: 2024, max: 2026 },
-  { label: '2020-2023', min: 2020, max: 2023 },
-  { label: '2010-2019', min: 2010, max: 2019 },
-  { label: '2000-2009', min: 2000, max: 2009 },
-  { label: '更早', min: 0, max: 1999 },
+  { labelKey: 'common.all', label: '', min: 0, max: 0 },
+  { labelKey: '', label: '2024-2026', min: 2024, max: 2026 },
+  { labelKey: '', label: '2020-2023', min: 2020, max: 2023 },
+  { labelKey: '', label: '2010-2019', min: 2010, max: 2019 },
+  { labelKey: '', label: '2000-2009', min: 2000, max: 2009 },
+  { labelKey: 'search.yearEarlier', label: '', min: 0, max: 1999 },
 ]
 
-// 评分选项
+// 评分选项（0 = 不限）
 const RATING_OPTIONS = [
-  { label: '不限', value: 0 },
-  { label: '≥6分', value: 6 },
-  { label: '≥7分', value: 7 },
-  { label: '≥8分', value: 8 },
-  { label: '≥9分', value: 9 },
+  { value: 0 },
+  { value: 6 },
+  { value: 7 },
+  { value: 8 },
+  { value: 9 },
 ]
 
 // 视图模式
@@ -260,7 +260,7 @@ export default function BrowsePage() {
   // 若明确失败（loading 结束但依然没数据），给一次提示
   useEffect(() => {
     if (!loading && !browseData && hasDataRef.current) {
-      toastRef.current.error('加载影视库内容失败')
+      toastRef.current.error(t('library.loadFailed'))
     }
   }, [loading, browseData])
 
@@ -385,7 +385,7 @@ export default function BrowsePage() {
     const start = (page - 1) * size
     return filteredItems.slice(start, start + size)
   }, [serverPaginated, filteredItems, page, size])
-  const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sortValue)?.label || '排序'
+  const currentSortLabel = t(SORT_OPTIONS.find((o) => o.value === sortValue)?.labelKey || 'library.sort')
 
   // 活跃筛选条件数量
   const activeFilterCount = [
@@ -440,10 +440,10 @@ export default function BrowsePage() {
         <div>
           <h1 className="text-2xl font-display font-bold flex items-center gap-2 text-gradient">
             <Layers className="text-neon-blue animate-neon-breathe" size={24} />
-            影视库
+            {t('nav.browse')}
           </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            浏览和发现你的影视收藏 · {stats.total} 部作品
+            {t('browse.pageSubtitle', { count: stats.total })}
           </p>
         </div>
       </div>
@@ -451,9 +451,9 @@ export default function BrowsePage() {
       {/* ===== 分类 Tab：全部 / 电影 / 剧集 ===== */}
       <SegmentedTabs
         tabs={[
-          { key: '', label: '全部', icon: Layers, count: stats.total },
-          { key: 'movie', label: '电影', icon: Film, count: stats.movieCount },
-          { key: 'series', label: '剧集', icon: Tv, count: stats.seriesCount },
+          { key: '', label: t('common.all'), icon: Layers, count: stats.total },
+          { key: 'movie', label: t('media.movie'), icon: Film, count: stats.movieCount },
+          { key: 'series', label: t('media.tvshow'), icon: Tv, count: stats.seriesCount },
         ]}
         active={mediaType ?? ''}
         onChange={(key) => updateUrl({ type: key === '' ? null : key })}
@@ -484,13 +484,13 @@ export default function BrowsePage() {
                   color: 'var(--text-muted)',
                 }}
               >
-                全部库
+                {t('browse.allLibraries')}
               </button>
               {libraries.map((lib) => (
                 <button
                   key={lib.id}
                   onClick={() => { updateUrl({ lib: lib.id }) }}
-                  title={libOffline(lib) ? `${lib.name}（远程存储连接不上）` : lib.name}
+                  title={libOffline(lib) ? t('browse.libOfflineTitle', { name: lib.name }) : lib.name}
                   className={clsx(
                     'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                     selectedLibrary === lib.id && 'font-semibold'
@@ -506,7 +506,7 @@ export default function BrowsePage() {
                 >
                   {lib.name}
                   {libOffline(lib) && (
-                    <WifiOff size={11} className="ml-1 inline-block" style={{ color: 'rgb(251, 191, 36)' }} aria-label="远程存储连接不上" />
+                    <WifiOff size={11} className="ml-1 inline-block" style={{ color: 'rgb(251, 191, 36)' }} aria-label={t('browse.libOfflineAria')} />
                   )}
                 </button>
               ))}
@@ -528,7 +528,7 @@ export default function BrowsePage() {
                 updateUrl({ q: e.target.value || null })
               }}
               className="input pl-9 pr-8 py-2 text-sm w-full"
-              placeholder="搜索影视作品..."
+              placeholder={t('browse.searchPlaceholder')}
             />
             {searchInput && (
               <button
@@ -555,7 +555,7 @@ export default function BrowsePage() {
             }}
           >
             <SlidersHorizontal size={14} />
-            筛选
+            {t('search.filter')}
             {activeFilterCount > 0 && (
               <span
                 className="ml-1 rounded-full px-1.5 text-[10px] font-bold"
@@ -614,7 +614,7 @@ export default function BrowsePage() {
                           style={sortValue !== opt.value ? { color: 'var(--text-secondary)' } : undefined}
                         >
                           <Icon size={14} />
-                          {opt.label}
+                          {t(opt.labelKey)}
                         </button>
                       )
                     })}
@@ -636,7 +636,7 @@ export default function BrowsePage() {
                 background: viewMode === 'grid' ? 'var(--nav-active-bg)' : 'transparent',
                 color: viewMode === 'grid' ? 'var(--neon-blue)' : 'var(--text-tertiary)',
               }}
-              title="网格视图"
+              title={t('collections.gridView')}
             >
               <Grid3X3 size={16} />
             </button>
@@ -647,7 +647,7 @@ export default function BrowsePage() {
                 background: viewMode === 'list' ? 'var(--nav-active-bg)' : 'transparent',
                 color: viewMode === 'list' ? 'var(--neon-blue)' : 'var(--text-tertiary)',
               }}
-              title="列表视图"
+              title={t('collections.listView')}
             >
               <LayoutList size={16} />
             </button>
@@ -658,7 +658,7 @@ export default function BrowsePage() {
                 background: viewMode === 'poster' ? 'var(--nav-active-bg)' : 'transparent',
                 color: viewMode === 'poster' ? 'var(--neon-blue)' : 'var(--text-tertiary)',
               }}
-              title="海报墙视图"
+              title={t('browse.posterView')}
             >
               <LayoutGrid size={16} />
             </button>
@@ -687,7 +687,7 @@ export default function BrowsePage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                       <Tag size={12} />
-                      类型标签
+                      {t('browse.genreLabel')}
                       {selectedGenres.length > 0 && (
                         <span className="rounded-full px-1.5 text-[10px] font-bold" style={{ background: 'var(--neon-blue-15)', color: 'var(--neon-blue)' }}>
                           {selectedGenres.length}
@@ -724,7 +724,7 @@ export default function BrowsePage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                       <Globe size={12} />
-                      地区
+                      {t('browse.countryLabel')}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -741,7 +741,7 @@ export default function BrowsePage() {
                           color: 'var(--text-muted)',
                         }}
                       >
-                        全部
+                        {t('common.all')}
                       </button>
                       {allCountries.map((country) => (
                         <button
@@ -770,14 +770,14 @@ export default function BrowsePage() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                     <Calendar size={12} />
-                    年份
+                    {t('search.year')}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {YEAR_RANGES.map((yr) => {
                       const isActive = yearRange.min === yr.min && yearRange.max === yr.max
                       return (
                         <button
-                          key={yr.label}
+                          key={yr.label || yr.labelKey}
                           onClick={() => updateUrl({ year_min: yr.min > 0 ? String(yr.min) : null, year_max: yr.max > 0 ? String(yr.max) : null })}
                           className={clsx(
                             'rounded-lg px-2.5 py-1 text-xs font-medium transition-all',
@@ -791,7 +791,7 @@ export default function BrowsePage() {
                             color: 'var(--text-muted)',
                           }}
                         >
-                          {yr.label}
+                          {yr.labelKey ? t(yr.labelKey) : yr.label}
                         </button>
                       )
                     })}
@@ -802,7 +802,7 @@ export default function BrowsePage() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                     <Star size={12} />
-                    最低评分
+                    {t('search.minRating')}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {RATING_OPTIONS.map((opt) => {
@@ -823,7 +823,7 @@ export default function BrowsePage() {
                             color: 'var(--text-muted)',
                           }}
                         >
-                          {opt.label}
+                          {opt.value === 0 ? t('search.ratingAll') : t('search.ratingAbove', { score: opt.value })}
                         </button>
                       )
                     })}
@@ -834,14 +834,14 @@ export default function BrowsePage() {
                 {activeFilterCount > 0 && (
                   <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid var(--neon-blue-6)' }}>
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      已选择 {activeFilterCount} 个筛选条件
+                      {t('browse.filterCount', { count: activeFilterCount })}
                     </span>
                     <button
                       onClick={clearAllFilters}
                       className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors"
                     >
                       <X size={12} />
-                      清除所有筛选
+                      {t('search.clearFilters')}
                     </button>
                   </div>
                 )}
@@ -853,7 +853,7 @@ export default function BrowsePage() {
         {/* 已选标签展示 */}
         {selectedGenres.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>已选标签:</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('browse.selectedTags')}</span>
             {selectedGenres.map((genre) => (
               <span
                 key={genre}
@@ -874,7 +874,7 @@ export default function BrowsePage() {
               className="text-xs transition-colors hover:text-red-400"
               style={{ color: 'var(--text-muted)' }}
             >
-              清除
+              {t('browse.clear')}
             </button>
           </div>
         )}
@@ -883,7 +883,7 @@ export default function BrowsePage() {
         {(searchQuery || activeFilterCount > 0) && !serverPaginated && (
           <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-tertiary)' }}>
             <span>
-              找到 <strong className="text-neon">{filteredItems.length}</strong> 个结果
+              {t('search.found')} <strong className="text-neon">{filteredItems.length}</strong> {t('search.results2')}
             </span>
             <button
               onClick={clearAllFilters}
@@ -891,7 +891,7 @@ export default function BrowsePage() {
               style={{ color: 'var(--text-secondary)' }}
             >
               <X size={12} />
-              清除筛选
+              {t('library.clearFilter')}
             </button>
           </div>
         )}
@@ -907,7 +907,7 @@ export default function BrowsePage() {
             }}
           >
             <span>
-              影视库较大（共 {totalCount} 部），暂仅支持基础分页浏览。如需使用高级筛选和排序，请先选择单个媒体库缩小范围。
+              {t('browse.largeLibHint', { count: totalCount })}
             </span>
           </div>
         )}
@@ -967,11 +967,11 @@ export default function BrowsePage() {
                 <Film size={36} className="text-surface-600" />
               </div>
               <h3 className="font-display text-lg font-semibold tracking-wide" style={{ color: 'var(--text-secondary)' }}>
-                {searchQuery || activeFilterCount > 0 ? '没有找到匹配的内容' : '影视库暂无内容'}
+                {searchQuery || activeFilterCount > 0 ? t('search.noMatch') : t('browse.emptyLibrary')}
               </h3>
               <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
                 {searchQuery || activeFilterCount > 0
-                  ? '尝试调整筛选条件或使用其他关键词'
+                  ? t('browse.filterHint')
                   : isAdmin ? t('empty.adminHint') : t('empty.userHint')}
               </p>
               {(searchQuery || activeFilterCount > 0) ? (
@@ -979,7 +979,7 @@ export default function BrowsePage() {
                   onClick={clearAllFilters}
                   className="mt-3 text-sm text-neon hover:text-neon/80 transition-colors"
                 >
-                  清除所有筛选
+                  {t('search.clearFilters')}
                 </button>
               ) : isAdmin && <ManageLibrariesLink />}
             </motion.div>
@@ -1057,6 +1057,7 @@ export default function BrowsePage() {
 
 // ==================== 列表视图项 ====================
 function BrowseListItem({ item }: { item: MixedItem }) {
+  const { t } = useTranslation()
   // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
   const [tagsExpanded, setTagsExpanded] = useState(false)
@@ -1127,7 +1128,7 @@ function BrowseListItem({ item }: { item: MixedItem }) {
           </h3>
           {isSeries && (
             <span className="flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: 'var(--neon-blue-10)', color: 'var(--neon-blue)' }}>
-              剧集
+              {t('seriesDetail.badge')}
             </span>
           )}
         </div>
@@ -1148,7 +1149,7 @@ function BrowseListItem({ item }: { item: MixedItem }) {
           {isSeries && series && (
             <>
               <span style={{ color: 'var(--text-muted)' }}>·</span>
-              <span>{series.season_count} 季 · {series.episode_count} 集</span>
+              <span>{t('library.seasonEpisode', { seasons: series.season_count, episodes: series.episode_count })}</span>
             </>
           )}
         </div>
@@ -1173,9 +1174,9 @@ function BrowseListItem({ item }: { item: MixedItem }) {
                   color: 'var(--neon-blue)',
                   border: '1px solid var(--neon-blue-10)',
                 }}
-                title={tagsExpanded ? '收起标签' : `展开全部 ${genreList.length} 个标签`}
+                title={tagsExpanded ? t('browse.collapseTags') : t('browse.expandTags', { count: genreList.length })}
               >
-                {tagsExpanded ? '收起' : `+${genreList.length - MAX_VISIBLE_TAGS}`}
+                {tagsExpanded ? t('collections.collapse') : `+${genreList.length - MAX_VISIBLE_TAGS}`}
                 <ChevronDown
                   size={10}
                   className="transition-transform duration-200"

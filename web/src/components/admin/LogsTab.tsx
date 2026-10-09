@@ -26,21 +26,22 @@ import {
   X,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 import { Modal } from '@/components/ui/modal'
 
 // 日志级别配置
-const LEVEL_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof Info }> = {
-  error: { label: '错误', color: 'text-red-400', bg: 'bg-red-500/10', icon: AlertCircle },
-  warn: { label: '警告', color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: AlertTriangle },
-  info: { label: '信息', color: 'text-blue-400', bg: 'bg-blue-500/10', icon: Info },
-  debug: { label: '调试', color: 'text-surface-400', bg: 'bg-surface-500/10', icon: Bug },
+const LEVEL_CONFIG: Record<string, { labelKey: string; color: string; bg: string; icon: typeof Info }> = {
+  error: { labelKey: 'logs.levelError', color: 'text-red-400', bg: 'bg-red-500/10', icon: AlertCircle },
+  warn: { labelKey: 'logs.levelWarn', color: 'text-yellow-400', bg: 'bg-yellow-500/10', icon: AlertTriangle },
+  info: { labelKey: 'logs.levelInfo', color: 'text-blue-400', bg: 'bg-blue-500/10', icon: Info },
+  debug: { labelKey: 'logs.levelDebug', color: 'text-surface-400', bg: 'bg-surface-500/10', icon: Bug },
 }
 
 // 日志类型配置
-const TYPE_CONFIG: Record<string, { label: string; icon: typeof Globe }> = {
-  api: { label: 'API 请求', icon: Globe },
-  playback: { label: '播放错误', icon: Play },
-  system: { label: '系统事件', icon: Server },
+const TYPE_CONFIG: Record<string, { labelKey: string; icon: typeof Globe }> = {
+  api: { labelKey: 'logs.typeApi', icon: Globe },
+  playback: { labelKey: 'logs.typePlayback', icon: Play },
+  system: { labelKey: 'logs.typeSystem', icon: Server },
 }
 
 // HTTP 方法颜色
@@ -53,6 +54,7 @@ const METHOD_COLORS: Record<string, string> = {
 }
 
 export default function LogsTab() {
+  const { t, locale } = useTranslation()
   const [logs, setLogs] = useState<SystemLog[]>([])
   const [stats, setStats] = useState<SystemLogStats | null>(null)
   const [total, setTotal] = useState(0)
@@ -68,7 +70,7 @@ export default function LogsTab() {
   const [filterMethod, setFilterMethod] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
-  // 清理对话框
+  // {t('logs.clean')}对话框
   const [showCleanDialog, setShowCleanDialog] = useState(false)
   const [cleanDays, setCleanDays] = useState(30)
   const [cleaning, setCleaning] = useState(false)
@@ -121,7 +123,7 @@ export default function LogsTab() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  // 导出
+  // {t('logs.export')}
   const handleExport = async () => {
     setExporting(true)
     try {
@@ -164,14 +166,14 @@ export default function LogsTab() {
   const totalPages = calcTotalPages(total)
 
   // 格式化时间
-  const formatTime = (t: string) => {
-    const d = new Date(t)
+  const formatTime = (raw: string) => {
+    const d = new Date(raw)
     const now = new Date()
     const diff = now.getTime() - d.getTime()
-    if (diff < 60000) return '刚刚'
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
-    return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    if (diff < 60000) return t('logs.justNow')
+    if (diff < 3600000) return t('timeFormat.minutesAgo', { minutes: Math.floor(diff / 60000) })
+    if (diff < 86400000) return t('timeFormat.hoursAgo', { hours: Math.floor(diff / 3600000) })
+    return d.toLocaleString(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
   }
 
   return (
@@ -182,52 +184,52 @@ export default function LogsTab() {
           <div className="glass-panel-subtle rounded-xl p-4">
             <div className="flex items-center gap-2 text-sm text-surface-400">
               <FileText size={14} className="text-neon/60" />
-              总日志数
+              {t('logs.totalTitle')}
             </div>
             <p className="mt-2 font-display text-2xl font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
               {stats.total.toLocaleString()}
             </p>
             <p className="mt-1 text-xs text-surface-500">
-              今日 {stats.today_count.toLocaleString()} 条
+              {t('logs.todayCount', { count: stats.today_count.toLocaleString() })}
             </p>
           </div>
 
           <div className="glass-panel-subtle rounded-xl p-4">
             <div className="flex items-center gap-2 text-sm text-surface-400">
               <AlertCircle size={14} className="text-red-400/60" />
-              今日错误
+              {t('logs.todayError')}
             </div>
             <p className={clsx('mt-2 font-display text-2xl font-bold tracking-wide', stats.today_errors > 0 ? 'text-red-400' : '')} style={stats.today_errors === 0 ? { color: 'var(--text-primary)' } : undefined}>
               {stats.today_errors}
             </p>
             <p className="mt-1 text-xs text-surface-500">
-              总错误 {(stats.level_counts?.error || 0).toLocaleString()} 条
+              {t('logs.totalError', { count: (stats.level_counts?.error || 0).toLocaleString() })}
             </p>
           </div>
 
           <div className="glass-panel-subtle rounded-xl p-4">
             <div className="flex items-center gap-2 text-sm text-surface-400">
               <Globe size={14} className="text-neon/60" />
-              API 请求
+              {t('logs.typeApi')}
             </div>
             <p className="mt-2 font-display text-2xl font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
               {(stats.type_counts?.api || 0).toLocaleString()}
             </p>
             <p className="mt-1 text-xs text-surface-500">
-              播放错误 {(stats.type_counts?.playback || 0).toLocaleString()} 条
+              {t('logs.playErrorCount', { count: (stats.type_counts?.playback || 0).toLocaleString() })}
             </p>
           </div>
 
           <div className="glass-panel-subtle rounded-xl p-4">
             <div className="flex items-center gap-2 text-sm text-surface-400">
               <Server size={14} className="text-neon/60" />
-              系统事件
+              {t('logs.typeSystem')}
             </div>
             <p className="mt-2 font-display text-2xl font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
               {(stats.type_counts?.system || 0).toLocaleString()}
             </p>
             <p className="mt-1 text-xs text-surface-500">
-              警告 {(stats.level_counts?.warn || 0).toLocaleString()} 条
+              {t('logs.warnCount', { count: (stats.level_counts?.warn || 0).toLocaleString() })}
             </p>
           </div>
         </div>
@@ -243,7 +245,7 @@ export default function LogsTab() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="input pl-9 pr-3 py-2 text-sm w-full"
-            placeholder="搜索日志内容、路径、详情..."
+            placeholder={t('logs.searchPlaceholder')}
           />
         </div>
 
@@ -254,14 +256,14 @@ export default function LogsTab() {
             className={clsx('btn-ghost px-3 py-2 text-xs gap-1.5 rounded-lg', filterLevel === 'error' && 'bg-red-500/10 text-red-400')}
           >
             <AlertCircle size={13} />
-            仅错误
+            {t('logs.onlyError')}
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={clsx('btn-ghost px-3 py-2 text-xs gap-1.5 rounded-lg', showFilters && 'text-neon')}
           >
             <Filter size={13} />
-            筛选
+            {t('logs.filter')}
           </button>
         </div>
 
@@ -269,15 +271,15 @@ export default function LogsTab() {
         <div className="flex items-center gap-1.5">
           <button onClick={() => { loadLogs(); loadStats() }} className="btn-ghost px-3 py-2 text-xs gap-1.5 rounded-lg" disabled={loading}>
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            刷新
+            {t('logs.refresh')}
           </button>
           <button onClick={handleExport} className="btn-ghost px-3 py-2 text-xs gap-1.5 rounded-lg" disabled={exporting}>
             {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-            导出
+            {t('logs.export')}
           </button>
           <button onClick={() => setShowCleanDialog(true)} className="btn-ghost px-3 py-2 text-xs gap-1.5 rounded-lg text-red-400 hover:text-red-300">
             <Trash2 size={13} />
-            清理
+            {t('logs.clean')}
           </button>
         </div>
       </div>
@@ -286,40 +288,40 @@ export default function LogsTab() {
       {showFilters && (
         <div className="glass-panel-subtle rounded-xl p-4 flex flex-wrap gap-4 animate-slide-up">
           <div>
-            <label className="block text-xs text-surface-400 mb-1.5">日志类型</label>
+            <label className="block text-xs text-surface-400 mb-1.5">{t('logs.typeLabel')}</label>
             <select
               value={filterType}
               onChange={(e) => { setFilterType(e.target.value); setPage(1) }}
               className="input text-sm py-1.5 px-3 min-w-[120px]"
             >
-              <option value="">全部类型</option>
-              <option value="api">API 请求</option>
-              <option value="playback">播放错误</option>
-              <option value="system">系统事件</option>
+              <option value="">{t('logs.allTypes')}</option>
+              <option value="api">{t('logs.typeApi')}</option>
+              <option value="playback">{t('logs.typePlayback')}</option>
+              <option value="system">{t('logs.typeSystem')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-surface-400 mb-1.5">日志级别</label>
+            <label className="block text-xs text-surface-400 mb-1.5">{t('logs.levelLabel')}</label>
             <select
               value={filterLevel}
               onChange={(e) => { setFilterLevel(e.target.value); setPage(1) }}
               className="input text-sm py-1.5 px-3 min-w-[120px]"
             >
-              <option value="">全部级别</option>
-              <option value="error">错误</option>
-              <option value="warn">警告</option>
-              <option value="info">信息</option>
-              <option value="debug">调试</option>
+              <option value="">{t('logs.allLevels')}</option>
+              <option value="error">{t('logs.levelError')}</option>
+              <option value="warn">{t('logs.levelWarn')}</option>
+              <option value="info">{t('logs.levelInfo')}</option>
+              <option value="debug">{t('logs.levelDebug')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-surface-400 mb-1.5">HTTP 方法</label>
+            <label className="block text-xs text-surface-400 mb-1.5">{t('logs.methodLabel')}</label>
             <select
               value={filterMethod}
               onChange={(e) => { setFilterMethod(e.target.value); setPage(1) }}
               className="input text-sm py-1.5 px-3 min-w-[120px]"
             >
-              <option value="">全部方法</option>
+              <option value="">{t('logs.allMethods')}</option>
               <option value="GET">GET</option>
               <option value="POST">POST</option>
               <option value="PUT">PUT</option>
@@ -333,7 +335,7 @@ export default function LogsTab() {
                 className="btn-ghost px-3 py-1.5 text-xs gap-1 text-surface-400 hover:text-surface-200"
               >
                 <X size={12} />
-                清除筛选
+                {t('logs.clearFilters')}
               </button>
             </div>
           )}
@@ -344,25 +346,25 @@ export default function LogsTab() {
       <div className="glass-panel rounded-xl overflow-hidden">
         {/* 表头 */}
         <div className="hidden md:grid grid-cols-[80px_70px_1fr_100px_80px_140px] gap-3 px-4 py-2.5 text-xs font-medium text-surface-400" style={{ borderBottom: '1px solid var(--border-default)' }}>
-          <span>级别</span>
-          <span>类型</span>
-          <span>消息</span>
-          <span>状态码</span>
-          <span>耗时</span>
-          <span>时间</span>
+          <span>{t('logs.colLevel')}</span>
+          <span>{t('logs.colType')}</span>
+          <span>{t('logs.colMsg')}</span>
+          <span>{t('logs.colStatus')}</span>
+          <span>{t('logs.colCost')}</span>
+          <span>{t('logs.colTime')}</span>
         </div>
 
         {/* 日志条目 */}
         {loading && logs.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={24} className="animate-spin text-neon" />
-            <span className="ml-3 text-sm text-surface-400">加载中...</span>
+            <span className="ml-3 text-sm text-surface-400">{t('logs.loading')}</span>
           </div>
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Activity size={40} className="text-surface-600 mb-3" />
-            <p className="text-sm text-surface-500">暂无日志记录</p>
-            <p className="text-xs text-surface-600 mt-1">系统运行后将自动记录日志</p>
+            <p className="text-sm text-surface-500">{t('logs.empty')}</p>
+            <p className="text-xs text-surface-600 mt-1">{t('logs.emptyHint')}</p>
           </div>
         ) : (
           <div className="divide-y" style={{ borderColor: 'var(--border-default)' }}>
@@ -383,13 +385,13 @@ export default function LogsTab() {
                     <div className="flex items-center gap-1.5">
                       <span className={clsx('inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full', levelCfg.bg, levelCfg.color)}>
                         <LevelIcon size={11} />
-                        <span className="hidden sm:inline">{levelCfg.label}</span>
+                        <span className="hidden sm:inline">{t(levelCfg.labelKey)}</span>
                       </span>
                     </div>
 
                     {/* 类型 */}
                     <div className="flex items-center">
-                      <span className="text-xs text-surface-400">{typeCfg.label}</span>
+                      <span className="text-xs text-surface-400">{t(typeCfg.labelKey)}</span>
                     </div>
 
                     {/* 消息 */}
@@ -447,13 +449,13 @@ export default function LogsTab() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         {log.message && (
                           <div>
-                            <span className="text-surface-500">消息：</span>
+                            <span className="text-surface-500">{t('logs.detailMsg')}</span>
                             <span className="text-surface-300 ml-1">{log.message}</span>
                           </div>
                         )}
                         {log.path && (
                           <div>
-                            <span className="text-surface-500">路径：</span>
+                            <span className="text-surface-500">{t('logs.detailPath')}</span>
                             <span className="text-surface-300 ml-1 font-mono">{log.path}</span>
                           </div>
                         )}
@@ -467,19 +469,19 @@ export default function LogsTab() {
                         {log.username && (
                           <div className="flex items-center gap-1">
                             <User size={11} className="text-surface-500" />
-                            <span className="text-surface-500">用户：</span>
+                            <span className="text-surface-500">{t('logs.detailUser')}</span>
                             <span className="text-surface-300">{log.username}</span>
                           </div>
                         )}
                         {log.media_title && (
                           <div>
-                            <span className="text-surface-500">媒体：</span>
+                            <span className="text-surface-500">{t('logs.detailMedia')}</span>
                             <span className="text-surface-300 ml-1">{log.media_title}</span>
                           </div>
                         )}
                         {log.source && (
                           <div>
-                            <span className="text-surface-500">来源：</span>
+                            <span className="text-surface-500">{t('logs.detailSource')}</span>
                             <span className="text-surface-300 ml-1">{log.source}</span>
                           </div>
                         )}
@@ -491,7 +493,7 @@ export default function LogsTab() {
                         )}
                         {log.detail && (
                           <div className="sm:col-span-2 lg:col-span-3">
-                            <span className="text-surface-500">详情：</span>
+                            <span className="text-surface-500">{t('logs.detailDetail')}</span>
                             <pre className="mt-1 p-2 rounded bg-black/30 text-surface-300 text-[11px] font-mono whitespace-pre-wrap break-all max-h-40 overflow-auto">
                               {log.detail}
                             </pre>
@@ -526,14 +528,14 @@ export default function LogsTab() {
       <Modal open={showCleanDialog} onClose={() => setShowCleanDialog(false)} className="max-w-md">
           <div className="glass-panel rounded-2xl p-6">
             <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-              清理旧日志
+              {t('logs.clearTitle')}
             </h3>
             <p className="text-sm text-surface-400 mb-4">
-              将删除指定天数之前的所有系统日志记录。此操作不可撤销。
+              {t('logs.clearDesc')}
             </p>
             <div className="mb-5">
               <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                保留最近
+                {t('logs.keepLast')}
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -543,12 +545,12 @@ export default function LogsTab() {
                   className="input text-sm py-2 px-3 w-24"
                   min={1}
                 />
-                <span className="text-sm text-surface-400">天的日志</span>
+                <span className="text-sm text-surface-400">{t('logs.days')}</span>
               </div>
             </div>
             <div className="flex items-center gap-2 justify-end">
               <button onClick={() => setShowCleanDialog(false)} className="btn-ghost px-4 py-2 text-sm">
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleClean}
@@ -557,7 +559,7 @@ export default function LogsTab() {
                 style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}
               >
                 {cleaning ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                确认清理
+                {t('logs.confirm')}
               </button>
             </div>
           </div>

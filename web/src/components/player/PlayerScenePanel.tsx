@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Film, ImageOff, Loader2 } from 'lucide-react'
 import { videoAnalysisApi } from '@/api'
 import { usePlayerStore } from '@/stores/player'
+import { useTranslation } from '@/i18n'
 import type { VideoAnalysisResult, VideoAnalysisSceneResult } from '@/types/videoAnalysis'
 import { formatVideoAnalysisSeconds } from '@/components/video-analysis/videoAnalysisResultUtils'
 
@@ -27,6 +28,7 @@ type GridState = {
  * - 点击场景通过 store.requestSeek 跳转
  */
 export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: PlayerScenePanelProps) {
+  const { t } = useTranslation()
   const requestSeek = usePlayerStore((s) => s.requestSeek)
   const currentTime = usePlayerStore((s) => s.currentTime)
 
@@ -125,7 +127,7 @@ export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: Playe
           requestedGridsRef.current.delete(scene.scene_index)
           setGridMap((prev) => ({
             ...prev,
-            [scene.scene_index]: { loading: false, error: '加载失败' },
+            [scene.scene_index]: { loading: false, error: t('sp.gridLoadFailed') },
           }))
         })
     })
@@ -173,8 +175,8 @@ export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: Playe
           <button
             type="button"
             onClick={onToggle}
-            aria-label="展开场景面板"
-            title="展开场景"
+            aria-label={t('sp.expandAria')}
+            title={t('sp.expandTitle')}
             className="flex h-12 w-8 items-center justify-center rounded-l-lg text-white backdrop-blur-md transition-all hover:w-9"
             style={{ background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.08)', borderRight: 'none' }}
           >
@@ -188,23 +190,23 @@ export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: Playe
   return (
     <aside
       className="flex h-full w-[min(360px,34vw)] shrink-0 flex-col border-l border-white/10 bg-black/85 backdrop-blur-md"
-      aria-label="视频场景列表"
+      aria-label={t('sp.listAria')}
     >
       <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-sm font-medium text-white">
             <Film size={14} className="shrink-0 text-cyan-300" />
-            场景
+            {t('sp.title')}
           </div>
           <p className="mt-0.5 truncate text-[11px] text-white/45">
-            {loading ? '加载中…' : `${result?.scene_count || scenes.length} 个场景`}
+            {loading ? t('sp.loading') : t('sp.count', { count: result?.scene_count || scenes.length })}
           </p>
         </div>
         <button
           type="button"
           onClick={onToggle}
-          aria-label="收起场景面板"
-          title="收起"
+          aria-label={t('sp.collapseAria')}
+          title={t('sp.collapseTitle')}
           className="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
         >
           <ChevronRight size={16} />
@@ -215,7 +217,7 @@ export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: Playe
         {loading ? (
           <div className="flex h-40 flex-col items-center justify-center gap-2 text-white/50">
             <Loader2 size={18} className="animate-spin text-cyan-300" />
-            <span className="text-xs">正在加载场景…</span>
+            <span className="text-xs">{t('sp.loadingScenes')}</span>
           </div>
         ) : (
           <ul className="space-y-2">
@@ -234,7 +236,7 @@ export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: Playe
                     }`}
                   >
                     <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-white">场景 {scene.scene_index + 1}</span>
+                      <span className="text-sm font-medium text-white">{t('sp.sceneN', { n: scene.scene_index + 1 })}</span>
                       <span className="text-[11px] tabular-nums text-white/50">
                         {formatVideoAnalysisSeconds(scene.start_time)} – {formatVideoAnalysisSeconds(scene.end_time)}
                       </span>
@@ -242,14 +244,14 @@ export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: Playe
                     {scene.description ? (
                       <p className="mb-2 line-clamp-2 text-xs leading-relaxed text-white/65">{scene.description}</p>
                     ) : (
-                      <p className="mb-2 text-xs text-white/35">暂无场景描述</p>
+                      <p className="mb-2 text-xs text-white/35">{t('sp.noDescription')}</p>
                     )}
                     <div className="relative aspect-video overflow-hidden rounded-lg border border-white/5 bg-black/40">
                       {scene.grid_available ? (
                         grid?.url ? (
                           <img
                             src={grid.url}
-                            alt={`场景 ${scene.scene_index + 1} 九宫格`}
+                            alt={t('sp.gridAlt', { n: scene.scene_index + 1 })}
                             className="h-full w-full object-cover"
                             loading="lazy"
                           />
@@ -266,7 +268,7 @@ export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: Playe
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-1 text-white/35">
                           <ImageOff size={14} />
-                          <span className="text-[10px]">无九宫格</span>
+                          <span className="text-[10px]">{t('sp.noGrid')}</span>
                         </div>
                       )}
                     </div>
@@ -280,11 +282,11 @@ export default function PlayerScenePanel({ mediaId, collapsed, onToggle }: Playe
         {hasMore && (
           <div ref={loadMoreSentinelRef} className="flex items-center justify-center py-3 text-[11px] text-white/40">
             <Loader2 size={12} className="mr-1.5 animate-spin" />
-            加载更多场景…
+            {t('sp.loadMore')}
           </div>
         )}
         {!loading && !hasMore && scenes.length > INITIAL_SCENE_LIMIT && (
-          <p className="py-3 text-center text-[11px] text-white/30">已全部加载（{scenes.length}）</p>
+          <p className="py-3 text-center text-[11px] text-white/30">{t('sp.loadedAll', { count: scenes.length })}</p>
         )}
       </div>
     </aside>

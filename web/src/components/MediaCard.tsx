@@ -6,6 +6,7 @@ import { useRef, useCallback } from 'react'
 import { motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from 'framer-motion'
 import { springDefault } from '@/lib/motion'
 import { routes } from '@/lib/routes'
+import { useTranslation } from '@/i18n'
 import { usePosterVersion } from '@/stores/mediaRefresh'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
 import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
@@ -16,6 +17,7 @@ interface MediaCardProps {
 }
 
 export default function MediaCard({ media, series }: MediaCardProps) {
+  const { t } = useTranslation()
   const cardRef = useRef<HTMLDivElement>(null)
 
   // 使用 motion value 替代 useState，避免 re-render
@@ -162,7 +164,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
               >
                 {isSeries ? <Tv size={24} style={{ color: 'var(--text-tertiary)' }} /> : <Film size={24} style={{ color: 'var(--text-tertiary)' }} />}
               </div>
-              <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>暂无海报</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>{t('mc.noPoster')}</span>
             </div>
 
             {/* 悬停遮罩 */}
@@ -177,12 +179,12 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                       boxShadow: 'none',
                     }}
                     title={sourceOffline
-                      ? '远程存储连接不上，暂时无法播放'
-                      : isSeries ? '查看系列' : '立即播放'}
+                      ? t('pp.offlineHint')
+                      : isSeries ? t('mc.viewSeries') : t('home.playNow')}
                   >
                     <Play size={18} className="ml-0.5 text-white" fill="white" />
                   </button>
-                  <span className="text-sm font-semibold text-white">{isSeries ? '查看' : '播放'}</span>
+                  <span className="text-sm font-semibold text-white">{isSeries ? t('mc.view') : t('media.play')}</span>
                 </div>
               </div>
               {/* 详情按钮（右下角，更显眼） */}
@@ -194,7 +196,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                   backdropFilter: 'blur(8px)',
                   border: '1px solid rgba(255,255,255,0.15)',
                 }}
-                title="查看详情"
+                title={t('home.viewDetail')}
               >
                 <Info size={14} className="text-white" />
               </button>
@@ -219,7 +221,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                 }}
               >
                 <WifiOff size={11} />
-                源离线
+                {t('mc.sourceOffline')}
               </span>
             )}
 
@@ -233,7 +235,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                   transform: 'translateZ(0)',
                 }}
               >
-                {seriesData.season_count} 季 · {seriesData.episode_count} 集
+                {t('mc.seasonEpisode', { season: seriesData.season_count, episode: seriesData.episode_count })}
               </span>
             )}
 
@@ -273,7 +275,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
               {isSeries && seriesData && seriesData.episode_count > 0 && (
                 <>
                   <span className="text-neon-blue/30 flex-shrink-0">·</span>
-                  <span className="flex-shrink-0">{seriesData.episode_count} 集</span>
+                  <span className="flex-shrink-0">{t('mc.episodes', { count: seriesData.episode_count })}</span>
                 </>
               )}
             </div>

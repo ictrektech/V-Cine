@@ -16,6 +16,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useAuthStore } from '@/stores/auth'
+import { useTranslation } from '@/i18n'
 
 export interface WebCodecsPlayerHandle {
   play: () => Promise<void>
@@ -59,6 +60,7 @@ interface TrackMeta {
 const WebCodecsPlayer = forwardRef<WebCodecsPlayerHandle, WebCodecsPlayerProps>(
   function WebCodecsPlayer(props, ref) {
     const { src, startPosition = 0 } = props
+    const { t } = useTranslation()
     const canvasRef = useRef<HTMLCanvasElement>(null)
 
     // Worker
@@ -232,7 +234,7 @@ const WebCodecsPlayer = forwardRef<WebCodecsPlayerHandle, WebCodecsPlayerProps>(
           output: (frame) => onVideoFrame(frame),
           error: (e) => {
             console.error('[WebCodecs] VideoDecoder error:', e)
-            setError(`视频解码错误: ${e.message}`)
+            setError(t('pp.decodeError', { detail: e.message }))
             cbRef.current.onError?.(e.message)
           },
         })
@@ -247,7 +249,7 @@ const WebCodecsPlayer = forwardRef<WebCodecsPlayerHandle, WebCodecsPlayerProps>(
         try {
           const { supported } = await VideoDecoder.isConfigSupported(config)
           if (!supported) {
-            const msg2 = `视频编码 ${vtrack.codec} 不被浏览器支持`
+            const msg2 = t('pp.codecUnsupported', { codec: vtrack.codec })
             setError(msg2)
             cbRef.current.onError?.(msg2)
             return
@@ -255,7 +257,7 @@ const WebCodecsPlayer = forwardRef<WebCodecsPlayerHandle, WebCodecsPlayerProps>(
           decoder.configure(config)
           videoDecoderRef.current = decoder
         } catch (e: any) {
-          setError(`视频解码器配置失败: ${e.message || e}`)
+          setError(t('pp.decodeConfigFailed', { detail: e.message || e }))
           cbRef.current.onError?.(e.message || String(e))
           return
         }
@@ -520,7 +522,7 @@ const WebCodecsPlayer = forwardRef<WebCodecsPlayerHandle, WebCodecsPlayerProps>(
     if (error) {
       return (
         <div className="flex h-full w-full items-center justify-center bg-black text-red-400 text-sm">
-          WebCodecs 播放失败：{error}
+          {t('pp.webcodecsFailed', { error })}
         </div>
       )
     }

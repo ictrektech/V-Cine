@@ -3,6 +3,7 @@ import { batchMetadataApi } from '@/api'
 import type { BatchUpdateResult } from '@/types'
 import { Edit3, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 interface BatchMetadataEditorProps {
   selectedIds: string[]
@@ -12,15 +13,16 @@ interface BatchMetadataEditorProps {
 }
 
 const EDITABLE_FIELDS = [
-  { key: 'genres', label: '类型/标签', placeholder: '动作,科幻,冒险' },
-  { key: 'year', label: '年份', placeholder: '2024' },
-  { key: 'rating', label: '评分', placeholder: '8.5' },
-  { key: 'country', label: '国家/地区', placeholder: '中国' },
-  { key: 'language', label: '语言', placeholder: '中文' },
-  { key: 'studio', label: '制片公司', placeholder: 'Studio Name' },
+  { key: 'genres', labelKey: 'bme.genres', placeholderKey: 'bme.genresPh' },
+  { key: 'year', labelKey: 'bme.year', placeholderKey: 'bme.yearPh' },
+  { key: 'rating', labelKey: 'bme.rating', placeholderKey: 'bme.ratingPh' },
+  { key: 'country', labelKey: 'bme.country', placeholderKey: 'bme.countryPh' },
+  { key: 'language', labelKey: 'bme.language', placeholderKey: 'bme.languagePh' },
+  { key: 'studio', labelKey: 'bme.studio', placeholderKey: 'bme.studioPh' },
 ]
 
 export default function BatchMetadataEditor({ selectedIds, type, onClose, onSuccess }: BatchMetadataEditorProps) {
+  const { t } = useTranslation()
   const [updates, setUpdates] = useState<Record<string, string>>({})
   const [enabledFields, setEnabledFields] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
@@ -68,7 +70,7 @@ export default function BatchMetadataEditor({ selectedIds, type, onClose, onSucc
       setResult(res.data.data)
       onSuccess?.()
     } catch {
-      setResult({ total: selectedIds.length, success: 0, failed: selectedIds.length, errors: ['批量更新失败'] })
+      setResult({ total: selectedIds.length, success: 0, failed: selectedIds.length, errors: [t('bme.updateFailed')] })
     } finally {
       setLoading(false)
     }
@@ -86,8 +88,8 @@ export default function BatchMetadataEditor({ selectedIds, type, onClose, onSucc
           <div className="flex items-center gap-3">
             <Edit3 className="h-5 w-5 text-neon-blue" />
             <div>
-              <h3 className="font-display text-lg font-semibold text-white">批量编辑元数据</h3>
-              <p className="text-xs text-surface-400">已选择 {selectedIds.length} 个{type === 'media' ? '媒体' : '剧集合集'}</p>
+              <h3 className="font-display text-lg font-semibold text-white">{t('bme.title')}</h3>
+              <p className="text-xs text-surface-400">{t('bme.selectedCount', { count: selectedIds.length, kind: type === 'media' ? t('bme.kindMedia') : t('bme.kindSeries') })}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-surface-400 hover:text-white">
@@ -108,10 +110,10 @@ export default function BatchMetadataEditor({ selectedIds, type, onClose, onSucc
                 <AlertCircle className="h-10 w-10 text-yellow-400 mx-auto mb-2" />
               )}
               <p className="text-white font-medium">
-                成功 {result.success} / 总计 {result.total}
+                {t('bme.success', { ok: result.success, total: result.total })}
               </p>
               {result.failed > 0 && (
-                <p className="text-sm text-surface-400 mt-1">失败 {result.failed} 个</p>
+                <p className="text-sm text-surface-400 mt-1">{t('bme.failedCount', { count: result.failed })}</p>
               )}
             </div>
             {result.errors.length > 0 && (
@@ -122,13 +124,13 @@ export default function BatchMetadataEditor({ selectedIds, type, onClose, onSucc
               </div>
             )}
             <button onClick={onClose} className="btn-neon w-full rounded-xl py-2.5 text-sm font-medium">
-              关闭
+              {t('common.close')}
             </button>
           </div>
         ) : (
           /* 编辑表单 */
           <div className="space-y-3">
-            {EDITABLE_FIELDS.map(({ key, label, placeholder }) => (
+            {EDITABLE_FIELDS.map(({ key, labelKey, placeholderKey }) => (
               <div key={key} className="flex items-center gap-3">
                 <label className="flex items-center gap-2 cursor-pointer w-28 shrink-0">
                   <input
@@ -137,14 +139,14 @@ export default function BatchMetadataEditor({ selectedIds, type, onClose, onSucc
                     onChange={() => toggleField(key)}
                     className="rounded border-surface-500 bg-surface-700 text-neon-blue focus:ring-neon-blue/30"
                   />
-                  <span className="text-sm text-surface-300">{label}</span>
+                  <span className="text-sm text-surface-300">{t(labelKey)}</span>
                 </label>
                 <input
                   type="text"
                   value={updates[key] || ''}
                   onChange={e => setUpdates(prev => ({ ...prev, [key]: e.target.value }))}
                   disabled={!enabledFields.has(key)}
-                  placeholder={placeholder}
+                  placeholder={t(placeholderKey)}
                   className={clsx(
                     'input-glass flex-1 rounded-lg px-3 py-2 text-sm',
                     !enabledFields.has(key) && 'opacity-40'
@@ -155,7 +157,7 @@ export default function BatchMetadataEditor({ selectedIds, type, onClose, onSucc
 
             <div className="flex items-center gap-3 pt-3">
               <button onClick={onClose} className="btn-ghost flex-1 rounded-xl py-2.5 text-sm">
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleSubmit}
@@ -163,7 +165,7 @@ export default function BatchMetadataEditor({ selectedIds, type, onClose, onSucc
                 className="btn-neon flex-1 rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit3 className="h-4 w-4" />}
-                应用修改
+                {t('bme.apply')}
               </button>
             </div>
           </div>

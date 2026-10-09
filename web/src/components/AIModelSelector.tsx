@@ -7,6 +7,7 @@ import {
   type CostSummary,
 } from '../api/aiCost'
 import { Cpu, Sparkles, AlertCircle, Loader2 } from 'lucide-react'
+import { useTranslation } from '@/i18n'
 
 // AIModelSelector · AI 模型选择 + 成本预估面板
 //
@@ -43,6 +44,7 @@ export default function AIModelSelector({
   showSummary = true,
   compact = false,
 }: Props) {
+  const { t } = useTranslation()
   const [models, setModels] = useState<AIModelInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -71,7 +73,7 @@ export default function AIModelSelector({
       })
       .catch((e: any) => {
         if (cancelled) return
-        setErrorMsg(e?.response?.data?.error || e?.message || '加载模型列表失败')
+        setErrorMsg(e?.response?.data?.error || e?.message || t('ai.loadFailed'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -114,7 +116,7 @@ export default function AIModelSelector({
       {!compact && (
         <div className="flex items-center gap-2">
           <Cpu size={14} className="text-neon" />
-          <span className="text-sm font-medium">AI 模型</span>
+          <span className="text-sm font-medium">{t('ai.title')}</span>
           {provider && (
             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
               · {provider}
@@ -138,7 +140,7 @@ export default function AIModelSelector({
       {loading && (
         <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
           <Loader2 size={14} className="animate-spin" />
-          加载模型列表…
+          {t('ai.loading')}
         </div>
       )}
 
@@ -172,12 +174,12 @@ export default function AIModelSelector({
                         style={{ background: 'rgba(34,211,238,0.15)', color: '#67e8f9' }}
                       >
                         <Sparkles size={10} />
-                        推荐
+                        {t('ai.recommended')}
                       </span>
                     )}
                   </div>
                   <span className="text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>
-                    {sampleCost === 0 ? '免费' : `≈ ${formatCostDual(sampleCost)}`}
+                    {sampleCost === 0 ? t('ai.free') : `≈ ${formatCostDual(sampleCost)}`}
                   </span>
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
@@ -200,16 +202,16 @@ export default function AIModelSelector({
 
       {!loading && !errorMsg && models.length === 0 && (
         <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          provider={provider || '(空)'} 下暂无内置模型
+          {t('ai.noModels', { provider: provider || t('ai.empty') })}
         </div>
       )}
 
       {/* 样例估价提示 */}
       {selected && sampleEst !== null && !compact && (
         <div className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-          💡 样例估算（1000 输入 + 500 输出 tokens）：
+          {t('ai.sampleHint')}
           <span className="ml-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
-            {sampleEst === 0 ? '免费' : formatCostDual(sampleEst)}
+            {sampleEst === 0 ? t('ai.free') : formatCostDual(sampleEst)}
           </span>
         </div>
       )}
@@ -221,7 +223,7 @@ export default function AIModelSelector({
           style={{ background: 'var(--bg-base)', border: '1px solid var(--border-default)' }}
         >
           <div className="flex items-center justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>累计花费（估算）</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{t('ai.totalCost')}</span>
             <span className="font-semibold tabular-nums" style={{ color: 'var(--neon)' }}>
               {summary.estimate?.cost_usd
                 ? formatCostDual(summary.estimate.cost_usd, summary.estimate.usd_to_cny_rate)
@@ -229,9 +231,9 @@ export default function AIModelSelector({
             </span>
           </div>
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-            <span>当月调用：{summary.monthly_calls}</span>
-            <span>输入 tokens：{summary.total_prompt_tokens.toLocaleString()}</span>
-            <span>输出 tokens：{summary.total_completion_tokens.toLocaleString()}</span>
+            <span>{t('ai.monthlyCalls')}{summary.monthly_calls}</span>
+            <span>{t('ai.promptTokens')}{summary.total_prompt_tokens.toLocaleString()}</span>
+            <span>{t('ai.completionTokens')}{summary.total_completion_tokens.toLocaleString()}</span>
           </div>
           {summary.estimate?.fallback && (
             <div className="mt-1 text-[10px]" style={{ color: '#fbbf24' }}>

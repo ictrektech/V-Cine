@@ -366,14 +366,14 @@ export default function HeroSection({
                             {t('hero.deleteMedia')}
                           </button>
                           <div className="my-1 mx-3 h-px" style={{ background: 'var(--border-default)' }} />
-                          <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>预处理与转码</div>
+                          <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{t('hero.preprocessTitle')}</div>
                           <button
                             onClick={() => { onPreprocess?.(); setShowMoreMenu(false) }}
                             className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-neon-blue/5"
                             style={{ color: 'var(--text-secondary)' }}
                           >
                             <Zap size={14} />
-                            手动预处理
+                            {t('hero.manualPreprocess')}
                           </button>
                           <button
                             onClick={() => { onTranscode?.(); setShowMoreMenu(false) }}
@@ -381,7 +381,7 @@ export default function HeroSection({
                             style={{ color: 'var(--text-secondary)' }}
                           >
                             <Clapperboard size={14} />
-                            强制重新转码
+                            {t('hero.forceRetranscode')}
                           </button>
                           <div className="my-1 mx-3 h-px" style={{ background: 'var(--border-default)' }} />
                         </>

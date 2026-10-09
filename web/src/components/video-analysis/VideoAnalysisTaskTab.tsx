@@ -12,25 +12,34 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useDialog } from '@/components/Dialog'
 import { useToast } from '@/components/Toast'
+import { useTranslation } from '@/i18n'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { toAppUrl } from '@/lib/appUrl'
 import { cn } from '@/lib/utils'
 import { routes } from '@/lib/routes'
 import type { VideoAnalysisDetailedStats, VideoAnalysisStatistics, VideoAnalysisStatus, VideoAnalysisTask } from '@/types/videoAnalysis'
 import VideoAnalysisResultDrawer from './VideoAnalysisResultDrawer'
-import { formatVideoAnalysisError, formatVideoAnalysisTime, videoAnalysisStageLabels, videoAnalysisStatusMeta } from './videoAnalysisResultUtils'
+import { formatVideoAnalysisError, formatVideoAnalysisTime, videoAnalysisStatusKeys, videoAnalysisStatusMeta } from './videoAnalysisResultUtils'
 
-const statusFilters: Array<{ value: '' | VideoAnalysisStatus; label: string }> = [
-  { value: '', label: '全部状态' }, { value: 'queued', label: '排队中' }, { value: 'running', label: '分析中' },
-  { value: 'succeeded', label: '已完成' }, { value: 'partial', label: '部分完成' }, { value: 'failed', label: '失败' },
+const statusFilters: Array<{ value: '' | VideoAnalysisStatus; labelKey: string }> = [
+  { value: '', labelKey: 'vat.statusAll' }, { value: 'queued', labelKey: 'vat.statusQueued' }, { value: 'running', labelKey: 'vat.statusRunning' },
+  { value: 'succeeded', labelKey: 'vat.statusSucceeded' }, { value: 'partial', labelKey: 'vat.statusPartial' }, { value: 'failed', labelKey: 'vat.statusFailed' },
 ]
 
+const stageLabelKeys: Record<string, string> = {
+  detect: 'vat.stageDetect',
+  structure: 'vat.stageStructure',
+  describe: 'vat.stageDescribe',
+  done: 'vat.stageDone',
+}
+
 function StatusBadge({ status }: { status: VideoAnalysisStatus }) {
+  const { t } = useTranslation()
   const meta = videoAnalysisStatusMeta[status]
   return (
     <Badge key={status} variant="outline" className={cn('gap-1 animate-in zoom-in-125 duration-300', meta.className)}>
       {status === 'running' ? <Loader2 className="h-3 w-3 animate-spin" /> : status === 'succeeded' ? <CheckCircle2 className="h-3 w-3" /> : <Clock3 className="h-3 w-3" />}
-      {meta.label}
+      {t(videoAnalysisStatusKeys[status])}
     </Badge>
   )
 }
@@ -45,16 +54,17 @@ interface TaskActionButtonsProps {
 }
 
 function TaskActionButtons({ task, retrying, deleting, onRetry, onDelete, onOpenResult }: TaskActionButtonsProps) {
+  const { t } = useTranslation()
   return (
     <div className="inline-flex items-center gap-1">
       {(task.status === 'succeeded' || task.status === 'partial') && (
-        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={onOpenResult} title="查看分析结果">
-          <ScanLine /> 结果
+        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={onOpenResult} title={t('vat.viewResult')}>
+          <ScanLine />{t('vat.result')}
         </Button>
       )}
       {(task.status === 'failed' || task.status === 'partial') && (
         <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" disabled={retrying === task.id} onClick={onRetry}>
-          {retrying === task.id ? <Loader2 className="animate-spin" /> : <RotateCcw />}重试
+          {retrying === task.id ? <Loader2 className="animate-spin" /> : <RotateCcw />}{t('common.retry')}
         </Button>
       )}
       {task.status !== 'running' && (
@@ -64,9 +74,9 @@ function TaskActionButtons({ task, retrying, deleting, onRetry, onDelete, onOpen
           className="h-7 gap-1 px-2 text-xs text-destructive hover:text-destructive"
           disabled={deleting === task.id}
           onClick={onDelete}
-          title="删除任务记录"
+          title={t('vat.deleteTaskTitle')}
         >
-          {deleting === task.id ? <Loader2 className="animate-spin" /> : <Trash2 />}删除
+          {deleting === task.id ? <Loader2 className="animate-spin" /> : <Trash2 />}{t('common.delete')}
         </Button>
       )}
     </div>
@@ -80,6 +90,7 @@ interface VideoAnalysisTaskTabProps {
 
 export default function VideoAnalysisTaskTab({ disabled = false, disabledReason = '' }: VideoAnalysisTaskTabProps) {
   const toast = useToast()
+  const { t } = useTranslation()
   const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
   // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
@@ -189,7 +200,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
       await load(true)
       if (expandedMedia) loadHistory(expandedMedia, true)
     } catch {
-      toast.error('重试失败，请检查任务状态或视频文件')
+      toast.error(t('vat.retryFailed'))
     } finally {
       setRetrying(null)
     }
@@ -197,9 +208,9 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
 
   const removeTask = async (task: VideoAnalysisTask) => {
     const ok = await dialog.confirm({
-      title: '删除视频分析任务',
-      message: `确认删除「${task.media_title || '未命名媒体'}」的这条分析任务记录？\n仅删除 V-Cine 本地任务与结果 JSON，不会删除视频文件，也不会清理外部九宫格缓存。`,
-      confirmText: '删除',
+      title: t('vat.deleteDialogTitle'),
+      message: t('vat.deleteDialogMsg', { title: task.media_title || t('vat.untitled') }),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
@@ -213,11 +224,11 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
         if (urlTaskId === task.id) params.delete('analysisTaskId')
         setSearchParams(params, { replace: true })
       }
-      toast.success('任务已删除')
+      toast.success(t('vat.deleted'))
       await load(true)
       if (expandedMedia) loadHistory(expandedMedia, true)
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '删除失败')
+      toast.error(err?.response?.data?.error || t('vat.deleteFailed'))
     } finally {
       setDeleting(null)
     }
@@ -266,27 +277,27 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const activeCount = (statistics.queued || 0) + (statistics.running || 0)
-  const statusSummary = useMemo(() => statusFilters.find((item) => item.value === status)?.label || '全部状态', [status])
+  const statusSummary = t(statusFilters.find((item) => item.value === status)?.labelKey || 'vat.statusAll')
 
   return (
     <section className="space-y-4" aria-labelledby="video-analysis-heading">
       <Card className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 id="video-analysis-heading" className="flex items-center gap-2 font-semibold text-foreground">
-            <ScanLine className="h-[18px] w-[18px] text-primary" />视频分析任务
+            <ScanLine className="h-[18px] w-[18px] text-primary" />{t('vat.title')}
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground">按媒体聚合，展开查看历史执行记录{query ? ` · 当前筛选：${query}` : ''}{status ? ` · ${statusSummary}` : ''}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('vat.subtitle')}{query ? ` · ${t('vat.currentFilter', { query })}` : ''}{status ? ` · ${statusSummary}` : ''}</p>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-          <span>进行中 <strong className="text-sm text-foreground">{activeCount}</strong></span>
-          <span>已完成 <strong className="text-sm text-emerald-400">{statistics.succeeded || 0}</strong></span>
-          <span>失败 <strong className="text-sm text-red-400">{statistics.failed || 0}</strong></span>
-          <span>成功率 <strong className="text-sm text-foreground">{detailedStats ? `${Math.round(detailedStats.success_rate)}%` : '—'}</strong></span>
+          <span>{t('vat.active')} <strong className="text-sm text-foreground">{activeCount}</strong></span>
+          <span>{t('vat.statusSucceeded')} <strong className="text-sm text-emerald-400">{statistics.succeeded || 0}</strong></span>
+          <span>{t('vat.statusFailed')} <strong className="text-sm text-red-400">{statistics.failed || 0}</strong></span>
+          <span>{t('vat.successRate')} <strong className="text-sm text-foreground">{detailedStats ? `${Math.round(detailedStats.success_rate)}%` : '—'}</strong></span>
           {detailedStats && detailedStats.total_tasks > 0 && (
             <>
-              <span>平均耗时 <strong className="text-sm text-foreground">{detailedStats.avg_elapsed_seconds > 0 ? `${Math.round(detailedStats.avg_elapsed_seconds)}秒` : '—'}</strong></span>
-              <span>错误率 <strong className="text-sm text-red-400">{detailedStats.error_rate > 0 ? `${detailedStats.error_rate.toFixed(1)}%` : '0%'}</strong></span>
-              <span>部分完成 <strong className="text-sm text-amber-400">{detailedStats.partial_rate > 0 ? `${detailedStats.partial_rate.toFixed(1)}%` : '0%'}</strong></span>
+              <span>{t('vat.avgElapsed')} <strong className="text-sm text-foreground">{detailedStats.avg_elapsed_seconds > 0 ? `${Math.round(detailedStats.avg_elapsed_seconds)}${t('vat.seconds')}` : '—'}</strong></span>
+              <span>{t('vat.errorRate')} <strong className="text-sm text-red-400">{detailedStats.error_rate > 0 ? `${detailedStats.error_rate.toFixed(1)}%` : '0%'}</strong></span>
+              <span>{t('vat.statusPartial')} <strong className="text-sm text-amber-400">{detailedStats.partial_rate > 0 ? `${detailedStats.partial_rate.toFixed(1)}%` : '0%'}</strong></span>
             </>
           )}
         </div>
@@ -297,7 +308,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
           <div className="flex items-start gap-2">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
             <div>
-              <div className="font-medium text-amber-400">最近一次批量提交包含自动跳过</div>
+              <div className="font-medium text-amber-400">{t('vat.lastSkippedTitle')}</div>
               <p className="mt-1 text-muted-foreground">{urlLastSkipped}</p>
             </div>
           </div>
@@ -307,19 +318,19 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
       <Card className="flex flex-col gap-3 p-3 sm:flex-row">
         <form className="relative flex-1" onSubmit={(event) => { event.preventDefault(); const nextKeyword = keyword.trim(); setPage(1); setQuery(nextKeyword); syncUrl({ keyword: nextKeyword, page: 1 }) }}>
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input aria-label="搜索视频分析任务" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索媒体标题" className="h-9 pl-9" />
+          <Input aria-label={t('vat.searchAria')} value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={t('vat.searchPlaceholder')} className="h-9 pl-9" />
         </form>
-        <select aria-label="按状态筛选" value={status} onChange={(event) => { const nextStatus = event.target.value as '' | VideoAnalysisStatus; setPage(1); setStatus(nextStatus); syncUrl({ status: nextStatus, page: 1 }) }} className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
-          {statusFilters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+        <select aria-label={t('vat.filterByStatus')} value={status} onChange={(event) => { const nextStatus = event.target.value as '' | VideoAnalysisStatus; setPage(1); setStatus(nextStatus); syncUrl({ status: nextStatus, page: 1 }) }} className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+          {statusFilters.map((item) => <option key={item.value} value={item.value}>{t(item.labelKey)}</option>)}
         </select>
-        <Button variant="outline" size="sm" className="h-9 px-3" onClick={() => load()}><RefreshCw />刷新</Button>
+        <Button variant="outline" size="sm" className="h-9 px-3" onClick={() => load()}><RefreshCw />{t('vat.refresh')}</Button>
       </Card>
 
       <Card className="overflow-hidden">
         {disabled ? (
-          <div className="px-4 py-16 text-center" role="status"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">视频分析未启用</h3><p className="mt-1 text-sm text-muted-foreground">{disabledReason || '需要安装场景检测与视频结构化组件，并在配置中启用。'}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin()) }}>前往系统配置</Button></div></div>
+          <div className="px-4 py-16 text-center" role="status"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">{t('vat.disabledTitle')}</h3><p className="mt-1 text-sm text-muted-foreground">{disabledReason || t('vat.disabledDesc')}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin()) }}>{t('vat.goConfig')}</Button></div></div>
         ) : loading ? (
-          <div className="divide-y divide-border" aria-busy="true" aria-label="正在加载任务">
+          <div className="divide-y divide-border" aria-busy="true" aria-label={t('vat.loadingTasks')}>
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-3">
                 <Skeleton className="h-14 w-10 shrink-0 rounded-md" />
@@ -332,9 +343,9 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
             ))}
           </div>
         ) : unavailable ? (
-          <div className="px-4 py-16 text-center" role="alert"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">无法加载视频分析任务</h3><p className="mt-1 text-sm text-muted-foreground">请检查网络，或确认 video_analysis、Scene 与 Structure 服务已正确配置。</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => load()}>重新检查</Button><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin()) }}>前往系统配置</Button></div></div>
+          <div className="px-4 py-16 text-center" role="alert"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">{t('vat.loadFailed')}</h3><p className="mt-1 text-sm text-muted-foreground">{t('vat.loadFailedDesc')}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => load()}>{t('vat.recheck')}</Button><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin()) }}>{t('vat.goConfig')}</Button></div></div>
         ) : tasks.length === 0 ? (
-          <div className="py-16 text-center"><ScanLine className="mx-auto text-muted-foreground" /><h3 className="mt-3 font-medium">暂无视频分析任务</h3><p className="mt-1 text-sm text-muted-foreground">从文件列表选择视频并发起分析后，任务会显示在这里。</p></div>
+          <div className="py-16 text-center"><ScanLine className="mx-auto text-muted-foreground" /><h3 className="mt-3 font-medium">{t('vat.empty')}</h3><p className="mt-1 text-sm text-muted-foreground">{t('vat.emptyHint')}</p></div>
         ) : (
           <div className="divide-y divide-border">
             {tasks.map((task) => {
@@ -355,22 +366,22 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
                       />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium text-foreground" title={task.media_title}>
-                          {task.media_title || '未命名媒体'}
-                          {isFocused && <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px] font-normal">当前关注</Badge>}
-                          {expanded && <Badge variant="outline" className="ml-2 border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0 text-[10px] font-normal text-emerald-400">最新</Badge>}
+                          {task.media_title || t('vat.untitled')}
+                          {isFocused && <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px] font-normal">{t('vat.currentFocus')}</Badge>}
+                          {expanded && <Badge variant="outline" className="ml-2 border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0 text-[10px] font-normal text-emerald-400">{t('vat.latest')}</Badge>}
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground">{task.trigger === 'auto' ? '媒体库自动分析' : '手动提交'} · {formatVideoAnalysisTime(task.created_at)}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{task.trigger === 'auto' ? t('vat.triggerAuto') : t('vat.triggerManual')} · {formatVideoAnalysisTime(task.created_at)}</div>
                         {task.status === 'running' && (
                           <div className="mt-1.5 flex items-center gap-2 text-xs">
-                            <span className="text-muted-foreground">{videoAnalysisStageLabels[task.stage]} {Math.round(task.progress)}%</span>
+                            <span className="text-muted-foreground">{t(stageLabelKeys[task.stage] || 'vat.stageDone')} {Math.round(task.progress)}%</span>
                             <div className="h-1.5 w-32 overflow-hidden rounded-full bg-secondary"><div className="h-full bg-primary transition-all" style={{ width: `${Math.max(0, Math.min(100, task.progress))}%` }} /></div>
                           </div>
                         )}
                         {task.error_message && task.status !== 'running' && (
-                          <p className="mt-1 max-w-52 truncate text-xs text-red-400" title={formatVideoAnalysisError(task.error_message)}>{formatVideoAnalysisError(task.error_message)}</p>
+                          <p className="mt-1 max-w-52 truncate text-xs text-red-400" title={formatVideoAnalysisError(task.error_message, t)}>{formatVideoAnalysisError(task.error_message, t)}</p>
                         )}
                         {task.missing_model && task.status !== 'running' && (
-                          <p className="mt-0.5 text-[11px] text-amber-400">场景描述模型 {task.missing_model} 未下载{isAdmin ? '，可在分析结果中一键下载' : '，请联系管理员下载'}</p>
+                          <p className="mt-0.5 text-[11px] text-amber-400">{t('vat.missingModel', { model: task.missing_model })}{isAdmin ? t('vat.missingModelAdmin') : t('vat.missingModelContact')}</p>
                         )}
                       </div>
                       <StatusBadge status={task.status} />
@@ -389,7 +400,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
                       className="h-7 w-7"
                       onClick={() => setExpandedMedia(expanded ? null : task.media_id)}
                       aria-expanded={expanded}
-                      title="历史执行记录"
+                      title={t('vat.historyTitle')}
                     >
                       <ChevronDown className={cn('transition-transform', expanded && 'rotate-180')} />
                     </Button>
@@ -398,21 +409,21 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
                   {expanded && (
                     <div className="animate-in fade-in-0 slide-in-from-top-1 duration-200 border-t border-border bg-muted/30 px-4 py-2">
                       {historyLoading ? (
-                        <div className="space-y-2 py-2" aria-busy="true" aria-label="正在加载历史记录">
+                        <div className="space-y-2 py-2" aria-busy="true" aria-label={t('vat.loadingHistory')}>
                           <Skeleton className="h-4 w-2/3" />
                           <Skeleton className="h-4 w-1/2" />
                         </div>
                       ) : historyTasks.length === 0 ? (
-                        <div className="py-2 text-xs text-muted-foreground">无更早的历史执行记录</div>
+                        <div className="py-2 text-xs text-muted-foreground">{t('vat.noEarlierHistory')}</div>
                       ) : (
                         <>
-                          <div className="py-1 text-xs text-muted-foreground">历史记录（最近 5 条）</div>
+                          <div className="py-1 text-xs text-muted-foreground">{t('vat.historyRecent', { count: 5 })}</div>
                           <div className="divide-y divide-border">
                             {historyTasks.map((item) => (
                               <div key={item.id} className="flex flex-wrap items-center gap-2 py-2 sm:gap-3">
-                                <span className="w-16 shrink-0 text-xs text-muted-foreground">第 {item.seq || item.attempt || 1} 次</span>
+                                <span className="w-16 shrink-0 text-xs text-muted-foreground">{t('vat.attemptN', { n: item.seq || item.attempt || 1 })}</span>
                                 <StatusBadge status={item.status} />
-                                {item.error_message && <p className="min-w-0 flex-1 truncate text-xs text-red-400" title={formatVideoAnalysisError(item.error_message)}>{formatVideoAnalysisError(item.error_message)}</p>}
+                                {item.error_message && <p className="min-w-0 flex-1 truncate text-xs text-red-400" title={formatVideoAnalysisError(item.error_message, t)}>{formatVideoAnalysisError(item.error_message, t)}</p>}
                                 <span className="ml-auto shrink-0 text-xs text-muted-foreground">{formatVideoAnalysisTime(item.created_at)}</span>
                                 <TaskActionButtons
                                   task={item}
@@ -437,12 +448,12 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
       </Card>
 
       {!loading && !unavailable && total > 0 && (
-        <nav aria-label="视频分析任务分页" className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">共 {total} 个媒体</span>
+        <nav aria-label={t('vat.paginationAria')} className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{t('vat.totalMedia', { total })}</span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => { const next = page - 1; setPage(next); syncUrl({ page: next }) }}>上一页</Button>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => { const next = page - 1; setPage(next); syncUrl({ page: next }) }}>{t('vat.prevPage')}</Button>
             <span className="text-muted-foreground">{page} / {totalPages}</span>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => { const next = page + 1; setPage(next); syncUrl({ page: next }) }}>下一页</Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => { const next = page + 1; setPage(next); syncUrl({ page: next }) }}>{t('vat.nextPage')}</Button>
           </div>
         </nav>
       )}

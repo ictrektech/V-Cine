@@ -6,10 +6,12 @@ import {
   SkipForward, SkipBack, Volume2, Loader2,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 type Tab = 'tracks' | 'albums' | 'playlists'
 
 export default function MusicPlayer() {
+  const { t } = useTranslation()
   const [tab, setTab] = useState<Tab>('tracks')
   const [tracks, setTracks] = useState<MusicTrack[]>([])
   const [albums, setAlbums] = useState<MusicAlbum[]>([])
@@ -91,12 +93,12 @@ export default function MusicPlayer() {
       {/* 搜索栏 */}
       <div className="flex items-center gap-3 mb-6">
         <Music className="h-5 w-5 text-neon-purple" />
-        <h2 className="font-display text-xl font-semibold text-white">音乐库</h2>
+        <h2 className="font-display text-xl font-semibold text-white">{t('music.title')}</h2>
         <div className="flex-1" />
         <div className="flex items-center gap-2">
           <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="搜索音乐..." className="input-glass rounded-lg px-3 py-2 text-sm w-48" />
+            placeholder={t('music.searchPlaceholder')} className="input-glass rounded-lg px-3 py-2 text-sm w-48" />
           <button onClick={handleSearch} className="btn-ghost rounded-lg p-2">
             <Search className="h-4 w-4" />
           </button>
@@ -106,9 +108,9 @@ export default function MusicPlayer() {
       {/* Tab 切换 */}
       <div className="flex gap-1 rounded-xl bg-surface-800/50 p-1 mb-6">
         {[
-          { key: 'tracks' as Tab, label: '曲目', icon: Music },
-          { key: 'albums' as Tab, label: '专辑', icon: Disc3 },
-          { key: 'playlists' as Tab, label: '播放列表', icon: ListMusic },
+          { key: 'tracks' as Tab, label: t('music.tracks'), icon: Music },
+          { key: 'albums' as Tab, label: t('music.albums'), icon: Disc3 },
+          { key: 'playlists' as Tab, label: t('music.playlists'), icon: ListMusic },
         ].map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setTab(key)}
             className={clsx(
@@ -152,7 +154,7 @@ export default function MusicPlayer() {
             {tracks.length === 0 && (
               <div className="text-center py-16 text-surface-500">
                 <Music className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>暂无音乐</p>
+                <p>{t('music.noTracks')}</p>
               </div>
             )}
           </div>
@@ -175,7 +177,7 @@ export default function MusicPlayer() {
                 <div className="p-3">
                   <p className="text-sm font-medium text-white truncate">{album.title}</p>
                   <p className="text-xs text-surface-400 truncate">{album.artist} · {album.year}</p>
-                  <p className="text-xs text-surface-500 mt-1">{album.track_count} 首</p>
+                  <p className="text-xs text-surface-500 mt-1">{t('music.trackCount', { count: album.track_count })}</p>
                 </div>
               </div>
             ))}
@@ -189,14 +191,14 @@ export default function MusicPlayer() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white">{playlist.name}</p>
-                  <p className="text-xs text-surface-400">{playlist.items?.length || 0} 首曲目</p>
+                  <p className="text-xs text-surface-400">{t('music.playlistTrackCount', { count: playlist.items?.length || 0 })}</p>
                 </div>
               </div>
             ))}
             {playlists.length === 0 && (
               <div className="text-center py-16 text-surface-500">
                 <ListMusic className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                <p>暂无播放列表</p>
+                <p>{t('music.noPlaylists')}</p>
               </div>
             )}
           </div>

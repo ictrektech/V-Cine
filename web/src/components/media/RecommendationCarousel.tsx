@@ -4,12 +4,14 @@ import { streamApi } from '@/api'
 import { usePosterVersion } from '@/stores/mediaRefresh'
 import type { RecommendedMedia } from '@/types'
 import { Film, Play, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslation } from '@/i18n'
 
 interface RecommendationCarouselProps {
   recommendations: RecommendedMedia[]
 }
 
 export default function RecommendationCarousel({ recommendations }: RecommendationCarouselProps) {
+  const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
   // 订阅全局海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
@@ -28,14 +30,14 @@ export default function RecommendationCarousel({ recommendations }: Recommendati
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-display text-base font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
           <Film size={16} className="text-neon/60" />
-          相关推荐
+          {t('rec.title')}
         </h3>
         <div className="flex gap-1">
           <button
             onClick={() => scroll('left')}
             className="rounded-lg p-1.5 transition-colors hover:bg-neon-blue/5"
             style={{ color: 'var(--text-muted)' }}
-            aria-label="向左滚动"
+            aria-label={t('rec.scrollLeft')}
           >
             <ChevronLeft size={18} />
           </button>
@@ -43,7 +45,7 @@ export default function RecommendationCarousel({ recommendations }: Recommendati
             onClick={() => scroll('right')}
             className="rounded-lg p-1.5 transition-colors hover:bg-neon-blue/5"
             style={{ color: 'var(--text-muted)' }}
-            aria-label="向右滚动"
+            aria-label={t('rec.scrollRight')}
           >
             <ChevronRight size={18} />
           </button>
@@ -54,7 +56,7 @@ export default function RecommendationCarousel({ recommendations }: Recommendati
         className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
         style={{ scrollbarWidth: 'none' }}
         role="list"
-        aria-label="相关推荐媒体列表"
+        aria-label={t('rec.listAria')}
       >
         {recommendations.map((item) => (
           <Link

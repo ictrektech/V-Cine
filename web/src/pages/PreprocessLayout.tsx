@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Zap, Subtitles } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 /**
  * 预处理模块壳组件
@@ -13,14 +14,15 @@ import clsx from 'clsx'
  * 3) 子页面保持独立，WS 订阅自然按 Tab 切换 mount/unmount
  */
 export default function PreprocessLayout() {
+  const { t } = useTranslation()
   const location = useLocation()
   // 子 Tab 命中：以路径前缀判定
   const isSubtitle = location.pathname.startsWith('/preprocess/subtitle')
   const isVideo = !isSubtitle
 
   const tabs = [
-    { to: '/preprocess', label: '视频预处理', icon: Zap, active: isVideo, end: true },
-    { to: '/preprocess/subtitle', label: '字幕预处理', icon: Subtitles, active: isSubtitle, end: false },
+    { to: '/preprocess', label: t('preprocess.videoTitle'), icon: Zap, active: isVideo, end: true },
+    { to: '/preprocess/subtitle', label: t('subpre.pageTitle'), icon: Subtitles, active: isSubtitle, end: false },
   ] as const
 
   return (

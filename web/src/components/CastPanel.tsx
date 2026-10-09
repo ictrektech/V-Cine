@@ -3,6 +3,7 @@ import { castApi } from '@/api'
 import type { CastDevice, CastSession } from '@/types'
 import { Monitor, Wifi, Play, Pause, Square, Volume2, RefreshCw, X, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 interface CastPanelProps {
   mediaId: string
@@ -11,6 +12,7 @@ interface CastPanelProps {
 }
 
 export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelProps) {
+  const { t } = useTranslation()
   const [devices, setDevices] = useState<CastDevice[]>([])
   const [session, setSession] = useState<CastSession | null>(null)
   const [loading, setLoading] = useState(true)
@@ -24,7 +26,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
       const res = await castApi.listDevices()
       setDevices(res.data.data || [])
     } catch {
-      setError('获取设备列表失败')
+      setError(t('cast.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -37,7 +39,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
       await new Promise(resolve => setTimeout(resolve, 2000))
       await loadDevices()
     } catch {
-      setError('刷新设备失败')
+      setError(t('cast.refreshFailed'))
     } finally {
       setRefreshing(false)
     }
@@ -50,7 +52,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
       const res = await castApi.startCast({ device_id: deviceId, media_id: mediaId })
       setSession(res.data.data)
     } catch (err: any) {
-      setError(err.response?.data?.error || '投屏失败')
+      setError(err.response?.data?.error || t('cast.castFailed'))
     } finally {
       setCasting(false)
     }
@@ -67,7 +69,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
         setSession(res.data.data)
       }
     } catch {
-      setError('控制操作失败')
+      setError(t('cast.controlFailed'))
     }
   }
 
@@ -98,7 +100,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--neon-blue-8)' }}>
         <div className="flex items-center gap-2">
           <Monitor size={18} className="text-neon-blue" />
-          <h3 className="text-sm font-medium text-white">投屏</h3>
+          <h3 className="text-sm font-medium text-white">{t('cast.title')}</h3>
         </div>
         <button
           onClick={onClose}
@@ -113,10 +115,10 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
         <div className="p-4" style={{ borderBottom: '1px solid var(--neon-blue-8)' }}>
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--neon-green)', boxShadow: 'var(--neon-glow-shadow-md)' }} />
-            <span className="text-xs" style={{ color: 'var(--neon-green)' }}>正在投屏</span>
+            <span className="text-xs" style={{ color: 'var(--neon-green)' }}>{t('cast.casting')}</span>
           </div>
-          <p className="mb-1 text-sm font-medium text-white">{mediaTitle || '正在播放'}</p>
-          <p className="mb-3 text-xs text-surface-500">{session.device?.name || '未知设备'}</p>
+          <p className="mb-1 text-sm font-medium text-white">{mediaTitle || t('cast.playing')}</p>
+          <p className="mb-3 text-xs text-surface-500">{session.device?.name || t('cast.unknownDevice')}</p>
 
           <div className="flex items-center justify-center gap-3">
             <button
@@ -133,7 +135,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
               onClick={() => controlCast('stop')}
               className="rounded-full p-2 text-surface-300 transition-colors hover:text-white"
               style={{ background: 'var(--neon-blue-6)', border: '1px solid var(--neon-blue-10)' }}
-              title="停止投屏"
+              title={t('cast.stop')}
             >
               <Square size={16} />
             </button>
@@ -160,14 +162,14 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
       {!session && (
         <div className="p-2">
           <div className="flex items-center justify-between px-2 py-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-neon-blue/40">可用设备</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-neon-blue/40">{t('cast.available')}</span>
             <button
               onClick={refreshDevices}
               disabled={refreshing}
               className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-surface-400 transition-colors hover:text-neon-blue hover:bg-neon-blue/5 disabled:opacity-50"
             >
               <RefreshCw size={12} className={clsx(refreshing && 'animate-spin')} />
-              刷新
+              {t('common.refresh')}
             </button>
           </div>
 
@@ -178,8 +180,8 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
           ) : devices.length === 0 ? (
             <div className="py-8 text-center">
               <Wifi size={32} className="mx-auto mb-2 text-surface-600" />
-              <p className="text-sm text-surface-400">未发现投屏设备</p>
-              <p className="mt-1 text-xs text-surface-600">请确保设备与服务器在同一网络</p>
+              <p className="text-sm text-surface-400">{t('cast.noDevices')}</p>
+              <p className="mt-1 text-xs text-surface-600">{t('cast.networkHint')}</p>
             </div>
           ) : (
             <div className="space-y-1">
@@ -196,7 +198,7 @@ export default function CastPanel({ mediaId, mediaTitle, onClose }: CastPanelPro
                     <Monitor size={16} className="text-neon-blue" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-white">{device.name || '未知设备'}</p>
+                    <p className="truncate text-sm font-medium text-white">{device.name || t('cast.unknownDevice')}</p>
                     <p className="truncate text-xs text-surface-500">
                       {device.manufacturer || device.type.toUpperCase()}
                       {device.model_name && ` · ${device.model_name}`}

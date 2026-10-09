@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import clsx from 'clsx'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { useTranslation } from '@/i18n'
 
 interface PaginationProps {
   /** 当前页码（从1开始） */
@@ -37,6 +38,7 @@ export default function Pagination({
   showJumper = true,
   maxButtons = 7,
 }: PaginationProps) {
+  const { t } = useTranslation()
   if (totalPages <= 0) return null
 
   // 计算要显示的页码列表
@@ -102,14 +104,14 @@ export default function Pagination({
       {/* 总数信息 */}
       {showTotal && total !== undefined && (
         <span className="mr-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          共 <strong style={{ color: 'var(--text-secondary)' }}>{total}</strong> 项
+          {t('pagination.totalHead')}<strong style={{ color: 'var(--text-secondary)' }}>{total}</strong>{t('pagination.totalTail')}
         </span>
       )}
 
       {/* 每页数量选择器（放在总数旁边，避免被挤到换行后不可见） */}
       {pageSizeOptions && pageSizeOptions.length > 0 && onPageSizeChange && (
         <div className="mr-2 flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          <span>每页</span>
+          <span>{t('pagination.perPage')}</span>
           <Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(Number(v))}>
             <SelectTrigger className="h-8 w-[72px] rounded-lg px-2 text-sm">
               <SelectValue />
@@ -120,7 +122,7 @@ export default function Pagination({
               ))}
             </SelectContent>
           </Select>
-          <span>条</span>
+          <span>{t('pagination.items')}</span>
         </div>
       )}
 
@@ -133,7 +135,7 @@ export default function Pagination({
           border: '1px solid var(--border-default)',
           color: 'var(--text-secondary)',
         }}
-        title="首页"
+        title={t('pagination.first')}
       >
         <ChevronsLeft size={14} />
       </button>
@@ -147,7 +149,7 @@ export default function Pagination({
           border: '1px solid var(--border-default)',
           color: 'var(--text-secondary)',
         }}
-        title="上一页"
+        title={t('pagination.prev')}
       >
         <ChevronLeft size={14} />
       </button>
@@ -200,7 +202,7 @@ export default function Pagination({
           border: '1px solid var(--border-default)',
           color: 'var(--text-secondary)',
         }}
-        title="下一页"
+        title={t('pagination.next')}
       >
         <ChevronRight size={14} />
       </button>
@@ -214,7 +216,7 @@ export default function Pagination({
           border: '1px solid var(--border-default)',
           color: 'var(--text-secondary)',
         }}
-        title="末页"
+        title={t('pagination.last')}
       >
         <ChevronsRight size={14} />
       </button>
@@ -222,7 +224,7 @@ export default function Pagination({
       {/* 快速跳转 */}
       {showJumper && totalPages > 5 && (
         <div className="ml-2 flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          <span>跳至</span>
+          <span>{t('pagination.jumpTo')}</span>
           <input
             type="number"
             min={1}
@@ -236,7 +238,7 @@ export default function Pagination({
             }}
             placeholder={`${page}`}
           />
-          <span>页</span>
+          <span>{t('pagination.page')}</span>
         </div>
       )}
     </div>

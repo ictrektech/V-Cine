@@ -516,7 +516,7 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
               whileHover={{ scale: 1.1, background: 'rgba(0,0,0,0.5)' }}
               whileTap={{ scale: 0.9 }}
               transition={{ duration: 0.2 }}
-              aria-label="上一个"
+              aria-label={t('home.carouselPrev')}
             >
               <ChevronLeft size={22} className="text-white/80" />
             </motion.button>
@@ -533,7 +533,7 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
               whileHover={{ scale: 1.1, background: 'rgba(0,0,0,0.5)' }}
               whileTap={{ scale: 0.9 }}
               transition={{ duration: 0.2 }}
-              aria-label="下一个"
+              aria-label={t('home.carouselNext')}
             >
               <ChevronRight size={22} className="text-white/80" />
             </motion.button>
@@ -551,7 +551,7 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
                   onClick={() => setIsPaused(!isPaused)}
                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white/50 transition-colors hover:text-white/80"
                   whileTap={{ scale: 0.85 }}
-                  aria-label={isPaused ? '播放' : '暂停'}
+                  aria-label={isPaused ? t('home.carouselPlay') : t('home.carouselPause')}
                 >
                   {isPaused ? <Play size={10} fill="currentColor" /> : <Pause size={10} />}
                 </motion.button>
@@ -563,7 +563,7 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
                       key={i}
                       onClick={() => goTo(i)}
                       className="group relative h-6 flex-1 cursor-pointer"
-aria-label={`第 ${i + 1} 张`}
+aria-label={t('home.slideN', { n: i + 1 })}
                       aria-current={i === current ? 'true' : undefined}
                     >
                       {/* 轨道背景 */}

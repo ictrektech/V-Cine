@@ -7,8 +7,10 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useDialog } from '@/components/Dialog'
+import { useTranslation } from '@/i18n'
 
 export default function PluginManager() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [plugins, setPlugins] = useState<PluginInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,10 +33,10 @@ export default function PluginManager() {
     setScanning(true)
     try {
       const res = await pluginApi.scan()
-      setMessage({ type: 'success', text: `发现 ${res.data.data?.length || 0} 个插件` })
+      setMessage({ type: 'success', text: t('pm.found', { count: res.data.data?.length || 0 }) })
       loadPlugins()
     } catch {
-      setMessage({ type: 'error', text: '扫描失败' })
+      setMessage({ type: 'error', text: t('pm.scanFailed') })
     } finally {
       setScanning(false)
       setTimeout(() => setMessage(null), 3000)
@@ -50,25 +52,25 @@ export default function PluginManager() {
       }
       loadPlugins()
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '操作失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('pm.operationFailed') })
       setTimeout(() => setMessage(null), 3000)
     }
   }
 
   const handleUninstall = async (id: string) => {
     const ok = await dialog.confirm({
-      title: '卸载插件',
-      message: '确定要卸载此插件吗？',
-      confirmText: '卸载',
+      title: t('pm.uninstallTitle'),
+      message: t('pm.uninstallMsg'),
+      confirmText: t('pm.uninstallConfirm'),
       variant: 'danger',
     })
     if (!ok) return
     try {
       await pluginApi.uninstall(id)
-      setMessage({ type: 'success', text: '插件已卸载' })
+      setMessage({ type: 'success', text: t('pm.uninstalled') })
       loadPlugins()
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '卸载失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('pm.uninstallFailed') })
     }
     setTimeout(() => setMessage(null), 3000)
   }
@@ -93,8 +95,8 @@ export default function PluginManager() {
 
   const getTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      media_source: '媒体源', theme: '主题', player: '播放器',
-      metadata: '元数据', notification: '通知',
+      media_source: t('pm.catMediaSource'), theme: t('pm.catTheme'), player: t('pm.catPlayer'),
+      metadata: t('pm.catMetadata'), notification: t('pm.catNotification'),
     }
     return labels[type] || type
   }
@@ -148,13 +150,13 @@ export default function PluginManager() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Puzzle className="h-5 w-5 text-neon-purple" />
-          <h2 className="font-display text-xl font-semibold text-white">插件管理</h2>
-          <span className="text-xs text-surface-400">({plugins.length} 个插件)</span>
+          <h2 className="font-display text-xl font-semibold text-white">{t('pm.title')}</h2>
+          <span className="text-xs text-surface-400">{t('pm.count', { count: plugins.length })}</span>
         </div>
         <button onClick={handleScan} disabled={scanning}
           className="btn-ghost rounded-xl px-4 py-2 text-sm flex items-center gap-2">
           {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          扫描插件
+          {t('pm.scan')}
         </button>
       </div>
 
@@ -192,7 +194,7 @@ export default function PluginManager() {
                   'flex-1 rounded-lg py-2 text-xs flex items-center justify-center gap-1 transition-all',
                   plugin.enabled ? 'btn-ghost text-yellow-400' : 'btn-ghost text-green-400'
                 )}>
-                {plugin.enabled ? <><PowerOff className="h-3 w-3" /> 禁用</> : <><Power className="h-3 w-3" /> 启用</>}
+                {plugin.enabled ? <><PowerOff className="h-3 w-3" /> {t('pm.disable')}</> : <><Power className="h-3 w-3" /> {t('pm.enable')}</>}
               </button>
               <button onClick={() => handleViewDetail(plugin)}
                 className="btn-ghost rounded-lg px-3 py-2 text-xs">
@@ -216,8 +218,8 @@ export default function PluginManager() {
       {plugins.length === 0 && (
         <div className="text-center py-16 text-surface-500">
           <Puzzle className="h-16 w-16 mx-auto mb-4 opacity-20" />
-          <p className="text-lg">暂无已安装插件</p>
-          <p className="text-sm mt-1">将插件放入 plugins 目录后点击「扫描插件」</p>
+          <p className="text-lg">{t('pm.empty')}</p>
+          <p className="text-sm mt-1">{t('pm.emptyHint')}</p>
         </div>
       )}
     </div>

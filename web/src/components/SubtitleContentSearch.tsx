@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, X, Clock, ChevronRight, Subtitles } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 interface SubtitleCue {
   startTime: number
@@ -65,6 +66,7 @@ export default function SubtitleContentSearch({
   onClose,
   hasActiveSubtitle,
 }: SubtitleContentSearchProps) {
+  const { t } = useTranslation()
   const [keyword, setKeyword] = useState('')
   const [results, setResults] = useState<SubtitleCue[]>([])
   const [searched, setSearched] = useState(false)
@@ -194,7 +196,7 @@ export default function SubtitleContentSearch({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 text-sm font-medium" style={{ color: '#ffffff' }}>
             <Search size={14} className="text-neon-blue" />
-            字幕搜索
+            {t('scs.title')}
           </div>
           <button onClick={onClose} className="hover:text-white transition-colors" style={{ color: '#627d98' }}>
             <X size={14} />
@@ -202,8 +204,8 @@ export default function SubtitleContentSearch({
         </div>
         <div className="text-center py-6">
           <Subtitles className="h-8 w-8 mx-auto mb-2" style={{ color: '#486581' }} />
-          <p className="text-sm" style={{ color: '#829ab1' }}>请先选择一个字幕轨道</p>
-          <p className="text-xs mt-1" style={{ color: '#486581' }}>加载字幕后即可搜索字幕内容</p>
+          <p className="text-sm" style={{ color: '#829ab1' }}>{t('scs.selectTrack')}</p>
+          <p className="text-xs mt-1" style={{ color: '#486581' }}>{t('scs.loadHint')}</p>
         </div>
       </div>
     )
@@ -223,12 +225,12 @@ export default function SubtitleContentSearch({
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-center gap-2 text-sm font-medium" style={{ color: '#ffffff' }}>
           <Search size={14} className="text-neon-blue" />
-          字幕搜索
+          {t('scs.title')}
         </div>
         <div className="flex items-center gap-1">
           <span className="text-[10px] mr-1" style={{ color: '#486581' }}>
-            <kbd className="px-1 py-0.5 rounded text-[10px]" style={{ background: 'rgba(18, 26, 39, 0.8)', color: '#829ab1' }}>↑↓</kbd> 导航
-            <kbd className="ml-1 px-1 py-0.5 rounded text-[10px]" style={{ background: 'rgba(18, 26, 39, 0.8)', color: '#829ab1' }}>↵</kbd> 跳转
+            <kbd className="px-1 py-0.5 rounded text-[10px]" style={{ background: 'rgba(18, 26, 39, 0.8)', color: '#829ab1' }}>↑↓</kbd> {t('scs.navigate')}
+            <kbd className="ml-1 px-1 py-0.5 rounded text-[10px]" style={{ background: 'rgba(18, 26, 39, 0.8)', color: '#829ab1' }}>↵</kbd> {t('scs.jump')}
           </span>
           <button onClick={onClose} className="hover:text-white transition-colors p-1" style={{ color: '#627d98' }}>
             <X size={14} />
@@ -252,7 +254,7 @@ export default function SubtitleContentSearch({
             }}
             onKeyDown={handleKeyDown}
             onFocus={() => { if (!keyword && history.length > 0) setShowHistory(true) }}
-            placeholder="输入关键词搜索字幕内容..."
+            placeholder={t('scs.placeholder')}
             className="w-full rounded-lg px-3 py-2 pl-9 pr-20 text-sm outline-none ring-1 ring-transparent focus:ring-neon-blue/30 transition-all"
             style={{ background: 'rgba(18, 26, 39, 0.8)', color: '#ffffff' }}
           />
@@ -278,7 +280,7 @@ export default function SubtitleContentSearch({
               )}
             style={!keyword.trim() ? { background: 'rgba(18, 26, 39, 0.5)', color: '#486581' } : {}}
             >
-              搜索
+              {t('scs.search')}
             </button>
           </div>
         </div>
@@ -289,10 +291,10 @@ export default function SubtitleContentSearch({
         <div className="px-4 pb-2">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#627d98' }}>
-              <Clock size={10} className="inline mr-1" />搜索历史
+              <Clock size={10} className="inline mr-1" />{t('scs.history')}
             </span>
             <button onClick={clearHistory} className="text-[10px] hover:text-red-400 transition-colors" style={{ color: '#486581' }}>
-              清空
+              {t('scs.clear')}
             </button>
           </div>
           <div className="space-y-0.5">
@@ -327,9 +329,9 @@ export default function SubtitleContentSearch({
           <div className="px-4 py-2 flex items-center justify-between">
             <span className="text-xs" style={{ color: '#627d98' }}>
               {results.length > 0 ? (
-                <>找到 <span className="text-neon-blue font-medium">{results.length}</span> 条结果</>
+                <>{t('scs.found', { count: results.length })}</>
               ) : (
-                '未找到匹配结果'
+                t('scs.notFound')
               )}
             </span>
             {results.length > 0 && activeIndex >= 0 && (
@@ -384,8 +386,8 @@ export default function SubtitleContentSearch({
           {results.length === 0 && (
             <div className="text-center py-6 px-4">
               <Search className="h-6 w-6 mx-auto mb-2" style={{ color: '#334155' }} />
-              <p className="text-xs" style={{ color: '#627d98' }}>未在当前字幕中找到「{keyword}」</p>
-              <p className="text-[10px] mt-1" style={{ color: '#486581' }}>请尝试其他关键词</p>
+              <p className="text-xs" style={{ color: '#627d98' }}>{t('scs.noMatch', { keyword })}</p>
+              <p className="text-[10px] mt-1" style={{ color: '#486581' }}>{t('scs.tryOther')}</p>
             </div>
           )}
         </div>
@@ -394,8 +396,8 @@ export default function SubtitleContentSearch({
       {/* 空状态 */}
       {!searched && !showHistory && (
         <div className="text-center py-4 px-4 border-t border-neon-blue/5">
-          <p className="text-xs" style={{ color: '#627d98' }}>输入关键词搜索当前字幕内容</p>
-          <p className="text-[10px] mt-0.5" style={{ color: '#486581' }}>点击结果可跳转到对应时间点</p>
+          <p className="text-xs" style={{ color: '#627d98' }}>{t('scs.emptyHint')}</p>
+          <p className="text-[10px] mt-0.5" style={{ color: '#486581' }}>{t('scs.clickHint')}</p>
         </div>
       )}
     </div>

@@ -5,8 +5,10 @@ import { useToast } from '@/components/Toast'
 import { copyToClipboard } from '@/lib/clipboard'
 import ApiKeyItem from './ApiKeyItem'
 import type { ApiKey } from '@/api/apiKey'
+import { useTranslation } from '@/i18n'
 
 export default function ApiKeyManager() {
+  const { t } = useTranslation()
   const toast = useToast()
   const [expanded, setExpanded] = useState(false)
   const [keys, setKeys] = useState<ApiKey[]>([])
@@ -36,7 +38,7 @@ export default function ApiKeyManager() {
   const handleCreate = async () => {
     const name = newName.trim()
     if (!name) {
-      toast.error('请输入 API Key 名称')
+      toast.error(t('ak.nameRequired'))
       return
     }
     setCreating(true)
@@ -46,7 +48,7 @@ export default function ApiKeyManager() {
       setNewName('')
       await fetchKeys()
     } catch {
-      toast.error('创建失败')
+      toast.error(t('ak.createFailed'))
     } finally {
       setCreating(false)
     }
@@ -55,20 +57,20 @@ export default function ApiKeyManager() {
   const handleDelete = async (id: string) => {
     try {
       await apiKeyApi.delete(id)
-      toast.success('已删除')
+      toast.success(t('ak.deleted'))
       await fetchKeys()
     } catch {
-      toast.error('删除失败')
+      toast.error(t('ak.deleteFailed'))
     }
   }
 
   const handleRevoke = async (id: string) => {
     try {
       await apiKeyApi.revoke(id)
-      toast.success('已撤销')
+      toast.success(t('ak.revoked'))
       await fetchKeys()
     } catch {
-      toast.error('撤销失败')
+      toast.error(t('ak.revokeFailed'))
     }
   }
 
@@ -76,7 +78,7 @@ export default function ApiKeyManager() {
     if (!createdKey) return
     await copyToClipboard(createdKey)
     setCopied(true)
-    toast.success('已复制到剪贴板')
+    toast.success(t('ak.copied'))
     setTimeout(() => setCopied(false), 2000)
   }
 
@@ -95,7 +97,7 @@ export default function ApiKeyManager() {
       >
         <span className="flex items-center gap-2 font-display text-base font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
           <Key size={18} className="text-violet-400/60" />
-          开发者设置
+          {t('ak.title')}
         </span>
         {expanded ? <ChevronUp size={16} className="text-theme-muted" /> : <ChevronDown size={16} className="text-theme-muted" />}
       </button>
@@ -103,7 +105,7 @@ export default function ApiKeyManager() {
       {expanded && (
         <div className="mt-2 space-y-3 rounded-xl p-4" style={{ background: 'var(--bg-secondary)' }}>
           <p className="text-xs text-theme-muted">
-            API Key 用于程序化访问，与登录会话独立。密钥长期有效，请妥善保管。
+            {t('ak.desc')}
           </p>
 
           {/* Key 列表 */}
@@ -112,7 +114,7 @@ export default function ApiKeyManager() {
               <Loader2 size={16} className="animate-spin text-theme-muted" />
             </div>
           ) : keys.length === 0 ? (
-            <p className="py-2 text-center text-sm text-theme-muted">暂无 API Key</p>
+            <p className="py-2 text-center text-sm text-theme-muted">{t('ak.empty')}</p>
           ) : (
             <div className="space-y-2">
               {keys.map((k) => (
@@ -128,7 +130,7 @@ export default function ApiKeyManager() {
               className="flex items-center gap-1.5 text-sm font-medium text-violet-400 transition-colors hover:text-violet-300"
             >
               <Plus size={14} />
-              创建新 Key
+              {t('ak.createNew')}
             </button>
           )}
 
@@ -140,7 +142,7 @@ export default function ApiKeyManager() {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 className="input flex-1 text-sm"
-                placeholder="例如: 开发环境"
+                placeholder={t('ak.namePlaceholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                 autoFocus
               />
@@ -149,13 +151,13 @@ export default function ApiKeyManager() {
                 disabled={creating || !newName.trim()}
                 className="btn-primary px-4 py-2 text-sm"
               >
-                {creating ? <Loader2 size={14} className="animate-spin" /> : '创建'}
+                {creating ? <Loader2 size={14} className="animate-spin" /> : t('ak.create')}
               </button>
               <button
                 onClick={() => { setShowCreate(false); setNewName('') }}
                 className="btn-ghost px-3 py-2 text-sm"
               >
-                取消
+                {t('common.cancel')}
               </button>
             </div>
           )}
@@ -163,7 +165,7 @@ export default function ApiKeyManager() {
           {/* 创建成功提示 */}
           {createdKey && (
             <div className="rounded-lg border p-4" style={{ borderColor: 'var(--neon-green)', background: 'var(--bg-surface)' }}>
-              <p className="mb-2 text-sm font-medium text-theme-primary">API Key 创建成功</p>
+              <p className="mb-2 text-sm font-medium text-theme-primary">{t('ak.created')}</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 break-all rounded bg-black/20 px-3 py-2 font-mono text-xs text-theme-primary">
                   {createdKey}
@@ -172,26 +174,26 @@ export default function ApiKeyManager() {
                   onClick={handleCopyCreated}
                   className="flex-shrink-0 rounded-lg p-2 transition-colors"
                   style={{ color: copied ? 'var(--neon-green)' : 'var(--text-muted)' }}
-                  title="复制"
+                  title={t('common.copy')}
                 >
                   {copied ? <Check size={16} /> : <Copy size={16} />}
                 </button>
               </div>
               <p className="mt-2 text-xs text-amber-400">
-                ⚠ 密钥仅显示一次，请立即复制保存。
+                {t('ak.onceWarning')}
               </p>
               <div className="mt-2 flex gap-2">
                 <button
                   onClick={handleCopyCreated}
                   className="btn-primary px-4 py-1.5 text-xs"
                 >
-                  {copied ? '已复制' : '复制密钥'}
+                  {copied ? t('ak.copied') : t('ak.copyKey')}
                 </button>
                 <button
                   onClick={handleCloseCreated}
                   className="btn-ghost px-4 py-1.5 text-xs"
                 >
-                  关闭
+                  {t('common.close')}
                 </button>
               </div>
             </div>
