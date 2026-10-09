@@ -3,8 +3,6 @@ import {
   ingestApi,
   parseIngestStats,
   parseLibraryIds,
-  statusLabel,
-  itemStatusLabel,
   groupItemsByStatus,
   type IngestJob,
   type IngestJobItem,
@@ -19,6 +17,8 @@ import {
   FileSearch,
   RotateCcw,
 } from 'lucide-react'
+
+import { useTranslation } from '@/i18n'
 
 // IngestHistoryModal · 入库历史 + 失败明细
 //
@@ -36,7 +36,27 @@ interface Props {
   onClose: () => void
 }
 
+const ingestStatusKeys: Record<string, string> = {
+  pending: 'li.statusPending',
+  scanning: 'li.statusScanning',
+  classifying: 'li.statusClassifying',
+  planning: 'li.statusPlanning',
+  executing: 'li.statusExecuting',
+  completed: 'li.statusCompleted',
+  failed: 'li.statusFailed',
+  canceled: 'li.statusCanceled',
+}
+
+const itemStatusKeys: Record<string, string> = {
+  executed: 'ih.executed',
+  skipped: 'ih.skipped',
+  unsafe: 'ih.unsafe',
+  failed: 'ih.failed',
+  pending: 'ih.pending',
+}
+
 export default function IngestHistoryModal({ isOpen, onClose }: Props) {
+  const { t } = useTranslation()
   const [jobs, setJobs] = useState<IngestJob[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -77,7 +97,7 @@ export default function IngestHistoryModal({ isOpen, onClose }: Props) {
       })
       .catch((e: any) => {
         if (cancelled) return
-        setItemsError(e?.response?.data?.error || e?.message || '加载明细失败')
+        setItemsError(e?.response?.data?.error || e?.message || t('ih.loadFailed'))
       })
       .finally(() => {
         if (!cancelled) setItemsLoading(false)
@@ -108,9 +128,9 @@ export default function IngestHistoryModal({ isOpen, onClose }: Props) {
         >
           <div className="flex items-center gap-2">
             <History size={18} className="text-neon" />
-            <h2 className="font-display text-lg font-semibold">入库历史</h2>
+            <h2 className="font-display text-lg font-semibold">{t('ih.title')}</h2>
             <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              共 {jobs.length} 条
+              {t('ih.count', { count: jobs.length })}
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -118,7 +138,7 @@ export default function IngestHistoryModal({ isOpen, onClose }: Props) {
               onClick={refreshJobs}
               disabled={loading}
               className="rounded-lg p-1.5 transition-colors hover:bg-white/5 disabled:opacity-50"
-              title="刷新"
+              title={t('common.refresh')}
             >
               {loading ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -129,7 +149,7 @@ export default function IngestHistoryModal({ isOpen, onClose }: Props) {
             <button
               onClick={onClose}
               className="rounded-lg p-1.5 transition-colors hover:bg-white/5"
-              title="关闭"
+              title={t('common.close')}
             >
               <X size={18} />
             </button>
@@ -145,7 +165,7 @@ export default function IngestHistoryModal({ isOpen, onClose }: Props) {
           >
             {jobs.length === 0 && !loading && (
               <div className="p-6 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                暂无任务记录
+                {t('ih.empty')}
               </div>
             )}
             {jobs.map((j) => (
@@ -162,7 +182,7 @@ export default function IngestHistoryModal({ isOpen, onClose }: Props) {
           <div className="flex-1 overflow-y-auto p-5">
             {!selected && (
               <div className="flex h-full items-center justify-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                选择一个任务查看明细
+                {t('ih.selectHint')}
               </div>
             )}
             {selected && (
@@ -193,6 +213,7 @@ function JobListItem({
   active: boolean
   onClick: () => void
 }) {
+  const { t } = useTranslation()
   const stats = parseIngestStats(job)
   const dot =
     job.status === 'completed'
@@ -229,7 +250,7 @@ function JobListItem({
         <ChevronRight size={14} style={{ color: 'var(--text-tertiary)' }} />
       </div>
       <div className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-        <span>{statusLabel(job.status)}</span>
+        <span>{t(ingestStatusKeys[job.status] ?? job.status)}</span>
         <span>·</span>
         <span>{formatTime(job.created_at)}</span>
       </div>
@@ -256,17 +277,18 @@ function JobDetail({
   loading: boolean
   error: string
 }) {
+  const { t } = useTranslation()
   const stats = parseIngestStats(job)
   const libIds = parseLibraryIds(job)
   const grouped = useMemo(() => groupItemsByStatus(items), [items])
 
   // 渲染顺序：失败 → 拦截 → 跳过 → 已落盘 → 待执行
-  const order: Array<{ key: string; label: string; emoji: string; danger?: boolean }> = [
-    { key: 'failed', label: '失败', emoji: '❌', danger: true },
-    { key: 'unsafe', label: '安全检测拦截', emoji: '🛑', danger: true },
-    { key: 'skipped', label: '已跳过', emoji: '⏭' },
-    { key: 'executed', label: '已落盘', emoji: '✅' },
-    { key: 'pending', label: '待执行', emoji: '⏳' },
+  const order: Array<{ key: string; labelKey: string; emoji: string; danger?: boolean }> = [
+    { key: 'failed', labelKey: 'ih.failed', emoji: '❌', danger: true },
+    { key: 'unsafe', labelKey: 'ih.unsafe', emoji: '🛑', danger: true },
+    { key: 'skipped', labelKey: 'ih.skipped', emoji: '⏭' },
+    { key: 'executed', labelKey: 'ih.executed', emoji: '✅' },
+    { key: 'pending', labelKey: 'ih.pending', emoji: '⏳' },
   ]
 
   return (
@@ -287,27 +309,27 @@ function JobDetail({
                   : 'var(--text-secondary)',
             }}
           >
-            {statusLabel(job.status)}
+            {t(ingestStatusKeys[job.status] ?? job.status)}
           </span>
         </div>
         <p className="mt-1 break-all text-xs" style={{ color: 'var(--text-tertiary)' }}>
           {job.source_path} → {job.target_root}
         </p>
         <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-          创建于 {formatTime(job.created_at)}
-          {job.completed_at && ` · 完成于 ${formatTime(job.completed_at)}`}
+          {t('ih.createdAt', { time: formatTime(job.created_at) })}
+          {job.completed_at && t('ih.completedAt', { time: formatTime(job.completed_at) })}
         </p>
       </div>
 
       {/* 统计 */}
       <div className="grid grid-cols-7 gap-2">
-        <StatTile label="扫描" value={stats.scanned} />
-        <StatTile label="分类" value={stats.classified} />
-        <StatTile label="规划" value={stats.planned} />
-        <StatTile label="完成" value={stats.executed} accent="emerald" />
-        <StatTile label="跳过" value={stats.skipped} />
-        <StatTile label="失败" value={stats.failed} accent={stats.failed > 0 ? 'rose' : undefined} />
-        <StatTile label="待人工" value={stats.unsorted} accent={stats.unsorted > 0 ? 'amber' : undefined} />
+        <StatTile label={t('ih.statScan')} value={stats.scanned} />
+        <StatTile label={t('ih.statClassified')} value={stats.classified} />
+        <StatTile label={t('ih.statPlanned')} value={stats.planned} />
+        <StatTile label={t('ih.statDone')} value={stats.executed} accent="emerald" />
+        <StatTile label={t('ih.statSkipped')} value={stats.skipped} />
+        <StatTile label={t('ih.statFailed')} value={stats.failed} accent={stats.failed > 0 ? 'rose' : undefined} />
+        <StatTile label={t('ih.statManual')} value={stats.unsorted} accent={stats.unsorted > 0 ? 'amber' : undefined} />
       </div>
 
       {/* 错误 */}
@@ -328,7 +350,7 @@ function JobDetail({
           style={{ background: 'rgba(16,185,129,0.1)', color: '#6ee7b7' }}
         >
           <CheckCircle2 size={14} className="flex-shrink-0" />
-          <span>已建库 / 复用 {libIds.length} 个媒体库</span>
+          <span>{t('ih.libCreated', { count: libIds.length })}</span>
         </div>
       )}
 
@@ -336,16 +358,16 @@ function JobDetail({
       <div>
         <div className="mb-2 flex items-center gap-2">
           <FileSearch size={14} style={{ color: 'var(--text-secondary)' }} />
-          <span className="text-sm font-medium">文件明细</span>
+          <span className="text-sm font-medium">{t('ih.itemsTitle')}</span>
           <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            （{items.length} 条）
+            {t('ih.itemsCount', { count: items.length })}
           </span>
         </div>
 
         {loading && (
           <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
             <Loader2 size={14} className="animate-spin" />
-            加载明细中…
+            {t('ih.loadingItems')}
           </div>
         )}
         {error && (
@@ -359,18 +381,18 @@ function JobDetail({
         )}
         {!loading && !error && items.length === 0 && (
           <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            该任务暂无文件明细
+            {t('ih.noItems')}
           </div>
         )}
 
         {/* 分组渲染 */}
         {!loading && !error && items.length > 0 && (
           <div className="space-y-3">
-            {order.map(({ key, label, emoji, danger }) => {
+            {order.map(({ key, labelKey, emoji, danger }) => {
               const list = grouped[key] || []
               if (list.length === 0) return null
               return (
-                <ItemGroup key={key} label={`${emoji} ${label}`} count={list.length} danger={danger}>
+                <ItemGroup key={key} label={`${emoji} ${t(labelKey)}`} count={list.length} danger={danger}>
                   {list.map((it) => (
                     <ItemRow key={it.id} item={it} />
                   ))}
@@ -399,6 +421,7 @@ function ItemGroup({
   danger?: boolean
   children: React.ReactNode
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(true)
   return (
     <div
@@ -414,7 +437,7 @@ function ItemGroup({
         style={{ color: danger ? '#fda4af' : 'var(--text-primary)' }}
       >
         <span>{label}</span>
-        <span style={{ color: 'var(--text-tertiary)' }}>{count} 条 {open ? '▾' : '▸'}</span>
+        <span style={{ color: 'var(--text-tertiary)' }}>{t('ih.countSuffix', { count })} {open ? '▾' : '▸'}</span>
       </button>
       {open && <div className="divide-y" style={{ borderColor: 'var(--border-default)' }}>{children}</div>}
     </div>
@@ -422,6 +445,7 @@ function ItemGroup({
 }
 
 function ItemRow({ item }: { item: IngestJobItem }) {
+  const { t } = useTranslation()
   const danger = item.status === 'failed' || item.status === 'unsafe'
   const reason = item.error_msg || item.safety_note
   return (
@@ -434,19 +458,19 @@ function ItemRow({ item }: { item: IngestJobItem }) {
             color: danger ? '#fca5a5' : 'var(--text-tertiary)',
           }}
         >
-          {itemStatusLabel(item.status)}
+          {t(itemStatusKeys[item.status] ?? item.status)}
         </span>
         <span className="break-all" style={{ color: 'var(--text-primary)' }}>
           {item.source_name || basename(item.source_path)}
         </span>
         {item.ai_invoked && (
-          <span className="text-[10px]" style={{ color: 'var(--neon)' }} title="该条目调用了 AI 还原">
+          <span className="text-[10px]" style={{ color: 'var(--neon)' }} title={t('ih.aiRestoreTitle')}>
             AI
           </span>
         )}
         {typeof item.confidence === 'number' && (
           <span className="ml-auto text-[10px] tabular-nums" style={{ color: 'var(--text-tertiary)' }}>
-            置信 {(item.confidence * 100).toFixed(0)}%
+            {t('ih.confidence', { pct: (item.confidence * 100).toFixed(0) })}
           </span>
         )}
       </div>

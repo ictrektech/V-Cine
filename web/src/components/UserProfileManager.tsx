@@ -7,8 +7,10 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useDialog } from '@/components/Dialog'
+import { useTranslation } from '@/i18n'
 
 export default function UserProfileManager() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [profiles, setProfiles] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,18 +32,18 @@ export default function UserProfileManager() {
 
   const handleDelete = async (id: string) => {
     const ok = await dialog.confirm({
-      title: '删除配置文件',
-      message: '确定要删除此配置文件吗？',
-      confirmText: '删除',
+      title: t('up.deleteTitle'),
+      message: t('up.deleteMsg'),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
     try {
       await userProfileApi.delete(id)
-      setMessage({ type: 'success', text: '配置文件已删除' })
+      setMessage({ type: 'success', text: t('up.deleted') })
       loadProfiles()
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '删除失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('up.deleteFailed') })
     }
     setTimeout(() => setMessage(null), 3000)
   }
@@ -50,9 +52,9 @@ export default function UserProfileManager() {
     let pin: string | undefined
     if (profile.pin) {
       const result = await dialog.prompt({
-        title: '请输入 PIN 码',
-        message: `切换到 ${profile.name} 需要 PIN 验证`,
-        placeholder: 'PIN 码',
+        title: t('up.pinTitle'),
+        message: t('up.pinMsg', { name: profile.name }),
+        placeholder: t('up.pinPlaceholder'),
         inputType: 'password',
       })
       if (!result) return
@@ -60,9 +62,9 @@ export default function UserProfileManager() {
     }
     try {
       await userProfileApi.switch(profile.id, pin)
-      setMessage({ type: 'success', text: `已切换到 ${profile.name}` })
+      setMessage({ type: 'success', text: t('up.switched', { name: profile.name }) })
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || 'PIN 码错误' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('up.pinError') })
     }
     setTimeout(() => setMessage(null), 3000)
   }
@@ -77,9 +79,9 @@ export default function UserProfileManager() {
 
   const getProfileLabel = (type: string) => {
     switch (type) {
-      case 'kids': return '儿童模式'
-      case 'restricted': return '受限模式'
-      default: return '标准模式'
+      case 'kids': return t('up.kids')
+      case 'restricted': return t('up.restricted')
+      default: return t('up.standard')
     }
   }
 
@@ -107,11 +109,11 @@ export default function UserProfileManager() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users className="h-5 w-5 text-neon-blue" />
-          <h2 className="font-display text-xl font-semibold text-white">用户配置文件</h2>
+          <h2 className="font-display text-xl font-semibold text-white">{t('up.title')}</h2>
         </div>
         <button onClick={() => setShowCreate(true)}
           className="btn-neon rounded-xl px-4 py-2 text-sm font-medium flex items-center gap-2">
-          <Plus className="h-4 w-4" /> 新建配置
+          <Plus className="h-4 w-4" /> {t('up.newProfile')}
         </button>
       </div>
 
@@ -142,10 +144,10 @@ export default function UserProfileManager() {
             {/* 儿童模式信息 */}
             {profile.type === 'kids' && profile.kids_settings && (
               <div className="text-xs text-surface-400 space-y-1 mb-3">
-                <p>每日限时: {profile.kids_settings.daily_time_limit_min} 分钟</p>
-                <p>内容分级: {profile.kids_settings.max_content_rating || '全年龄'}</p>
+                <p>{t('up.dailyLimit', { min: profile.kids_settings.daily_time_limit_min })}</p>
+                <p>{t('up.maxRating', { rating: profile.kids_settings.max_content_rating || t('up.allAges') })}</p>
                 {profile.kids_settings.bedtime_start && (
-                  <p>就寝时间: {profile.kids_settings.bedtime_start} - {profile.kids_settings.bedtime_end}</p>
+                  <p>{t('up.bedtime', { start: profile.kids_settings.bedtime_start, end: profile.kids_settings.bedtime_end })}</p>
                 )}
               </div>
             )}
@@ -154,7 +156,7 @@ export default function UserProfileManager() {
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/5">
               <button onClick={() => handleSwitch(profile)}
                 className="btn-ghost flex-1 rounded-lg py-2 text-xs flex items-center justify-center gap-1">
-                <User className="h-3 w-3" /> 切换
+                <User className="h-3 w-3" /> {t('up.switch')}
               </button>
               <button onClick={() => { setSelectedProfile(profile); setShowWatchLogs(true) }}
                 className="btn-ghost rounded-lg px-3 py-2 text-xs">
@@ -178,8 +180,8 @@ export default function UserProfileManager() {
       {profiles.length === 0 && (
         <div className="text-center py-16 text-surface-500">
           <Users className="h-16 w-16 mx-auto mb-4 opacity-20" />
-          <p className="text-lg">暂无配置文件</p>
-          <p className="text-sm mt-1">创建配置文件以管理不同用户的观看体验</p>
+          <p className="text-lg">{t('up.empty')}</p>
+          <p className="text-sm mt-1">{t('up.emptyHint')}</p>
         </div>
       )}
 
@@ -204,6 +206,7 @@ export default function UserProfileManager() {
 
 // 创建配置文件弹窗
 function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [type, setType] = useState<'standard' | 'kids' | 'restricted'>('standard')
   const [pin, setPin] = useState('')
@@ -244,24 +247,24 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
         background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-15)', backdropFilter: 'blur(20px)',
       }}>
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-display text-lg font-semibold text-white">新建配置文件</h3>
+          <h3 className="font-display text-lg font-semibold text-white">{t('up.createTitle')}</h3>
           <button onClick={onClose} className="text-surface-400 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="text-xs text-surface-400">名称</label>
+            <label className="text-xs text-surface-400">{t('up.name')}</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder="输入配置文件名称" className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
+              placeholder={t('up.namePlaceholder')} className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
 
           <div>
-            <label className="text-xs text-surface-400">类型</label>
+            <label className="text-xs text-surface-400">{t('up.type')}</label>
             <div className="grid grid-cols-3 gap-2 mt-1">
               {[
-                { key: 'standard' as const, label: '标准', icon: User },
-                { key: 'kids' as const, label: '儿童', icon: Baby },
-                { key: 'restricted' as const, label: '受限', icon: Shield },
+                { key: 'standard' as const, label: t('up.typeStandard'), icon: User },
+                { key: 'kids' as const, label: t('up.typeKids'), icon: Baby },
+                { key: 'restricted' as const, label: t('up.typeRestricted'), icon: Shield },
               ].map(({ key, label, icon: Icon }) => (
                 <button key={key} onClick={() => setType(key)}
                   className={clsx(
@@ -276,37 +279,37 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
 
           <div>
-            <label className="text-xs text-surface-400">PIN 码（可选）</label>
+            <label className="text-xs text-surface-400">{t('up.pinOptional')}</label>
             <input type="password" value={pin} onChange={e => setPin(e.target.value)}
-              placeholder="设置 4-6 位 PIN 码" maxLength={6}
+              placeholder={t('up.pinFormPlaceholder')} maxLength={6}
               className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
 
           {type === 'kids' && (
             <>
               <div>
-                <label className="text-xs text-surface-400">每日观看限时（分钟）</label>
+                <label className="text-xs text-surface-400">{t('up.dailyLimitLabel')}</label>
                 <input type="number" value={dailyLimit} onChange={e => setDailyLimit(parseInt(e.target.value) || 0)}
                   className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-surface-400">最高内容分级</label>
+                <label className="text-xs text-surface-400">{t('up.maxRatingLabel')}</label>
                 <select value={maxRating} onChange={e => setMaxRating(e.target.value)}
                   className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm">
-                  <option value="G">G - 全年龄</option>
-                  <option value="PG">PG - 家长指导</option>
-                  <option value="PG-13">PG-13 - 13岁以上</option>
+                  <option value="G">{t('up.ratingG')}</option>
+                  <option value="PG">{t('up.ratingPg')}</option>
+                  <option value="PG-13">{t('up.ratingPg13')}</option>
                 </select>
               </div>
             </>
           )}
 
           <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="btn-ghost flex-1 rounded-xl py-2.5 text-sm">取消</button>
+            <button onClick={onClose} className="btn-ghost flex-1 rounded-xl py-2.5 text-sm">{t('common.cancel')}</button>
             <button onClick={handleCreate} disabled={saving || !name.trim()}
               className="btn-neon flex-1 rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              创建
+              {t('up.create')}
             </button>
           </div>
         </div>
@@ -317,6 +320,7 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
 
 // 观看日志弹窗
 function WatchLogsModal({ profile, onClose }: { profile: UserProfile; onClose: () => void }) {
+  const { t } = useTranslation()
   const [logs, setLogs] = useState<import('@/types').ProfileWatchLog[]>([])
   const [usage, setUsage] = useState<import('@/types').ProfileDailyUsage[]>([])
   const [loading, setLoading] = useState(true)
@@ -339,16 +343,16 @@ function WatchLogsModal({ profile, onClose }: { profile: UserProfile; onClose: (
       }}>
         <div className="flex items-center justify-between p-6 pb-0">
           <div>
-            <h3 className="font-display text-lg font-semibold text-white">{profile.name} - 观看记录</h3>
-            <p className="text-xs text-surface-400">{profile.type === 'kids' ? '儿童模式' : '标准模式'}</p>
+            <h3 className="font-display text-lg font-semibold text-white">{t('up.watchHistory', { name: profile.name })}</h3>
+            <p className="text-xs text-surface-400">{profile.type === 'kids' ? t('up.kids') : t('up.standard')}</p>
           </div>
           <button onClick={onClose} className="text-surface-400 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="flex gap-1 mx-6 mt-4 rounded-xl bg-surface-800/50 p-1">
           {[
-            { key: 'logs' as const, label: '观看日志', icon: Eye },
-            { key: 'usage' as const, label: '使用统计', icon: BarChart3 },
+            { key: 'logs' as const, label: t('up.watchLogs'), icon: Eye },
+            { key: 'usage' as const, label: t('up.usageStats'), icon: BarChart3 },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key)}
               className={clsx(
@@ -372,23 +376,23 @@ function WatchLogsModal({ profile, onClose }: { profile: UserProfile; onClose: (
                 </div>
                 <div className="flex items-center gap-1 text-xs text-surface-400">
                   <Clock className="h-3 w-3" />
-                  {log.duration_min} 分钟
+                  {t('up.minutes', { count: log.duration_min })}
                 </div>
               </div>
             )) : (
-              <p className="text-center text-sm text-surface-500 py-8">暂无观看记录</p>
+              <p className="text-center text-sm text-surface-500 py-8">{t('up.noWatchLogs')}</p>
             )
           ) : (
             usage.length > 0 ? usage.map(u => (
               <div key={u.id} className="flex items-center justify-between rounded-xl bg-surface-800/50 p-3">
                 <span className="text-sm text-white">{u.date}</span>
                 <div className="flex items-center gap-4 text-xs text-surface-400">
-                  <span>{u.media_count} 部</span>
-                  <span className="font-medium text-neon-blue">{u.total_minutes} 分钟</span>
+                  <span>{t('up.mediaCount', { count: u.media_count })}</span>
+                  <span className="font-medium text-neon-blue">{t('up.minutes', { count: u.total_minutes })}</span>
                 </div>
               </div>
             )) : (
-              <p className="text-center text-sm text-surface-500 py-8">暂无使用数据</p>
+              <p className="text-center text-sm text-surface-500 py-8">{t('up.noUsage')}</p>
             )
           )}
         </div>

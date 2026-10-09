@@ -12,6 +12,7 @@ import {
   type RenameItemStatus,
 } from '@/api/smart_rename'
 import { fadeInVariants } from '@/lib/motion'
+import { useTranslation } from '@/i18n'
 
 // =============================================================
 // SmartRenamePanel — 智能扫描重命名核心交互面板
@@ -44,13 +45,13 @@ const statusColor: Record<RenameItemStatus, string> = {
   reverted: 'text-purple-700 dark:text-purple-300 border-purple-500/40 bg-purple-500/10',
 }
 
-const statusLabel: Record<RenameItemStatus, string> = {
-  pending: '待执行',
-  skipped: '已是目标格式',
-  unsafe: '安全检测拦截',
-  executed: '已落盘',
-  failed: '执行失败',
-  reverted: '已回滚',
+const statusLabelKeys: Record<RenameItemStatus, string> = {
+  pending: 'sr.statusPending',
+  skipped: 'sr.statusSkipped',
+  unsafe: 'sr.statusUnsafe',
+  executed: 'sr.statusExecuted',
+  failed: 'sr.statusFailed',
+  reverted: 'sr.statusReverted',
 }
 
 const cardClass = 'rounded-xl'
@@ -74,6 +75,7 @@ export default function SmartRenamePanel({
   onPlanChange,
   compact = false,
 }: SmartRenamePanelProps) {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [rootPath, setRootPath] = useState(defaultPath)
   const [style, setStyle] = useState<NamingStyle>('jellyfin')
@@ -109,12 +111,12 @@ export default function SmartRenamePanel({
 
   async function onScan() {
     if (!rootPath.trim()) {
-      toast.error('请填写扫描根目录')
+      toast.error(t('sr.needRootPath'))
       return
     }
     setScanning(true)
     setScanProgress(0)
-    setScanPhase('正在连接服务…')
+    setScanPhase(t('sr.connecting'))
     setScanElapsed(0)
 
     // 启动「分段平滑逼近」进度模拟
@@ -133,10 +135,10 @@ export default function SmartRenamePanel({
         const step = Math.max(0.3, remain * 0.03)
         const next = Math.min(ceiling, p + step)
         // 阶段文案根据进度切换
-        if (next < 25) setScanPhase('① 枚举文件…')
-        else if (next < 55) setScanPhase('② 解析命名规则…')
-        else if (next < 80) setScanPhase(enableAI ? '③ 调用 AI Fallback 识别…' : '③ 评分与归一化…')
-        else setScanPhase('④ 生成重命名规划…')
+        if (next < 25) setScanPhase(t('sr.phase1'))
+        else if (next < 55) setScanPhase(t('sr.phase2'))
+        else if (next < 80) setScanPhase(enableAI ? t('sr.phase3a') : t('sr.phase3b'))
+        else setScanPhase(t('sr.phase4'))
         return next
       })
     }, tickMs)
@@ -150,12 +152,12 @@ export default function SmartRenamePanel({
       })
       // 请求成功 → 推到 100%
       setScanProgress(100)
-      setScanPhase('✓ 扫描完成')
+      setScanPhase(t('sr.scanDone'))
       emitPlan(resp.data.data)
-      toast.success(`扫描完成：${resp.data.data.total_items} 个文件，需改名 ${resp.data.data.need_rename}`)
+      toast.success(t('sr.scanDoneToast', { count: resp.data.data.total_items, need: resp.data.data.need_rename }))
     } catch (e: any) {
-      setScanPhase('✕ 扫描失败')
-      toast.error(`扫描失败：${e?.response?.data?.error || e.message || '未知错误'}`)
+      setScanPhase(t('sr.scanFailedPhase'))
+      toast.error(t('sr.scanFailedToast', { detail: e?.response?.data?.error || e.message || t('sr.unknownError') }))
     } finally {
       window.clearInterval(progressTimer)
       window.clearInterval(elapsedTimer)
@@ -174,10 +176,10 @@ export default function SmartRenamePanel({
     setExecuting(true)
     try {
       const resp = await smartRenameApi.execute({ plan_id: plan.id, confirm: false })
-      toast.success('预演通过（未动盘）')
+      toast.success(t('sr.dryRunPassed'))
       emitPlan(resp.data.data)
     } catch (e: any) {
-      toast.error(`预演失败：${e?.response?.data?.error || e.message}`)
+      toast.error(t('sr.dryRunFailed', { detail: e?.response?.data?.error || e.message }))
     } finally {
       setExecuting(false)
     }
@@ -194,11 +196,11 @@ export default function SmartRenamePanel({
         ignore_safety: ignoreSafety,
       })
       toast.success(
-        `落盘完成：成功 ${resp.data.data.executed_items}，失败 ${resp.data.data.failed_items}`,
+        t('sr.applyDone', { ok: resp.data.data.executed_items, failed: resp.data.data.failed_items }),
       )
       emitPlan(resp.data.data)
     } catch (e: any) {
-      toast.error(`落盘失败：${e?.response?.data?.error || e.message}`)
+      toast.error(t('sr.applyFailed', { detail: e?.response?.data?.error || e.message }))
     } finally {
       setExecuting(false)
     }
@@ -207,19 +209,19 @@ export default function SmartRenamePanel({
   async function onRollback() {
     if (!plan) return
     const ok = await dialog.confirm({
-      title: '回滚重命名',
-      message: '确定要回滚本次重命名吗？所有已落盘的文件将恢复原名。',
-      confirmText: '回滚',
+      title: t('sr.rollbackTitle'),
+      message: t('sr.rollbackMsg'),
+      confirmText: t('sr.rollbackConfirm'),
       variant: 'warning',
     })
     if (!ok) return
     setRollingBack(true)
     try {
       const resp = await smartRenameApi.rollback(plan.id)
-      toast.success('回滚完成')
+      toast.success(t('sr.rollbackDone'))
       emitPlan(resp.data.data)
     } catch (e: any) {
-      toast.error(`回滚失败：${e?.response?.data?.error || e.message}`)
+      toast.error(t('sr.rollbackFailed', { detail: e?.response?.data?.error || e.message }))
     } finally {
       setRollingBack(false)
     }
@@ -236,7 +238,7 @@ export default function SmartRenamePanel({
         }
       })
     } catch (e: any) {
-      toast.error(`保存失败：${e?.response?.data?.error || e.message}`)
+      toast.error(t('sr.saveFailed', { detail: e?.response?.data?.error || e.message }))
     }
   }
 
@@ -253,22 +255,22 @@ export default function SmartRenamePanel({
       {showHeader && (
         <header className="mb-5">
           <h1 className="text-2xl font-semibold flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
-            <span style={{ color: 'var(--neon-blue)' }}>⚙</span> 智能扫描重命名
+            <span style={{ color: 'var(--neon-blue)' }}>⚙</span> {t('sr.title')}
           </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            基于规则评分 + AI Fallback 自动识别影视命名，按 Jellyfin/Emby/Plex 风格规范化。
-            <span className="ml-1" style={{ color: 'var(--neon-blue)' }}>默认 dry-run</span>，必须显式确认才会真正动盘。
+            {t('sr.desc')}
+            <span className="ml-1" style={{ color: 'var(--neon-blue)' }}>{t('sr.defaultDryRun')}</span>{t('sr.mustConfirm')}
           </p>
         </header>
       )}
 
       {/* ============ 扫描配置区 ============ */}
       <section className={`mb-5 ${cardClass} ${pad}`} style={cardStyle}>
-        <h2 className="mb-3 text-sm font-medium" style={{ color: 'var(--neon-blue)' }}>① 扫描配置</h2>
+        <h2 className="mb-3 text-sm font-medium" style={{ color: 'var(--neon-blue)' }}>{t('sr.step1')}</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              扫描根目录（绝对路径）
+              {t('sr.rootPathLabel')}
             </label>
             {candidatePaths && candidatePaths.length > 1 ? (
               <div className="flex gap-2">
@@ -289,14 +291,14 @@ export default function SmartRenamePanel({
               <input
                 value={rootPath}
                 onChange={(e) => setRootPath(e.target.value)}
-                placeholder="例如：D:\Media\Movies"
+                placeholder={t('sr.rootPathPlaceholder')}
                 className={inputClass}
                 style={inputStyle}
               />
             )}
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>命名风格</label>
+            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('sr.namingStyle')}</label>
             <select
               value={style}
               onChange={(e) => setStyle(e.target.value as NamingStyle)}
@@ -309,7 +311,7 @@ export default function SmartRenamePanel({
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              AI 触发阈值（规则评分 &lt; {threshold} 时启用 AI）
+              {t('sr.aiThreshold', { threshold })}
             </label>
             <input
               type="range"
@@ -330,7 +332,7 @@ export default function SmartRenamePanel({
                 onChange={(e) => setEnableAI(e.target.checked)}
                 style={{ accentColor: 'var(--neon-blue)' }}
               />
-              启用 AI Fallback
+              {t('sr.enableAI')}
             </label>
             <button
               onClick={onScan}
@@ -342,7 +344,7 @@ export default function SmartRenamePanel({
                 boxShadow: 'var(--shadow-neon)',
               }}
             >
-              {scanning ? '扫描中…' : '开始扫描'}
+              {scanning ? t('sr.scanning') : t('sr.startScan')}
             </button>
           </div>
 
@@ -350,9 +352,9 @@ export default function SmartRenamePanel({
           {scanning && (
             <div className="md:col-span-2 mt-2">
               <div className="mb-1.5 flex items-center justify-between text-xs">
-                <span style={{ color: 'var(--text-secondary)' }}>{scanPhase || '准备中…'}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{scanPhase || t('sr.preparing')}</span>
                 <span style={{ color: 'var(--text-tertiary)' }}>
-                  {scanProgress.toFixed(0)}% · 已用时 {formatElapsed(scanElapsed)}
+                  {t('sr.elapsed', { percent: scanProgress.toFixed(0), elapsed: formatElapsed(scanElapsed) })}
                 </span>
               </div>
               <div
@@ -382,7 +384,7 @@ export default function SmartRenamePanel({
               {/* 内联 keyframes（避免污染全局样式表） */}
               <style>{`@keyframes smartRenameShimmer { 0% { transform: translateX(-100%);} 100% { transform: translateX(400%);} }`}</style>
               <div className="mt-1.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                💡 大目录可能耗时较长（依目录大小与 AI 响应速度而定），请勿关闭本面板
+                {t('sr.bigDirHint')}
               </div>
             </div>
           )}
@@ -399,7 +401,7 @@ export default function SmartRenamePanel({
           style={cardStyle}
         >
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <h2 className="text-sm font-medium" style={{ color: 'var(--neon-blue)' }}>② 规划详情</h2>
+            <h2 className="text-sm font-medium" style={{ color: 'var(--neon-blue)' }}>{t('sr.step2')}</h2>
             <span
               className={`rounded-md border px-2 py-0.5 text-xs ${
                 statusColor[plan.status as RenameItemStatus] || ''
@@ -410,24 +412,24 @@ export default function SmartRenamePanel({
                   : undefined
               }
             >
-              状态：{plan.status}
+              {t('sr.statusPrefix')}{plan.status}
             </span>
             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              规划 ID: {plan.id.slice(0, 8)}…
+              {t('sr.planId', { id: plan.id.slice(0, 8) })}
             </span>
             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              根目录：{plan.root_path}
+              {t('sr.rootDirPrefix')}{plan.root_path}
             </span>
           </div>
 
           {/* 统计卡片 */}
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-6">
-            <Stat label="总文件" value={plan.total_items} />
-            <Stat label="需改名" value={plan.need_rename} accent="text-cyan-600 dark:text-cyan-300" />
-            <Stat label="已是目标" value={plan.skipped_items} />
-            <Stat label="安全拦截" value={plan.unsafe_items} accent="text-amber-700 dark:text-amber-300" />
-            <Stat label="已落盘" value={plan.executed_items} accent="text-emerald-700 dark:text-emerald-300" />
-            <Stat label="失败" value={plan.failed_items} accent="text-rose-700 dark:text-rose-300" />
+            <Stat label={t('sr.statTotal')} value={plan.total_items} />
+            <Stat label={t('sr.statNeedRename')} value={plan.need_rename} accent="text-cyan-600 dark:text-cyan-300" />
+            <Stat label={t('sr.statAlreadyTarget')} value={plan.skipped_items} />
+            <Stat label={t('sr.statBlocked')} value={plan.unsafe_items} accent="text-amber-700 dark:text-amber-300" />
+            <Stat label={t('sr.statApplied')} value={plan.executed_items} accent="text-emerald-700 dark:text-emerald-300" />
+            <Stat label={t('sr.statFailed')} value={plan.failed_items} accent="text-rose-700 dark:text-rose-300" />
           </div>
 
           {/* 操作按钮 */}
@@ -442,7 +444,7 @@ export default function SmartRenamePanel({
                 background: 'transparent',
               }}
             >
-              预演执行（dry-run）
+              {t('sr.dryRun')}
             </button>
             <button
               onClick={() => setConfirmModal(true)}
@@ -453,7 +455,7 @@ export default function SmartRenamePanel({
                 boxShadow: '0 4px 12px rgba(244, 63, 94, 0.25)',
               }}
             >
-              确认落盘（动盘）
+              {t('sr.confirmApply')}
             </button>
             <button
               onClick={onRollback}
@@ -461,10 +463,10 @@ export default function SmartRenamePanel({
               className="rounded-md px-3 py-1.5 text-xs transition disabled:opacity-40 text-purple-700 dark:text-purple-300"
               style={{ border: '1px solid rgba(168, 85, 247, 0.4)', background: 'transparent' }}
             >
-              回滚
+              {t('sr.rollback')}
             </button>
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>筛选：</span>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{t('sr.filter')}</span>
               {(['all', 'pending', 'unsafe', 'skipped', 'executed', 'failed'] as const).map((f) => {
                 const active = filter === f
                 return (
@@ -477,7 +479,7 @@ export default function SmartRenamePanel({
                       color: active ? 'var(--neon-blue)' : 'var(--text-tertiary)',
                     }}
                   >
-                    {f === 'all' ? '全部' : statusLabel[f as RenameItemStatus] || f}
+                    {f === 'all' ? t('common.all') : t(statusLabelKeys[f as RenameItemStatus]) || f}
                   </button>
                 )
               })}
@@ -496,7 +498,7 @@ export default function SmartRenamePanel({
                 className="rounded-md border border-dashed p-6 text-center text-sm"
                 style={{ borderColor: 'var(--border-default)', color: 'var(--text-tertiary)' }}
               >
-                没有匹配的条目
+                {t('sr.noMatch')}
               </div>
             )}
           </div>
@@ -526,13 +528,12 @@ export default function SmartRenamePanel({
                 boxShadow: 'var(--shadow-elevated)',
               }}
             >
-              <h3 className="mb-2 text-lg font-semibold text-rose-700 dark:text-rose-300">⚠ 确认落盘</h3>
+              <h3 className="mb-2 text-lg font-semibold text-rose-700 dark:text-rose-300">{t('sr.confirmTitle')}</h3>
               <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                即将对 <span style={{ color: 'var(--neon-blue)' }}>{plan.need_rename}</span> 个文件执行物理重命名。
-                此操作会修改磁盘上的真实文件，但全程记录在 journal 中，事后可一键回滚。
+                {t('sr.confirmMsgHead')}<span style={{ color: 'var(--neon-blue)' }}>{plan.need_rename}</span>{t('sr.confirmMsgTail')}
               </p>
               <p className="mb-4 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                安全拦截：{plan.unsafe_items} 条
+                {t('sr.blockedCount', { count: plan.unsafe_items })}
               </p>
               <div className="flex flex-col gap-2">
                 <button
@@ -540,7 +541,7 @@ export default function SmartRenamePanel({
                   className="rounded-md px-4 py-2 text-sm font-medium text-white"
                   style={{ background: '#10b981' }}
                 >
-                  确认执行（跳过安全拦截条目）
+                  {t('sr.confirmExec')}
                 </button>
                 {plan.unsafe_items > 0 && (
                   <button
@@ -548,7 +549,7 @@ export default function SmartRenamePanel({
                     className="rounded-md px-4 py-2 text-sm text-rose-700 dark:text-rose-300"
                     style={{ border: '1px solid rgba(244, 63, 94, 0.4)', background: 'transparent' }}
                   >
-                    强制执行（包含 {plan.unsafe_items} 条安全警告）
+                    {t('sr.forceExec', { count: plan.unsafe_items })}
                   </button>
                 )}
                 <button
@@ -560,7 +561,7 @@ export default function SmartRenamePanel({
                     background: 'transparent',
                   }}
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
               </div>
             </motion.div>
@@ -608,6 +609,7 @@ interface ItemCardProps {
 }
 
 function ItemCard({ item, onUpdate, planEditable }: ItemCardProps) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(item.target_name)
   const related = parseRelatedFiles(item)
@@ -633,9 +635,9 @@ function ItemCard({ item, onUpdate, planEditable }: ItemCardProps) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className={`rounded border px-1.5 py-0.5 ${statusColor[item.status]}`}>
-              {statusLabel[item.status] || item.status}
+              {t(statusLabelKeys[item.status]) || item.status}
             </span>
-            <span style={{ color: 'var(--text-tertiary)' }}>置信度</span>
+            <span style={{ color: 'var(--text-tertiary)' }}>{t('sr.confidence')}</span>
             <span className={confColor(item.confidence)}>{(item.confidence * 100).toFixed(0)}%</span>
             {item.ai_invoked && (
               <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-purple-700 dark:text-purple-300">
@@ -684,7 +686,7 @@ function ItemCard({ item, onUpdate, planEditable }: ItemCardProps) {
                   className="hover:underline"
                   style={{ color: 'var(--neon-blue)' }}
                 >
-                  保存
+                  {t('sr.save')}
                 </button>
                 <button
                   onClick={() => {
@@ -694,7 +696,7 @@ function ItemCard({ item, onUpdate, planEditable }: ItemCardProps) {
                   className="hover:underline"
                   style={{ color: 'var(--text-tertiary)' }}
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
               </>
             ) : (
@@ -711,7 +713,7 @@ function ItemCard({ item, onUpdate, planEditable }: ItemCardProps) {
                     className="hover:underline"
                     style={{ color: 'var(--text-tertiary)' }}
                   >
-                    编辑
+                    {t('sr.edit')}
                   </button>
                 )}
               </>
@@ -719,7 +721,7 @@ function ItemCard({ item, onUpdate, planEditable }: ItemCardProps) {
           </div>
           {related.length > 0 && (
             <div className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>关联资源：</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{t('sr.related')}</span>
               {related.map((r, i) => (
                 <span
                   key={i}
@@ -758,7 +760,7 @@ function ItemCard({ item, onUpdate, planEditable }: ItemCardProps) {
                 background: 'transparent',
               }}
             >
-              {item.excluded ? '已排除（点击恢复）' : '排除本条'}
+              {item.excluded ? t('sr.excluded') : t('sr.excludeItem')}
             </button>
           </div>
         )}

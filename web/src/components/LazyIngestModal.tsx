@@ -4,7 +4,6 @@ import {
   isJobRunning,
   parseIngestStats,
   parseLibraryIds,
-  statusLabel,
   formatBytes,
   type IngestJob,
   type ExistingIngestRef,
@@ -13,6 +12,7 @@ import {
 import { useWebSocket, WS_EVENTS } from '../hooks/useWebSocket'
 import { Sparkles, FolderInput, X, Loader2, CheckCircle2, AlertTriangle, History, Undo2, ShieldAlert } from 'lucide-react'
 import IngestHistoryModal from './IngestHistoryModal'
+import { useTranslation } from '@/i18n'
 
 // LazyIngestModal · 一键入库（懒人模式）
 //
@@ -32,7 +32,19 @@ interface Props {
   onCompleted?: (libraryIds: string[]) => void
 }
 
+const ingestStatusKeys: Record<string, string> = {
+  pending: 'li.statusPending',
+  scanning: 'li.statusScanning',
+  classifying: 'li.statusClassifying',
+  planning: 'li.statusPlanning',
+  executing: 'li.statusExecuting',
+  completed: 'li.statusCompleted',
+  failed: 'li.statusFailed',
+  canceled: 'li.statusCanceled',
+}
+
 export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props) {
+  const { t } = useTranslation()
   const [sourcePath, setSourcePath] = useState('')
   const [targetRoot, setTargetRoot] = useState('') // 空 = 让后端取默认（source/_organized）
   const [namingStyle, setNamingStyle] = useState<'jellyfin' | 'plex'>('jellyfin')
@@ -120,11 +132,11 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
     setErrorMsg('')
     setDupConflict(null)
     if (!sourcePath.trim()) {
-      setErrorMsg('请填写源目录')
+      setErrorMsg(t('li.sourceRequired'))
       return
     }
     if (mode === 'move' && !moveConfirmed) {
-      setErrorMsg('专家模式（move）会真实移动源文件，请勾选「我理解」后再提交')
+      setErrorMsg(t('li.expertWarning'))
       return
     }
     setSubmitting(true)
@@ -142,7 +154,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
       if (e?.response?.status === 409 && Array.isArray(e?.response?.data?.existing_jobs)) {
         setDupConflict(e.response.data.existing_jobs as ExistingIngestRef[])
       } else {
-        setErrorMsg(e?.response?.data?.error || e?.message || '创建任务失败')
+        setErrorMsg(e?.response?.data?.error || e?.message || t('li.createFailed'))
       }
     } finally {
       setSubmitting(false)
@@ -151,7 +163,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
 
   const handleRollback = async () => {
     if (!job) return
-    if (!confirm('确认要回滚本次任务吗？\n\n系统将按 journal 倒序把文件还原到原始位置。\n这个操作安全，但如果你手动动过文件可能会冲突。')) return
+    if (!confirm(t('li.rollbackConfirm'))) return
     setRollingBack(true)
     try {
       const resp = await ingestApi.rollback(job.id)
@@ -159,7 +171,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
       const next = await ingestApi.getJob(job.id)
       setJob(next.data?.data || null)
     } catch (e: any) {
-      setErrorMsg(e?.response?.data?.error || e?.message || '回滚失败')
+      setErrorMsg(e?.response?.data?.error || e?.message || t('li.rollbackFailed'))
     } finally {
       setRollingBack(false)
     }
@@ -196,7 +208,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
           className="absolute right-4 top-4 rounded-lg p-1.5 transition-colors hover:bg-white/5"
           onClick={onClose}
           disabled={running}
-          title={running ? '任务运行中无法关闭' : '关闭'}
+          title={running ? t('li.closeTitle') : t('common.close')}
         >
           <X size={18} />
         </button>
@@ -206,20 +218,20 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
           className="absolute right-12 top-4 flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors hover:bg-white/5"
           onClick={() => setHistoryOpen(true)}
           style={{ color: 'var(--text-secondary)' }}
-          title="查看历史任务与失败明细"
+          title={t('li.historyTitle')}
         >
           <History size={14} />
-          历史
+          {t('li.history')}
         </button>
 
         {/* 标题 */}
         <div className="mb-5 flex items-center gap-2">
           <Sparkles size={20} className="text-neon" />
-          <h2 className="font-display text-xl font-semibold">一键入库 · AI 自动整理</h2>
+          <h2 className="font-display text-xl font-semibold">{t('li.title')}</h2>
         </div>
 
         <p className="mb-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          只需要给一个源目录，AI 会自动识别影视、按 Jellyfin/Emby 命名规则重组目录结构（仅硬链接，源文件 0 风险），然后自动建库 + 扫描。
+          {t('li.desc')}
         </p>
 
         {/* 表单 */}
@@ -227,13 +239,13 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
           <div className="space-y-3">
             <div>
               <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                源目录 <span style={{ color: 'var(--accent-rose-text)' }}>*</span>
+                {t('li.sourceDir')} <span style={{ color: 'var(--accent-rose-text)' }}>*</span>
               </label>
               <input
                 type="text"
                 value={sourcePath}
                 onChange={(e) => setSourcePath(e.target.value)}
-                placeholder="例如：D:\Downloads\Movies"
+                placeholder={t('li.sourcePlaceholder')}
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-colors focus:border-neon"
                 style={{
                   background: 'var(--bg-base)',
@@ -245,13 +257,13 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
 
             <div>
               <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                目标根目录 <span style={{ color: 'var(--text-tertiary)' }}>（可选）</span>
+                {t('li.targetRoot')} <span style={{ color: 'var(--text-tertiary)' }}>{t('li.optional')}</span>
               </label>
               <input
                 type="text"
                 value={targetRoot}
                 onChange={(e) => setTargetRoot(e.target.value)}
-                placeholder="留空则使用 源目录/_organized"
+                placeholder={t('li.targetPlaceholder')}
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-colors focus:border-neon"
                 style={{
                   background: 'var(--bg-base)',
@@ -260,15 +272,15 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                 }}
               />
               <p className="mt-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                仅使用硬链接：源文件 0 风险、瞬间完成、零额外空间。
-                <span className="ml-1" style={{ color: 'var(--accent-amber-text)' }}>⚠ 目标根必须与源目录在同一卷</span>
-                （否则任务会立即拒绝执行）。
+                {t('li.hardlinkHint')}
+                <span className="ml-1" style={{ color: 'var(--accent-amber-text)' }}>{t('li.sameVolumeWarn')}</span>
+                {t('li.sameVolumeHint')}
               </p>
             </div>
 
             <div>
               <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                命名风格
+                {t('li.namingStyle')}
               </label>
               <div className="flex gap-2">
                 {(['jellyfin', 'plex'] as const).map((s) => (
@@ -291,7 +303,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
             {/* 落盘模式 */}
             <div>
               <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                落盘模式
+                {t('li.diskMode')}
               </label>
               <div className="flex gap-2">
                 <button
@@ -303,10 +315,10 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                   }}
                 >
                   <div className="text-xs font-medium" style={{ color: mode === 'hardlink' ? 'var(--neon)' : 'var(--text-primary)' }}>
-                    🛡️ 硬链接 · 零风险（推荐）
+                    {t('li.modeHardlink')}
                   </div>
                   <div className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                    源文件不变 · 不占额外空间 · 同卷瞬间完成
+                    {t('li.modeHardlinkDesc')}
                   </div>
                 </button>
                 <button
@@ -321,10 +333,10 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                     className="text-xs font-medium"
                     style={{ color: mode === 'move' ? 'var(--accent-rose-text)' : 'var(--text-primary)' }}
                   >
-                    ⚡ 专家模式 · 原地移动
+                    {t('li.modeMove')}
                   </div>
                   <div className="mt-0.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                    释放源目录空间 · 可一键回滚 · 需二次确认
+                    {t('li.modeMoveDesc')}
                   </div>
                 </button>
               </div>
@@ -348,15 +360,15 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                         className="mb-1 font-medium"
                         style={{ color: 'var(--accent-rose-text)' }}
                       >
-                        ⚠ 专家模式：该操作会真实移动源文件
+                        {t('li.expertTitle')}
                       </div>
                       <ul
                         className="ml-3 list-disc space-y-0.5"
                         style={{ color: 'var(--accent-rose-text)' }}
                       >
-                        <li>源目录中的文件位置会被重组，顶替原始结构</li>
-                        <li>系统会记录 journal，完成后 30 天内可一键回滚</li>
-                        <li>跨卷会被拒绝（与硬链接一致）</li>
+                        <li>{t('li.expertLi1')}</li>
+                        <li>{t('li.expertLi2')}</li>
+                        <li>{t('li.expertLi3')}</li>
                       </ul>
                       <label className="mt-2 flex cursor-pointer items-center gap-2">
                         <input
@@ -365,7 +377,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                           onChange={(e) => setMoveConfirmed(e.target.checked)}
                           className="h-3.5 w-3.5 cursor-pointer accent-rose-500"
                         />
-                        <span style={{ color: 'var(--accent-rose-text)' }}>我已了解：这会真实移动源文件</span>
+                        <span style={{ color: 'var(--accent-rose-text)' }}>{t('li.understand')}</span>
                       </label>
                     </div>
                   </div>
@@ -389,7 +401,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
 
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => handleSubmit(false)}
@@ -397,7 +409,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                 className="btn-primary gap-1.5 px-4 py-2 text-sm disabled:opacity-50"
               >
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <FolderInput size={14} />}
-                开始
+                {t('li.start')}
               </button>
             </div>
           </div>
@@ -409,7 +421,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
             {/* 阶段 + 进度条 */}
             <div>
               <div className="mb-1.5 flex items-baseline justify-between">
-                <span className={`text-sm font-medium ${statusColor}`}>{statusLabel(job.status)}</span>
+                <span className={`text-sm font-medium ${statusColor}`}>{t(ingestStatusKeys[job.status] ?? job.status)}</span>
                 <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                   {job.progress}%
                 </span>
@@ -432,26 +444,26 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
 
             {/* 统计卡片 */}
             <div className="grid grid-cols-4 gap-2">
-              <StatCell label="扫描" value={stats.scanned} />
-              <StatCell label="完成" value={stats.executed} accent="emerald" />
-              <StatCell label="跳过" value={stats.skipped} />
-              <StatCell label="待人工" value={stats.unsorted} accent={stats.unsorted > 0 ? 'amber' : undefined} />
+              <StatCell label={t('li.statScan')} value={stats.scanned} />
+              <StatCell label={t('li.statDone')} value={stats.executed} accent="emerald" />
+              <StatCell label={t('li.statSkipped')} value={stats.skipped} />
+              <StatCell label={t('li.statManual')} value={stats.unsorted} accent={stats.unsorted > 0 ? 'amber' : undefined} />
             </div>
 
             {/* 体积统计：视觉 vs 真实 */}
             {(stats.bytes_logical || 0) > 0 && (
               <div className="flex items-center justify-between rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--bg-base)' }}>
                 <div>
-                  <span style={{ color: 'var(--text-tertiary)' }}>视觉占用 </span>
+                  <span style={{ color: 'var(--text-tertiary)' }}>{t('li.visualUsage')} </span>
                   <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{formatBytes(stats.bytes_logical)}</span>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-tertiary)' }}>真实占用 </span>
+                  <span style={{ color: 'var(--text-tertiary)' }}>{t('li.realUsage')} </span>
                   <span className="font-mono" style={{ color: 'var(--accent-emerald-text)' }}>{formatBytes(stats.bytes_physical)}</span>
                   <span
                     className="ml-1.5 cursor-help"
                     style={{ color: 'var(--text-tertiary)' }}
-                    title={job.mode === 'move' ? 'Move 模式：同卷 rename不占额外空间，且释放了源' : 'Hardlink 模式：两个路径指向同一份磁盘数据，零额外空间'}
+                    title={job.mode === 'move' ? t('li.moveModeTitle') : t('li.hardlinkModeTitle')}
                   >ⓘ</span>
                 </div>
               </div>
@@ -469,12 +481,12 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
               >
                 <div className="flex items-center gap-1.5">
                   <Undo2 size={12} />
-                  <span>已回滚：还原 {rollbackResult.restored_mv} · 跳过 {rollbackResult.skipped_mv} · 清理空目录 {rollbackResult.removed_dir}</span>
+                  <span>{t('li.rollbackStats', { restored: rollbackResult.restored_mv, skipped: rollbackResult.skipped_mv, removed: rollbackResult.removed_dir })}</span>
                 </div>
                 {rollbackResult.errors.length > 0 && (
                   <ul className="mt-1 ml-4 list-disc space-y-0.5 text-[11px]">
                     {rollbackResult.errors.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}
-                    {rollbackResult.errors.length > 5 && <li>… 另 {rollbackResult.errors.length - 5} 条</li>}
+                    {rollbackResult.errors.length > 5 && <li>{t('li.moreErrors', { count: rollbackResult.errors.length - 5 })}</li>}
                   </ul>
                 )}
               </div>
@@ -483,11 +495,11 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
             {/* 路径概要 */}
             <div className="space-y-1 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--bg-base)' }}>
               <div className="flex gap-2">
-                <span style={{ color: 'var(--text-tertiary)' }}>源</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>{t('li.source')}</span>
                 <span className="break-all" style={{ color: 'var(--text-primary)' }}>{job.source_path}</span>
               </div>
               <div className="flex gap-2">
-                <span style={{ color: 'var(--text-tertiary)' }}>目标</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>{t('li.target')}</span>
                 <span className="break-all" style={{ color: 'var(--text-primary)' }}>{job.target_root}</span>
               </div>
             </div>
@@ -518,7 +530,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                 }}
               >
                 <CheckCircle2 size={14} className="flex-shrink-0" />
-                <span>已建库（{libIds.length} 个），扫描已自动开始，可在媒体库列表查看进度。</span>
+                <span>{t('li.libCreated', { count: libIds.length })}</span>
               </div>
             )}
 
@@ -526,7 +538,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
             <div className="flex justify-end gap-2 pt-2">
               {running ? (
                 <button onClick={handleCancel} className="btn-ghost px-4 py-2 text-sm">
-                  取消任务
+                  {t('li.cancelTask')}
                 </button>
               ) : (
                 <>
@@ -541,17 +553,17 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                         color: 'var(--accent-amber-text)',
                         border: '1px solid var(--accent-amber-border)',
                       }}
-                      title="按 journal 倒序还原文件位置"
+                      title={t('li.rollbackTitle')}
                     >
                       {rollingBack ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} />}
-                      回滚本次操作
+                      {t('li.rollback')}
                     </button>
                   )}
                   <button onClick={() => { setJob(null); setRollbackResult(null) }} className="btn-ghost px-4 py-2 text-sm">
-                    再来一次
+                    {t('li.tryAgain')}
                   </button>
                   <button onClick={onClose} className="btn-primary px-4 py-2 text-sm">
-                    完成
+                    {t('ei.finish')}
                   </button>
                 </>
               )}
@@ -572,10 +584,10 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
           >
             <div className="mb-3 flex items-center gap-2">
               <ShieldAlert size={18} style={{ color: 'var(--accent-amber-text)' }} />
-              <h3 className="font-display text-base font-semibold">该源目录已入库过</h3>
+              <h3 className="font-display text-base font-semibold">{t('li.duplicateTitle')}</h3>
             </div>
             <p className="mb-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
-              检测到 <span className="font-mono break-all" style={{ color: 'var(--text-primary)' }}>{sourcePath}</span> 在历史任务中已被处理（共 {dupConflict.length} 条记录）。重复执行会再次产出 _organized 副本，可能造成混乱。
+              {t('li.duplicateDesc', { path: sourcePath, count: dupConflict.length })}
             </p>
             <div className="mb-3 max-h-40 space-y-1 overflow-y-auto rounded-lg p-2 text-[11px]" style={{ background: 'var(--bg-base)' }}>
               {dupConflict.slice(0, 5).map((j) => (
@@ -585,12 +597,12 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                 </div>
               ))}
               {dupConflict.length > 5 && (
-                <div style={{ color: 'var(--text-tertiary)' }}>… 另 {dupConflict.length - 5} 条</div>
+                <div style={{ color: 'var(--text-tertiary)' }}>{t('li.duplicateMore', { count: dupConflict.length - 5 })}</div>
               )}
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setDupConflict(null)} className="btn-ghost px-3 py-1.5 text-xs">
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => { setDupConflict(null); handleSubmit(true) }}
@@ -601,7 +613,7 @@ export default function LazyIngestModal({ isOpen, onClose, onCompleted }: Props)
                   border: '1px solid var(--accent-rose-border)',
                 }}
               >
-                强制重新入库
+                {t('li.forceReingest')}
               </button>
             </div>
           </div>

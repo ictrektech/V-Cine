@@ -4,6 +4,7 @@ import { useToast } from '@/components/Toast'
 import type { TMDbImageInfo } from '@/types'
 import { Upload, Link2, Search, Image, X, Check, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
+import { useTranslation } from '@/i18n'
 
 // 图片来源模式
 type ImageSourceMode = 'upload' | 'url' | 'tmdb'
@@ -41,6 +42,7 @@ export default function EditMetadataModal({
   onClose,
   hasTagline = false,
 }: EditMetadataModalProps) {
+  const { t } = useTranslation()
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -60,7 +62,7 @@ export default function EditMetadataModal({
   // 加载 TMDb 可用图片
   const handleLoadTmdbImages = async () => {
     if (!tmdbId || tmdbId <= 0) {
-      toast.error('当前条目未关联 TMDb，请先手动匹配')
+      toast.error(t('em.noTmdb'))
       return
     }
     setTmdbImagesLoading(true)
@@ -70,10 +72,10 @@ export default function EditMetadataModal({
       setTmdbImages(res.data.data)
       const imgs = imageTab === 'poster' ? res.data.data.posters : res.data.data.backdrops
       if (imgs.length === 0) {
-        toast.info('TMDb 上暂无可用图片')
+        toast.info(t('em.noTmdbImages'))
       }
     } catch {
-      toast.error('获取 TMDb 图片列表失败')
+      toast.error(t('em.loadImagesFailed'))
     } finally {
       setTmdbImagesLoading(false)
     }
@@ -87,12 +89,12 @@ export default function EditMetadataModal({
     // 格式校验
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
-      toast.error('仅支持 JPG、PNG、WebP 格式')
+      toast.error(t('em.badFormat'))
       return
     }
     // 大小校验
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('图片文件过大，最大支持 10MB')
+      toast.error(t('em.fileTooLarge'))
       return
     }
 
@@ -112,21 +114,21 @@ export default function EditMetadataModal({
         } else {
           await adminApi.uploadSeriesImage(id, selectedFile, imageTab)
         }
-        toast.success(`${imageTab === 'poster' ? '海报' : '背景图'}已更新`)
+        toast.success(t('em.imageUpdated', { kind: imageTab === 'poster' ? t('em.poster') : t('em.backdrop') }))
       } else if (imageMode === 'url' && imageUrl.trim()) {
         if (type === 'media') {
           await adminApi.setMediaImageByURL(id, imageUrl.trim(), imageTab)
         } else {
           await adminApi.setSeriesImageByURL(id, imageUrl.trim(), imageTab)
         }
-        toast.success(`${imageTab === 'poster' ? '海报' : '背景图'}已更新`)
+        toast.success(t('em.imageUpdated', { kind: imageTab === 'poster' ? t('em.poster') : t('em.backdrop') }))
       } else if (imageMode === 'tmdb' && selectedTmdbPath) {
         if (type === 'media') {
           await adminApi.setMediaImageFromTMDb(id, selectedTmdbPath, imageTab)
         } else {
           await adminApi.setSeriesImageFromTMDb(id, selectedTmdbPath, imageTab)
         }
-        toast.success(`${imageTab === 'poster' ? '海报' : '背景图'}已更新`)
+        toast.success(t('em.imageUpdated', { kind: imageTab === 'poster' ? t('em.poster') : t('em.backdrop') }))
       }
       // 重置图片编辑状态
       setImageMode(null)
@@ -135,7 +137,7 @@ export default function EditMetadataModal({
       setImageUrl('')
       setSelectedTmdbPath(null)
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '图片更新失败')
+      toast.error(err?.response?.data?.error || t('em.imageUpdateFailed'))
     } finally {
       setImageUploading(false)
     }
@@ -158,7 +160,7 @@ export default function EditMetadataModal({
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--glass-border)' }}
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>编辑元数据</h3>
+          <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{t('em.title')}</h3>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--text-muted)' }}>
             <X size={18} />
           </button>
@@ -168,7 +170,7 @@ export default function EditMetadataModal({
         <div className="mb-6 rounded-xl p-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
           <div className="flex items-center gap-3 mb-3">
             <Image size={16} style={{ color: 'var(--neon-blue)' }} />
-            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>图片管理</span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('em.imagesTitle')}</span>
             {/* 海报/背景图切换 */}
             <div className="ml-auto flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
               <button
@@ -176,14 +178,14 @@ export default function EditMetadataModal({
                 className={clsx('px-3 py-1 text-xs font-medium transition-colors', imageTab === 'poster' ? 'text-white' : '')}
                 style={imageTab === 'poster' ? { background: 'var(--neon-blue)', color: 'white' } : { color: 'var(--text-secondary)' }}
               >
-                海报
+                {t('em.poster')}
               </button>
               <button
                 onClick={() => { setImageTab('backdrop'); setImageMode(null); setSelectedTmdbPath(null) }}
                 className={clsx('px-3 py-1 text-xs font-medium transition-colors', imageTab === 'backdrop' ? 'text-white' : '')}
                 style={imageTab === 'backdrop' ? { background: 'var(--neon-blue)', color: 'white' } : { color: 'var(--text-secondary)' }}
               >
-                背景图
+                {t('em.backdrop')}
               </button>
             </div>
           </div>
@@ -201,15 +203,15 @@ export default function EditMetadataModal({
               }}
             >
               {previewUrl ? (
-                <img src={previewUrl} alt="预览" className="h-full w-full object-cover" />
+                <img src={previewUrl} alt={t('em.previewAlt')} className="h-full w-full object-cover" />
               ) : selectedTmdbPath ? (
                 <img
                   src={`https://image.tmdb.org/t/p/${imageTab === 'poster' ? 'w185' : 'w300'}${selectedTmdbPath}`}
-                  alt="TMDb预览"
+                  alt={t('em.tmdbPreviewAlt')}
                   className="h-full w-full object-cover"
                 />
               ) : (imageTab === 'poster' ? hasPoster : hasBackdrop) ? (
-                <img src={currentPoster} alt="当前图片" className="h-full w-full object-cover" />
+                <img src={currentPoster} alt={t('em.currentImageAlt')} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center" style={{ color: 'var(--text-muted)' }}>
                   <Image size={20} />
@@ -226,21 +228,21 @@ export default function EditMetadataModal({
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
                     style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)', border: '1px solid var(--neon-blue-15)' }}
                   >
-                    <Upload size={12} /> 本地上传
+                    <Upload size={12} /> {t('em.uploadLocal')}
                   </button>
                   <button
                     onClick={() => { setImageMode('url'); setImageUrl('') }}
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
                     style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)', border: '1px solid var(--neon-blue-15)' }}
                   >
-                    <Link2 size={12} /> 输入URL
+                    <Link2 size={12} /> {t('em.inputUrl')}
                   </button>
                   <button
                     onClick={() => { setImageMode('tmdb'); handleLoadTmdbImages() }}
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
                     style={{ background: 'var(--neon-blue-8)', color: 'var(--neon-blue)', border: '1px solid var(--neon-blue-15)' }}
                   >
-                    <Search size={12} /> TMDb搜索
+                    <Search size={12} /> {t('em.tmdbSearch')}
                   </button>
                 </div>
               )}
@@ -263,7 +265,7 @@ export default function EditMetadataModal({
                     {selectedFile ? (
                       <span style={{ color: 'var(--neon-blue)' }}>✓ {selectedFile.name}</span>
                     ) : (
-                      '点击选择图片文件（JPG / PNG / WebP，最大 10MB）'
+                      t('em.uploadHint')
                     )}
                   </button>
                   <div className="flex gap-2">
@@ -272,7 +274,7 @@ export default function EditMetadataModal({
                       className="rounded-lg px-3 py-1 text-xs"
                       style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
                     >
-                      取消
+                      {t('common.cancel')}
                     </button>
                     {selectedFile && (
                       <button
@@ -282,7 +284,7 @@ export default function EditMetadataModal({
                         style={{ background: 'var(--neon-blue)' }}
                       >
                         {imageUploading ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                        确认上传
+                        {t('em.uploadConfirm')}
                       </button>
                     )}
                   </div>
@@ -295,7 +297,7 @@ export default function EditMetadataModal({
                   <input
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="输入图片URL地址..."
+                    placeholder={t('em.urlPlaceholder')}
                     className="w-full rounded-lg px-3 py-2 text-xs outline-none"
                     style={inputStyle}
                     autoFocus
@@ -306,7 +308,7 @@ export default function EditMetadataModal({
                       className="rounded-lg px-3 py-1 text-xs"
                       style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
                     >
-                      取消
+                      {t('common.cancel')}
                     </button>
                     {imageUrl.trim() && (
                       <button
@@ -316,7 +318,7 @@ export default function EditMetadataModal({
                         style={{ background: 'var(--neon-blue)' }}
                       >
                         {imageUploading ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                        确认下载
+                        {t('em.downloadConfirm')}
                       </button>
                     )}
                   </div>
@@ -328,7 +330,7 @@ export default function EditMetadataModal({
                 <div className="space-y-2">
                   {tmdbImagesLoading ? (
                     <div className="flex items-center gap-2 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-                      <Loader2 size={14} className="animate-spin" /> 加载 TMDb 图片列表...
+                      <Loader2 size={14} className="animate-spin" /> {t('em.loadingImages')}
                     </div>
                   ) : tmdbImageList.length > 0 ? (
                     <>
@@ -366,7 +368,7 @@ export default function EditMetadataModal({
                           className="rounded-lg px-3 py-1 text-xs"
                           style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
                         >
-                          取消
+                          {t('common.cancel')}
                         </button>
                         {selectedTmdbPath && (
                           <button
@@ -376,7 +378,7 @@ export default function EditMetadataModal({
                             style={{ background: 'var(--neon-blue)' }}
                           >
                             {imageUploading ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                            应用选中图片
+                            {t('em.applySelected')}
                           </button>
                         )}
                       </div>
@@ -384,14 +386,14 @@ export default function EditMetadataModal({
                   ) : (
                     <div className="space-y-2">
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {!tmdbId ? '当前条目未关联 TMDb，请先手动匹配后再搜索图片' : '暂无可用图片'}
+                        {!tmdbId ? t('em.tmdbRequired') : t('em.noImages')}
                       </p>
                       <button
                         onClick={() => { setImageMode(null); setSelectedTmdbPath(null) }}
                         className="rounded-lg px-3 py-1 text-xs"
                         style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
                       >
-                        返回
+                        {t('em.back')}
                       </button>
                     </div>
                   )}
@@ -400,7 +402,7 @@ export default function EditMetadataModal({
 
               {!imageMode && (
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                  支持 JPG、PNG、WebP 格式，最大 10MB
+                  {t('em.formatHint')}
                 </p>
               )}
             </div>
@@ -411,7 +413,7 @@ export default function EditMetadataModal({
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>标题</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldTitle')}</label>
               <input
                 value={editForm.title}
                 onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
@@ -420,7 +422,7 @@ export default function EditMetadataModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>原始标题</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldOriginalTitle')}</label>
               <input
                 value={editForm.orig_title}
                 onChange={(e) => setEditForm({ ...editForm, orig_title: e.target.value })}
@@ -431,7 +433,7 @@ export default function EditMetadataModal({
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>年份</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldYear')}</label>
               <input
                 type="number"
                 value={editForm.year || ''}
@@ -441,7 +443,7 @@ export default function EditMetadataModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>评分</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldRating')}</label>
               <input
                 type="number"
                 step="0.1"
@@ -454,18 +456,18 @@ export default function EditMetadataModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>类型</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldGenres')}</label>
               <input
                 value={editForm.genres}
                 onChange={(e) => setEditForm({ ...editForm, genres: e.target.value })}
-                placeholder="逗号分隔，如：动作,科幻"
+                placeholder={t('em.genresPlaceholder')}
                 className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                 style={inputStyle}
               />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>简介</label>
+            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldOverview')}</label>
             <textarea
               value={editForm.overview}
               onChange={(e) => setEditForm({ ...editForm, overview: e.target.value })}
@@ -476,7 +478,7 @@ export default function EditMetadataModal({
           </div>
           {hasTagline && (
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>宣传语</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldTagline')}</label>
               <input
                 value={editForm.tagline || ''}
                 onChange={(e) => setEditForm({ ...editForm, tagline: e.target.value })}
@@ -487,7 +489,7 @@ export default function EditMetadataModal({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>国家/地区</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldCountry')}</label>
               <input
                 value={editForm.country}
                 onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
@@ -496,7 +498,7 @@ export default function EditMetadataModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>语言</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldLanguage')}</label>
               <input
                 value={editForm.language}
                 onChange={(e) => setEditForm({ ...editForm, language: e.target.value })}
@@ -506,7 +508,7 @@ export default function EditMetadataModal({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>出品公司</label>
+            <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('em.fieldStudio')}</label>
             <input
               value={editForm.studio}
               onChange={(e) => setEditForm({ ...editForm, studio: e.target.value })}
@@ -523,14 +525,14 @@ export default function EditMetadataModal({
             className="rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
             style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
           >
-            取消
+            {t('common.cancel')}
           </button>
           <button
             onClick={onSave}
             className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
             style={{ background: 'var(--neon-blue)' }}
           >
-            保存
+            {t('em.save')}
           </button>
         </div>
       </div>
