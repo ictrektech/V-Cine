@@ -40,26 +40,29 @@ import {
 import clsx from 'clsx'
 import { useDialog } from '@/components/Dialog'
 
+import { useTranslation } from '@/i18n'
+
 type Tab = 'batch' | 'folder' | 'cookies' | 'mirrors' | 'cache' | 'scheduler' | 'report'
 
 export default function AdultScraperProSection() {
+  const { t } = useTranslation()
   const [tab, setTab] = useState<Tab>('batch')
 
   return (
     <div className="rounded-xl p-5" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
       <div className="mb-4 flex items-center gap-2">
         <BarChart3 className="h-5 w-5 text-purple-400" />
-        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>番号刮削运营中心</h3>
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{t('asp.title')}</h3>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2 pb-2" style={{ borderBottom: '1px solid var(--border-default)' }}>
-        <TabButton active={tab === 'batch'} onClick={() => setTab('batch')} icon={<Play className="h-4 w-4" />} label="批量刮削" />
-        <TabButton active={tab === 'folder'} onClick={() => setTab('folder')} icon={<FolderSearch className="h-4 w-4" />} label="文件夹刮削" />
-        <TabButton active={tab === 'cookies'} onClick={() => setTab('cookies')} icon={<Cookie className="h-4 w-4" />} label="Cookie 登录" />
-        <TabButton active={tab === 'mirrors'} onClick={() => setTab('mirrors')} icon={<Globe className="h-4 w-4" />} label="镜像管理" />
-        <TabButton active={tab === 'cache'} onClick={() => setTab('cache')} icon={<Database className="h-4 w-4" />} label="缓存管理" />
-        <TabButton active={tab === 'scheduler'} onClick={() => setTab('scheduler')} icon={<Clock className="h-4 w-4" />} label="定时调度" />
-        <TabButton active={tab === 'report'} onClick={() => setTab('report')} icon={<TrendingUp className="h-4 w-4" />} label="分析报表" />
+        <TabButton active={tab === 'batch'} onClick={() => setTab('batch')} icon={<Play className="h-4 w-4" />} label={t('asp.tabBatch')} />
+        <TabButton active={tab === 'folder'} onClick={() => setTab('folder')} icon={<FolderSearch className="h-4 w-4" />} label={t('asp.tabFolder')} />
+        <TabButton active={tab === 'cookies'} onClick={() => setTab('cookies')} icon={<Cookie className="h-4 w-4" />} label={t('asp.tabCookies')} />
+        <TabButton active={tab === 'mirrors'} onClick={() => setTab('mirrors')} icon={<Globe className="h-4 w-4" />} label={t('asp.tabMirrors')} />
+        <TabButton active={tab === 'cache'} onClick={() => setTab('cache')} icon={<Database className="h-4 w-4" />} label={t('asp.tabCache')} />
+        <TabButton active={tab === 'scheduler'} onClick={() => setTab('scheduler')} icon={<Clock className="h-4 w-4" />} label={t('asp.tabScheduler')} />
+        <TabButton active={tab === 'report'} onClick={() => setTab('report')} icon={<TrendingUp className="h-4 w-4" />} label={t('asp.tabReport')} />
       </div>
 
       {tab === 'batch' && <BatchPanel />}
@@ -96,6 +99,7 @@ function TabButton({
 // ==================== 批量刮削面板 ====================
 
 function BatchPanel() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [tasks, setTasks] = useState<AdultBatchTask[]>([])
   const [history, setHistory] = useState<AdultBatchTask[]>([])
@@ -153,7 +157,7 @@ function BatchPanel() {
       await adultScraperApi.startBatch(opts)
       await loadTasks()
     } catch (err: any) {
-      await dialog.alert({ title: '启动失败', message: err?.response?.data?.error || err?.message, variant: 'error' })
+      await dialog.alert({ title: t('asp.startFailed'), message: err?.response?.data?.error || err?.message, variant: 'error' })
     } finally {
       setStarting(false)
     }
@@ -163,12 +167,12 @@ function BatchPanel() {
     <div className="space-y-4">
       {/* 启动控制 */}
       <div className="rounded-lg p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
-        <div className="mb-3 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>启动新任务</div>
+        <div className="mb-3 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('asp.newTask')}</div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <LabelCheck label="只处理未刮削" checked={opts.only_unscraped} onChange={(v) => setOpts({ ...opts, only_unscraped: v })} />
-          <LabelCheck label="预览模式（仅识别）" checked={opts.dry_run} onChange={(v) => setOpts({ ...opts, dry_run: v })} />
-          <LabelCheck label="聚合模式（精刮，较慢）" checked={opts.aggregated} onChange={(v) => setOpts({ ...opts, aggregated: v })} />
-          <LabelNumber label="并发度（1-8）" value={opts.concurrency} onChange={(v) => setOpts({ ...opts, concurrency: v })} min={1} max={8} />
+          <LabelCheck label={t('asp.onlyUnscraped')} checked={opts.only_unscraped} onChange={(v) => setOpts({ ...opts, only_unscraped: v })} />
+          <LabelCheck label={t('asp.previewMode')} checked={opts.dry_run} onChange={(v) => setOpts({ ...opts, dry_run: v })} />
+          <LabelCheck label={t('asp.aggMode')} checked={opts.aggregated} onChange={(v) => setOpts({ ...opts, aggregated: v })} />
+          <LabelNumber label={t('asp.concurrency')} value={opts.concurrency} onChange={(v) => setOpts({ ...opts, concurrency: v })} min={1} max={8} />
         </div>
         <div className="mt-3 flex items-center gap-2">
           <button
@@ -177,7 +181,7 @@ function BatchPanel() {
             className="flex items-center gap-1.5 rounded-lg bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 disabled:opacity-60"
           >
             {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            启动全库批量刮削
+            {t('asp.startBatch')}
           </button>
           <button onClick={loadTasks} className="rounded-lg p-2 hover:bg-[var(--nav-hover-bg)]" style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
             <RefreshCw className={clsx('h-4 w-4', loading && 'animate-spin')} />
@@ -189,10 +193,10 @@ function BatchPanel() {
       <div>
         <div className="mb-2 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
           <Loader2 className="h-4 w-4 animate-spin text-green-500" />
-          进行中的任务（{tasks.length}）
+          {t('asp.runningTasks', { count: tasks.length })}
         </div>
         {tasks.length === 0 ? (
-          <div className="rounded-lg p-4 text-center text-sm" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>暂无进行中的任务</div>
+          <div className="rounded-lg p-4 text-center text-sm" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>{t('asp.noRunning')}</div>
         ) : (
           <div className="space-y-2">
             {tasks.map((t) => (
@@ -213,10 +217,10 @@ function BatchPanel() {
       <div>
         <div className="mb-2 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
           <History className="h-4 w-4" style={{ color: 'var(--text-secondary)' }} />
-          历史任务（最近 {history.length} 个）
+          {t('asp.historyTasks', { count: history.length })}
         </div>
         {history.length === 0 ? (
-          <div className="rounded-lg p-4 text-center text-sm" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>暂无历史</div>
+          <div className="rounded-lg p-4 text-center text-sm" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>{t('asp.noHistory')}</div>
         ) : (
           <div className="space-y-2">
             {history.slice(0, 10).map((t) => (
@@ -238,6 +242,7 @@ function TaskRow({
   onResume?: () => void
   onCancel?: () => void
 }) {
+  const { t } = useTranslation()
   const current = live?.current ?? task.current
   const success = live?.success ?? task.success
   const failed = live?.failed ?? task.failed
@@ -259,8 +264,8 @@ function TaskRow({
           <div className="flex items-center gap-2 text-sm">
             <span className={clsx('font-mono font-semibold', statusColor)}>{task.status.toUpperCase()}</span>
             <span style={{ color: 'var(--text-secondary)' }}>#{task.id.slice(0, 8)}</span>
-            {task.aggregated && <span className="rounded bg-purple-500/20 px-1.5 text-xs text-purple-500 dark:text-purple-300">聚合</span>}
-            {task.dry_run && <span className="rounded bg-gray-500/20 px-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>预览</span>}
+            {task.aggregated && <span className="rounded bg-purple-500/20 px-1.5 text-xs text-purple-500 dark:text-purple-300">{t('asp.aggBadge')}</span>}
+            {task.dry_run && <span className="rounded bg-gray-500/20 px-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{t('asp.previewBadge')}</span>}
           </div>
           {live?.media_title && (
             <div className="mt-1 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -272,17 +277,17 @@ function TaskRow({
         {/* shrink-0：防止左侧长标题触发 flex 收缩，挤压图标按钮 */}
         <div className="flex shrink-0 items-center gap-1">
           {task.status === 'running' && onPause && (
-            <button onClick={onPause} className="rounded p-1.5 hover:bg-[var(--nav-hover-bg)]" style={{ color: 'var(--text-secondary)' }} title="暂停">
+            <button onClick={onPause} className="rounded p-1.5 hover:bg-[var(--nav-hover-bg)]" style={{ color: 'var(--text-secondary)' }} title={t('asp.pause')}>
               <Pause className="h-4 w-4" />
             </button>
           )}
           {task.status === 'paused' && onResume && (
-            <button onClick={onResume} className="rounded p-1.5 hover:bg-[var(--nav-hover-bg)]" style={{ color: 'var(--text-secondary)' }} title="恢复">
+            <button onClick={onResume} className="rounded p-1.5 hover:bg-[var(--nav-hover-bg)]" style={{ color: 'var(--text-secondary)' }} title={t('asp.resume')}>
               <Play className="h-4 w-4" />
             </button>
           )}
           {(task.status === 'running' || task.status === 'paused') && onCancel && (
-            <button onClick={onCancel} className="rounded p-1.5 text-red-500 hover:bg-red-500/10" title="取消">
+            <button onClick={onCancel} className="rounded p-1.5 text-red-500 hover:bg-red-500/10" title={t('common.cancel')}>
               <Square className="h-4 w-4" />
             </button>
           )}
@@ -301,7 +306,7 @@ function TaskRow({
             {' · '}
             <span className="text-red-500">✗ {failed}</span>
             {' · '}
-            <span style={{ color: 'var(--text-secondary)' }}>跳过 {skipped}</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{t('asp.skipped', { count: skipped })}</span>
           </span>
         </div>
       </div>
@@ -312,6 +317,7 @@ function TaskRow({
 // ==================== 镜像管理面板 ====================
 
 function MirrorsPanel() {
+  const { t } = useTranslation()
   const [data, setData] = useState<Record<string, { mirrors: MirrorStatus[]; preferred: string }> | null>(null)
   const [lastHealthAt, setLastHealthAt] = useState('')
   const [loading, setLoading] = useState(false)
@@ -346,7 +352,7 @@ function MirrorsPanel() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          最近健康检查：{lastHealthAt ? new Date(lastHealthAt).toLocaleString() : '从未'}
+          {t('asp.lastHealth', { time: lastHealthAt ? new Date(lastHealthAt).toLocaleString() : t('asp.never') })}
         </div>
         <button
           onClick={handleHealthCheck}
@@ -354,7 +360,7 @@ function MirrorsPanel() {
           className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600 disabled:opacity-60"
         >
           {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          全部健康检查
+          {t('asp.allHealth')}
         </button>
       </div>
 
@@ -366,7 +372,7 @@ function MirrorsPanel() {
             <div key={src} className="rounded-lg p-3" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
               <div className="mb-2 flex items-center justify-between">
                 <div className="font-medium uppercase" style={{ color: 'var(--text-primary)' }}>{src}</div>
-                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>首选：{v.preferred}</div>
+                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('asp.preferred', { name: v.preferred })}</div>
               </div>
               <div className="space-y-1">
                 {v.mirrors.map((m, i) => (
@@ -377,7 +383,7 @@ function MirrorsPanel() {
                     </div>
                     <div style={{ color: 'var(--text-secondary)' }}>
                       {m.latency_ms > 0 && <span>{m.latency_ms}ms</span>}
-                      {m.fail_count > 0 && <span className="ml-2 text-red-500">失败 {m.fail_count}次</span>}
+                      {m.fail_count > 0 && <span className="ml-2 text-red-500">{t('asp.failCount', { count: m.fail_count })}</span>}
                     </div>
                   </div>
                 ))}
@@ -393,6 +399,7 @@ function MirrorsPanel() {
 // ==================== 缓存管理面板 ====================
 
 function CachePanel() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [stats, setStats] = useState<{ size: number; max_size: number; total_hit: number; ttl: string } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -413,9 +420,9 @@ function CachePanel() {
 
   const handleClear = async () => {
     const ok = await dialog.confirm({
-      title: '清空番号缓存',
-      message: '确定清空所有番号元数据缓存？',
-      confirmText: '清空',
+      title: t('asp.clearCacheTitle'),
+      message: t('asp.clearCacheMsg'),
+      confirmText: t('asp.clear'),
       variant: 'danger',
     })
     if (!ok) return
@@ -426,19 +433,19 @@ function CachePanel() {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="缓存条目" value={stats?.size ?? 0} />
-        <StatCard label="最大容量" value={stats?.max_size ?? 0} />
-        <StatCard label="累计命中" value={stats?.total_hit ?? 0} />
-        <StatCard label="过期时间" value={stats?.ttl ?? '-'} />
+        <StatCard label={t('asp.statEntries')} value={stats?.size ?? 0} />
+        <StatCard label={t('asp.statMax')} value={stats?.max_size ?? 0} />
+        <StatCard label={t('asp.statHits')} value={stats?.total_hit ?? 0} />
+        <StatCard label={t('asp.statTtl')} value={stats?.ttl ?? '-'} />
       </div>
       <div className="flex items-center gap-2">
         <button onClick={load} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm hover:bg-[var(--nav-hover-bg)]" style={{ border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          刷新
+          {t('common.refresh')}
         </button>
         <button onClick={handleClear} className="flex items-center gap-1.5 rounded-lg bg-red-500/80 px-3 py-1.5 text-sm text-white hover:bg-red-600">
           <Trash2 className="h-4 w-4" />
-          清空缓存
+          {t('asp.clear')}
         </button>
       </div>
     </div>
@@ -457,6 +464,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 // ==================== 定时调度面板 ====================
 
 function SchedulerPanel() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [cfg, setCfg] = useState<AdultSchedulerConfig>({
     Enabled: false,
@@ -486,7 +494,7 @@ function SchedulerPanel() {
     setSaving(true)
     try {
       await adultScraperApi.updateScheduler(cfg)
-      await dialog.alert({ title: '调度器配置已保存', variant: 'success' })
+      await dialog.alert({ title: t('asp.saved'), variant: 'success' })
     } finally {
       setSaving(false)
     }
@@ -496,10 +504,10 @@ function SchedulerPanel() {
     setRunning(true)
     try {
       const res = await adultScraperApi.triggerScheduler()
-      await dialog.alert({ title: '任务已启动', message: res.data.data.task_id, variant: 'success' })
+      await dialog.alert({ title: t('asp.taskStarted'), message: res.data.data.task_id, variant: 'success' })
       await load()
     } catch (e: any) {
-      await dialog.alert({ title: '启动失败', message: e?.response?.data?.error || e?.message, variant: 'error' })
+      await dialog.alert({ title: t('asp.startFailed'), message: e?.response?.data?.error || e?.message, variant: 'error' })
     } finally {
       setRunning(false)
     }
@@ -509,27 +517,27 @@ function SchedulerPanel() {
     <div className="space-y-4">
       <div className="rounded-lg p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
         <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <LabelCheck label="启用每日定时刮削" checked={cfg.Enabled} onChange={(v) => setCfg({ ...cfg, Enabled: v })} />
-          <LabelCheck label="只刮削未成功的媒体" checked={cfg.OnlyUnscraped} onChange={(v) => setCfg({ ...cfg, OnlyUnscraped: v })} />
-          <LabelNumber label="执行小时 (0-23)" value={cfg.DailyHour} onChange={(v) => setCfg({ ...cfg, DailyHour: v })} min={0} max={23} />
-          <LabelNumber label="执行分钟 (0-59)" value={cfg.DailyMinute} onChange={(v) => setCfg({ ...cfg, DailyMinute: v })} min={0} max={59} />
-          <LabelNumber label="并发度" value={cfg.Concurrency} onChange={(v) => setCfg({ ...cfg, Concurrency: v })} min={1} max={8} />
-          <LabelCheck label="使用聚合模式" checked={cfg.Aggregated} onChange={(v) => setCfg({ ...cfg, Aggregated: v })} />
+          <LabelCheck label={t('asp.enableDaily')} checked={cfg.Enabled} onChange={(v) => setCfg({ ...cfg, Enabled: v })} />
+          <LabelCheck label={t('asp.onlyFailed')} checked={cfg.OnlyUnscraped} onChange={(v) => setCfg({ ...cfg, OnlyUnscraped: v })} />
+          <LabelNumber label={t('asp.execHour')} value={cfg.DailyHour} onChange={(v) => setCfg({ ...cfg, DailyHour: v })} min={0} max={23} />
+          <LabelNumber label={t('asp.execMinute')} value={cfg.DailyMinute} onChange={(v) => setCfg({ ...cfg, DailyMinute: v })} min={0} max={59} />
+          <LabelNumber label={t('asp.concurrency')} value={cfg.Concurrency} onChange={(v) => setCfg({ ...cfg, Concurrency: v })} min={1} max={8} />
+          <LabelCheck label={t('asp.useAgg')} checked={cfg.Aggregated} onChange={(v) => setCfg({ ...cfg, Aggregated: v })} />
         </div>
         <div className="flex items-center gap-2">
           <button onClick={handleSave} disabled={saving} className="rounded-lg bg-blue-500 px-4 py-1.5 text-sm text-white hover:bg-blue-600 disabled:opacity-60">
-            {saving ? '保存中...' : '保存配置'}
+            {saving ? t('asp.saving') : t('asp.saveConfig')}
           </button>
           <button onClick={handleRunNow} disabled={running} className="flex items-center gap-1.5 rounded-lg bg-purple-500 px-3 py-1.5 text-sm text-white hover:bg-purple-600 disabled:opacity-60">
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            立即触发一次
+            {t('asp.triggerNow')}
           </button>
         </div>
       </div>
 
       <div className="rounded-lg p-3 text-sm" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
-        <div>最近运行时间: {lastRunAt ? new Date(lastRunAt).toLocaleString() : '从未执行'}</div>
-        {lastTaskID && <div style={{ color: 'var(--text-secondary)' }}>最近任务 ID: {lastTaskID}</div>}
+        <div>{t('asp.lastRunAt', { time: lastRunAt ? new Date(lastRunAt).toLocaleString() : t('asp.neverRun') })}</div>
+        {lastTaskID && <div style={{ color: 'var(--text-secondary)' }}>{t('asp.lastTaskId', { id: lastTaskID })}</div>}
       </div>
     </div>
   )
@@ -538,6 +546,7 @@ function SchedulerPanel() {
 // ==================== 分析报表面板 ====================
 
 function ReportPanel() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [days, setDays] = useState(7)
   const [report, setReport] = useState<AdultScrapeReport | null>(null)
@@ -557,7 +566,7 @@ function ReportPanel() {
       setReport(r1.data.data)
       setFailedCount(r2.data.count || 0)
     } catch (e: any) {
-      setLoadErr(e?.response?.data?.error || e?.message || '加载报表失败')
+      setLoadErr(e?.response?.data?.error || e?.message || t('asp.loadReportFailed'))
     } finally {
       setLoading(false)
     }
@@ -567,9 +576,9 @@ function ReportPanel() {
 
   const handleRetry = async () => {
     const ok = await dialog.confirm({
-      title: '重试失败记录',
-      message: `确定重试最近 ${days} 天内的 ${failedCount} 条失败记录？`,
-      confirmText: '重试',
+      title: t('asp.retryTitle'),
+      message: t('asp.retryMsg', { days, count: failedCount }),
+      confirmText: t('asp.retry'),
       variant: 'warning',
     })
     if (!ok) return
@@ -577,12 +586,12 @@ function ReportPanel() {
     try {
       const res = await adultScraperApi.retryFailed({ days, concurrency: 2 })
       await dialog.alert({
-        title: '重试任务已启动',
-        message: `task_id: ${res.data.data.task_id}（${res.data.data.retry_count} 条）`,
+        title: t('asp.retryStarted'),
+        message: `task_id: ${res.data.data.task_id}${t('asp.retryItems', { count: res.data.data.retry_count })}`,
         variant: 'success',
       })
     } catch (e: any) {
-      await dialog.alert({ title: '重试失败', message: e?.response?.data?.error || e?.message, variant: 'error' })
+      await dialog.alert({ title: t('asp.retryFailed'), message: e?.response?.data?.error || e?.message, variant: 'error' })
     } finally {
       setRetrying(false)
     }
@@ -591,17 +600,17 @@ function ReportPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-sm">
-        <span style={{ color: 'var(--text-secondary)' }}>时间范围：</span>
+        <span style={{ color: 'var(--text-secondary)' }}>{t('asp.timeRange')}</span>
         <select
           value={days}
           onChange={(e) => setDays(parseInt(e.target.value, 10))}
           className="rounded-lg px-2 py-1"
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
         >
-          <option value={1}>最近 1 天</option>
-          <option value={7}>最近 7 天</option>
-          <option value={30}>最近 30 天</option>
-          <option value={0}>全部历史</option>
+          <option value={1}>{t('asp.last1d')}</option>
+          <option value={7}>{t('asp.last7d')}</option>
+          <option value={30}>{t('asp.last30d')}</option>
+          <option value={0}>{t('asp.all')}</option>
         </select>
         <button onClick={load} className="rounded-lg p-1.5 hover:bg-[var(--nav-hover-bg)]" style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -609,7 +618,7 @@ function ReportPanel() {
         {failedCount > 0 && (
           <button onClick={handleRetry} disabled={retrying} className="ml-auto flex items-center gap-1.5 rounded-lg bg-orange-500/80 px-3 py-1.5 text-sm text-white hover:bg-orange-600 disabled:opacity-60">
             {retrying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
-            重试失败 {failedCount} 条
+            {t('asp.retryN', { count: failedCount })}
           </button>
         )}
       </div>
@@ -623,24 +632,24 @@ function ReportPanel() {
       {!report && !loadErr && loading && (
         <div className="flex items-center justify-center gap-2 py-8 text-sm" style={{ color: 'var(--text-secondary)' }}>
           <Loader2 className="h-4 w-4 animate-spin" />
-          正在生成报表...
+          {t('asp.generating')}
         </div>
       )}
 
       {report && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard label="总处理数" value={report.total_processed ?? 0} />
-            <StatCard label="成功" value={report.total_success ?? 0} />
-            <StatCard label="失败" value={report.total_failed ?? 0} />
-            <StatCard label="总成功率" value={`${((report.overall_rate ?? 0) * 100).toFixed(1)}%`} />
+            <StatCard label={t('asp.statTotal')} value={report.total_processed ?? 0} />
+            <StatCard label={t('asp.statSuccess')} value={report.total_success ?? 0} />
+            <StatCard label={t('asp.statFailed')} value={report.total_failed ?? 0} />
+            <StatCard label={t('asp.statRate')} value={`${((report.overall_rate ?? 0) * 100).toFixed(1)}%`} />
           </div>
 
           <div>
-            <div className="mb-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>各数据源成功率</div>
+            <div className="mb-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('asp.sourceRates')}</div>
             {(report.by_source ?? []).length === 0 ? (
               <div className="rounded-lg p-3 text-center text-xs" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
-                暂无数据（请先执行批量刮削或文件夹刮削生成历史记录）
+                {t('asp.noSourceData')}
               </div>
             ) : (
               <div className="space-y-1">
@@ -661,7 +670,7 @@ function ReportPanel() {
 
           {(report.by_prefix ?? []).length > 0 && (
             <div>
-              <div className="mb-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>TOP 番号前缀</div>
+              <div className="mb-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('asp.topPrefixes')}</div>
               <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                 {(report.by_prefix ?? []).slice(0, 8).map((p) => (
                   <div key={p.prefix} className="rounded px-2 py-1 text-xs" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
@@ -677,7 +686,7 @@ function ReportPanel() {
             <div>
               <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-red-500">
                 <AlertTriangle className="h-4 w-4" />
-                最常失败番号
+                {t('asp.mostFailed')}
               </div>
               <div className="flex flex-wrap gap-1">
                 {(report.top_failures ?? []).map((c) => (
@@ -691,7 +700,7 @@ function ReportPanel() {
             <div>
               <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-300">
                 <CheckCircle2 className="h-4 w-4" />
-                成功率最高时段（可用于调整定时执行时间）
+                {t('asp.bestHours')}
               </div>
               <div className="flex gap-2">
                 {(report.best_hours ?? []).map((h) => (
@@ -703,7 +712,7 @@ function ReportPanel() {
 
           {(report.total_processed ?? 0) === 0 && (
             <div className="rounded-lg p-4 text-center text-xs" style={{ background: 'var(--bg-elevated)', border: '1px dashed var(--border-default)', color: 'var(--text-secondary)' }}>
-              所选时间范围内没有刮削记录。开始一次批量刮削后，报表会自动填充。
+              {t('asp.noReportData')}
             </div>
           )}
         </>

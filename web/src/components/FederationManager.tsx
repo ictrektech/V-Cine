@@ -7,8 +7,10 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useDialog } from '@/components/Dialog'
+import { useTranslation } from '@/i18n'
 
 export default function FederationManager() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   const [nodes, setNodes] = useState<ServerNode[]>([])
   const [stats, setStats] = useState<FederationStats | null>(null)
@@ -42,18 +44,18 @@ export default function FederationManager() {
 
   const handleRemoveNode = async (id: string) => {
     const ok = await dialog.confirm({
-      title: '移除联邦节点',
-      message: '确定要移除此节点吗？',
-      confirmText: '移除',
+      title: t('fd.removeTitle'),
+      message: t('fd.removeMsg'),
+      confirmText: t('common.delete'),
       variant: 'danger',
     })
     if (!ok) return
     try {
       await federationApi.removeNode(id)
-      setMessage({ type: 'success', text: '节点已移除' })
+      setMessage({ type: 'success', text: t('fd.removed') })
       loadData()
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '移除失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('fd.removeFailed') })
     }
     setTimeout(() => setMessage(null), 3000)
   }
@@ -61,10 +63,10 @@ export default function FederationManager() {
   const handleSync = async (nodeId: string) => {
     try {
       await federationApi.syncNode(nodeId)
-      setMessage({ type: 'success', text: '同步已开始' })
+      setMessage({ type: 'success', text: t('fd.syncStarted') })
       loadData()
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '同步失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('fd.syncFailed') })
     }
     setTimeout(() => setMessage(null), 3000)
   }
@@ -142,11 +144,11 @@ export default function FederationManager() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Network className="h-5 w-5 text-neon-blue" />
-          <h2 className="font-display text-xl font-semibold text-white">联邦网络</h2>
+          <h2 className="font-display text-xl font-semibold text-white">{t('fd.title')}</h2>
         </div>
         <button onClick={() => setShowAddNode(true)}
           className="btn-neon rounded-xl px-4 py-2 text-sm font-medium flex items-center gap-2">
-          <Plus className="h-4 w-4" /> 添加节点
+          <Plus className="h-4 w-4" /> {t('fd.addNode')}
         </button>
       </div>
 
@@ -154,10 +156,10 @@ export default function FederationManager() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: '在线节点', value: `${stats.online_nodes}/${stats.total_nodes}`, icon: Server, color: 'text-green-400' },
-            { label: '共享媒体', value: stats.shared_media, icon: Globe, color: 'text-neon-blue' },
-            { label: '总媒体数', value: stats.total_media, icon: Activity, color: 'text-neon-purple' },
-            { label: '存储使用', value: `${formatSize(stats.used_storage)} / ${formatSize(stats.total_storage)}`, icon: HardDrive, color: 'text-yellow-400' },
+            { label: t('fd.statOnlineNodes'), value: `${stats.online_nodes}/${stats.total_nodes}`, icon: Server, color: 'text-green-400' },
+            { label: t('fd.statSharedMedia'), value: stats.shared_media, icon: Globe, color: 'text-neon-blue' },
+            { label: t('fd.statTotalMedia'), value: stats.total_media, icon: Activity, color: 'text-neon-purple' },
+            { label: t('fd.statStorage'), value: `${formatSize(stats.used_storage)} / ${formatSize(stats.total_storage)}`, icon: HardDrive, color: 'text-yellow-400' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="card-glass rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -197,10 +199,10 @@ export default function FederationManager() {
                   node.role === 'mirror' ? 'bg-yellow-500/20 text-yellow-400' :
                   'bg-surface-800 text-surface-400'
                 )}>
-                  {node.role === 'primary' ? '主节点' : node.role === 'mirror' ? '镜像' : '对等'}
+                  {node.role === 'primary' ? t('fd.rolePrimary') : node.role === 'mirror' ? t('fd.roleMirror') : t('fd.rolePeer')}
                 </span>
                 {node.is_local && (
-                  <span className="text-xs rounded-full bg-green-500/20 text-green-400 px-2 py-0.5">本机</span>
+                  <span className="text-xs rounded-full bg-green-500/20 text-green-400 px-2 py-0.5">{t('fd.thisServer')}</span>
                 )}
               </div>
             </div>
@@ -208,11 +210,11 @@ export default function FederationManager() {
             {/* 节点状态 */}
             <div className="grid grid-cols-4 gap-3 mb-3">
               <div className="text-center">
-                <p className="text-xs text-surface-400">媒体数</p>
+                <p className="text-xs text-surface-400">{t('fd.mediaCount')}</p>
                 <p className="text-sm font-medium text-white">{node.media_count}</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-surface-400">延迟</p>
+                <p className="text-xs text-surface-400">{t('fd.latency')}</p>
                 <p className={clsx('text-sm font-medium', node.latency < 100 ? 'text-green-400' : node.latency < 500 ? 'text-yellow-400' : 'text-red-400')}>
                   {node.latency}ms
                 </p>
@@ -222,7 +224,7 @@ export default function FederationManager() {
                 <p className="text-sm font-medium text-white">{node.cpu_usage.toFixed(0)}%</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-surface-400">内存</p>
+                <p className="text-xs text-surface-400">{t('fd.memory')}</p>
                 <p className="text-sm font-medium text-white">{node.mem_usage.toFixed(0)}%</p>
               </div>
             </div>
@@ -244,7 +246,7 @@ export default function FederationManager() {
             <div className="flex items-center gap-2 pt-3 border-t border-white/5">
               <button onClick={() => handleSync(node.id)}
                 className="btn-ghost flex-1 rounded-lg py-2 text-xs flex items-center justify-center gap-1">
-                <RefreshCw className="h-3 w-3" /> 同步
+                <RefreshCw className="h-3 w-3" /> {t('fd.sync')}
               </button>
               {node.last_sync && (
                 <span className="text-xs text-surface-500 flex items-center gap-1">
@@ -266,15 +268,15 @@ export default function FederationManager() {
       {nodes.length === 0 && (
         <div className="text-center py-16 text-surface-500">
           <Network className="h-16 w-16 mx-auto mb-4 opacity-20" />
-          <p className="text-lg">暂无联邦节点</p>
-          <p className="text-sm mt-1">添加其他 V-Cine 服务器以共享媒体资源</p>
+          <p className="text-lg">{t('fd.empty')}</p>
+          <p className="text-sm mt-1">{t('fd.emptyHint')}</p>
         </div>
       )}
 
       {/* 同步任务 */}
       {syncTasks.length > 0 && (
         <div>
-          <h3 className="font-display text-base font-semibold text-white mb-3">同步任务</h3>
+          <h3 className="font-display text-base font-semibold text-white mb-3">{t('fd.syncTasks')}</h3>
           <div className="space-y-2">
             {syncTasks.map(task => (
               <div key={task.id} className="card-glass rounded-xl p-3 flex items-center gap-3">
@@ -286,7 +288,7 @@ export default function FederationManager() {
                   <div className="h-4 w-4 rounded-full bg-surface-600 shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white">{task.type === 'full' ? '全量同步' : task.type === 'incremental' ? '增量同步' : '元数据同步'}</p>
+                  <p className="text-xs text-white">{task.type === 'full' ? t('fd.taskFull') : task.type === 'incremental' ? t('fd.taskIncremental') : t('fd.taskMetadata')}</p>
                   {task.status === 'running' && (
                     <div className="h-1 rounded-full bg-surface-700 mt-1 overflow-hidden">
                       <div className="h-full rounded-full bg-neon-blue" style={{ width: `${task.progress}%` }} />
@@ -312,6 +314,7 @@ export default function FederationManager() {
 }
 
 function AddNodeModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
@@ -335,18 +338,18 @@ function AddNodeModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
         background: 'var(--glass-bg)', border: '1px solid var(--neon-blue-15)', backdropFilter: 'blur(20px)',
       }}>
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-display text-lg font-semibold text-white">添加联邦节点</h3>
+          <h3 className="font-display text-lg font-semibold text-white">{t('fd.addTitle')}</h3>
           <button onClick={onClose} className="text-surface-400 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="text-xs text-surface-400">节点名称</label>
+            <label className="text-xs text-surface-400">{t('fd.nodeName')}</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder="我的 NAS" className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
+              placeholder={t('fd.nodeNamePlaceholder')} className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-surface-400">服务器地址</label>
+            <label className="text-xs text-surface-400">{t('fd.serverUrl')}</label>
             <input type="url" value={url} onChange={e => setUrl(e.target.value)}
               placeholder="http://192.168.1.100:8080" className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
@@ -356,20 +359,20 @@ function AddNodeModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
               className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-surface-400">角色</label>
+            <label className="text-xs text-surface-400">{t('fd.role')}</label>
             <select value={role} onChange={e => setRole(e.target.value)}
               className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm">
-              <option value="peer">对等节点</option>
-              <option value="mirror">镜像节点</option>
+              <option value="peer">{t('fd.rolePeerOption')}</option>
+              <option value="mirror">{t('fd.roleMirrorOption')}</option>
             </select>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="btn-ghost flex-1 rounded-xl py-2.5 text-sm">取消</button>
+            <button onClick={onClose} className="btn-ghost flex-1 rounded-xl py-2.5 text-sm">{t('common.cancel')}</button>
             <button onClick={handleAdd} disabled={saving || !name || !url || !apiKey}
               className="btn-neon flex-1 rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              添加
+              {t('fd.add')}
             </button>
           </div>
         </div>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import EmbyImportPanel from './EmbyImportPanel'
+import { useTranslation } from '@/i18n'
 
 interface ImportExportPanelProps {
   libraries: { id: string; name: string }[]
@@ -16,6 +17,7 @@ interface ImportExportPanelProps {
 type Tab = 'import' | 'export'
 
 export default function ImportExportPanel({ libraries, onClose }: ImportExportPanelProps) {
+  const { t } = useTranslation()
   const [tab, setTab] = useState<Tab>('import')
   const [source, setSource] = useState<ImportSource>({
     type: 'emby',
@@ -44,9 +46,9 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
       const res = await importExportApi.fetchLibraries(source)
       setRemoteLibraries(res.data.data || [])
       setConnected(true)
-      setMessage({ type: 'success', text: '连接成功！' })
+      setMessage({ type: 'success', text: t('ie.connected') })
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '连接失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('ie.connectFailed') })
       setConnected(false)
     } finally {
       setTesting(false)
@@ -65,7 +67,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
       })
       setImportResult(res.data.data)
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.error || '导入失败' })
+      setMessage({ type: 'error', text: err.response?.data?.error || t('ie.importFailed') })
     } finally {
       setImporting(false)
     }
@@ -84,9 +86,9 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
       a.download = `v-cine-export-${new Date().toISOString().slice(0, 10)}.json`
       a.click()
       URL.revokeObjectURL(url)
-      setMessage({ type: 'success', text: '导出成功！' })
+      setMessage({ type: 'success', text: t('ie.exported') })
     } catch {
-      setMessage({ type: 'error', text: '导出失败' })
+      setMessage({ type: 'error', text: t('ie.exportFailed') })
     } finally {
       setExporting(false)
       setTimeout(() => setMessage(null), 3000)
@@ -107,7 +109,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
       })
       setImportResult(res.data.data)
     } catch {
-      setMessage({ type: 'error', text: '文件解析或导入失败' })
+      setMessage({ type: 'error', text: t('ie.parseFailed') })
     } finally {
       setImporting(false)
     }
@@ -123,7 +125,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
       }}>
         {/* 标题 */}
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-display text-lg font-semibold text-white">媒体库导入 / 导出</h3>
+          <h3 className="font-display text-lg font-semibold text-white">{t('ie.title')}</h3>
           <button onClick={onClose} className="text-surface-400 hover:text-white">
             <X className="h-5 w-5" />
           </button>
@@ -142,8 +144,8 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
         {/* Tab 切换 */}
         <div className="flex gap-1 rounded-xl bg-surface-800/50 p-1 mb-6">
           {[
-            { key: 'import' as Tab, label: '导入', icon: Upload },
-            { key: 'export' as Tab, label: '导出', icon: Download },
+            { key: 'import' as Tab, label: t('ie.importTab'), icon: Upload },
+            { key: 'export' as Tab, label: t('ie.exportTab'), icon: Download },
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -173,16 +175,16 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                   ) : (
                     <AlertCircle className="h-12 w-12 text-yellow-400 mx-auto mb-3" />
                   )}
-                  <p className="text-white font-medium text-lg">导入完成</p>
+                  <p className="text-white font-medium text-lg">{t('ie.importDone')}</p>
                   <div className="flex justify-center gap-6 mt-3 text-sm">
-                    <span className="text-surface-400">总计 <span className="text-white font-medium">{importResult.total}</span></span>
-                    <span className="text-green-400">导入 <span className="font-medium">{importResult.imported}</span></span>
-                    <span className="text-yellow-400">跳过 <span className="font-medium">{importResult.skipped}</span></span>
-                    <span className="text-red-400">失败 <span className="font-medium">{importResult.failed}</span></span>
+                    <span className="text-surface-400">{t('ie.statTotal')} <span className="text-white font-medium">{importResult.total}</span></span>
+                    <span className="text-green-400">{t('ie.statImported')} <span className="font-medium">{importResult.imported}</span></span>
+                    <span className="text-yellow-400">{t('ie.statSkipped')} <span className="font-medium">{importResult.skipped}</span></span>
+                    <span className="text-red-400">{t('ie.statFailed')} <span className="font-medium">{importResult.failed}</span></span>
                   </div>
                 </div>
                 <button onClick={onClose} className="btn-neon w-full rounded-xl py-2.5 text-sm font-medium">
-                  关闭
+                  {t('common.close')}
                 </button>
               </div>
             ) : (
@@ -191,15 +193,15 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                 <div className="card-glass rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <FolderOpen className="h-4 w-4 text-green-400" />
-                    <h4 className="text-sm font-medium text-white">从 EMBY 本地文件夹导入</h4>
+                    <h4 className="text-sm font-medium text-white">{t('ie.embyFolderTitle')}</h4>
                   </div>
                   <p className="text-xs text-surface-400 mb-3">
-                    自动识别 EMBY/Jellyfin 标准文件夹结构，解析 NFO 元数据、海报和字幕文件。
+                    {t('ie.embyFolderDesc')}
                   </p>
                   <button onClick={() => setShowEmbyImport(true)}
                     className="btn-ghost w-full rounded-lg py-2.5 text-sm flex items-center justify-center gap-2">
                     <FolderOpen className="h-4 w-4" />
-                    打开 EMBY 格式导入
+                    {t('ie.openEmbyImport')}
                   </button>
                 </div>
 
@@ -207,11 +209,11 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                 <div className="card-glass rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Server className="h-4 w-4 text-neon-purple" />
-                    <h4 className="text-sm font-medium text-white">从 Emby / Jellyfin 导入</h4>
+                    <h4 className="text-sm font-medium text-white">{t('ie.serverImportTitle')}</h4>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="text-xs text-surface-400">服务器类型</label>
+                      <label className="text-xs text-surface-400">{t('ie.serverType')}</label>
                       <select value={source.type}
                         onChange={e => { setSource(prev => ({ ...prev, type: e.target.value as any })); setConnected(false) }}
                         className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm">
@@ -220,7 +222,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-surface-400">服务器地址</label>
+                      <label className="text-xs text-surface-400">{t('ie.serverUrl')}</label>
                       <input type="url" value={source.server_url}
                         onChange={e => { setSource(prev => ({ ...prev, server_url: e.target.value })); setConnected(false) }}
                         placeholder="http://192.168.1.100:8096"
@@ -236,18 +238,18 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                   <button onClick={handleTestConnection} disabled={testing || !source.server_url || !source.api_key}
                     className="btn-ghost mt-3 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
                     {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube className="h-4 w-4" />}
-                    测试连接
+                    {t('ie.testConnection')}
                   </button>
 
                   {connected && remoteLibraries.length > 0 && (
                     <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
                       <div className="flex items-center gap-3">
                         <div className="flex-1">
-                          <label className="text-xs text-surface-400">源媒体库</label>
+                          <label className="text-xs text-surface-400">{t('ie.sourceLibrary')}</label>
                           <select value={selectedRemoteLib}
                             onChange={e => setSelectedRemoteLib(e.target.value)}
                             className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm">
-                            <option value="">选择媒体库...</option>
+                            <option value="">{t('ie.selectLibrary')}</option>
                             {remoteLibraries.map(lib => (
                               <option key={lib.Id} value={lib.Id}>{lib.Name} ({lib.CollectionType})</option>
                             ))}
@@ -255,7 +257,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                         </div>
                         <ArrowRight className="h-4 w-4 text-surface-500 mt-5" />
                         <div className="flex-1">
-                          <label className="text-xs text-surface-400">目标媒体库</label>
+                          <label className="text-xs text-surface-400">{t('ie.targetLibrary')}</label>
                           <select value={targetLibraryId}
                             onChange={e => setTargetLibraryId(e.target.value)}
                             className="input-glass mt-1 w-full rounded-lg px-3 py-2 text-sm">
@@ -268,7 +270,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                       <button onClick={handleImport} disabled={importing || !selectedRemoteLib}
                         className="btn-neon w-full rounded-xl py-2.5 text-sm font-medium flex items-center justify-center gap-2">
                         {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                        开始导入
+                        {t('ie.startImport')}
                       </button>
                     </div>
                   )}
@@ -278,7 +280,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                 <div className="card-glass rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <FileJson className="h-4 w-4 text-neon-blue" />
-                    <h4 className="text-sm font-medium text-white">从导出文件导入</h4>
+                    <h4 className="text-sm font-medium text-white">{t('ie.fileImportTitle')}</h4>
                   </div>
                   <div className="flex items-center gap-3">
                     <select value={targetLibraryId}
@@ -292,7 +294,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                     <button onClick={() => fileInputRef.current?.click()} disabled={importing}
                       className="btn-ghost flex-1 rounded-lg py-2 text-sm flex items-center justify-center gap-2">
                       {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      选择 JSON 文件
+                      {t('ie.selectJson')}
                     </button>
                   </div>
                 </div>
@@ -303,12 +305,12 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
           /* 导出 */
           <div className="space-y-4">
             <div className="card-glass rounded-xl p-4">
-              <p className="text-sm text-surface-400 mb-3">将媒体库数据导出为 JSON 文件，可用于备份或迁移到其他系统。</p>
+              <p className="text-sm text-surface-400 mb-3">{t('ie.exportDesc')}</p>
               <div className="flex items-center gap-3">
                 <select value={exportLibraryId}
                   onChange={e => setExportLibraryId(e.target.value)}
                   className="input-glass flex-1 rounded-lg px-3 py-2 text-sm">
-                  <option value="">全部媒体库</option>
+                  <option value="">{t('ie.allLibraries')}</option>
                   {libraries.map(lib => (
                     <option key={lib.id} value={lib.id}>{lib.name}</option>
                   ))}
@@ -316,7 +318,7 @@ export default function ImportExportPanel({ libraries, onClose }: ImportExportPa
                 <button onClick={handleExport} disabled={exporting}
                   className="btn-neon rounded-xl px-6 py-2.5 text-sm font-medium flex items-center gap-2">
                   {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  导出
+                  {t('ie.export')}
                 </button>
               </div>
             </div>

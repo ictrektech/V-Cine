@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { subtitleApi } from '@/api'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import type { SubtitleInfo, ExtractedSubtitleFile, SubExtractProgressData } from '@/types'
+import { useTranslation } from '@/i18n'
 
 interface SubtitleManagerProps {
   mediaId: string
@@ -10,6 +11,7 @@ interface SubtitleManagerProps {
 }
 
 export default function SubtitleManager({ mediaId, mediaTitle, onClose }: SubtitleManagerProps) {
+  const { t } = useTranslation()
   // 字幕数据
   const [subtitleInfo, setSubtitleInfo] = useState<SubtitleInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -35,7 +37,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
       const res = await subtitleApi.getTracks(mediaId)
       setSubtitleInfo(res.data.data)
     } catch (e: any) {
-      setError(e.response?.data?.error || '加载字幕信息失败')
+      setError(e.response?.data?.error || t('sm.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -115,7 +117,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
       const res = await subtitleApi.extractAll(mediaId, extractFormat, tracks)
       setExtractResults(res.data.data.files)
     } catch (e: any) {
-      setError(e.response?.data?.error || '批量提取失败')
+      setError(e.response?.data?.error || t('sm.batchFailed'))
     } finally {
       setExtracting(false)
     }
@@ -130,7 +132,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
       const tracks = selectedTracks.size > 0 ? Array.from(selectedTracks) : undefined
       await subtitleApi.extractAllAsync(mediaId, mediaTitle, extractFormat, tracks)
     } catch (e: any) {
-      setError(e.response?.data?.error || '启动异步提取失败')
+      setError(e.response?.data?.error || t('sm.asyncFailed'))
       setExtracting(false)
     }
   }
@@ -142,13 +144,13 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
   }
 
   // 获取语言显示名
-  const getLanguageLabel = (lang: string) => {
+  const getLanguageLabelKey = (lang: string) => {
     const langMap: Record<string, string> = {
-      chi: '中文', zho: '中文', chs: '简体中文', cht: '繁体中文',
-      eng: '英语', jpn: '日语', kor: '韩语', fra: '法语',
-      deu: '德语', spa: '西班牙语', ita: '意大利语', por: '葡萄牙语',
-      rus: '俄语', ara: '阿拉伯语', tha: '泰语', vie: '越南语',
-      und: '未知', '': '未知',
+      chi: 'sm.langChi', zho: 'sm.langZho', chs: 'sm.langChs', cht: 'sm.langCht',
+      eng: 'sm.langEng', jpn: 'sm.langJpn', kor: 'sm.langKor', fra: 'sm.langFra',
+      deu: 'sm.langDeu', spa: 'sm.langSpa', ita: 'sm.langIta', por: 'sm.langPor',
+      rus: 'sm.langRus', ara: 'sm.langAra', tha: 'sm.langTha', vie: 'sm.langVie',
+      und: 'sm.langUnd', '': 'sm.langUnd',
     }
     return langMap[lang] || lang
   }
@@ -178,7 +180,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border-default)' }}>
           <div>
             <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-              🎬 字幕管理
+              {t('sm.title')}
             </h2>
             {mediaTitle && (
               <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>{mediaTitle}</p>
@@ -238,7 +240,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
               <section>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    📝 内嵌文本字幕 ({textTracks.length})
+                    {t('sm.embeddedText', { count: textTracks.length })}
                   </h3>
                   {textTracks.length > 0 && (
                     <button
@@ -246,14 +248,14 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                       className="text-xs px-3 py-1 rounded-lg transition-colors"
                       style={{ color: 'var(--neon-blue)', background: 'var(--neon-blue-6)' }}
                     >
-                      {selectedTracks.size === textTracks.length ? '取消全选' : '全选'}
+                      {selectedTracks.size === textTracks.length ? t('sm.deselectAll') : t('sm.selectAll')}
                     </button>
                   )}
                 </div>
 
                 {textTracks.length === 0 ? (
                   <div className="rounded-xl p-4 text-center text-xs" style={{ background: 'var(--bg-surface)', color: 'var(--text-muted)' }}>
-                    该视频不包含内嵌文本字幕
+                    {t('sm.noTextTracks')}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -275,24 +277,24 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                              轨道 #{track.index}
+                              {t('sm.trackN', { n: track.index })}
                             </span>
                             <span className="rounded px-1.5 py-0.5 text-[10px] font-mono" style={{ background: 'var(--neon-blue-6)', color: 'var(--neon-blue)' }}>
                               {getCodecLabel(track.codec)}
                             </span>
                             {track.default && (
                               <span className="rounded px-1.5 py-0.5 text-[10px]" style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>
-                                默认
+                                {t('sm.default')}
                               </span>
                             )}
                             {track.forced && (
                               <span className="rounded px-1.5 py-0.5 text-[10px]" style={{ background: 'rgba(234,179,8,0.15)', color: '#eab308' }}>
-                                强制
+                                {t('sm.forced')}
                               </span>
                             )}
                           </div>
                           <div className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {getLanguageLabel(track.language)}
+                            {t(getLanguageLabelKey(track.language))}
                             {track.title && ` · ${track.title}`}
                           </div>
                         </div>
@@ -306,7 +308,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
               {bitmapTracks.length > 0 && (
                 <section>
                   <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                    🖼️ 内嵌图形字幕 ({bitmapTracks.length})
+                    {t('sm.embeddedBitmap', { count: bitmapTracks.length })}
                   </h3>
                   <div className="space-y-2">
                     {bitmapTracks.map(track => (
@@ -321,14 +323,14 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                              轨道 #{track.index}
+                              {t('sm.trackN', { n: track.index })}
                             </span>
                             <span className="rounded px-1.5 py-0.5 text-[10px] font-mono" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308' }}>
                               {getCodecLabel(track.codec)}
                             </span>
                           </div>
                           <div className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {getLanguageLabel(track.language)} · 图形字幕（需 OCR 提取）
+                            {t('sm.bitmapOcr', { lang: t(getLanguageLabelKey(track.language)) })}
                           </div>
                         </div>
                       </div>
@@ -340,11 +342,11 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
               {/* ==================== 外挂字幕 ==================== */}
               <section>
                 <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                  📎 外挂字幕 ({externalSubs.length})
+                  {t('sm.external', { count: externalSubs.length })}
                 </h3>
                 {externalSubs.length === 0 ? (
                   <div className="rounded-xl p-4 text-center text-xs" style={{ background: 'var(--bg-surface)', color: 'var(--text-muted)' }}>
-                    未发现外挂字幕文件
+                    {t('sm.noExternal')}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -362,7 +364,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                             {sub.filename}
                           </div>
                           <div className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {sub.format.toUpperCase()} · {getLanguageLabel(sub.language)}
+                            {sub.format.toUpperCase()} · {t(getLanguageLabelKey(sub.language))}
                           </div>
                         </div>
                       </div>
@@ -375,13 +377,13 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
               {textTracks.length > 0 && (
                 <section className="rounded-xl p-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
                   <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                    ⚡ 批量提取
+                    {t('sm.batchExtract')}
                   </h3>
 
                   <div className="flex flex-wrap items-center gap-3 mb-3">
                     {/* 输出格式选择 */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>输出格式:</span>
+                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('sm.outputFormat')}</span>
                       <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
                         {(['srt', 'vtt'] as const).map(fmt => (
                           <button
@@ -408,7 +410,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                         className="h-3.5 w-3.5 rounded accent-blue-500"
                       />
                       <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        异步模式（大文件推荐）
+                        {t('sm.asyncMode')}
                       </span>
                     </label>
                   </div>
@@ -423,13 +425,13 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                       {extracting ? (
                         <span className="flex items-center gap-2">
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                          提取中...
+                          {t('sm.extracting')}
                         </span>
                       ) : (
                         <>
                           {selectedTracks.size > 0
-                            ? `提取选中的 ${selectedTracks.size} 个轨道`
-                            : `提取全部 ${textTracks.length} 个轨道`
+                            ? t('sm.extractSelected', { count: selectedTracks.size })
+                            : t('sm.extractAll', { count: textTracks.length })
                           }
                         </>
                       )}
@@ -465,7 +467,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
               {extractResults.length > 0 && (
                 <section>
                   <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                    📦 提取结果
+                    {t('sm.results')}
                   </h3>
                   <div className="space-y-2">
                     {extractResults.map((result, i) => (
@@ -485,10 +487,10 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
-                              轨道 #{result.track_index}
+                              {t('sm.trackN', { n: result.track_index })}
                             </span>
                             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                              {getLanguageLabel(result.language)} · {getCodecLabel(result.codec)}
+                              {t(getLanguageLabelKey(result.language))} · {getCodecLabel(result.codec)}
                             </span>
                           </div>
                           {result.error && (
@@ -501,7 +503,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
                             className="rounded-lg px-3 py-1.5 text-xs font-medium transition-all hover:opacity-80"
                             style={{ background: 'var(--neon-blue-6)', color: 'var(--neon-blue)' }}
                           >
-                            下载 .{result.format}
+                            {t('sm.download', { format: result.format })}
                           </button>
                         )}
                       </div>
@@ -525,7 +527,7 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
           <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {subtitleInfo && (
               <>
-                共 {embeddedTracks.length} 个内嵌轨道 · {externalSubs.length} 个外挂字幕
+                {t('sm.summary', { embedded: embeddedTracks.length, external: externalSubs.length })}
               </>
             )}
           </div>
@@ -535,14 +537,14 @@ export default function SubtitleManager({ mediaId, mediaTitle, onClose }: Subtit
               className="rounded-xl px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
               style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
             >
-              刷新
+              {t('common.refresh')}
             </button>
             <button
               onClick={onClose}
               className="rounded-xl px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
               style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
             >
-              关闭
+              {t('common.close')}
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { adultScraperApi } from '@/api'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
+import { useTranslation } from '@/i18n'
 import type {
   AdultBatchItemResult,
   AdultBatchTask,
@@ -52,12 +53,12 @@ const LAZY_DEFAULTS = {
   aggregated: true,
 }
 
-const taskStatusLabel: Record<string, string> = {
-  running: '正在懒人刮削',
-  paused: '已暂停',
-  cancelled: '已停止',
-  completed: '已完成',
-  failed: '失败',
+const taskStatusLabelKeys: Record<string, string> = {
+  running: 'ast.statusRunning',
+  paused: 'ast.statusPaused',
+  cancelled: 'ast.statusCancelled',
+  completed: 'ast.statusCompleted',
+  failed: 'ast.statusFailed',
 }
 
 function formatTime(value?: string) {
@@ -80,6 +81,7 @@ function isScraperUsable(config: AdultScraperConfig | null) {
 }
 
 export default function AdultScraperSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<AdultScraperConfig | null>(null)
   const [folderPath, setFolderPath] = useState('')
   const [folderScan, setFolderScan] = useState<FolderScanResult | null>(null)
@@ -116,7 +118,7 @@ export default function AdultScraperSection() {
       const res = await adultScraperApi.getConfig()
       setConfig(res.data.data)
     } catch {
-      showNotice('error', '加载刮削配置失败')
+      showNotice('error', t('ast.loadCfgFailed'))
     }
   }, [showNotice])
 
@@ -247,7 +249,7 @@ export default function AdultScraperSection() {
   const scanCurrentFolder = async (silent = false) => {
     const path = folderPath.trim()
     if (!path) {
-      if (!silent) showNotice('error', '请先选择或输入要刮削的目录')
+      if (!silent) showNotice('error', t('ast.pickDirFirst'))
       return null
     }
     setScanning(true)
@@ -255,11 +257,11 @@ export default function AdultScraperSection() {
       const res = await adultScraperApi.scanFolder(path, true, 0)
       setFolderScan(res.data.data)
       if (!silent) {
-        showNotice('success', `扫描完成：识别到 ${res.data.data.with_code} / ${res.data.data.total} 个可处理视频`)
+        showNotice('success', t('ast.scanDone', { with: res.data.data.with_code, total: res.data.data.total }))
       }
       return res.data.data
     } catch (err: any) {
-      showNotice('error', err?.response?.data?.error || '目录扫描失败')
+      showNotice('error', err?.response?.data?.error || t('ast.scanFailed'))
       return null
     } finally {
       setScanning(false)
@@ -269,11 +271,11 @@ export default function AdultScraperSection() {
   const startLazyScrape = async () => {
     const path = folderPath.trim()
     if (!path) {
-      showNotice('error', '请先选择或输入要刮削的目录')
+      showNotice('error', t('ast.pickDirFirst'))
       return
     }
     if (runningTask) {
-      showNotice('info', '已有刮削任务正在运行')
+      showNotice('info', t('ast.taskRunning'))
       return
     }
 
@@ -288,13 +290,13 @@ export default function AdultScraperSection() {
       })
       setFolderScan(res.data.data.scan)
       if (res.data.data.queued === 0) {
-        showNotice('info', '没有发现需要刮削的新视频，已有 NFO 的文件会自动跳过')
+        showNotice('info', t('ast.noNewVideos'))
       } else {
-        showNotice('success', `已启动懒人刮削：${res.data.data.queued} 个视频，后台自动处理`)
+        showNotice('success', t('ast.started', { queued: res.data.data.queued }))
       }
       await Promise.all([loadConfig(), loadTasks()])
     } catch (err: any) {
-      showNotice('error', err?.response?.data?.error || '启动懒人刮削失败')
+      showNotice('error', err?.response?.data?.error || t('ast.startFailed'))
     } finally {
       setStarting(false)
     }
@@ -310,10 +312,10 @@ export default function AdultScraperSection() {
       } else {
         await adultScraperApi.cancelBatch(runningTask.id)
       }
-      showNotice('info', '已请求停止当前刮削任务')
+      showNotice('info', t('ast.stopRequested'))
       await loadTasks()
     } catch (err: any) {
-      showNotice('error', err?.response?.data?.error || '停止任务失败')
+      showNotice('error', err?.response?.data?.error || t('ast.stopFailed'))
     } finally {
       setStopping(false)
     }
@@ -325,13 +327,13 @@ export default function AdultScraperSection() {
       const res = await adultScraperApi.retryLazyFailed({ days: 7, concurrency: LAZY_DEFAULTS.concurrency, aggregated: LAZY_DEFAULTS.aggregated })
       const data = res.data.data
       if (data.retry_count === 0) {
-        showNotice('info', '没有可重试的失败项')
+        showNotice('info', t('ast.noRetry'))
       } else {
-        showNotice('success', `已提交失败重试：${data.retry_count} 个条目（目录 ${data.folder_retry_count} / 媒体库 ${data.media_retry_count}）`)
+        showNotice('success', t('ast.retrySubmitted', { count: data.retry_count, folder: data.folder_retry_count, media: data.media_retry_count }))
       }
       await Promise.all([loadTasks(), loadOperations()])
     } catch (err: any) {
-      showNotice('error', err?.response?.data?.error || '提交失败重试失败')
+      showNotice('error', err?.response?.data?.error || t('ast.retryFailed'))
     } finally {
       setRetryingFailed(false)
     }
@@ -342,10 +344,10 @@ export default function AdultScraperSection() {
     setTriggeringSchedule(true)
     try {
       await adultScraperApi.triggerScheduler()
-      showNotice('success', '已触发一次运营调度任务')
+      showNotice('success', t('ast.triggered'))
       await Promise.all([loadTasks(), loadOperations()])
     } catch (err: any) {
-      showNotice('error', err?.response?.data?.error || '触发调度失败')
+      showNotice('error', err?.response?.data?.error || t('ast.triggerFailed'))
     } finally {
       setTriggeringSchedule(false)
     }
@@ -355,10 +357,10 @@ export default function AdultScraperSection() {
     setClearingCache(true)
     try {
       await adultScraperApi.clearCache()
-      showNotice('success', '刮削缓存已清空')
+      showNotice('success', t('ast.cacheCleared'))
       await loadOperations()
     } catch (err: any) {
-      showNotice('error', err?.response?.data?.error || '清空缓存失败')
+      showNotice('error', err?.response?.data?.error || t('ast.cacheClearFailed'))
     } finally {
       setClearingCache(false)
     }
@@ -375,9 +377,9 @@ export default function AdultScraperSection() {
         max_request_interval: LAZY_DEFAULTS.maxRequestInterval,
       })
       await loadConfig()
-      showNotice('success', '已恢复懒人模式默认配置')
+      showNotice('success', t('ast.defaultsRestored'))
     } catch {
-      showNotice('error', '恢复默认配置失败')
+      showNotice('error', t('ast.restoreFailed'))
     }
   }
 
@@ -386,7 +388,7 @@ export default function AdultScraperSection() {
       <section className="glass-panel rounded-xl p-8">
         <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
           <Loader2 size={18} className="animate-spin text-neon" />
-          加载懒人刮削模块中...
+          {t('ast.loading')}
         </div>
       </section>
     )
@@ -399,17 +401,17 @@ export default function AdultScraperSection() {
           <div>
             <h2 className="flex items-center gap-2 font-display text-lg font-semibold tracking-wide" style={{ color: 'var(--text-primary)' }}>
               <Shield size={20} className="text-neon/70" />
-              懒人刮削
+              {t('ast.title')}
             </h2>
             <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              只需要选择目录并点击开始。系统会自动识别番号、跳过已完成文件，并在后台写入 NFO / 图片 / 元数据。
+              {t('ast.desc')}
             </p>
           </div>
           <div className={clsx(
             'rounded-full px-3 py-1 text-xs font-medium',
             usable ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400',
           )}>
-            {usable ? '开箱即用已就绪' : '首次开始时自动初始化'}
+            {usable ? t('ast.ready') : t('ast.initOnFirstRun')}
           </div>
         </div>
 
@@ -437,25 +439,25 @@ export default function AdultScraperSection() {
                     setFolderScan(null)
                   }}
                   className="input pl-9 text-sm"
-                  placeholder="选择或输入待刮削目录，例如 D:\\video"
+                  placeholder={t('ast.dirPlaceholder')}
                 />
               </div>
               <button onClick={() => setShowFolderBrowser(true)} className="btn-ghost gap-2 px-4 py-2 text-sm">
                 <FolderOpen size={16} />
-                选择目录
+                {t('ast.pickDir')}
               </button>
               <button onClick={() => scanCurrentFolder(false)} disabled={scanning || !folderPath.trim()} className="btn-ghost gap-2 px-4 py-2 text-sm">
                 {scanning ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
-                预扫描
+                {t('ast.prescan')}
               </button>
               <button onClick={startLazyScrape} disabled={starting || scanning || Boolean(runningTask)} className="btn-primary gap-2 px-6 py-2 text-sm">
                 {starting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-                一键开始
+                {t('ast.start')}
               </button>
               {runningTask && (
                 <button onClick={stopRunningTask} disabled={stopping} className="btn-ghost gap-2 px-4 py-2 text-sm text-red-400">
                   {stopping ? <Loader2 size={14} className="animate-spin" /> : <Square size={14} />}
-                  停止
+                  {t('ast.stop')}
                 </button>
               )}
             </div>
@@ -464,10 +466,10 @@ export default function AdultScraperSection() {
           <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-4">
-                <StatCard label="视频总数" value={folderScan?.total ?? currentTask?.total ?? 0} accent="text-neon" />
-                <StatCard label="识别番号" value={folderScan?.with_code ?? 0} accent="text-green-400" />
-                <StatCard label="已跳过" value={currentTask?.skipped ?? skippedCount} accent="text-yellow-400" />
-                <StatCard label="失败" value={currentTask?.failed ?? failedCount} accent="text-red-400" />
+                <StatCard label={t('ast.statTotal')} value={folderScan?.total ?? currentTask?.total ?? 0} accent="text-neon" />
+                <StatCard label={t('ast.statWithCode')} value={folderScan?.with_code ?? 0} accent="text-green-400" />
+                <StatCard label={t('ast.statSkipped')} value={currentTask?.skipped ?? skippedCount} accent="text-yellow-400" />
+                <StatCard label={t('ast.statFailed')} value={currentTask?.failed ?? failedCount} accent="text-red-400" />
               </div>
 
               <div className="rounded-xl p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
@@ -481,10 +483,10 @@ export default function AdultScraperSection() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {currentTask ? taskStatusLabel[currentTask.status] || currentTask.status : '等待开始'}
+                        {currentTask ? t(taskStatusLabelKeys[currentTask.status] || currentTask.status) : t('ast.waitStart')}
                       </p>
                       <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                        {currentTask ? `开始时间：${formatTime(currentTask.started_at)}` : '选择目录后一键开始，后续自动后台运行'}
+                        {currentTask ? t('ast.startedAt', { time: formatTime(currentTask.started_at) }) : t('ast.waitHint')}
                       </p>
                     </div>
                   </div>
@@ -494,24 +496,24 @@ export default function AdultScraperSection() {
                   <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all" style={{ width: `${taskProgress}%` }} />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-                  <span>成功 <b className="font-mono text-green-400">{currentTask?.success ?? successCount}</b></span>
-                  <span>失败 <b className="font-mono text-red-400">{currentTask?.failed ?? failedCount}</b></span>
-                  <span>跳过 <b className="font-mono text-yellow-400">{currentTask?.skipped ?? skippedCount}</b></span>
+                  <span>{t('ast.success')} <b className="font-mono text-green-400">{currentTask?.success ?? successCount}</b></span>
+                  <span>{t('ast.statFailed')} <b className="font-mono text-red-400">{currentTask?.failed ?? failedCount}</b></span>
+                  <span>{t('ast.statSkipped')} <b className="font-mono text-yellow-400">{currentTask?.skipped ?? skippedCount}</b></span>
                 </div>
               </div>
 
               <div className="rounded-xl p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                   <Zap size={15} className="text-neon" />
-                  默认自动化策略
+                  {t('ast.defaultPolicy')}
                 </div>
                 <div className="grid gap-2 text-xs md:grid-cols-2" style={{ color: 'var(--text-secondary)' }}>
-                  <LazyRule text="自动启用通用数据源，无需手动配置镜像" />
-                  <LazyRule text="递归扫描目录，自动识别番号文件" />
-                  <LazyRule text="已有 NFO 的视频自动跳过，避免重复刮削" />
-                  <LazyRule text="聚合优先，失败自动降级串行多源" />
-                  <LazyRule text="默认并发 2，自动控制请求间隔" />
-                  <LazyRule text="刮削完成后自动写入 NFO、封面与背景图" />
+                  <LazyRule text={t('ast.rule1')} />
+                  <LazyRule text={t('ast.rule2')} />
+                  <LazyRule text={t('ast.rule3')} />
+                  <LazyRule text={t('ast.rule4')} />
+                  <LazyRule text={t('ast.rule5')} />
+                  <LazyRule text={t('ast.rule6')} />
                 </div>
               </div>
             </div>
@@ -520,16 +522,16 @@ export default function AdultScraperSection() {
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                   <Clock size={15} />
-                  最近结果
+                  {t('ast.recent')}
                 </div>
                 <button onClick={loadTasks} className="text-xs text-neon hover:underline">
-                  刷新
+                  {t('common.refresh')}
                 </button>
               </div>
               <div className="max-h-[520px] space-y-1 overflow-auto pr-1 text-xs">
                 {results.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-8 text-center" style={{ borderColor: 'var(--border-default)', color: 'var(--text-tertiary)' }}>
-                    暂无刮削记录
+                    {t('ast.noRecords')}
                   </div>
                 ) : results.slice(0, 100).map((item, index) => (
                   <div
@@ -563,56 +565,56 @@ export default function AdultScraperSection() {
           open={showAdvanced}
           onToggle={() => setShowAdvanced((v) => !v)}
           icon={<Settings size={15} />}
-          title="进阶运营中心"
-          hint="默认隐藏；用于失败重试、报表、调度、缓存和诊断"
+          title={t('ast.opsCenter')}
+          hint={t('ast.opsHint')}
         >
           {opsLoading && (
             <div className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-blue-400 bg-blue-500/10">
               <Loader2 size={13} className="animate-spin" />
-              正在加载运营数据...
+              {t('ast.loadingOps')}
             </div>
           )}
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <OperationCard icon={<BarChart3 size={15} />} title="7 天报表">
+            <OperationCard icon={<BarChart3 size={15} />} title={t('ast.report7d')}>
               <div className="space-y-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                <p>处理：<b className="font-mono text-neon">{report?.total_processed ?? 0}</b></p>
-                <p>成功：<b className="font-mono text-green-400">{report?.total_success ?? 0}</b></p>
-                <p>失败：<b className="font-mono text-red-400">{report?.total_failed ?? 0}</b></p>
-                <p>成功率：<b className="font-mono text-surface-100">{Math.round((report?.overall_rate || 0) * 100)}%</b></p>
+                <p>{t('ast.processed', { count: report?.total_processed ?? 0 })}</p>
+                <p>{t('ast.successCount', { count: report?.total_success ?? 0 })}</p>
+                <p>{t('ast.failedCount', { count: report?.total_failed ?? 0 })}</p>
+                <p>{t('ast.successRate', { rate: Math.round((report?.overall_rate || 0) * 100) })}</p>
               </div>
             </OperationCard>
 
-            <OperationCard icon={<RotateCcw size={15} />} title="失败重试">
+            <OperationCard icon={<RotateCcw size={15} />} title={t('ast.retry')}>
               <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                最近 7 天失败项：<b className="font-mono text-red-400">{failedItems.length + folderFailedCount}</b>
-                <span className="ml-1 text-[10px]">目录 {folderFailedCount} / 媒体库 {failedItems.length}</span>
+                {t('ast.failed7d', { count: failedItems.length + folderFailedCount })}
+                <span className="ml-1 text-[10px]">{t('ast.folderMedia', { folder: folderFailedCount, media: failedItems.length })}</span>
               </p>
               <button onClick={retryFailedItems} disabled={retryingFailed || failedItems.length + folderFailedCount === 0} className="btn-primary mt-3 gap-2 px-3 py-1.5 text-xs">
                 {retryingFailed ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
-                一键重试失败
+                {t('ast.retryBtn')}
               </button>
             </OperationCard>
 
-            <OperationCard icon={<Clock size={15} />} title="定时调度">
+            <OperationCard icon={<Clock size={15} />} title={t('ast.scheduler')}>
               <div className="space-y-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                <p>状态：<b className={schedulerInfo?.config?.Enabled ? 'text-green-400' : 'text-surface-400'}>{schedulerInfo?.config?.Enabled ? '启用' : '关闭'}</b></p>
-                <p>上次运行：{formatTime(schedulerInfo?.last_run_at)}</p>
+                <p>{t('ast.status', { status: schedulerInfo?.config?.Enabled ? t('ast.enabled') : t('ast.disabled') })}</p>
+                <p>{t('ast.lastRun', { time: formatTime(schedulerInfo?.last_run_at) })}</p>
               </div>
               <button onClick={triggerSchedulerNow} disabled={triggeringSchedule} className="btn-ghost mt-3 gap-2 px-3 py-1.5 text-xs">
                 {triggeringSchedule ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-                立即运行一次
+                {t('ast.runNow')}
               </button>
             </OperationCard>
 
-            <OperationCard icon={<Database size={15} />} title="缓存">
+            <OperationCard icon={<Database size={15} />} title={t('ast.cache')}>
               <div className="space-y-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                <p>条目：<b className="font-mono text-neon">{cacheStats?.size ?? 0}</b> / {cacheStats?.max_size ?? 0}</p>
-                <p>命中：<b className="font-mono text-green-400">{cacheStats?.total_hit ?? 0}</b></p>
+                <p>{t('ast.entries', { used: cacheStats?.size ?? 0, max: cacheStats?.max_size ?? 0 })}</p>
+                <p>{t('ast.hits', { count: cacheStats?.total_hit ?? 0 })}</p>
               </div>
               <button onClick={clearMetadataCache} disabled={clearingCache} className="btn-ghost mt-3 gap-2 px-3 py-1.5 text-xs text-red-400">
                 {clearingCache ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                清空缓存
+                {t('ast.clearCacheBtn')}
               </button>
             </OperationCard>
           </div>
@@ -620,22 +622,22 @@ export default function AdultScraperSection() {
           <div className="mt-3 grid gap-3 xl:grid-cols-2">
             <div className="rounded-xl p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>历史任务</p>
-                <button onClick={() => Promise.all([loadTasks(), loadOperations()])} className="text-xs text-neon hover:underline">刷新</button>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('ast.history')}</p>
+                <button onClick={() => Promise.all([loadTasks(), loadOperations()])} className="text-xs text-neon hover:underline">{t('ast.reload')}</button>
               </div>
               <div className="max-h-56 space-y-2 overflow-auto text-xs">
                 {unifiedTasks.length === 0 ? (
-                  <p style={{ color: 'var(--text-tertiary)' }}>暂无历史任务</p>
+                  <p style={{ color: 'var(--text-tertiary)' }}>{t('ast.noHistory')}</p>
                 ) : unifiedTasks.slice(0, 12).map((task) => (
                   <div key={`${task.kind}-${task.id}`} className="rounded-lg px-3 py-2" style={{ background: 'var(--bg-primary)' }}>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{task.kind === 'folder' ? '目录刮削' : '媒体库批量'}</span>
-                      <span className={task.status === 'completed' ? 'text-green-400' : task.status === 'failed' ? 'text-red-400' : 'text-yellow-400'}>{taskStatusLabel[task.status] || task.status}</span>
+                      <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{task.kind === 'folder' ? t('ast.folderScrape') : t('ast.libBatch')}</span>
+                      <span className={task.status === 'completed' ? 'text-green-400' : task.status === 'failed' ? 'text-red-400' : 'text-yellow-400'}>{t(taskStatusLabelKeys[task.status] || task.status)}</span>
                     </div>
                     <div className="mt-1 flex gap-3 font-mono" style={{ color: 'var(--text-tertiary)' }}>
                       <span>{task.current}/{task.total}</span>
-                      <span>成功 {task.success}</span>
-                      <span>失败 {task.failed}</span>
+                      <span>{t('ast.taskSuccess', { count: task.success })}</span>
+                      <span>{t('ast.taskFailed', { count: task.failed })}</span>
                     </div>
                   </div>
                 ))}
@@ -644,22 +646,22 @@ export default function AdultScraperSection() {
 
             <div className="rounded-xl p-4" style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)' }}>
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>配置与数据源诊断</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('ast.diagnostics')}</p>
                 <button onClick={() => setShowDiagnostics((v) => !v)} className="text-xs text-neon hover:underline">
-                  {showDiagnostics ? '收起' : '展开'}
+                  {showDiagnostics ? t('ast.collapse') : t('ast.expand')}
                 </button>
               </div>
               <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                普通用户无需配置；遇到连接失败、数据源失效时再展开查看。
+                {t('ast.diagHint')}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button onClick={resetLazyDefaults} className="btn-primary gap-2 px-3 py-1.5 text-xs">
                   <RefreshCw size={12} />
-                  恢复懒人默认
+                  {t('ast.restoreDefaults')}
                 </button>
                 <button onClick={() => Promise.all([loadConfig(), loadOperations()])} className="btn-ghost gap-2 px-3 py-1.5 text-xs">
                   <RefreshCw size={12} />
-                  重新加载
+                  {t('ast.reload')}
                 </button>
               </div>
               {showDiagnostics && (
@@ -668,9 +670,9 @@ export default function AdultScraperSection() {
                     <div key={source.id} className="flex items-center justify-between rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--bg-primary)' }}>
                       <div className="min-w-0">
                         <p className="font-medium" style={{ color: 'var(--text-secondary)' }}>{source.name}</p>
-                        <p className="truncate" style={{ color: 'var(--text-tertiary)' }}>{source.url || '未配置'}</p>
+                        <p className="truncate" style={{ color: 'var(--text-tertiary)' }}>{source.url || t('ast.notConfigured')}</p>
                       </div>
-                      <span className={source.enabled ? 'text-green-400' : 'text-surface-500'}>{source.enabled ? '启用' : '关闭'}</span>
+                      <span className={source.enabled ? 'text-green-400' : 'text-surface-500'}>{source.enabled ? t('ast.enabled') : t('ast.disabled')}</span>
                     </div>
                   ))}
                 </div>

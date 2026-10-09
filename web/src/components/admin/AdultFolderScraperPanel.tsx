@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useDialog } from '@/components/Dialog'
+import { useTranslation } from '@/i18n'
 
 // --- 文件夹浏览器（复用后端 /admin/fs/browse） ---
 interface FsBrowseItem {
@@ -37,6 +38,7 @@ interface FsBrowseResp {
 }
 
 export default function AdultFolderScraperPanel() {
+  const { t } = useTranslation()
   const dialog = useDialog()
   // 文件夹浏览 state
   const [browseCur, setBrowseCur] = useState<string>('/')
@@ -75,7 +77,7 @@ export default function AdultFolderScraperPanel() {
       setBrowseParent(res.data.data.parent)
       setBrowseItems(res.data.data.items || [])
     } catch (err: any) {
-      setBrowseErr(err?.response?.data?.error || '浏览目录失败')
+      setBrowseErr(err?.response?.data?.error || t('afsp.browseFailed'))
     } finally {
       setBrowseLoading(false)
     }
@@ -93,7 +95,7 @@ export default function AdultFolderScraperPanel() {
       const res = await adultScraperApi.scanFolder(path, recursive, maxDepth)
       setScanResult(res.data.data)
     } catch (err: any) {
-      await dialog.alert({ title: '扫描失败', message: err?.response?.data?.error || err?.message, variant: 'error' })
+      await dialog.alert({ title: t('afsp.scanFailedTitle'), message: err?.response?.data?.error || err?.message, variant: 'error' })
     } finally {
       setScanLoading(false)
     }
@@ -141,7 +143,7 @@ export default function AdultFolderScraperPanel() {
 
   const handleStart = async () => {
     if (selected.size === 0) {
-      await dialog.alert({ title: '未选择视频', message: '请至少选择一个视频', variant: 'warning' })
+      await dialog.alert({ title: t('afsp.noVideoTitle'), message: t('afsp.noVideoMsg'), variant: 'warning' })
       return
     }
     setStarting(true)
@@ -155,7 +157,7 @@ export default function AdultFolderScraperPanel() {
       await loadTasks()
       setSelected(new Set())
     } catch (err: any) {
-      await dialog.alert({ title: '启动失败', message: err?.response?.data?.error || err?.message, variant: 'error' })
+      await dialog.alert({ title: t('afsp.startFailedTitle'), message: err?.response?.data?.error || err?.message, variant: 'error' })
     } finally {
       setStarting(false)
     }
@@ -169,15 +171,14 @@ export default function AdultFolderScraperPanel() {
         border: '1px solid var(--border-default)',
         color: 'var(--text-secondary)',
       }}>
-        <strong style={{ color: 'var(--text-primary)' }}>📁 文件夹刮削（参考 mdcx）</strong>：选择服务器上任意文件夹扫描视频，
-        识别番号后一键刮削；封面、剧照、NFO 会直接写入视频旁边，无需媒体库导入即可被 Emby / Jellyfin / Infuse 识别。
+        <strong style={{ color: 'var(--text-primary)' }}>{t('afsp.title')}</strong>：{t('afsp.desc')}
       </div>
 
       {/* ---- 文件夹浏览器 ---- */}
       <div className="rounded-lg p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
         <div className="mb-3 flex items-center gap-2">
           <FolderOpen className="h-4 w-4 text-blue-500" />
-          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>选择要扫描的文件夹</span>
+          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('afsp.pickFolder')}</span>
         </div>
 
         {/* 路径栏 */}
@@ -187,7 +188,7 @@ export default function AdultFolderScraperPanel() {
             className="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-[var(--nav-hover-bg)]"
             style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
           >
-            <Home className="h-3 w-3" /> 根
+            <Home className="h-3 w-3" /> {t('afsp.root')}
           </button>
           {browseParent && (
             <button
@@ -195,7 +196,7 @@ export default function AdultFolderScraperPanel() {
               className="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-[var(--nav-hover-bg)]"
               style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}
             >
-              <ArrowLeft className="h-3 w-3" /> 上级
+              <ArrowLeft className="h-3 w-3" /> {t('afsp.parent')}
             </button>
           )}
           <div className="flex-1 truncate rounded px-2 py-1 font-mono text-xs"
@@ -208,7 +209,7 @@ export default function AdultFolderScraperPanel() {
             className="flex items-center gap-1 rounded bg-purple-500 px-3 py-1 text-xs font-medium text-white hover:bg-purple-600 disabled:opacity-60"
           >
             {scanLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
-            扫描此目录
+            {t('afsp.scanDir')}
           </button>
         </div>
 
@@ -221,11 +222,11 @@ export default function AdultFolderScraperPanel() {
           {browseLoading ? (
             <div className="flex items-center justify-center p-4 text-xs"
               style={{ color: 'var(--text-secondary)' }}>
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" /> 加载中...
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" /> {t('afsp.loading')}
             </div>
           ) : browseItems.length === 0 ? (
             <div className="p-4 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>
-              当前目录下无子文件夹
+              {t('afsp.noSubdirs')}
             </div>
           ) : (
             browseItems.map((it) => (
@@ -247,10 +248,10 @@ export default function AdultFolderScraperPanel() {
         <div className="mt-3 flex flex-wrap items-center gap-4 text-xs" style={{ color: 'var(--text-secondary)' }}>
           <label className="flex items-center gap-1">
             <input type="checkbox" checked={recursive} onChange={(e) => setRecursive(e.target.checked)} />
-            递归扫描子目录
+            {t('afsp.recursive')}
           </label>
           <label className="flex items-center gap-1">
-            最大深度：
+            {t('afsp.maxDepth')}
             <input
               type="number"
               min={0}
@@ -260,7 +261,7 @@ export default function AdultFolderScraperPanel() {
               className="w-12 rounded px-1 text-center"
               style={{ background: 'var(--nav-hover-bg)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
             />
-            <span className="opacity-60">（0 = 无限）</span>
+            <span className="opacity-60">{t('afsp.depthHint')}</span>
           </label>
         </div>
       </div>
@@ -270,20 +271,20 @@ export default function AdultFolderScraperPanel() {
         <div className="rounded-lg p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
           <div className="mb-3 flex items-center gap-2 text-sm">
             <FileVideo className="h-4 w-4 text-green-500" />
-            <span style={{ color: 'var(--text-primary)' }}>扫描结果</span>
+            <span style={{ color: 'var(--text-primary)' }}>{t('afsp.scanResult')}</span>
             <span style={{ color: 'var(--text-secondary)' }}>
-              共 {scanResult.total} 个视频 · 识别番号 {scanResult.with_code} · 未识别 {scanResult.without_code} · 已刮削 {scanResult.already_done}
+              {t('afsp.scanSummary', { total: scanResult.total, with_code: scanResult.with_code, without_code: scanResult.without_code, already_done: scanResult.already_done })}
             </span>
           </div>
 
           {/* 过滤器 */}
           <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-            <FilterBtn label="全部" active={filter === 'all'} onClick={() => setFilter('all')} />
-            <FilterBtn label="仅待刮削" active={filter === 'undone'} onClick={() => setFilter('undone')} />
-            <FilterBtn label="有番号" active={filter === 'with_code'} onClick={() => setFilter('with_code')} />
-            <FilterBtn label="未识别" active={filter === 'without_code'} onClick={() => setFilter('without_code')} />
+            <FilterBtn label={t('afsp.filterAll')} active={filter === 'all'} onClick={() => setFilter('all')} />
+            <FilterBtn label={t('afsp.filterUndone')} active={filter === 'undone'} onClick={() => setFilter('undone')} />
+            <FilterBtn label={t('afsp.filterWithCode')} active={filter === 'with_code'} onClick={() => setFilter('with_code')} />
+            <FilterBtn label={t('afsp.filterWithoutCode')} active={filter === 'without_code'} onClick={() => setFilter('without_code')} />
             <span className="ml-2" style={{ color: 'var(--text-secondary)' }}>
-              已选 {selected.size} / {filtered.length}
+              {t('afsp.selected', { selected: selected.size, total: filtered.length })}
             </span>
           </div>
 
@@ -296,17 +297,17 @@ export default function AdultFolderScraperPanel() {
                   <th className="px-2 py-2 w-8">
                     <input type="checkbox" checked={allSelected} onChange={toggleAll} />
                   </th>
-                  <th className="px-2 py-2" style={{ color: 'var(--text-secondary)' }}>文件名</th>
-                  <th className="px-2 py-2 w-24" style={{ color: 'var(--text-secondary)' }}>番号</th>
-                  <th className="px-2 py-2 w-20" style={{ color: 'var(--text-secondary)' }}>大小</th>
-                  <th className="px-2 py-2 w-24" style={{ color: 'var(--text-secondary)' }}>状态</th>
+                  <th className="px-2 py-2" style={{ color: 'var(--text-secondary)' }}>{t('afsp.colFile')}</th>
+                  <th className="px-2 py-2 w-24" style={{ color: 'var(--text-secondary)' }}>{t('afsp.colCode')}</th>
+                  <th className="px-2 py-2 w-20" style={{ color: 'var(--text-secondary)' }}>{t('afsp.colSize')}</th>
+                  <th className="px-2 py-2 w-24" style={{ color: 'var(--text-secondary)' }}>{t('afsp.colStatus')}</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={5} className="p-4 text-center" style={{ color: 'var(--text-secondary)' }}>
-                      没有符合过滤条件的视频
+                      {t('afsp.noMatch')}
                     </td>
                   </tr>
                 )}
@@ -327,15 +328,15 @@ export default function AdultFolderScraperPanel() {
             <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={opts.aggregated}
                 onChange={(e) => setOpts({ ...opts, aggregated: e.target.checked })} />
-              聚合模式（精刮）
+              {t('afsp.aggMode')}
             </label>
             <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={opts.skip_if_has_nfo}
                 onChange={(e) => setOpts({ ...opts, skip_if_has_nfo: e.target.checked })} />
-              已有 NFO 自动跳过
+              {t('afsp.skipNfo')}
             </label>
             <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-              并发：
+              {t('afsp.concurrency')}
               <input
                 type="number"
                 min={1}
@@ -352,7 +353,7 @@ export default function AdultFolderScraperPanel() {
               className="flex items-center gap-1 rounded bg-purple-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-purple-600 disabled:opacity-60"
             >
               {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              对 {selected.size} 个视频启动刮削
+              {t('afsp.startScrape', { count: selected.size })}
             </button>
           </div>
         </div>
@@ -365,7 +366,7 @@ export default function AdultFolderScraperPanel() {
           <div className="mb-3 flex items-center gap-2 text-sm">
             <Loader2 className={clsx('h-4 w-4', tasks.length > 0 ? 'animate-spin text-green-500' : 'text-gray-400')} />
             <span style={{ color: 'var(--text-primary)' }}>
-              运行中 {tasks.length} · 最近 {history.length}
+              {t('afsp.taskSummary', { running: tasks.length, history: history.length })}
             </span>
             <button onClick={loadTasks}
               className="ml-auto rounded p-1 hover:bg-[var(--nav-hover-bg)]"
@@ -405,6 +406,7 @@ function FileRow({ e, checked, onToggle }: {
   checked: boolean
   onToggle: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
       <td className="px-2 py-1.5">
@@ -425,14 +427,14 @@ function FileRow({ e, checked, onToggle }: {
       <td className="px-2 py-1.5" style={{ color: 'var(--text-secondary)' }}>{e.size_mb} MB</td>
       <td className="px-2 py-1.5">
         {e.has_nfo ? (
-          <span className="flex items-center gap-1 text-green-500"><CheckCircle2 className="h-3 w-3" /> 已刮削</span>
+          <span className="flex items-center gap-1 text-green-500"><CheckCircle2 className="h-3 w-3" /> {t('afsp.done')}</span>
         ) : e.has_code ? (
           <span className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
-            <AlertCircle className="h-3 w-3" /> 待刮削
+            <AlertCircle className="h-3 w-3" /> {t('afsp.pending')}
           </span>
         ) : (
           <span className="flex items-center gap-1 text-orange-500">
-            <AlertCircle className="h-3 w-3" /> 无番号
+            <AlertCircle className="h-3 w-3" /> {t('afsp.noCode')}
           </span>
         )}
       </td>
@@ -441,6 +443,7 @@ function FileRow({ e, checked, onToggle }: {
 }
 
 function FolderTaskRow({ task, onCancel }: { task: FolderBatchTask; onCancel?: () => void }) {
+  const { t } = useTranslation()
   const percent = task.total > 0 ? Math.round((task.current / task.total) * 100) : 0
   const statusColor = task.status === 'completed' ? 'text-green-500'
     : task.status === 'failed' ? 'text-red-500'
@@ -457,7 +460,7 @@ function FolderTaskRow({ task, onCancel }: { task: FolderBatchTask; onCancel?: (
         </span>
         {onCancel && task.status === 'running' && (
           <button onClick={onCancel} className="rounded bg-red-500/20 px-2 py-0.5 text-red-500 hover:bg-red-500/30">
-            取消
+            {t('common.cancel')}
           </button>
         )}
       </div>

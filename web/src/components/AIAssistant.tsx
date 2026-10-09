@@ -27,6 +27,7 @@ import clsx from 'clsx'
 import { aiAssistantApi } from '@/api'
 import type { ChatMsg, SuggestedAction, OperationPreview, AssistantOperation } from '@/types'
 import { useToast } from '@/components/Toast'
+import { t, useTranslation } from '@/i18n'
 
 interface AIAssistantProps {
   /** 当前选中的文件ID列表 */
@@ -54,7 +55,7 @@ export function AIAssistantButton({ isOpen, onToggle, selectedCount }: {
         'fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 hover:scale-105',
         isOpen ? 'bg-surface-800 text-surface-100' : 'bg-primary text-primary-foreground'
       )}
-      title={isOpen ? '关闭AI助手' : '打开AI助手'}
+      title={isOpen ? t('aa.closeTitle') : t('aa.openTitle')}
     >
       {isOpen ? <X size={22} /> : <Bot size={24} />}
       {selectedCount > 0 && !isOpen && (
@@ -114,19 +115,20 @@ interface ScrapeTrack {
 /** 刮削进度文案（WS 事件与初始气泡共用，保证两处展示一致） */
 function scrapeProgressText(track: ScrapeTrack): string {
   const entries = Object.entries(track.status)
-  if (entries.length === 0) return '🔄 正在启动刮削任务...'
+  if (entries.length === 0) return t('aa.starting')
   const done = entries.filter(([, st]) => st === 'done' || st === 'failed').length
   const lines = entries.map(([mediaId, st]) => {
     const mark = st === 'done' ? '✅' : st === 'failed' ? '❌' : '🔄'
     return `- ${mark} ${track.titles[mediaId] || mediaId}`
   })
   const head = done === entries.length
-    ? `✅ 刮削完成（${done}/${entries.length}）`
-    : `🔄 刮削进行中（${done}/${entries.length} 完成）...`
+    ? t('aa.scrapeDone', { done, total: entries.length })
+    : t('aa.scrapeRunning', { done, total: entries.length })
   return `${head}\n${lines.join('\n')}`
 }
 
 export default function AIAssistant({ selectedMediaIds, libraryId, onOperationComplete, isOpen, onToggle }: AIAssistantProps) {
+  const { t } = useTranslation()
   const toast = useToast()
   const [isMinimized, setIsMinimized] = useState(false)
   const [sessionId, setSessionId] = useState<string>('')
@@ -193,7 +195,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
     } catch (err: any) {
       const errorMsg: ChatMsg = {
         role: 'assistant',
-        content: `❌ ${err?.response?.data?.error || '请求失败，请稍后重试'}`,
+        content: `❌ ${err?.response?.data?.error || t('aa.requestFailed')}`,
         timestamp: new Date().toISOString(),
       }
       setMessages(prev => [...prev, errorMsg])
@@ -248,7 +250,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
       const resultMsg: ChatMsg = {
         role: 'assistant',
         content: data.success
-          ? `✅ ${data.message}${data.errors?.length ? `\n\n⚠️ 部分错误:\n${data.errors.join('\n')}` : ''}`
+          ? `✅ ${data.message}${data.errors?.length ? `\n\n${t('aa.partialErrors')}\n${data.errors.join('\n')}` : ''}`
           : `❌ ${data.message}`,
         timestamp: new Date().toISOString(),
         previews: data.results,
@@ -275,7 +277,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
       }
     } catch (err: any) {
       if (scrapeTrackRef.current === scrapeTrack) scrapeTrackRef.current = null
-      toast.error(err?.response?.data?.error || '操作执行失败')
+      toast.error(err?.response?.data?.error || t('aa.execFailed'))
     } finally {
       setExecuting(null)
     }
@@ -291,7 +293,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
       // 刷新历史
       loadHistory()
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || '撤销失败')
+      toast.error(err?.response?.data?.error || t('aa.undoFailed'))
     }
   }
 
@@ -327,11 +329,11 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
 
   // 快捷指令
   const quickCommands = [
-    { label: '📊 分析文件库', cmd: '分析当前文件库的整体状态，给出优化建议' },
-    { label: '🔍 批量刮削', cmd: '为选中的文件批量获取元数据' },
-    { label: '🏷️ 自动分类', cmd: '分析选中文件的内容，自动添加合适的标签分类' },
-    { label: '🔧 检测问题', cmd: '检查选中文件是否有命名不规范、信息缺失等问题' },
-    { label: '🎬 误分类检测', cmd: '分析文件库中被误标记为电影的剧集文件，提供重分类建议' },
+    { label: t('aa.cmdAnalyze'), cmd: t('aa.cmdAnalyzeDesc') },
+    { label: t('aa.cmdScrape'), cmd: t('aa.cmdScrapeDesc') },
+    { label: t('aa.cmdClassify'), cmd: t('aa.cmdClassifyDesc') },
+    { label: t('aa.cmdDetect'), cmd: t('aa.cmdDetectDesc') },
+    { label: t('aa.cmdMisclassify'), cmd: t('aa.cmdMisclassifyDesc') },
   ]
 
   // 渲染预览列表
@@ -347,7 +349,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
           style={{ color: 'var(--text-tertiary)' }}
         >
           {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          预览变更 ({previews.length} 项)
+          {t('aa.previewCount', { count: previews.length })}
         </button>
         {isExpanded && (
           <div className="mt-1.5 space-y-1 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
@@ -424,26 +426,26 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
               <Bot size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground">AI 文件助手</h3>
+              <h3 className="text-sm font-bold text-foreground">{t('aa.title')}</h3>
               <p className="text-[10px] text-muted-foreground">
-                {selectedMediaIds.length > 0 ? `已选 ${selectedMediaIds.length} 个文件` : '自然语言管理文件'}
+                {selectedMediaIds.length > 0 ? t('aa.selectedCount', { count: selectedMediaIds.length }) : t('aa.naturalManage')}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => { setShowHistory(!showHistory) ; if (!showHistory) loadHistory() }}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title="操作历史">
+              title={t('aa.history')}>
               <History size={14} />
             </button>
             <button onClick={handleNewSession}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title="新建会话">
+              title={t('aa.newSession')}>
               <Trash2 size={14} />
             </button>
             <button onClick={() => setIsMinimized(!isMinimized)}
               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title={isMinimized ? '展开面板' : '收起面板'}>
+              title={isMinimized ? t('aa.expandPanel') : t('aa.collapsePanel')}>
               {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
             </button>
             <button onClick={onToggle}
@@ -458,9 +460,9 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
             {/* 操作历史面板 */}
             {showHistory && (
               <div className="max-h-48 overflow-y-auto border-b px-4 py-3" style={{ scrollbarWidth: 'thin' }}>
-                <h4 className="mb-2 text-xs font-bold text-foreground">操作历史</h4>
+                <h4 className="mb-2 text-xs font-bold text-foreground">{t('aa.history')}</h4>
                 {opHistory.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">暂无操作记录</p>
+                  <p className="text-xs text-muted-foreground">{t('aa.noHistory')}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {opHistory.map(op => (
@@ -470,13 +472,13 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                             {op.action}
                           </span>
                           <span className="ml-2 text-muted-foreground">
-                            {op.previews?.length || 0} 项
+                            {t('aa.itemCount', { count: op.previews?.length || 0 })}
                           </span>
                         </div>
                         {!op.undone && op.previews?.length > 0 && (
                           <button onClick={() => handleUndo(op.id)}
                             className="flex items-center gap-1 rounded px-2 py-1 text-xs text-amber-400 transition-colors hover:bg-amber-400/10">
-                            <Undo2 size={10} /> 撤销
+                            <Undo2 size={10} /> {t('aa.undo')}
                           </button>
                         )}
                       </div>
@@ -494,11 +496,11 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                     <Sparkles size={24} />
                   </div>
                   <p className="mb-1 text-sm font-medium text-foreground">
-                    你好！我是AI文件助手
+                    {t('aa.greeting')}
                   </p>
                   <p className="mb-4 text-center text-xs text-muted-foreground">
-                    用自然语言告诉我你想做什么<br />
-                    比如重命名、刮削、分类整理等
+                    {t('aa.greetingHint')}<br />
+                    {t('aa.greetingExamples')}
                   </p>
                   {/* 快捷指令 */}
                   <div className="w-full space-y-1.5">
@@ -549,7 +551,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                   <div className="rounded-xl bg-muted px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Loader2 size={12} className="animate-spin text-neon" />
-                      <span className="text-xs text-muted-foreground">思考中...</span>
+                      <span className="text-xs text-muted-foreground">{t('aa.thinking')}</span>
                     </div>
                   </div>
                 </div>
@@ -563,7 +565,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
               {selectedMediaIds.length > 0 && (
                 <div className="mb-2 flex items-center gap-1.5 rounded-lg bg-muted/50 px-2 py-1 text-[10px] text-muted-foreground">
                   <MessageSquare size={10} />
-                  已关联 {selectedMediaIds.length} 个选中文件
+                  {t('aa.linkedCount', { count: selectedMediaIds.length })}
                 </div>
               )}
               <div className="flex items-end gap-2">
@@ -577,7 +579,7 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
                       handleSend()
                     }
                   }}
-                  placeholder="输入指令，如：帮我把这些文件按电影格式重命名..."
+                  placeholder={t('aa.inputPlaceholder')}
                   className="min-h-9 max-h-20 flex-1 resize-none rounded-xl bg-muted/50 px-3 py-2 text-xs text-foreground outline-none transition-all placeholder:text-muted-foreground focus:ring-1 focus:ring-neon/30"
                   rows={1}
                 />
