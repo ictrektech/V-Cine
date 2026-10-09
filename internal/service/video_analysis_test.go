@@ -450,6 +450,53 @@ func TestVideoAnalysisServiceProcessesDescribeWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestVideoAnalysisServiceDescribeCredentialInjection(t *testing.T) {
+	// 自定义场景描述模型（vrouter 网关、无 key）的凭证注入语义（回归 401 问题）：
+	// 无 VOS 登录态 → 注入空 key（worker 省略 Authorization 头匿名调用，网关默认放行）；
+	// 有 VOS 登录态 → 转发 token 做用量归属。绝不能填占位假 key——网关对任何带
+	// Authorization 头的请求都强制校验，假 key 必然 401（invalid or missing gateway Key）。
+	client := &fakeVideoAnalysisClient{}
+	describeCfg := &config.Config{}
+	describeCfg.VideoAnalysis.MediaBaseURL = "http://nowen-video:8080"
+	describeCfg.AI.Providers = []config.AIProviderEntry{{
+		ID:      "vrouter",
+		Name:    "V-Router",
+		APIBase: "http://v-router:8080/v1",
+		Models:  []config.AIModelEntry{{Name: "model-hub/minicpm-v4.6:latest", IsVision: true}},
+		Enabled: true,
+	}}
+	describeCfg.AI.ActiveProvider = "vrouter"
+	describeCfg.AI.SceneDescribeAI = config.SceneDescribeAIConfig{ProviderID: "vrouter", Model: "model-hub/minicpm-v4.6:latest"}
+
+	service, _, mediaID := setupVideoAnalysisService(t, client)
+	service.appCfg = describeCfg
+	service.describeEnabled = true
+
+	submitAndAssertKey := func(force bool, wantKey string) {
+		t.Helper()
+		client.describeSubmits = nil
+		task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true, Force: force})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+			t.Fatal(err)
+		}
+		if len(client.describeSubmits) != 1 || client.describeSubmits[0].ModelCfg == nil {
+			t.Fatalf("describe submits: %+v", client.describeSubmits)
+		}
+		if got := client.describeSubmits[0].ModelCfg.APIKey; got != wantKey {
+			t.Fatalf("injected api_key = %q, want %q", got, wantKey)
+		}
+	}
+
+	StoreVOSAccessToken("", time.Time{})
+	submitAndAssertKey(false, "")
+	StoreVOSAccessToken("vos-token-123", time.Now().Add(time.Hour))
+	t.Cleanup(func() { StoreVOSAccessToken("", time.Time{}) })
+	submitAndAssertKey(true, "vos-token-123")
+}
+
 func TestVideoAnalysisServiceDescribeFailureMarksPartial(t *testing.T) {
 	client := &fakeVideoAnalysisClient{describeError: &VideoAnalysisAPIError{HTTPStatus: 200, Code: 70301, Message: "describe failed"}}
 	service, tasks, mediaID := setupVideoAnalysisService(t, client)

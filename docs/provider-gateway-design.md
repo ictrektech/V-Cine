@@ -70,7 +70,7 @@ APIBase（`http://v-router:8080/v1`）本就命中网关特征。
 | `chatCompletion`（ai.go） | 同上预检 | 同上；空 key 不发 Authorization（gateway 转发 VOS token） |
 | `TestConnection`（ai.go） | api_base + key 白名单预检 | 只要求 api_base；空 key 不发 Authorization |
 | `GetStatus` | 免 key 口径 | 只看 api_base |
-| `video_analysis.go` | 空 key 白名单预检 + 占位 key | 删除预检；空 key 传占位 key（OpenAI SDK 不接受空串），gateway 转发 VOS token |
+| `video_analysis.go` | 空 key 白名单预检 + 占位 key | 删除预检与占位 key；空 key 直接注入（worker 省略 Authorization 匿名调用，gateway 转发 VOS token，配置 key 优先） |
 
 - 服务端不需要 key（本地推理、内网网关）→ 直接通。
 - 服务端需要 key 而未配置 → 401 → 走 §2.3 的可读错误。401 不在重试列表，首次失败即停，无重试放大。
@@ -157,7 +157,7 @@ func friendlyProviderError(isGateway, hasKey bool, statusCode int, body string) 
 | 需 key 的 provider 未配 key 时每次调用都打到 401 | Low | 401 不重试，首次即停；错误文案指引配置 |
 | 自定义 id 含 `v-router` 误判 gateway | Low | 语义正确：指向网关即网关，与命名无关 |
 | 前端旧缓存缺 `is_gateway` 字段 | Low | 前端回退按 custom 处理，仅提示语退化 |
-| 占位 key 发给真网关 | Low | 网关按 Bearer 校验失败即 401，无副作用 |
+| 占位 key 发给真网关 | Low | ~~占位 key 方案已废弃~~：网关对任何带 Authorization 头的请求强制校验，假 key 必然 401，故空 key 直接注入（worker 省略头走匿名）；仅 REQUIRE_KEY=true 时匿名 401，文案已翻译指引配置 |
 
 ## 5. 成功标准
 

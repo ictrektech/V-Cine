@@ -1140,17 +1140,17 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 	if ai.SceneDescribeAI.Model != "" {
 		apiBase, apiKey := resolveSceneDescribeProvider(ai)
 		if apiBase != "" {
-			// worker 内部用 OpenAI SDK 调用，SDK 把空 key 视为缺少凭证直接报错
-			// （"Missing credentials. Please pass an api_key..."），全部场景会失败。
-			// API Key 可选：空 key 传占位 key（服务端需要 key 时由 401 报错）；
-			// gateway 优先用最近的 VOS accessToken 做用量归属。
+			// worker 对空 api_key 的语义是"省略 Authorization 头"（匿名 internal 身份），
+			// V-Router 网关 REQUIRE_KEY=false（默认）时直接放行。
+			// 绝不能填占位假 key：网关对任何带 Authorization 头的请求都会强制校验，
+			// 假 key 必然 401（"invalid or missing gateway Key / VOS access token"）。
+			// 凭证优先级：provider 配置的 key > 网关场景的 VOS 登录 token > 匿名（空 key）。
 			if apiKey == "" {
 				activeProviderID := ai.SceneDescribeAI.ProviderID
 				if activeProviderID == "" {
 					activeProviderID = ai.ActiveProvider
 				}
-				apiKey = "placeholder"
-				credential := "placeholder"
+				credential := "anonymous"
 				if config.IsVRouterGateway(activeProviderID, apiBase) {
 					if vosToken := LatestVOSAccessToken(); vosToken != "" {
 						apiKey = vosToken
