@@ -13,7 +13,7 @@ interface CommentSectionProps {
 
 export default function CommentSection({ mediaId }: CommentSectionProps) {
   const user = useAuthStore((s) => s.user)
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const [comments, setComments] = useState<Comment[]>([])
   const [total, setTotal] = useState(0)
   const [avgRating, setAvgRating] = useState(0)
@@ -78,8 +78,9 @@ export default function CommentSection({ mediaId }: CommentSectionProps) {
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr)
-    const loc = t('common.confirm') !== 'Confirm' ? 'zh-CN' : 'en-US' // 简单判断当前语言
-    return d.toLocaleDateString(loc === 'zh-CN' ? 'zh-CN' : undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    // 日期显示跟随当前 UI 语言（浏览器自动检测时 resolveLocale 已解析）
+    const loc = locale === 'zh-CN' || locale === 'zh-TW' ? locale : undefined
+    return d.toLocaleDateString(loc, { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
   const totalPages = Math.ceil(total / 10)

@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import zhCN from './locales/zh-CN'
+import zhTW from './locales/zh-TW'
 import enUS from './locales/en-US'
 import jaJP from './locales/ja-JP'
 
 // 支持的语言列表
 export const SUPPORTED_LOCALES = [
   { code: 'zh-CN', name: '简体中文', flag: '🇨🇳' },
+  { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' },
   { code: 'en-US', name: 'English', flag: '🇺🇸' },
   { code: 'ja-JP', name: '日本語', flag: '🇯🇵' },
 ] as const
@@ -18,6 +20,7 @@ export type LocalePreference = 'auto' | LocaleCode
 // 语言包映射
 const localeMessages: Record<LocaleCode, Record<string, string>> = {
   'zh-CN': zhCN,
+  'zh-TW': zhTW,
   'en-US': enUS,
   'ja-JP': jaJP,
 }
@@ -29,9 +32,10 @@ interface I18nStore {
   setLocale: (preference: LocalePreference) => void
 }
 
-// 检测浏览器语言：中文 → 简体中文，日文 → 日本語，其余（含英语与其它语种）→ English
+// 检测浏览器语言：中文简/繁 → 对应中文，日文 → 日本語，其余（含英语与其它语种）→ English
 function detectBrowserLocale(): LocaleCode {
   const browserLang = navigator.language || ''
+  if (browserLang.startsWith('zh-TW') || browserLang.startsWith('zh-Hant') || browserLang.startsWith('zh-HK')) return 'zh-TW'
   if (browserLang.startsWith('zh')) return 'zh-CN'
   if (browserLang.startsWith('ja')) return 'ja-JP'
   return 'en-US'
