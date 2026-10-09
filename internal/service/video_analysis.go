@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -528,6 +529,7 @@ func (s *VideoAnalysisService) GetTask(taskID string) (*model.VideoAnalysisTask,
 	if err != nil {
 		return nil, err
 	}
+	ensureMissingModel(task)
 	batch := []model.VideoAnalysisTask{*task}
 	s.tasks.AssignMediaSeq(batch)
 	*task = batch[0]
@@ -538,7 +540,12 @@ func (s *VideoAnalysisService) GetLatestTaskByMediaID(mediaID string) (*model.Vi
 	if !s.IsAvailable() {
 		return nil, errors.New("video analysis service is not configured")
 	}
-	return s.tasks.FindLatestByMediaID(mediaID)
+	task, err := s.tasks.FindLatestByMediaID(mediaID)
+	if err != nil {
+		return nil, err
+	}
+	ensureMissingModel(task)
+	return task, nil
 }
 
 // ListTasks 查询任务列表。groupByMedia=true 时按媒体去重仅返回每个媒体最新一条，
@@ -547,7 +554,11 @@ func (s *VideoAnalysisService) ListTasks(page, pageSize int, status, libraryID, 
 	if !s.IsAvailable() {
 		return nil, 0, errors.New("video analysis service is not configured")
 	}
-	return s.tasks.List(page, pageSize, status, libraryID, strings.TrimSpace(keyword), mediaID, groupByMedia)
+	tasks, total, err := s.tasks.List(page, pageSize, status, libraryID, strings.TrimSpace(keyword), mediaID, groupByMedia)
+	for i := range tasks {
+		ensureMissingModel(&tasks[i])
+	}
+	return tasks, total, err
 }
 
 func (s *VideoAnalysisService) RetryTask(taskID string) (*model.VideoAnalysisTask, error) {
@@ -596,6 +607,7 @@ func (s *VideoAnalysisService) RetryTask(taskID string) (*model.VideoAnalysisTas
 	task.Status = model.VideoAnalysisStatusQueued
 	task.ErrorCode = ""
 	task.ErrorMessage = ""
+	task.MissingModel = ""
 	task.StartedAt = nil
 	task.FinishedAt = nil
 	if err := s.tasks.RequeueFailed(task); err != nil {
@@ -774,17 +786,12 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		return err
 	}
 
-	detectJob, err := s.ensureDetectJob(ctx, task)
-	if err != nil {
-		return err
-	}
-	detectResult, err := s.waitForJob(ctx, detectJob, s.client.GetDetectJob)
+	detectResult, err := s.ensureDetectResult(ctx, task)
 	if err != nil {
 		if s.logger != nil {
 			s.logger.Warnw("Video analysis detect stage failed",
 				"task_id", task.ID,
 				"media_id", task.MediaID,
-				"detect_job_id", detectJob,
 				"error", err,
 			)
 		}
@@ -795,7 +802,7 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		s.logger.Infow("Video analysis detect stage completed",
 			"task_id", task.ID,
 			"media_id", task.MediaID,
-			"detect_job_id", detectJob,
+			"detect_job_id", task.DetectJobID,
 		)
 	}
 
@@ -1214,6 +1221,9 @@ func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysis
 		task.ErrorCode = analysisErrorCode(err)
 	}
 	task.ErrorMessage = err.Error()
+	// describe 阶段因 Model Hub 缺少模型失败（unknown model: model-hub/xxx）时
+	// 记录缺失模型名，供前端展示“一键下载”入口。无匹配时清空，避免旧值残留误导。
+	task.MissingModel = extractMissingModel(task.ErrorMessage)
 	if persistErr := s.persist(task); persistErr != nil {
 		return persistErr
 	}
@@ -1235,6 +1245,37 @@ func describePartialError(describeJSON []byte) error {
 		return errors.New("部分场景描述失败")
 	}
 	return fmt.Errorf("%d 个场景描述失败: %s", len(parsed.Warnings), parsed.Warnings[0].Message)
+}
+
+// extractMissingModel 从 describe 失败错误文本中识别 V-Router 的“模型缺失”报错
+// （unknown model: model-hub/<name>，模型名是配置原样回显），提取模型名供前端展示下载入口。
+// 只认带 model-hub/ 前缀的名字：无前缀/其他来源前缀属于其他提供商，不引导去 Model Hub 下载。
+// 返回空串表示与模型缺失无关。
+var missingModelPattern = regexp.MustCompile(`unknown model[:：]?\s*["']?(model-hub/[A-Za-z0-9][A-Za-z0-9._:/@-]*)`)
+
+func extractMissingModel(errText string) string {
+	m := missingModelPattern.FindStringSubmatch(errText)
+	if len(m) != 2 {
+		return ""
+	}
+	return m[1]
+}
+
+// ensureMissingModel 读取时同步缺失模型名：以 error_message 为准推导，
+// 覆盖三类场景：
+// 1) 历史任务（missing_model 字段引入前已落库，列为空）；
+// 2) 旧值残留（换失败原因后新错误不含模型名）；
+// 3) 重试成功（成功后不再有意义）。
+// 仅在内存副本上推导，不回写 DB（error_message 已是权威来源）。
+func ensureMissingModel(task *model.VideoAnalysisTask) {
+	if task == nil {
+		return
+	}
+	if task.Status == model.VideoAnalysisStatusSucceeded {
+		task.MissingModel = ""
+		return
+	}
+	task.MissingModel = extractMissingModel(task.ErrorMessage)
 }
 
 // describeResultStatus 解析 describe result 的整体状态（"completed"/"partial"）。
@@ -1784,6 +1825,7 @@ func (s *VideoAnalysisService) GetWorkflow(taskID string) (*WorkflowStatus, erro
 	if err != nil {
 		return nil, err
 	}
+	ensureMissingModel(task)
 	return &WorkflowStatus{
 		TaskID:          task.ID,
 		MediaID:         task.MediaID,
@@ -1797,6 +1839,7 @@ func (s *VideoAnalysisService) GetWorkflow(taskID string) (*WorkflowStatus, erro
 		StageTimings:    task.StageTimings,
 		ErrorCode:       task.ErrorCode,
 		ErrorMessage:    task.ErrorMessage,
+		MissingModel:    task.MissingModel,
 		StartedAt:       task.StartedAt,
 		FinishedAt:      task.FinishedAt,
 		CreatedAt:       task.CreatedAt,
@@ -1976,27 +2019,46 @@ func (s *VideoAnalysisService) runStageByTask(ctx context.Context, task *model.V
 	return s.persist(task)
 }
 
-// runDetectStage 执行 Detect 阶段
-func (s *VideoAnalysisService) runDetectStage(ctx context.Context, task *model.VideoAnalysisTask) error {
+// ensureDetectResult 获取 detect 阶段结果。若复用的旧 detect_job_id 已过期
+// （外部任务返回 70201 = job not found，常见于重试/补跑很久之前的任务），
+// 则清空旧 job id 并重新提交一次，避免整任务直接失败、丢失部分完成状态。
+// 新提交的 job 若同样失败则如实返回错误。
+func (s *VideoAnalysisService) ensureDetectResult(ctx context.Context, task *model.VideoAnalysisTask) (*ExternalJob, error) {
 	detectJob, err := s.ensureDetectJob(ctx, task)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = s.waitForJob(ctx, detectJob, s.client.GetDetectJob)
+	result, err := s.waitForJob(ctx, detectJob, s.client.GetDetectJob)
+	if err == nil {
+		return result, nil
+	}
+	var apiErr *VideoAnalysisAPIError
+	if !errors.As(err, &apiErr) || apiErr.Code != 70201 {
+		return nil, err
+	}
+	task.DetectJobID = ""
+	if perr := s.persist(task); perr != nil {
+		return nil, perr
+	}
+	detectJob, err = s.ensureDetectJob(ctx, task)
 	if err != nil {
+		return nil, err
+	}
+	return s.waitForJob(ctx, detectJob, s.client.GetDetectJob)
+}
+
+// runDetectStage 执行 Detect 阶段。
+func (s *VideoAnalysisService) runDetectStage(ctx context.Context, task *model.VideoAnalysisTask) error {
+	if _, err := s.ensureDetectResult(ctx, task); err != nil {
 		return fmt.Errorf("detect stage: %w", err)
 	}
 	task.Progress = 50
 	return nil
 }
 
-// runStructureStage 执行 Structure 阶段
+// runStructureStage 执行 Structure 阶段。
 func (s *VideoAnalysisService) runStructureStage(ctx context.Context, task *model.VideoAnalysisTask) error {
-	detectJob, err := s.ensureDetectJob(ctx, task)
-	if err != nil {
-		return err
-	}
-	detectResult, err := s.waitForJob(ctx, detectJob, s.client.GetDetectJob)
+	detectResult, err := s.ensureDetectResult(ctx, task)
 	if err != nil {
 		return fmt.Errorf("get detect result for structure: %w", err)
 	}
@@ -2100,6 +2162,7 @@ type WorkflowStatus struct {
 	StageTimings    map[string]float64 `json:"stage_timings,omitempty"`
 	ErrorCode       string             `json:"error_code,omitempty"`
 	ErrorMessage    string             `json:"error_message,omitempty"`
+	MissingModel    string             `json:"missing_model,omitempty"`
 	StartedAt       *time.Time         `json:"started_at,omitempty"`
 	FinishedAt      *time.Time         `json:"finished_at,omitempty"`
 	CreatedAt       time.Time          `json:"created_at"`

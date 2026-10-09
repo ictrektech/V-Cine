@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/Toast'
 import type { VideoAnalysisStageStatus, VideoAnalysisWorkflow as WorkflowData } from '@/types/videoAnalysis'
 import { formatVideoAnalysisError, formatVideoAnalysisSeconds } from './videoAnalysisResultUtils'
+import ModelHubDownloadNotice from './ModelHubDownloadNotice'
 
 const stagesOf = (wf: WorkflowData) => [
   { key: 'detect', status: wf.detect_status, duration: wf.stage_timings?.detect },
@@ -188,6 +189,10 @@ export default function VideoAnalysisWorkflow({ taskId }: Props) {
           {workflow.status === 'succeeded' ? '已完成' : workflow.status === 'failed' ? '失败' : workflow.status === 'running' ? '运行中' : workflow.status === 'partial' ? '部分完成' : '排队中'}
         </span>
       </div>
+
+      {workflow.missing_model && (
+        <ModelHubDownloadNotice model={workflow.missing_model} />
+      )}
 
       <div className="space-y-2">
         {stages.map((s, idx) => {

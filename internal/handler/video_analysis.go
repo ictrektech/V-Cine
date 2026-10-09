@@ -11,6 +11,7 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/repository"
 	"github.com/nowen-video/nowen-video/internal/service"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -20,10 +21,11 @@ type VideoAnalysisHandler struct {
 	cfg     *config.Config
 	// ensureServices 惰性创建视频分析服务；可为 nil（测试场景）。
 	ensureServices service.EnsureServicesFn
+	logger         *zap.SugaredLogger
 }
 
-func NewVideoAnalysisHandler(service *service.VideoAnalysisService, worker *service.VideoAnalysisWorker, cfg *config.Config) *VideoAnalysisHandler {
-	return &VideoAnalysisHandler{service: service, worker: worker, cfg: cfg}
+func NewVideoAnalysisHandler(service *service.VideoAnalysisService, worker *service.VideoAnalysisWorker, cfg *config.Config, logger *zap.SugaredLogger) *VideoAnalysisHandler {
+	return &VideoAnalysisHandler{service: service, worker: worker, cfg: cfg, logger: logger}
 }
 
 // SetEnsureServices 注入视频分析服务延迟创建入口。
@@ -233,6 +235,59 @@ func (h *VideoAnalysisHandler) GetConfig(c *gin.Context) {
 // 与 GetConfig 不同，服务未启用时也返回 200，便于系统设置展示状态。
 func (h *VideoAnalysisHandler) GetHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": h.service.GetHealth(c.Request.Context())})
+}
+
+// ModelHubStatus 查询一个 V-Router 模型名（model-hub/xxx）在 Model Hub 的下载状态。
+// 用途：describe 阶段因模型缺失失败时，前端据此展示下载入口与进度。
+func (h *VideoAnalysisHandler) ModelHubStatus(c *gin.Context) {
+	model := strings.TrimSpace(c.Query("model"))
+	if model == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 model 参数（如 model-hub/minicpm-v4.6:latest）"})
+		return
+	}
+	client := service.NewModelHubClient(h.cfg.VideoAnalysisSnapshot().ModelHubAPIURL)
+	if client == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "未配置 Model Hub 地址（video_analysis.model_hub_api_url）"})
+		return
+	}
+	status, err := client.Status(c.Request.Context(), model)
+	if err != nil {
+		respondErr(c, http.StatusBadGateway, "查询 Model Hub 模型状态失败", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": status})
+}
+
+// PullModelHubModel 触发 Model Hub 下载缺失模型（管理员操作：占用共享存储与带宽）。
+func (h *VideoAnalysisHandler) PullModelHubModel(c *gin.Context) {
+	var request struct {
+		Model string `json:"model" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 model 参数（如 model-hub/minicpm-v4.6:latest）"})
+		return
+	}
+	client := service.NewModelHubClient(h.cfg.VideoAnalysisSnapshot().ModelHubAPIURL)
+	if client == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "未配置 Model Hub 地址（video_analysis.model_hub_api_url）"})
+		return
+	}
+	taskID, err := client.Pull(c.Request.Context(), strings.TrimSpace(request.Model))
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrModelHubModelUnsupported):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrModelHubPullConflict):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		default:
+			respondErr(c, http.StatusBadGateway, "触发 Model Hub 模型下载失败", err)
+		}
+		return
+	}
+	operatorID, _ := c.Get("user_id")
+	h.logger.Infow("Model Hub 模型下载已触发",
+		"operator_id", operatorID, "model", request.Model, "task_id", taskID)
+	c.JSON(http.StatusAccepted, gin.H{"data": gin.H{"task_id": taskID}})
 }
 
 // videoAnalysisSettingsView 是前端读取的视频分析配置视图。

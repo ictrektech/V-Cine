@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -37,7 +38,7 @@ func setupVideoAnalysisResultHandler(t *testing.T) (*VideoAnalysisHandler, *repo
 		t.Fatal(err)
 	}
 	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, nil, nil, assetDir, false, nil, nil, time.Millisecond, time.Second, nil)
-	return NewVideoAnalysisHandler(vaService, nil, &config.Config{}), repos.VideoAnalysis, media.ID, assetDir
+	return NewVideoAnalysisHandler(vaService, nil, &config.Config{}, zap.NewNop().Sugar()), repos.VideoAnalysis, media.ID, assetDir
 }
 
 type fakeHandlerVideoAnalysisClient struct{}

@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,7 +26,7 @@ func TestVideoAnalysisGetSettings(t *testing.T) {
 		DescribeEnabled:    true,
 		MaxConcurrent:      99, // 不可编辑字段不应出现在 settings 响应中
 	}}
-	h := NewVideoAnalysisHandler(nil, nil, cfg)
+	h := NewVideoAnalysisHandler(nil, nil, cfg, zap.NewNop().Sugar())
 
 	r := gin.New()
 	r.GET("/settings", h.GetSettings)
@@ -52,7 +53,7 @@ func TestVideoAnalysisUpdateSettingsRejectsInvalidEnable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	cfg := &config.Config{VideoAnalysis: config.VideoAnalysisConfig{Enabled: false}}
-	h := NewVideoAnalysisHandler(nil, nil, cfg)
+	h := NewVideoAnalysisHandler(nil, nil, cfg, zap.NewNop().Sugar())
 
 	r := gin.New()
 	r.PUT("/settings", h.UpdateSettings)
@@ -88,7 +89,7 @@ func TestVideoAnalysisUpdateSettingsPreservesAssetDir(t *testing.T) {
 		StructureBaseURL: "http://structure:8911",
 		AssetDir:         "/data/original-asset-dir",
 	}}
-	h := NewVideoAnalysisHandler(nil, nil, cfg)
+	h := NewVideoAnalysisHandler(nil, nil, cfg, zap.NewNop().Sugar())
 
 	r := gin.New()
 	r.PUT("/settings", h.UpdateSettings)

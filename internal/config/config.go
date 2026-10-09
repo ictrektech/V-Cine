@@ -169,6 +169,8 @@ type VideoAnalysisConfig struct {
 	PollIntervalSeconds int    `mapstructure:"poll_interval_seconds" yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
 	JobTimeoutMinutes   int    `mapstructure:"job_timeout_minutes" yaml:"job_timeout_minutes" json:"job_timeout_minutes"`
 	DescribeEnabled     bool   `mapstructure:"describe_enabled" yaml:"describe_enabled" json:"describe_enabled"`
+	// ModelHubAPIURL Model Hub 后端地址，用于触发缺失模型下载（如 scene 描述模型）。
+	ModelHubAPIURL string `mapstructure:"model_hub_api_url" yaml:"model_hub_api_url" json:"model_hub_api_url"`
 }
 
 // ==================== 主配置结构体 ====================
@@ -815,6 +817,7 @@ func Load() (*Config, error) {
 	if cfg.VideoAnalysis.JobTimeoutMinutes <= 0 {
 		cfg.VideoAnalysis.JobTimeoutMinutes = 120
 	}
+	cfg.VideoAnalysis.ModelHubAPIURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.ModelHubAPIURL), "/")
 
 	// 11. V9/V10 迁移已完成，旧的 custom_providers / 顶层字段不再需要迁移。
 	// writeAIYaml 已显式清除这些废弃 key，确保它们不会残留在 yaml 中。
@@ -904,6 +907,7 @@ func setDefaults() {
 	viper.SetDefault("video_analysis.poll_interval_seconds", 2)
 	viper.SetDefault("video_analysis.job_timeout_minutes", 120)
 	viper.SetDefault("video_analysis.describe_enabled", false)
+	viper.SetDefault("video_analysis.model_hub_api_url", "http://model-hub-backend:5005")
 
 	// ---- AI ----
 	viper.SetDefault("ai.enabled", false)

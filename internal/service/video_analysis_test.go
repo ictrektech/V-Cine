@@ -30,6 +30,9 @@ type fakeVideoAnalysisClient struct {
 	describeJobFailure *ExternalJobError
 	describeResult     []byte
 	structureResult    []byte
+	// detectExpiryErrors 每次 GetDetectJob 时若 > 0 则返回 70201（job not found）并减一，
+	// 模拟外部 detect 任务已过期。
+	detectExpiryErrors int
 
 	artifact      *VideoAnalysisArtifact
 	downloadErr   error
@@ -44,6 +47,10 @@ func (f *fakeVideoAnalysisClient) SubmitDetectJob(_ context.Context, request Det
 }
 
 func (f *fakeVideoAnalysisClient) GetDetectJob(context.Context, string) (*ExternalJob, error) {
+	if f.detectExpiryErrors > 0 {
+		f.detectExpiryErrors--
+		return nil, &VideoAnalysisAPIError{HTTPStatus: 200, Code: 70201, Message: "detect job not found"}
+	}
 	result, _ := json.Marshal(map[string]any{"scenes": []SceneBoundary{{SceneIndex: 0, StartFrame: 0, EndFrame: 10, StartTime: 0, EndTime: 1}}})
 	return &ExternalJob{JobID: "detect-1", Status: "succeeded", Result: result}, nil
 }
@@ -225,6 +232,67 @@ func TestVideoAnalysisServiceSkipsCurrentSuccessUnlessForced(t *testing.T) {
 	forced, err := service.SubmitMediaWithOutcome(mediaID, VideoAnalysisSubmitOptions{Force: true})
 	if err != nil || forced.Result != "created" || forced.Task.ID == first.ID {
 		t.Fatalf("forced=%+v err=%v", forced, err)
+	}
+}
+
+func TestVideoAnalysisServiceRetryResubmitsExpiredDetectJob(t *testing.T) {
+	// 用户场景回归：任务曾部分完成（describe 失败，detect/structure 已成功），
+	// 重试时外部 detect 任务已过期（70201 job not found）。
+	// 不得复用旧 detect_job_id 硬失败整任务 —— 应清空旧 id 重新提交，
+	// describe 再次失败时仍保持 partial（部分完成可查看详细）。
+	client := &fakeVideoAnalysisClient{
+		artifact: &VideoAnalysisArtifact{
+			Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}},
+		},
+		detectExpiryErrors: 1,
+		describeJobFailure: &ExternalJobError{Code: "DESCRIBE_ERROR", Message: "全部 6 个场景描述失败: Connection error."},
+	}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task.Status = model.VideoAnalysisStatusPartial
+	task.Stage = model.VideoAnalysisStageDescribe
+	task.DetectStatus = model.VideoAnalysisStageStatusSucceeded
+	task.StructureStatus = model.VideoAnalysisStageStatusSucceeded
+	task.DescribeStatus = model.VideoAnalysisStageStatusFailed
+	task.DetectJobID = "detect-stale"
+	task.StructureJobID = "structure-old"
+	task.ResultJSON = `{"video_hash":"hash-1","scenes":[]}`
+	task.ErrorCode = "DESCRIBE_ERROR"
+	task.ErrorMessage = "describe stage failed"
+	if err := tasks.Update(task); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.RetryTask(task.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusPartial {
+		t.Fatalf("status = %q, want partial (must not hard-fail on expired detect job)", stored.Status)
+	}
+	if stored.ErrorCode != "DESCRIBE_ERROR" {
+		t.Fatalf("error_code = %q, want DESCRIBE_ERROR", stored.ErrorCode)
+	}
+	if stored.DetectStatus != model.VideoAnalysisStageStatusSucceeded || stored.Stage != model.VideoAnalysisStageDescribe {
+		t.Fatalf("detect_status/stage = %q/%q, want succeeded/describe", stored.DetectStatus, stored.Stage)
+	}
+	if stored.DetectJobID != "detect-1" {
+		t.Fatalf("detect_job_id = %q, want detect-1 (expired job resubmitted)", stored.DetectJobID)
+	}
+	if len(client.detectSubmits) != 1 {
+		t.Fatalf("detect submits = %d, want 1 (only the resubmit)", len(client.detectSubmits))
+	}
+	if len(client.describeSubmits) != 1 {
+		t.Fatalf("describe submits = %d, want 1 (retry resubmits describe)", len(client.describeSubmits))
 	}
 }
 
@@ -438,6 +506,83 @@ func TestVideoAnalysisServiceDescribeJobFailedMarksPartialAndClaims(t *testing.T
 	}
 	if stored.DescribeJobID != "" {
 		t.Fatalf("describe_job_id = %q, want empty for retry resubmit", stored.DescribeJobID)
+	}
+}
+
+func TestVideoAnalysisServiceDescribeMissingModelRecordsMissingModel(t *testing.T) {
+	// describe job 因 V-Router 缺少模型失败（unknown model: model-hub/xxx）→
+	// 任务 partial 且记录 missing_model，供前端展示“一键下载”入口。
+	client := &fakeVideoAnalysisClient{
+		artifact: &VideoAnalysisArtifact{
+			Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}},
+		},
+		describeJobFailure: &ExternalJobError{
+			Code:    "DESCRIBE_ERROR",
+			Message: `全部 6 个场景描述失败: Error code：404 - {'error': {'message': 'unknown model：model-hub/minicpm-v4.6:latest'}}`,
+		},
+	}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusPartial {
+		t.Fatalf("status = %q, want partial", stored.Status)
+	}
+	if stored.MissingModel != "model-hub/minicpm-v4.6:latest" {
+		t.Fatalf("missing_model = %q, want model-hub/minicpm-v4.6:latest", stored.MissingModel)
+	}
+	workflow, err := service.GetWorkflow(stored.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if workflow.MissingModel != stored.MissingModel {
+		t.Fatalf("workflow.missing_model = %q, want %q", workflow.MissingModel, stored.MissingModel)
+	}
+}
+
+func TestVideoAnalysisServiceDescribeOllamaGatewayMissingModel(t *testing.T) {
+	// Model Hub ollama 网关 404 格式（model 'xxx' not found，无 model-hub/ 前缀）
+	// 也要正确识别并规范化为 model-hub/<name>。
+	client := &fakeVideoAnalysisClient{
+		artifact: &VideoAnalysisArtifact{
+			Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}},
+		},
+		describeJobFailure: &ExternalJobError{
+			Code:    "DESCRIBE_ERROR",
+			Message: `大模型调用失败: 全部 6 个场景描述失败: 大模型调用失败: Error code: 404 - {'error': "model 'minicpm-v4.6:latest' not found"}`,
+		},
+	}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.MissingModel != "model-hub/minicpm-v4.6:latest" {
+		t.Fatalf("missing_model = %q, want model-hub/minicpm-v4.6:latest", stored.MissingModel)
+	}
+	workflow, err := service.GetWorkflow(stored.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if workflow.MissingModel != "model-hub/minicpm-v4.6:latest" {
+		t.Fatalf("workflow.missing_model = %q, want model-hub/minicpm-v4.6:latest", workflow.MissingModel)
 	}
 }
 

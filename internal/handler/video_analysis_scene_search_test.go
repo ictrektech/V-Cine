@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -76,7 +77,7 @@ func setupSceneSearchHandler(t *testing.T) (*VideoAnalysisHandler, *repository.V
 		t.Fatal(err)
 	}
 	vaService := service.NewVideoAnalysisService(repos.VideoAnalysis, repos.Media, &fakeHandlerVideoAnalysisClient{}, repos.Scene, embClient, filepath.Join(dir, "cache"), false, nil, nil, time.Millisecond, time.Second, nil)
-	return NewVideoAnalysisHandler(vaService, nil, &config.Config{}), repos.VideoAnalysis, repos.Scene, media.ID
+	return NewVideoAnalysisHandler(vaService, nil, &config.Config{}, zap.NewNop().Sugar()), repos.VideoAnalysis, repos.Scene, media.ID
 }
 
 // TestVideoAnalysisHandlerSearchScenesModes 验证 SearchScenes 的 mode 参数：

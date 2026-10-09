@@ -40,6 +40,8 @@ services:
       # ---- 视频分析 Scene / Structure 外部服务地址（安装初始值，运行期可在 Nowen 管理后台修改）----
       VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL: "${VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL:-http://video-structure-detect:8910}"
       VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL: "${VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL:-http://video-structure:8911}"
+      # Model Hub 后端地址：场景描述模型缺失时的“一键下载”入口访问对象
+      VCINE_VIDEO_ANALYSIS_MODEL_HUB_API_URL: "${VCINE_VIDEO_ANALYSIS_MODEL_HUB_API_URL:-http://model-hub-backend:5005}"
       # 媒体源地址（detect/structure 回源拉流访问 nowen-video 的地址）。宿主侧服务经
       # docker0 网关 + 宿主端口回源；代码默认值是 compose 服务名（仅同网络容器化部署适用）。
       VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL: "${VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL:-http://172.17.0.1:${VCINE_PORT:-38085}}"

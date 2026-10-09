@@ -78,4 +78,28 @@ export const videoAnalysisApi = {
 
   runMissing: (taskId: string) =>
     api.post<{ message: string }>(`/video-analysis/tasks/${taskId}/run-missing`),
+
+  // Model Hub 模型状态查询（只读，登录用户可用）
+  getModelHubStatus: (model: string) =>
+    api.get<{ data: ModelHubModelStatus }>('/video-analysis/models/status', {
+      params: { model },
+    }),
+
+  // 触发 Model Hub 下载缺失模型（管理员）
+  pullModelHubModel: (model: string) =>
+    api.post<{ data: { task_id: string } }>('/admin/video-analysis/models/pull', { model }),
+}
+
+export type ModelHubStatusValue = 'missing' | 'pulling' | 'ready' | 'failed' | 'unsupported'
+
+export interface ModelHubModelStatus {
+  requested: string
+  model_id: string
+  status: ModelHubStatusValue
+  progress?: number
+  downloaded_bytes?: number
+  total_bytes?: number
+  current_file?: string
+  error_msg?: string
+  task_id?: string
 }

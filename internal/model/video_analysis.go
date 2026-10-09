@@ -63,7 +63,10 @@ type VideoAnalysisTask struct {
 	ResultJSON     string `json:"-" gorm:"type:text"`
 	ErrorCode      string `json:"error_code" gorm:"type:text"`
 	ErrorMessage   string `json:"error_message" gorm:"type:text"`
-	Attempt        int    `json:"attempt" gorm:"default:0"`
+	// MissingModel describe 阶段因 V-Router/Model Hub 缺少模型而失败时记录缺失的模型名
+	// （如 model-hub/minicpm-v4.6:latest），供前端展示下载入口。
+	MissingModel string `json:"missing_model" gorm:"type:text"`
+	Attempt      int    `json:"attempt" gorm:"default:0"`
 
 	// StageTimings 各阶段实际耗时（秒），由编排层在阶段状态流转时记录，JSON 序列化存储。
 	StageTimings map[string]float64 `json:"stage_timings,omitempty" gorm:"serializer:json;type:text"`

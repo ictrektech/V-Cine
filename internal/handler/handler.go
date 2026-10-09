@@ -152,7 +152,7 @@ func NewHandlers(services *service.Services, repos *repository.Repositories, cfg
 		// 字幕预处理
 		SubtitlePreprocess: NewSubtitlePreprocessHandler(services.SubtitlePreprocess),
 		// 外部场景检测与视频结构化
-		VideoAnalysis: NewVideoAnalysisHandler(services.VideoAnalysis, services.VideoAnalysisWorker, cfg),
+		VideoAnalysis: NewVideoAnalysisHandler(services.VideoAnalysis, services.VideoAnalysisWorker, cfg, logger),
 		// 电影系列合集
 		Collection: &CollectionHandler{collectionService: services.Collection, streamService: services.Stream, logger: logger},
 		// V2.1: WebDAV 存储管理

@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { videoAnalysisApi } from '@/api'
 import { streamApi } from '@/api/stream'
 import { usePosterVersion } from '@/stores/mediaRefresh'
+import { useAuthStore } from '@/stores/auth'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -79,6 +80,7 @@ interface VideoAnalysisTaskTabProps {
 
 export default function VideoAnalysisTaskTab({ disabled = false, disabledReason = '' }: VideoAnalysisTaskTabProps) {
   const toast = useToast()
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
   // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
   usePosterVersion()
   const dialog = useDialog()
@@ -366,6 +368,9 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
                         )}
                         {task.error_message && task.status !== 'running' && (
                           <p className="mt-1 max-w-52 truncate text-xs text-red-400" title={formatVideoAnalysisError(task.error_message)}>{formatVideoAnalysisError(task.error_message)}</p>
+                        )}
+                        {task.missing_model && task.status !== 'running' && (
+                          <p className="mt-0.5 text-[11px] text-amber-400">场景描述模型 {task.missing_model} 未下载{isAdmin ? '，可在分析结果中一键下载' : '，请联系管理员下载'}</p>
                         )}
                       </div>
                       <StatusBadge status={task.status} />

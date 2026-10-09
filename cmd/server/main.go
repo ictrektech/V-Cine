@@ -404,6 +404,8 @@ func main() {
 		api.POST("/video-analysis/tasks/:id/run-stage", handlers.VideoAnalysis.RunStage)
 		api.POST("/video-analysis/tasks/:id/run-all", handlers.VideoAnalysis.RunAll)
 		api.POST("/video-analysis/tasks/:id/run-missing", handlers.VideoAnalysis.RunMissing)
+		// describe 阶段缺模型时的 Model Hub 下载状态查询（只读，登录用户可用）
+		api.GET("/video-analysis/models/status", handlers.VideoAnalysis.ModelHubStatus)
 
 		// 用户
 		api.GET("/users/me", handlers.User.Profile)
@@ -988,6 +990,8 @@ func main() {
 		admin.POST("/video-analysis/tasks/:id/run-stage", handlers.VideoAnalysis.RunStage)
 		admin.POST("/video-analysis/tasks/:id/run-all", handlers.VideoAnalysis.RunAll)
 		admin.POST("/video-analysis/tasks/:id/run-missing", handlers.VideoAnalysis.RunMissing)
+		// 触发 Model Hub 下载缺失模型（管理员：占用共享存储与带宽）
+		admin.POST("/video-analysis/models/pull", handlers.VideoAnalysis.PullModelHubModel)
 
 		// ==================== 字幕预处理管理 ====================
 		admin.POST("/subtitle-preprocess/submit", handlers.SubtitlePreprocess.SubmitMedia)
