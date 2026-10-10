@@ -205,15 +205,15 @@ func (t *VideoAnalysisTask) IsStagePending(stage string) bool {
 	return t.StageStatus(stage) == VideoAnalysisStageStatusEmpty
 }
 
-// NextPendingStage 返回第一个未完成的阶段
-func (t *VideoAnalysisTask) NextPendingStage() string {
-	if !t.IsStageDone(VideoAnalysisStageDetect) {
+// NextIncompleteStage 返回第一个尚未成功的阶段，失败阶段也需要补跑。
+func (t *VideoAnalysisTask) NextIncompleteStage() string {
+	if !t.IsStageSucceeded(VideoAnalysisStageDetect) {
 		return VideoAnalysisStageDetect
 	}
-	if !t.IsStageDone(VideoAnalysisStageStructure) {
+	if !t.IsStageSucceeded(VideoAnalysisStageStructure) {
 		return VideoAnalysisStageStructure
 	}
-	if t.IncludeDescriptions && !t.IsStageDone(VideoAnalysisStageDescribe) {
+	if t.IncludeDescriptions && !t.IsStageSucceeded(VideoAnalysisStageDescribe) {
 		return VideoAnalysisStageDescribe
 	}
 	return VideoAnalysisStageDone

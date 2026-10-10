@@ -33,6 +33,7 @@ type fakeVideoAnalysisClient struct {
 	// detectExpiryErrors 每次 GetDetectJob 时若 > 0 则返回 70201（job not found）并减一，
 	// 模拟外部 detect 任务已过期。
 	detectExpiryErrors int
+	failedJobIDs       map[string]bool
 
 	artifact      *VideoAnalysisArtifact
 	downloadErr   error
@@ -46,7 +47,10 @@ func (f *fakeVideoAnalysisClient) SubmitDetectJob(_ context.Context, request Det
 	return &ExternalJobRef{JobID: "detect-1", Status: "queued", PollURL: "/api/v2/scenes/detect/jobs/detect-1"}, nil
 }
 
-func (f *fakeVideoAnalysisClient) GetDetectJob(context.Context, string) (*ExternalJob, error) {
+func (f *fakeVideoAnalysisClient) GetDetectJob(_ context.Context, jobID string) (*ExternalJob, error) {
+	if f.failedJobIDs[jobID] {
+		return &ExternalJob{JobID: jobID, Status: "failed", Error: &ExternalJobError{Code: "DETECT_FAILED"}}, nil
+	}
 	if f.detectExpiryErrors > 0 {
 		f.detectExpiryErrors--
 		return nil, &VideoAnalysisAPIError{HTTPStatus: 200, Code: 70201, Message: "detect job not found"}
@@ -63,7 +67,10 @@ func (f *fakeVideoAnalysisClient) SubmitStructureJob(_ context.Context, request 
 	return &ExternalJobRef{JobID: "structure-1", Status: "queued", PollURL: "/api/v2/video/structure/jobs/structure-1"}, nil
 }
 
-func (f *fakeVideoAnalysisClient) GetStructureJob(context.Context, string) (*ExternalJob, error) {
+func (f *fakeVideoAnalysisClient) GetStructureJob(_ context.Context, jobID string) (*ExternalJob, error) {
+	if f.failedJobIDs[jobID] {
+		return &ExternalJob{JobID: jobID, Status: "failed", Error: &ExternalJobError{Code: "STRUCTURE_FAILED"}}, nil
+	}
 	result := f.structureResult
 	if len(result) == 0 {
 		result, _ = json.Marshal(map[string]any{"video_hash": "hash-1", "scenes": []any{}})
@@ -101,7 +108,10 @@ func (f *fakeVideoAnalysisClient) SubmitDescribeJob(_ context.Context, request D
 	return &ExternalJobRef{JobID: "describe-1", Status: "queued", PollURL: "/api/v2/video/describe/jobs/describe-1"}, nil
 }
 
-func (f *fakeVideoAnalysisClient) GetDescribeJob(context.Context, string) (*ExternalJob, error) {
+func (f *fakeVideoAnalysisClient) GetDescribeJob(_ context.Context, jobID string) (*ExternalJob, error) {
+	if f.failedJobIDs[jobID] {
+		return &ExternalJob{JobID: jobID, Status: "failed", Error: &ExternalJobError{Code: "DESCRIBE_ERROR"}}, nil
+	}
 	if f.describeJobFailure != nil {
 		return &ExternalJob{JobID: "describe-1", Status: "failed", Error: f.describeJobFailure}, nil
 	}
@@ -803,31 +813,31 @@ func TestCanRunStage_DependencyChecks(t *testing.T) {
 	}
 }
 
-func TestNextPendingStage(t *testing.T) {
+func TestNextIncompleteStage(t *testing.T) {
 	task := &model.VideoAnalysisTask{IncludeDescriptions: true}
-	if stage := task.NextPendingStage(); stage != model.VideoAnalysisStageDetect {
+	if stage := task.NextIncompleteStage(); stage != model.VideoAnalysisStageDetect {
 		t.Fatalf("expected detect, got %s", stage)
 	}
 
 	task.DetectStatus = model.VideoAnalysisStageStatusSucceeded
-	if stage := task.NextPendingStage(); stage != model.VideoAnalysisStageStructure {
+	if stage := task.NextIncompleteStage(); stage != model.VideoAnalysisStageStructure {
 		t.Fatalf("expected structure, got %s", stage)
 	}
 
 	task.StructureStatus = model.VideoAnalysisStageStatusSucceeded
-	if stage := task.NextPendingStage(); stage != model.VideoAnalysisStageDescribe {
+	if stage := task.NextIncompleteStage(); stage != model.VideoAnalysisStageDescribe {
 		t.Fatalf("expected describe, got %s", stage)
 	}
 
 	task.DescribeStatus = model.VideoAnalysisStageStatusSucceeded
-	if stage := task.NextPendingStage(); stage != model.VideoAnalysisStageDone {
+	if stage := task.NextIncompleteStage(); stage != model.VideoAnalysisStageDone {
 		t.Fatalf("expected done, got %s", stage)
 	}
 
 	task2 := &model.VideoAnalysisTask{IncludeDescriptions: false}
 	task2.DetectStatus = model.VideoAnalysisStageStatusSucceeded
 	task2.StructureStatus = model.VideoAnalysisStageStatusSucceeded
-	if stage := task2.NextPendingStage(); stage != model.VideoAnalysisStageDone {
+	if stage := task2.NextIncompleteStage(); stage != model.VideoAnalysisStageDone {
 		t.Fatalf("(no describe) expected done, got %s", stage)
 	}
 }
