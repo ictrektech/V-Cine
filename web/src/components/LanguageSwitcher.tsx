@@ -10,9 +10,10 @@ import {
 
 export default function LanguageSwitcher() {
   const { preference, setLocale } = useI18nStore()
+  const platformLocale = useI18nStore((s) => s.platformLocale)
   const { t } = useTranslation()
-  // 当前实际生效的语言（auto 时取自浏览器语言）
-  const currentLocale = resolveLocale(preference)
+  // 当前实际生效的语言（auto 时优先取 VOS 平台语言，其次浏览器语言）
+  const currentLocale = resolveLocale(preference, platformLocale)
   const currentLang = SUPPORTED_LOCALES.find(l => l.code === currentLocale)
   const autoLabel = `${t('nav.languageAuto')}（${currentLang?.name ?? 'English'}）`
 
@@ -28,7 +29,7 @@ export default function LanguageSwitcher() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="center" sideOffset={8}>
-        {/* 自动：跟随浏览器语言，非中/日时回落 English */}
+        {/* 自动：跟随 VOS 语言（iframe 内），独立打开时回落浏览器语言 */}
         <DropdownMenuItem
           onClick={() => setLocale('auto')}
           className="flex items-center gap-3"
