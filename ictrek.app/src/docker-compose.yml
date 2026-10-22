@@ -35,8 +35,8 @@ services:
       VCINE_VOS_OIDC_JWKS_URL: http://172.17.0.1:8105/v1000/oauth2/jwks
       VCINE_VOS_OIDC_ISSUER: /v1000/oauth2
       VCINE_VOS_OIDC_CLIENT_ID: com.ictrek.v-cine
-      # ---- Embedding 向量检索（经 V-Router 调用 ML Server，默认连平台容器网 v-router:8080/v1）----
-      VCINE_AI_EMBEDDING_AI_API_BASE: "${VCINE_AI_EMBEDDING_AI_API_BASE:-http://v-router:8080/v1}"
+      # ---- Embedding 向量检索（经 V-Scheduler 调用 ML Server，默认连平台容器网 v-scheduler:8080/v1）----
+      VCINE_AI_EMBEDDING_AI_API_BASE: "${VCINE_AI_EMBEDDING_AI_API_BASE:-http://v-scheduler:8080/v1}"
       # ---- 视频分析 Scene / Structure 外部服务地址（安装初始值，运行期可在 Nowen 管理后台修改）----
       VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL: "${VCINE_VIDEO_ANALYSIS_SCENE_BASE_URL:-http://video-structure-detect:8910}"
       VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL: "${VCINE_VIDEO_ANALYSIS_STRUCTURE_BASE_URL:-http://video-structure:8911}"
