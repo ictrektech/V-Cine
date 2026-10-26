@@ -183,12 +183,20 @@ video_analysis:
 
 ### 5. 任务失败，错误码为 DESCRIBE_ERROR / DESCRIBE_PARTIAL
 
-**原因：** 场景描述阶段未全部成功。`DESCRIBE_ERROR` 表示全部场景描述失败（describe job 状态为 failed）；`DESCRIBE_PARTIAL` 表示部分场景失败（describe job 成功但 `result.status = "partial"`），失败详情在任务 `error_message` 中。
+**原因：** 场景描述阶段未全部成功。`DESCRIBE_ERROR` 表示全部场景描述失败（describe job 状态为 failed）；`DESCRIBE_PARTIAL` 表示部分场景失败，失败详情在任务 `error_message` 中（形如 `3/73 个场景描述失败（scene_index: 12,45,70）`）。
+
+**扇出方不同，重试行为不同：**
+
+| 配置 | 谁调视觉模型 | 重试粒度 |
+|---|---|---|
+| 未配置 `ai.scene_describe_ai.model` | structure 服务端（`DescribeModelCfg` 注入凭证） | 由服务端决定（按其 staging 缓存做增量） |
+| 配置了 `ai.scene_describe_ai.model` | V-Cine 自己（`describe_concurrency` 并发） | **只补 DB 中 `description` 为空的场景**，已成功场景不重发 |
 
 **解决：**
-- 任务状态为 partial/failed 时可直接重试：RetryTask 会重新提交 describe job（相同 structure_job_id），全失败重新全量生成、部分失败只重新描述失败的场景（增量），成功场景复用
-- 描述服务的 staging 产物有 TTL（生产 6 小时 / dev 7 天），请在 TTL 内重试；Nowen 已在描述失败时把九宫格 claim 到本地，不受 TTL 影响
+- 任务状态为 partial/failed 时可直接重试；配置了自定义描述模型时，重试只会为缺口场景调用视觉模型
+- 描述服务的 staging 产物有 TTL（生产 6 小时 / dev 7 天），请在 TTL 内重试；V-Cine 已在描述失败时把九宫格 claim 到本地，不受 TTL 影响
 - 检查 describe 使用的视觉模型配置（`scene_describe_ai`）与供应商连通性
+- 鉴权失败（401/403）与模型缺失（`unknown model: model-hub/...`）属于不可重试错误：系统会立即中止本轮扇出，修好配置后重试即可，不会逐个场景白跑
 
 ### 6. 九宫格图片无法显示
 

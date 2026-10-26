@@ -28,9 +28,9 @@ func TestExtractMissingModel(t *testing.T) {
 			want:  "model-hub/foo/bar:q4",
 		},
 		{
-			name:  "ollama gateway name without prefix ignored",
+			name:  "ollama gateway name without prefix gets model-hub prefix",
 			input: `describe stage: external job failed: code=DESCRIBE_ERROR message=大模型调用失败: 全部 6 个场景描述失败: 大模型调用失败: Error code: 404 - {'error': "model 'minicpm-v4.6:latest' not found"}`,
-			want:  "",
+			want:  "model-hub/minicpm-v4.6:latest",
 		},
 		{
 			name:  "ollama gateway namespaced name ignored",

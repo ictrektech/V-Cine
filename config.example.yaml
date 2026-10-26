@@ -134,6 +134,11 @@ video_analysis:
   poll_interval_seconds: 2
   job_timeout_minutes: 120
   describe_enabled: true
+  # 自定义场景描述模型（ai.scene_describe_ai）时，由 V-Cine 自己扇出到视觉模型：
+  # 重试只补缺失场景（DB 中 description 为空的场景），不会重跑已成功的场景。
+  # 未配置自定义模型时，describe 仍交给 structure 服务端，本节配置不生效。
+  describe_concurrency: 3
+  describe_scene_timeout_seconds: 90
   # Model Hub 后端地址（场景描述模型缺失时的“一键下载”入口）
   model_hub_api_url: http://model-hub-backend:5005
 

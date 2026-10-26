@@ -109,6 +109,13 @@ type VideoAnalysisService struct {
 
 	// appCfg 全局配置引用（用于读取 LLM 配置，动态注入 describe 阶段）
 	appCfg *config.Config
+
+	// localDescribe 本地场景描述视觉客户端；nil 表示未配置，describe 交给 structure 服务端。
+	localDescribe SceneDescriptionClient
+	// sceneImageDesensitize 图片脱敏钩子；nil 表示不脱敏。
+	sceneImageDesensitize func(dataURL string) string
+	// sceneDescriptionStore 本地 describe 的场景存储；nil 时回退 sceneRepo。
+	sceneDescriptionStore sceneDescriptionStore
 }
 
 func NewVideoAnalysisService(
@@ -143,6 +150,13 @@ func NewVideoAnalysisService(
 		s.structureBaseURL = appCfg.VideoAnalysis.StructureBaseURL
 	}
 	return s
+}
+
+// SetSceneImageDesensitizer 注入图片脱敏钩子。
+func (s *VideoAnalysisService) SetSceneImageDesensitizer(fn func(dataURL string) string) {
+	s.mu.Lock()
+	s.sceneImageDesensitize = fn
+	s.mu.Unlock()
 }
 
 func (s *VideoAnalysisService) SetDescribeEnabled(enabled bool) {
@@ -885,73 +899,11 @@ func (s *VideoAnalysisService) run(ctx context.Context, task *model.VideoAnalysi
 		}
 	}
 
-	if task.IncludeDescriptions {
-		task.Stage = model.VideoAnalysisStageDescribe
-		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusRunning)
-		task.Progress = 90
-		if err := s.persist(task); err != nil {
-			return err
-		}
-		describeJob, err := s.ensureDescribeJob(ctx, task)
-		if err != nil {
-			return s.completeDescribePartial(task, fmt.Errorf("describe stage: %w", err), "")
-		}
-		describeResult, err := s.waitForJobWithProgress(ctx, describeJob, s.client.GetDescribeJob, s.jobProgressUpdater(task, 90, 100))
-		if err != nil {
-			if s.logger != nil {
-				s.logger.Warnw("Video analysis describe stage failed",
-					"task_id", task.ID,
-					"media_id", task.MediaID,
-					"describe_job_id", describeJob,
-					"error", err,
-				)
-			}
-			return s.completeDescribePartial(task, fmt.Errorf("describe stage: %w", err), "")
-		}
-		mergedResult, err := mergeDescribeResult(task.ResultJSON, describeResult.Result)
-		if err != nil {
-			return s.completeDescribePartial(task, err, "DESCRIBE_MERGE_ERROR")
-		}
-		task.ResultJSON = mergedResult
-
-		// Phase 3: 更新 Scene 描述和描述 embedding
-		if err := s.updateSceneDescriptionsFromDescribe(task, describeResult); err != nil {
-			if s.logger != nil {
-				s.logger.Warnw("Video analysis update scene descriptions failed (non-fatal)",
-					"task_id", task.ID,
-					"media_id", task.MediaID,
-					"error", err,
-				)
-			}
-		}
-
-		// Phase 3b: 计算描述文本的 CLIP embedding（经 V-Router 调用 ML Server）
-		if err := s.computeDescriptionEmbeddings(task); err != nil {
-			if s.logger != nil {
-				s.logger.Warnw("Video analysis compute description embeddings failed (non-fatal)",
-					"task_id", task.ID,
-					"media_id", task.MediaID,
-					"error", err,
-				)
-			}
-		}
-
-		// describe 部分失败（result.status = "partial"）：成功场景的描述已保留，
-		// 标记任务 partial，可重新提交 describe job 增量补齐失败场景。
-		if describeResultStatus(describeResult.Result) == "partial" {
-			return s.completeDescribePartial(task, describePartialError(describeResult.Result), "DESCRIBE_PARTIAL")
-		}
-
-		if s.logger != nil {
-			s.logger.Infow("Video analysis describe stage completed",
-				"task_id", task.ID,
-				"media_id", task.MediaID,
-				"describe_job_id", describeJob,
-			)
-		}
-		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSucceeded)
-	} else {
-		task.SetStageStatus(model.VideoAnalysisStageDescribe, model.VideoAnalysisStageStatusSkipped)
+	if err := s.runDescribePhase(ctx, task); err != nil {
+		return err
+	} else if task.Status == model.VideoAnalysisStatusPartial {
+		// describe 部分失败已在阶段内收尾，不再继续后续产物搬移。
+		return nil
 	}
 
 	// Phase 4: 搬移 staging 产物到 asset_dir（describe 之后 claim；describe 全部成功时
@@ -1247,18 +1199,28 @@ func describePartialError(describeJSON []byte) error {
 	return fmt.Errorf("%d 个场景描述失败: %s", len(parsed.Warnings), parsed.Warnings[0].Message)
 }
 
-// extractMissingModel 从 describe 失败错误文本中识别 V-Router 的“模型缺失”报错
-// （unknown model: model-hub/<name>，模型名是配置原样回显），提取模型名供前端展示下载入口。
-// 只认带 model-hub/ 前缀的名字：无前缀/其他来源前缀属于其他提供商，不引导去 Model Hub 下载。
-// 返回空串表示与模型缺失无关。
+// extractMissingModel 从 describe 失败错误文本中提取缺失的模型名，供前端展示 Model Hub
+// 下载入口。识别两种上游回显格式：
+//
+//  1. V-Router：unknown model: model-hub/<name>（已带前缀，原样返回）
+//  2. ollama / 部分 OpenAI 兼容网关：model '<name>' not found（补 model-hub/ 前缀）
+//
+// 只返回 Model Hub 可下载的名字：带 `/` 但不是 model-hub/ 前缀的、以及与模型缺失
+// 无关的报错，一律返回空串。
 var missingModelPattern = regexp.MustCompile(`unknown model[:：]?\s*["']?(model-hub/[A-Za-z0-9][A-Za-z0-9._:/@-]*)`)
 
+// missingModelNotFoundPattern 匹配 ollama 系网关的 "model 'xxx' not found" 回显。
+// 捕获组限定为不含 `/` 的名字。
+var missingModelNotFoundPattern = regexp.MustCompile(`model\s+["']([A-Za-z0-9][A-Za-z0-9._:@-]*)["']\s+not\s+found`)
+
 func extractMissingModel(errText string) string {
-	m := missingModelPattern.FindStringSubmatch(errText)
-	if len(m) != 2 {
-		return ""
+	if m := missingModelPattern.FindStringSubmatch(errText); len(m) == 2 {
+		return m[1]
 	}
-	return m[1]
+	if m := missingModelNotFoundPattern.FindStringSubmatch(errText); len(m) == 2 {
+		return "model-hub/" + m[1]
+	}
+	return ""
 }
 
 // ensureMissingModel 读取时同步缺失模型名：以 error_message 为准推导，
@@ -1760,18 +1722,13 @@ func float64sToVector(emb []float64) *pgvector.Vector {
 	v := pgvector.NewVector(vec)
 	return &v
 }
-func (s *VideoAnalysisService) updateSceneDescriptionsFromDescribe(task *model.VideoAnalysisTask, describeJob *ExternalJob) error {
-	if s.sceneRepo == nil {
-		return nil
-	}
-	var result videoAnalysisDescribeResult
-	if err := json.Unmarshal(describeJob.Result, &result); err != nil {
-		return fmt.Errorf("decode describe result for scene update: %w", err)
-	}
-	if len(result.Descriptions) == 0 {
-		return nil
-	}
 
+// sceneDescriptionUpdates 把 describe result 中成功的场景转换为描述更新列表。
+func sceneDescriptionUpdates(resultJSON []byte) ([]repository.SceneDescriptionUpdate, error) {
+	var result videoAnalysisDescribeResult
+	if err := json.Unmarshal(resultJSON, &result); err != nil {
+		return nil, fmt.Errorf("decode describe result for scene update: %w", err)
+	}
 	updates := make([]repository.SceneDescriptionUpdate, 0, len(result.Descriptions))
 	for _, d := range result.Descriptions {
 		if d.Status != "ok" || d.Description == "" {
@@ -1792,12 +1749,22 @@ func (s *VideoAnalysisService) updateSceneDescriptionsFromDescribe(task *model.V
 		}
 		updates = append(updates, update)
 	}
+	return updates, nil
+}
 
+// updateSceneDescriptionsFromDescribe 把 describe result 写入 Scene 表（按 scene_index 精确更新）。
+func (s *VideoAnalysisService) updateSceneDescriptionsFromDescribe(task *model.VideoAnalysisTask, describeResult []byte) error {
+	if s.sceneRepo == nil {
+		return nil
+	}
+	updates, err := sceneDescriptionUpdates(describeResult)
+	if err != nil {
+		return err
+	}
 	if len(updates) == 0 {
 		if s.logger != nil {
 			s.logger.Warnw("updateSceneDescriptionsFromDescribe: no descriptions",
 				"task_id", task.ID,
-				"total_descriptions", len(result.Descriptions),
 			)
 		}
 		return nil
@@ -2103,28 +2070,8 @@ func (s *VideoAnalysisService) runDescribeStage(ctx context.Context, task *model
 	if task.ResultJSON == "" {
 		return errors.New("structure result is required before describe")
 	}
-	describeJob, err := s.ensureDescribeJob(ctx, task)
-	if err != nil {
-		return s.completeDescribePartial(task, err, "")
-	}
-	describeResult, err := s.waitForJobWithProgress(ctx, describeJob, s.client.GetDescribeJob, s.jobProgressUpdater(task, 90, 100))
-	if err != nil {
-		return s.completeDescribePartial(task, err, "")
-	}
-	mergedResult, err := mergeDescribeResult(task.ResultJSON, describeResult.Result)
-	if err != nil {
-		return s.completeDescribePartial(task, err, "DESCRIBE_MERGE_ERROR")
-	}
-	task.ResultJSON = mergedResult
-	if err := s.updateSceneDescriptionsFromDescribe(task, describeResult); err != nil && s.logger != nil {
-		s.logger.Warnw("Video analysis update scene descriptions failed (non-fatal)",
-			"task_id", task.ID, "media_id", task.MediaID, "error", err)
-	}
-	// describe 部分失败（result.status = "partial"）：成功描述已保留，标记任务 partial
-	if describeResultStatus(describeResult.Result) == "partial" {
-		return s.completeDescribePartial(task, describePartialError(describeResult.Result), "DESCRIBE_PARTIAL")
-	}
-	return nil
+	// 按配置选择本地扇出或远端 describe job。
+	return s.runDescribePhase(ctx, task)
 }
 
 // WorkflowStatus 工作流状态详情

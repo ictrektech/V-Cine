@@ -169,6 +169,10 @@ type VideoAnalysisConfig struct {
 	PollIntervalSeconds int    `mapstructure:"poll_interval_seconds" yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
 	JobTimeoutMinutes   int    `mapstructure:"job_timeout_minutes" yaml:"job_timeout_minutes" json:"job_timeout_minutes"`
 	DescribeEnabled     bool   `mapstructure:"describe_enabled" yaml:"describe_enabled" json:"describe_enabled"`
+	// DescribeConcurrency 本地场景描述（自定义 scene_describe_ai）的并发上限，默认 3。
+	DescribeConcurrency int `mapstructure:"describe_concurrency" yaml:"describe_concurrency" json:"describe_concurrency"`
+	// DescribeSceneTimeoutSeconds 单场景描述超时（秒），默认 90。
+	DescribeSceneTimeoutSeconds int `mapstructure:"describe_scene_timeout_seconds" yaml:"describe_scene_timeout_seconds" json:"describe_scene_timeout_seconds"`
 	// ModelHubAPIURL Model Hub 后端地址，用于触发缺失模型下载（如 scene 描述模型）。
 	ModelHubAPIURL string `mapstructure:"model_hub_api_url" yaml:"model_hub_api_url" json:"model_hub_api_url"`
 }

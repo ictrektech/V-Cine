@@ -450,6 +450,11 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 		)
 		// 注入 VFS：远程 webdav/alist/s3 媒体也能提交视频分析（URL 模式统一拉流）。
 		svcs.VideoAnalysis.SetVFSManager(vfsManager)
+		// 注入图片脱敏钩子：本地场景描述（自定义 VLM）复用统一脱敏入口，
+		// 避免自定义模型路径绕过数据脱敏。
+		svcs.VideoAnalysis.SetSceneImageDesensitizer(func(dataURL string) string {
+			return aiService.DesensitizeImageForScope(dataURL, config.DesensitizeImageScopeAIAssistant)
+		})
 		// 注入 describe_enabled 动态更新回调
 		aiService.SetDescribeEnabledCallback(svcs.VideoAnalysis.SetDescribeEnabled)
 
