@@ -73,7 +73,7 @@ func (s *AIService) chatMetadata(userPrompt, errPrefix string) (*AIMetadataResul
 		0.0,
 		1500,
 		metadataEnhanceSchema,
-		"none",
+		ReasoningEffortNone,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%s生成失败: %w", errPrefix, err)

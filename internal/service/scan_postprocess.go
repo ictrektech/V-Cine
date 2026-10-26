@@ -936,7 +936,7 @@ return {"title":"","title_alt":"","year":0,"tmdb_id":0,"imdb_id":"","media_type"
 
 	// json_schema 结构化输出：解码层语法约束（字段形状 + media_type enum），
 	// 768 的 max_tokens 会把 JSON 掐断，预算给足到 4000
-	raw, err := s.ai.ChatCompletionJSONSchema(sysPrompt, userPrompt, 0.0, 4000, scanIdentifySchema, "none")
+	raw, err := s.ai.ChatCompletionJSONSchema(sysPrompt, userPrompt, 0.0, 4000, scanIdentifySchema, ReasoningEffortNone)
 	if err != nil {
 		return nil, "", err
 	}
