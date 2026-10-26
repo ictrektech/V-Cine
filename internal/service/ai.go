@@ -2,8 +2,10 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -55,6 +57,11 @@ type ChatCompletionRequest struct {
 	// 后端不识别时静默忽略或由 400 兜底剥离。
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 }
+
+// ReasoningEffortNone 统一关闭思考的取值（OpenAI 标准：none）。
+// 思考模型会把小预算任务的 max_tokens 烧在思维链上，导致 content 为空、finish_reason=length。
+// 意图解析、元数据增强、场景描述等“确定性小任务”共用该常量。
+const ReasoningEffortNone = "none"
 
 type ChatCompletionResponseFormat struct {
 	Type       string                    `json:"type"`
@@ -297,7 +304,7 @@ func (s *AIService) ChatCompletion(systemPrompt, userPrompt string, temperature 
 // 小预算下会把 max_tokens 全烧在思维链上导致 content 为空（finish_reason=length），
 // 这类任务无需思考。后端不支持该字段时由 400 兜底自动降级为保留默认思考。
 func (s *AIService) ChatCompletionNoReasoning(systemPrompt, userPrompt string, temperature float64, maxTokens int) (string, error) {
-	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, "none", nil)
+	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, ReasoningEffortNone, nil)
 }
 
 // ChatCompletionJSONSchema 结构化输出补全（response_format=json_schema + strict），
@@ -397,10 +404,6 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	if reasoningEffort != "" {
 		reqBody.ReasoningEffort = reasoningEffort
 	}
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", fmt.Errorf("序列化请求失败: %w", err)
-	}
 	apiURL := strings.TrimRight(apiBase, "/") + "/chat/completions"
 
 	authorization := s.resolveCredential(isGateway, apiKey)
@@ -415,175 +418,133 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	}
 
 	const maxAttempts = 4
-	var lastErr error
-	var respBody []byte
-
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		// 限流（每次重试前都过一遍间隔限流）
-		s.rateLimit()
-
-		req, err := http.NewRequest("POST", apiURL, bytes.NewReader(bodyBytes))
-		if err != nil {
-			return "", fmt.Errorf("创建请求失败: %w", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		if authorization != "" {
-			req.Header.Set("Authorization", authorization)
-		}
-
-		resp, err := s.client.Do(req)
-		if err != nil {
-			// 网络错误：可重试，写入全局冷却闸（让其他并发请求一起等）
-			lastErr = fmt.Errorf("AI API 请求失败: %w", err)
-			if attempt < maxAttempts {
-				wait := backoffDuration(attempt, "")
-				s.logger.Warnf("AI 调用网络错误 (provider=%s, credential=%s)，%v 后重试 (第 %d/%d 次): %v",
-					cfg.ActiveProvider, credential, wait, attempt, maxAttempts, err)
-				s.triggerCooldown(wait, fmt.Sprintf("network err: %v", err))
-				continue // rateLimit() 会在下次循环顶部尊重冷却闸
-			}
-			break
-		}
-
-		respBody, err = io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if err != nil {
-			lastErr = fmt.Errorf("读取响应失败: %w", err)
-			if attempt < maxAttempts {
-				wait := backoffDuration(attempt, "")
-				s.triggerCooldown(wait, "read body err")
-				continue
-			}
-			break
-		}
-
-		// 成功
-		if resp.StatusCode == http.StatusOK {
-			var chatResp ChatCompletionResponse
-			if err := json.Unmarshal(respBody, &chatResp); err != nil {
-				return "", fmt.Errorf("解析 AI 响应失败: %w", err)
-			}
-			if len(chatResp.Choices) == 0 {
-				return "", fmt.Errorf("AI 未返回任何结果")
-			}
-			s.incrementCount()
-			s.tokenMu.Lock()
-			s.totalPromptTokens += chatResp.Usage.PromptTokens
-			s.totalCompletionTokens += chatResp.Usage.CompletionTokens
-			s.tokenMu.Unlock()
-			result := strings.TrimSpace(chatResp.Choices[0].Message.Content)
-			reasoning := chatResp.Choices[0].Message.reasoningText()
-			finishReason := chatResp.Choices[0].FinishReason
-			// 原始响应随成功日志一并输出（同一行单次写入，减少并发交错），
-			// 便于 debug 时观察模型格式漂移（XML 函数调用 / 截断 / 伪 JSON 等）。
-			// 同时输出 finish_reason 与思考内容长度：content 为空时这两项才能定位原因。
-			s.logger.Debugf("AI 调用成功 (provider=%s, model=%s, credential=%s, tokens: %d+%d=%d, attempt=%d, finish=%s, reasoning_len=%d) 原始响应: %s",
-				cfg.ActiveProvider, model, credential,
-				chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, chatResp.Usage.TotalTokens, attempt,
-				finishReason, len(reasoning), truncateForLog(result, 500))
-			// 通知路由器记录用量
-			if s.router != nil {
-				s.router.MarkSuccess(cfg.ActiveProvider, model,
-					chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, 0, "chat_completion")
-			}
-			// 空 content 提前拦下：直接报"空内容"而不是把空串交给上层做 JSON 解析
-			// （否则上层只会得到 "unexpected end of JSON input" 这种看不出原因的报错）
-			if result == "" {
-				s.logger.Warnf("AI 返回空内容 (provider=%s, model=%s, finish_reason=%s, completion_tokens=%d/%d, reasoning_len=%d, reasoning: %s, raw: %s)",
-					cfg.ActiveProvider, model, finishReason,
-					chatResp.Usage.CompletionTokens, maxTokens, len(reasoning),
-					truncateForLog(reasoning, 300), truncateForLog(string(respBody), 600))
-				hint := "输出为空"
-				switch {
-				case finishReason == "length":
-					hint = "输出被 max_tokens 截断（思考模型把预算全用在思维链上，正文未产出）；请为该调用关闭思考或提高 max_tokens"
-				case len(reasoning) > 0:
-					hint = "content 为空但存在思考内容（后端把思考放在了 reasoning/reasoning_content，正文未产出）"
-				}
-				return "", fmt.Errorf("AI 返回空内容：%s（finish_reason=%s, completion_tokens=%d/%d）",
-					hint, finishReason, chatResp.Usage.CompletionTokens, maxTokens)
-			}
-			return result, nil
-		}
-
-		// 非 200：判断是否可重试
-		retryAfter := resp.Header.Get("Retry-After")
-		errMsg := fmt.Errorf("AI API 返回 HTTP %d", resp.StatusCode)
-		lastErr = errMsg
-
-		// HTTP 400 兜底：少数严格的 OpenAI 兼容后端会不识别/拒绝 response_format 或 reasoning_effort 字段。
-		// 分层降级：json_schema → json_object → 纯 prompt（每次 400 只降级一级），
-		// 结构化任务退化为纯 prompt 时由上层解析容错。
-		// 仅当 400 与 response_format / reasoning_effort 相关（响应体提及对应字段，或响应体为空无法判断）时降级；
-		// 无关的 400（缺 model 等）直接走错误路径，避免多耗往返。
-		if resp.StatusCode == http.StatusBadRequest {
-			bodyLower := strings.ToLower(string(respBody))
-			bodyEmpty := strings.TrimSpace(string(respBody)) == ""
-			formatProblem := reqBody.ResponseFormat != nil &&
-				(strings.Contains(bodyLower, "response_format") || bodyEmpty)
-			// 仅后端拒绝已发送字段时才降级
-			reasoningProblem := reqBody.ReasoningEffort != "" &&
-				(strings.Contains(bodyLower, "reasoning_effort") || bodyEmpty)
-			if formatProblem || reasoningProblem {
-				s.logger.Warnf("AI API HTTP 400，疑似后端不支持 response_format/reasoning_effort 字段，降级重试 (provider=%s, credential=%s): %s",
-					cfg.ActiveProvider, credential, truncateForLog(string(respBody), 200))
-				if formatProblem {
-					if reqBody.ResponseFormat.Type == "json_schema" {
-						// json_schema 不被支持：降级为 json_object 再试
-						reqBody.ResponseFormat = &ChatCompletionResponseFormat{Type: "json_object"}
-					} else {
-						// json_object 也不被支持：去掉该字段纯 prompt 重试
-						reqBody.ResponseFormat = nil
-					}
-				}
-				// reasoning_effort 被拒（如旧 o 系不认 none）时剥离重试，
-				// 上层解析容错兜底思考开启导致的形状漂移
-				if reasoningProblem {
-					reqBody.ReasoningEffort = ""
-				}
-				bodyBytes, err = json.Marshal(reqBody)
-				if err != nil {
-					return "", fmt.Errorf("序列化请求失败: %w", err)
-				}
-				continue
-			}
-		}
-
-		retryable := resp.StatusCode == http.StatusTooManyRequests ||
-			resp.StatusCode == http.StatusServiceUnavailable ||
-			resp.StatusCode == http.StatusBadGateway ||
-			resp.StatusCode == http.StatusGatewayTimeout ||
-			(resp.StatusCode >= 500 && resp.StatusCode < 600)
-
-		if retryable && attempt < maxAttempts {
-			wait := backoffDuration(attempt, retryAfter)
-			s.logger.Warnf("AI API HTTP %d (provider=%s, credential=%s)，%v 后重试 (第 %d/%d 次, 触发全局冷却): %s",
-				resp.StatusCode, cfg.ActiveProvider, credential, wait, attempt, maxAttempts, truncateForLog(string(respBody), 200))
+	// 传输层统一处理重试/退避/400 降级/限流冷却；此处只保留业务语义（预算、用量、空内容判定）。
+	resp, transportErr := doChatTransport(context.Background(), s.client, chatTransportRequest{
+		URL:           apiURL,
+		Authorization: authorization,
+		MaxAttempts:   maxAttempts,
+		RateLimit:     s.rateLimit,
+		OnRetry: func(wait time.Duration, reason string) {
 			// 关键：写入全局冷却闸，所有并发请求（包括其他 worker）会在 rateLimit() 一起等
-			s.triggerCooldown(wait, fmt.Sprintf("HTTP %d", resp.StatusCode))
-			continue
+			s.triggerCooldown(wait, reason)
+		},
+		BuildBody: func() ([]byte, error) {
+			body, err := json.Marshal(reqBody)
+			if err != nil {
+				return nil, fmt.Errorf("序列化请求失败: %w", err)
+			}
+			return body, nil
+		},
+		OnClientError: func(_ int, respBody []byte) bool {
+			// HTTP 400 兜底：少数严格的 OpenAI 兼容后端会不识别/拒绝 response_format 或 reasoning_effort 字段。
+			// 分层降级：json_schema → json_object → 纯 prompt（每次 400 只降级一级），
+			// 结构化任务退化为纯 prompt 时由上层解析容错。
+			// 仅当 400 与 response_format / reasoning_effort 相关（响应体提及对应字段，或响应体为空无法判断）时降级；
+			// 无关的 400（缺 model 等）直接走错误路径，避免多耗往返。
+			// 仅后端拒绝已发送字段时才降级
+			formatProblem := reqBody.ResponseFormat != nil && rejectsRequestField(respBody, "response_format")
+			reasoningProblem := reqBody.ReasoningEffort != "" && rejectsRequestField(respBody, "reasoning_effort")
+			if !formatProblem && !reasoningProblem {
+				return false
+			}
+			if formatProblem {
+				if reqBody.ResponseFormat.Type == "json_schema" {
+					// json_schema 不被支持：降级为 json_object 再试
+					reqBody.ResponseFormat = &ChatCompletionResponseFormat{Type: "json_object"}
+				} else {
+					// json_object 也不被支持：去掉该字段纯 prompt 重试
+					reqBody.ResponseFormat = nil
+				}
+			}
+			// reasoning_effort 被拒（如旧 o 系不认 none）时剥离重试，
+			// 上层解析容错兜底思考开启导致的形状漂移
+			if reasoningProblem {
+				reqBody.ReasoningEffort = ""
+			}
+			return true
+		},
+		NewNetworkError: func(err error) error { return fmt.Errorf("AI API 请求失败: %w", err) },
+		NewReadError:    func(err error) error { return fmt.Errorf("读取响应失败: %w", err) },
+		Logger:          s.logger,
+		LogFields:       []any{"provider", cfg.ActiveProvider, "model", model, "credential", credential},
+	})
+	if transportErr != nil {
+		var statusErr *chatTransportStatusError
+		if errors.As(transportErr, &statusErr) {
+			// 400 降级次数耗尽：记录错误并按状态码/响应体通知路由器切换。
+			s.logger.Warnf("AI API 返回错误 (provider=%s, credential=%s, HTTP %d): %s",
+				cfg.ActiveProvider, credential, statusErr.StatusCode, string(statusErr.Body))
+			s.addErrorLog("chat_completion", transportErr, 0)
+			if s.router != nil {
+				s.router.MarkFailure(cfg.ActiveProvider, statusErr.StatusCode, string(statusErr.Body))
+			}
+			return "", transportErr
 		}
+		s.addErrorLog("chat_completion", transportErr, 0)
+		// 重试后仍失败（网络错误路径），同样平衡给 router
+		if s.router != nil {
+			s.router.MarkFailure(cfg.ActiveProvider, 0, transportErr.Error())
+		}
+		return "", transportErr
+	}
 
-		// 不可重试 / 已达上限
+	if resp.StatusCode != http.StatusOK {
+		errMsg := fmt.Errorf("AI API 返回 HTTP %d", resp.StatusCode)
 		s.logger.Warnf("AI API 返回错误 (provider=%s, credential=%s, HTTP %d): %s",
-			cfg.ActiveProvider, credential, resp.StatusCode, string(respBody))
+			cfg.ActiveProvider, credential, resp.StatusCode, string(resp.Body))
 		s.addErrorLog("chat_completion", errMsg, 0)
 		// 通知路由器试图切换（这里不另外重试，避免双重试逻辑交叉）
 		if s.router != nil {
-			s.router.MarkFailure(cfg.ActiveProvider, resp.StatusCode, string(respBody))
+			s.router.MarkFailure(cfg.ActiveProvider, resp.StatusCode, string(resp.Body))
 		}
 		return "", errMsg
 	}
 
-	if lastErr == nil {
-		lastErr = fmt.Errorf("AI 调用失败（未知原因）")
+	var chatResp ChatCompletionResponse
+	if err := json.Unmarshal(resp.Body, &chatResp); err != nil {
+		return "", fmt.Errorf("解析 AI 响应失败: %w", err)
 	}
-	s.addErrorLog("chat_completion", lastErr, 0)
-	// 重试后仍失败（网络错误路径），同样平衡给 router
+	if len(chatResp.Choices) == 0 {
+		return "", fmt.Errorf("AI 未返回任何结果")
+	}
+	s.incrementCount()
+	s.tokenMu.Lock()
+	s.totalPromptTokens += chatResp.Usage.PromptTokens
+	s.totalCompletionTokens += chatResp.Usage.CompletionTokens
+	s.tokenMu.Unlock()
+	result := strings.TrimSpace(chatResp.Choices[0].Message.Content)
+	reasoning := chatResp.Choices[0].Message.reasoningText()
+	finishReason := chatResp.Choices[0].FinishReason
+	// 原始响应随成功日志一并输出（同一行单次写入，减少并发交错），
+	// 便于 debug 时观察模型格式漂移（XML 函数调用 / 截断 / 伪 JSON 等）。
+	// 同时输出 finish_reason 与思考内容长度：content 为空时这两项才能定位原因。
+	s.logger.Debugf("AI 调用成功 (provider=%s, model=%s, credential=%s, tokens: %d+%d=%d, attempt=%d, finish=%s, reasoning_len=%d) 原始响应: %s",
+		cfg.ActiveProvider, model, credential,
+		chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, chatResp.Usage.TotalTokens, resp.Attempt,
+		finishReason, len(reasoning), truncateForLog(result, 500))
+	// 通知路由器记录用量
 	if s.router != nil {
-		s.router.MarkFailure(cfg.ActiveProvider, 0, lastErr.Error())
+		s.router.MarkSuccess(cfg.ActiveProvider, model,
+			chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens, 0, "chat_completion")
 	}
-	return "", lastErr
+	// 空 content 提前拦下：直接报"空内容"而不是把空串交给上层做 JSON 解析
+	// （否则上层只会得到 "unexpected end of JSON input" 这种看不出原因的报错）
+	if result == "" {
+		s.logger.Warnf("AI 返回空内容 (provider=%s, model=%s, finish_reason=%s, completion_tokens=%d/%d, reasoning_len=%d, reasoning: %s, raw: %s)",
+			cfg.ActiveProvider, model, finishReason,
+			chatResp.Usage.CompletionTokens, maxTokens, len(reasoning),
+			truncateForLog(reasoning, 300), truncateForLog(string(resp.Body), 600))
+		hint := "输出为空"
+		switch {
+		case finishReason == "length":
+			hint = "输出被 max_tokens 截断（思考模型把预算全用在思维链上，正文未产出）；请为该调用关闭思考或提高 max_tokens"
+		case len(reasoning) > 0:
+			hint = "content 为空但存在思考内容（后端把思考放在了 reasoning/reasoning_content，正文未产出）"
+		}
+		return "", fmt.Errorf("AI 返回空内容：%s（finish_reason=%s, completion_tokens=%d/%d）",
+			hint, finishReason, chatResp.Usage.CompletionTokens, maxTokens)
+	}
+	return result, nil
 }
 
 // backoffDuration 计算重试退避时长。
