@@ -10,9 +10,24 @@ import (
 
 // TestEnvOverridesShardConfig 验证：设置非空环境变量时，config/ 分片文件不应覆盖 env。
 // 这是配置优先级"env 最高"承诺的回归测试——分片文件用 viper.Set 写入会吞掉 env。
+
+// clearDatabaseEnv 清空 VCINE_DATABASE_* 环境变量（env 优先级高于分片文件）。
+// t.Setenv 会在测试结束后还原原值。
+func clearDatabaseEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{
+		"VCINE_DATABASE_HOST", "VCINE_DATABASE_PORT", "VCINE_DATABASE_USER",
+		"VCINE_DATABASE_PASSWORD", "VCINE_DATABASE_DBNAME", "VCINE_DATABASE_SSLMODE",
+		"VCINE_DATABASE_TIMEZONE",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
 func TestEnvOverridesShardConfig(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(viper.Reset)
+	clearDatabaseEnv(t)
 
 	tempDir := t.TempDir()
 	mainBody := `
@@ -134,6 +149,7 @@ timezone: Asia/Shanghai
 func TestShardConfigUsedWithoutEnv(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(viper.Reset)
+	clearDatabaseEnv(t)
 
 	tempDir := t.TempDir()
 	mainBody := `

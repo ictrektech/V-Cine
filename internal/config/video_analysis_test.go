@@ -92,16 +92,8 @@ video_analysis:
 
 func TestUpdateVideoAnalysisConfigPersists(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWorkingDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldWorkingDir) })
-
 	cfg := &Config{}
+	cfg.SetSaveDir(tempDir)
 	if err := cfg.UpdateVideoAnalysisConfig(func(v *VideoAnalysisConfig) {
 		v.Enabled = true
 		v.SceneBaseURL = "http://scene:8910"
@@ -116,7 +108,7 @@ func TestUpdateVideoAnalysisConfigPersists(t *testing.T) {
 		t.Fatalf("unexpected updated config: %+v", cfg.VideoAnalysis)
 	}
 
-	data, err := os.ReadFile(filepath.Join(tempDir, "config", "video_analysis.yaml"))
+	data, err := os.ReadFile(filepath.Join(tempDir, "video_analysis.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,21 +119,13 @@ func TestUpdateVideoAnalysisConfigPersists(t *testing.T) {
 
 func TestUpdateVideoAnalysisConfigRollsBackOnSaveError(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWorkingDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldWorkingDir) })
-
 	// 让目标“文件”是一个目录，使 WriteFile 失败，验证内存回滚。
-	if err := os.MkdirAll(filepath.Join(tempDir, "config", "video_analysis.yaml"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tempDir, "video_analysis.yaml"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	cfg := &Config{}
+	cfg.SetSaveDir(tempDir)
 	if err := cfg.UpdateVideoAnalysisConfig(func(v *VideoAnalysisConfig) {
 		v.Enabled = true
 	}); err == nil {

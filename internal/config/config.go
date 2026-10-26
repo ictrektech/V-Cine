@@ -687,6 +687,9 @@ type ObservabilityConfig struct {
 type Config struct {
 	mu sync.RWMutex `mapstructure:"-"`
 
+	// saveDir 配置分片文件的落盘目录；空表示按 sectionDirs 探测。
+	saveDir string `mapstructure:"-"`
+
 	// 子模块配置
 	Database      DatabaseConfig      `mapstructure:"database"`
 	Secrets       SecretsConfig       `mapstructure:"secrets"`

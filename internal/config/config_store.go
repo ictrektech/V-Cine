@@ -62,7 +62,7 @@ func SaveSection[T any](c *Config, sectionName, fileName string, snapshot func()
 	}
 
 	// 2. 找到目标分片文件路径（优先保证可写，找不到则用默认 ./config/fileName）
-	targetFile := findWritableSectionFile(fileName)
+	targetFile := c.sectionFileTarget(fileName)
 
 	// 3. 写入文件（直接写扁平字段，不包裹 sectionName）
 	if err := os.MkdirAll(filepath.Dir(targetFile), 0o755); err != nil {
@@ -114,6 +114,22 @@ func saveSecretsShard(c *Config) error {
 //  3. 兜底返回默认路径 ./config/fileName（保持旧行为，由调用方报出原始错误）
 //
 // 权限位不可靠（跨挂载 uid 漂移时 owner 位无意义），故以实际打开探测为准。
+// sectionFileTarget 返回分片文件的落盘路径：saveDir 非空时用它，否则按 sectionDirs 探测。
+// 调用方必须已持有 c.mu（SaveSection 在锁内调用），因此这里不加锁。
+func (c *Config) sectionFileTarget(fileName string) string {
+	if dir := strings.TrimSpace(c.saveDir); dir != "" {
+		return filepath.Join(dir, fileName)
+	}
+	return findWritableSectionFile(fileName)
+}
+
+// SetSaveDir 设置分片配置文件落盘目录；传入空串恢复 sectionDirs 探测。
+func (c *Config) SetSaveDir(dir string) {
+	c.mu.Lock()
+	c.saveDir = strings.TrimSpace(dir)
+	c.mu.Unlock()
+}
+
 func findWritableSectionFile(fileName string) string {
 	for _, dir := range sectionDirs {
 		p := filepath.Join(dir, fileName)

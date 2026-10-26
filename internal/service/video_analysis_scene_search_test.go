@@ -68,7 +68,9 @@ func setupSceneSearchService(t *testing.T, fakeVRouter *httptest.Server) (*Video
 		t.Fatal(err)
 	}
 	embClient, err := NewEmbeddingProvider(config.EmbeddingAIConfig{
-		APIBase: fakeVRouter.URL,
+		// v-router 客户端的 baseURL 含 /v1 后缀（doProbe 请求 baseURL+/models），
+		// 与生产配置 api_base 形态一致；fake server 也只注册了 /v1/models。
+		APIBase: fakeVRouter.URL + "/v1",
 		Model:   "ml-server/ViT-B-16-SigLIP2__webli",
 	}, nil)
 	if err != nil {
