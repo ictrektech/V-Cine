@@ -16,8 +16,8 @@ import (
 // DB 场景向量列（Embedding / DescriptionEmbedding）为 768 维 float32。
 const clipEmbeddingDim = 768
 
-// defaultVRouterModel embedding 模型默认值（model 留空时兜底）
-const defaultVRouterModel = "ml-server/ViT-B-16-SigLIP2__webli"
+// defaultVSchedulerModel embedding 模型默认值（model 留空时兜底）
+const defaultVSchedulerModel = "ml-server/ViT-B-16-SigLIP2__webli"
 
 // probeCacheTTL Probe 探测结果缓存时长（避免每次调用都打 /v1/models）
 const probeCacheTTL = 30 * time.Second
@@ -34,7 +34,7 @@ type EmbeddingProvider interface {
 	ComputeTextEmbedding(ctx context.Context, text string) ([]float64, error)
 	// IsAvailable 配置级可用性：纯内存判断（baseURL/model 非空），热路径零网络开销
 	IsAvailable() bool
-	// Probe 健康 / 模型可用性探测：查 v-router /v1/models 确认模型在列表中。
+	// Probe 健康 / 模型可用性探测：查 v-scheduler /v1/models 确认模型在列表中。
 	// 结果带短 TTL 缓存，供健康展示与调用前生成明确报错。
 	Probe(ctx context.Context) EmbeddingProbe
 }
@@ -63,9 +63,9 @@ func NewEmbeddingProvider(cfg config.EmbeddingAIConfig, desensitize func(string)
 	}
 	model := strings.TrimSpace(cfg.Model)
 	if model == "" {
-		model = defaultVRouterModel
+		model = defaultVSchedulerModel
 	}
-	return newVRouterClient(
+	return newVSchedulerClient(
 		apiBase,
 		model,
 		strings.TrimSpace(cfg.APIKey),

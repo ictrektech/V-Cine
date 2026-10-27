@@ -237,7 +237,7 @@ func (h *VideoAnalysisHandler) GetHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": h.service.GetHealth(c.Request.Context())})
 }
 
-// ModelHubStatus 查询一个 V-Router 模型名（model-hub/xxx）在 Model Hub 的下载状态。
+// ModelHubStatus 查询一个 V-Scheduler 模型名（model-hub/xxx）在 Model Hub 的下载状态。
 // 用途：describe 阶段因模型缺失失败时，前端据此展示下载入口与进度。
 func (h *VideoAnalysisHandler) ModelHubStatus(c *gin.Context) {
 	model := strings.TrimSpace(c.Query("model"))

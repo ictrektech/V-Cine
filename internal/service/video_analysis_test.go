@@ -461,7 +461,7 @@ func TestVideoAnalysisServiceProcessesDescribeWhenEnabled(t *testing.T) {
 }
 
 func TestVideoAnalysisServiceDescribeCredentialInjection(t *testing.T) {
-	// 自定义场景描述模型（vrouter 网关、无 key）的凭证注入语义（回归 401 问题）：
+	// 自定义场景描述模型（vscheduler 网关、无 key）的凭证注入语义（回归 401 问题）：
 	// 无 VOS 登录态 → 注入空 key（worker 省略 Authorization 头匿名调用，网关默认放行）；
 	// 有 VOS 登录态 → 转发 token 做用量归属。绝不能填占位假 key——网关对任何带
 	// Authorization 头的请求都强制校验，假 key 必然 401（invalid or missing gateway Key）。
@@ -469,14 +469,14 @@ func TestVideoAnalysisServiceDescribeCredentialInjection(t *testing.T) {
 	describeCfg := &config.Config{}
 	describeCfg.VideoAnalysis.MediaBaseURL = "http://nowen-video:8080"
 	describeCfg.AI.Providers = []config.AIProviderEntry{{
-		ID:      "vrouter",
-		Name:    "V-Router",
-		APIBase: "http://v-router:8080/v1",
+		ID:      "vscheduler",
+		Name:    "V-Scheduler",
+		APIBase: "http://v-scheduler:8080/v1",
 		Models:  []config.AIModelEntry{{Name: "model-hub/minicpm-v4.6:latest", IsVision: true}},
 		Enabled: true,
 	}}
-	describeCfg.AI.ActiveProvider = "vrouter"
-	describeCfg.AI.SceneDescribeAI = config.SceneDescribeAIConfig{ProviderID: "vrouter", Model: "model-hub/minicpm-v4.6:latest"}
+	describeCfg.AI.ActiveProvider = "vscheduler"
+	describeCfg.AI.SceneDescribeAI = config.SceneDescribeAIConfig{ProviderID: "vscheduler", Model: "model-hub/minicpm-v4.6:latest"}
 
 	service, _, mediaID := setupVideoAnalysisService(t, client)
 	service.appCfg = describeCfg
@@ -567,7 +567,7 @@ func TestVideoAnalysisServiceDescribeJobFailedMarksPartialAndClaims(t *testing.T
 }
 
 func TestVideoAnalysisServiceDescribeMissingModelRecordsMissingModel(t *testing.T) {
-	// describe job 因 V-Router 缺少模型失败（unknown model: model-hub/xxx）→
+	// describe job 因 V-Scheduler 缺少模型失败（unknown model: model-hub/xxx）→
 	// 任务 partial 且记录 missing_model，供前端展示“一键下载”入口。
 	client := &fakeVideoAnalysisClient{
 		artifact: &VideoAnalysisArtifact{

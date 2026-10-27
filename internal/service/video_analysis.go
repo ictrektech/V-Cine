@@ -255,7 +255,7 @@ type VideoAnalysisHealthInfo struct {
 	Structure        *VideoAnalysisHealth `json:"structure,omitempty"`
 	SceneError       string               `json:"scene_error,omitempty"`
 	StructureError   string               `json:"structure_error,omitempty"`
-	// Embedding 后端健康（V-Router → ML Server），未配置时为零值
+	// Embedding 后端健康（V-Scheduler → ML Server），未配置时为零值
 	EmbeddingMode      string `json:"embedding_mode,omitempty"`
 	EmbeddingModel     string `json:"embedding_model,omitempty"`
 	EmbeddingAvailable bool   `json:"embedding_available"`
@@ -1093,7 +1093,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		apiBase, apiKey := resolveSceneDescribeProvider(ai)
 		if apiBase != "" {
 			// worker 对空 api_key 的语义是"省略 Authorization 头"（匿名 internal 身份），
-			// V-Router 网关 REQUIRE_KEY=false（默认）时直接放行。
+			// V-Scheduler 网关 REQUIRE_KEY=false（默认）时直接放行。
 			// 绝不能填占位假 key：网关对任何带 Authorization 头的请求都会强制校验，
 			// 假 key 必然 401（"invalid or missing gateway Key / VOS access token"）。
 			// 凭证优先级：provider 配置的 key > 网关场景的 VOS 登录 token > 匿名（空 key）。
@@ -1103,7 +1103,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 					activeProviderID = ai.ActiveProvider
 				}
 				credential := "anonymous"
-				if config.IsVRouterGateway(activeProviderID, apiBase) {
+				if config.IsVSchedulerGateway(activeProviderID, apiBase) {
 					if vosToken := LatestVOSAccessToken(); vosToken != "" {
 						apiKey = vosToken
 						credential = "vos_token"
@@ -1216,7 +1216,7 @@ func describePartialError(describeJSON []byte) error {
 // extractMissingModel 从 describe 失败错误文本中提取缺失的模型名，供前端展示 Model Hub
 // 下载入口。识别两种上游回显格式：
 //
-//  1. V-Router：unknown model: model-hub/<name>（已带前缀，原样返回）
+//  1. V-Scheduler：unknown model: model-hub/<name>（已带前缀，原样返回）
 //  2. ollama / 部分 OpenAI 兼容网关：model '<name>' not found（补 model-hub/ 前缀）
 //
 // 只返回 Model Hub 可下载的名字：带 `/` 但不是 model-hub/ 前缀的、以及与模型缺失
@@ -1585,7 +1585,7 @@ func (s *VideoAnalysisService) saveScenesFromStructure(task *model.VideoAnalysis
 	return nil
 }
 
-// computeSceneEmbeddings 遍历场景九宫格图片，调用 embedding 后端（V-Router → ML Server）计算 CLIP embedding 并回写。
+// computeSceneEmbeddings 遍历场景九宫格图片，调用 embedding 后端（V-Scheduler → ML Server）计算 CLIP embedding 并回写。
 // 图片路径按搬移后的 <asset_dir>/<hash>/grids/ 解析，须在 claim 之后调用。
 func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisTask) error {
 	if s.embeddingProvider == nil || s.sceneRepo == nil {
@@ -1661,7 +1661,7 @@ func (s *VideoAnalysisService) computeSceneEmbeddings(task *model.VideoAnalysisT
 }
 
 // computeDescriptionEmbeddings 计算场景描述的文本 CLIP embedding 并回写
-// 在描述写入 DB 后调用，读取描述文本并调用 embedding 后端（V-Router → ML Server）计算文本 embedding
+// 在描述写入 DB 后调用，读取描述文本并调用 embedding 后端（V-Scheduler → ML Server）计算文本 embedding
 func (s *VideoAnalysisService) computeDescriptionEmbeddings(task *model.VideoAnalysisTask) error {
 	if s.embeddingProvider == nil || !s.embeddingProvider.IsAvailable() || s.sceneRepo == nil {
 		return nil

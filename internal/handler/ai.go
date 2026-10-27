@@ -166,7 +166,7 @@ func (h *AIHandler) EnableAutoPilot(c *gin.Context) {
 	}
 
 	// 仅切换 provider，不回填 api_base/model：预设回填会静默覆盖用户
-	// 已自定义的地址（如独立部署 vrouter 的网关 URL）。未配置的 provider
+	// 已自定义的地址（如独立部署 V-Scheduler 的网关 URL）。未配置的 provider
 	// 由调用链「未配置 API Base」可读错误兜底。
 	if req.Provider != "" {
 		updates["active_provider"] = req.Provider
@@ -418,9 +418,9 @@ func (h *AIHandler) UpdateProvider(c *gin.Context) {
 			if pr.ID != id {
 				continue
 			}
-			// 内置 vrouter 条目的连接信息由系统内置（免 key、默认网关地址），
+			// 内置网关条目的连接信息由系统内置（免 key、默认网关地址），
 			// APIBase/APIKey 不接受修改；名称、模型、启停仍可更新。
-			isBuiltIn := pr.ID == "vrouter"
+			isBuiltIn := config.IsBuiltInProviderID(pr.ID)
 			if req.Name != "" {
 				cfg.Providers[i].Name = req.Name
 			}
@@ -461,10 +461,10 @@ func (h *AIHandler) DeleteProvider(c *gin.Context) {
 		return
 	}
 
-	// 内置 vrouter 条目不可删除：它是新装默认 provider（启动种子），删除会失去零配置能力。
-	// 手动添加的 V-Router 条目（custom_ 前缀等）不受限。
-	if id == "vrouter" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "内置 V-Router 供应商不可删除"})
+	// 内置网关条目不可删除：它是新装默认 provider（启动种子），删除会失去零配置能力。
+	// 手动添加的 V-Scheduler 条目（custom_ 前缀等）不受限。
+	if config.IsBuiltInProviderID(id) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "内置 V-Scheduler 供应商不可删除"})
 		return
 	}
 
@@ -483,9 +483,9 @@ func (h *AIHandler) DeleteProvider(c *gin.Context) {
 		}
 		cfg.Providers = newProviders
 
-		// 如果删除的是当前激活的供应商，激活字段回退到内置 vrouter（默认选中）
+		// 如果删除的是当前激活的供应商，激活字段回退到内置网关（默认选中）
 		if cfg.ActiveProvider == id {
-			cfg.ActiveProvider = "vrouter"
+			cfg.ActiveProvider = config.GatewayProviderID
 			cfg.ActiveModel = ""
 		}
 	}); err != nil {

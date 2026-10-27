@@ -429,7 +429,7 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 			return nil, nil
 		}
 		// 创建 embedding 后端（可选，配置了 embedding_ai 才启用）
-		// 经 V-Router 调用 ML Server SigLIP2（模型带 ml-server/ 前缀即走 v-router 协议）
+		// 经 V-Scheduler 调用 ML Server SigLIP2（模型带 ml-server/ 前缀即走 v-scheduler 协议）
 		var embeddingProvider EmbeddingProvider
 		if cfg.AI.EmbeddingAI.APIBase != "" {
 			if ec, ecErr := NewEmbeddingProvider(cfg.AI.EmbeddingAI, func(v string) string {

@@ -22,7 +22,7 @@ import (
 // sceneHandlerDim 测试 embedding 维度
 const sceneHandlerDim = 768
 
-// newHandlerFakeEmbeddingServer 任意文本 query 返回 e0（第 0 维=1）的假 V-Router
+// newHandlerFakeEmbeddingServer 任意文本 query 返回 e0（第 0 维=1）的假 V-Scheduler
 func newHandlerFakeEmbeddingServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	queryVec := make([]float64, sceneHandlerDim)

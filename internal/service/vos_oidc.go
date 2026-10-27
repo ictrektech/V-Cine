@@ -26,7 +26,7 @@ type vosClaims struct {
 	ExpiresAt         time.Time
 }
 
-// VOS accessToken 内存存留：AI 调 V-Router 时转发做用量归属（Bearer <vos-token>）。
+// VOS accessToken 内存存留：AI 调 V-Scheduler 时转发做用量归属（Bearer <vos-token>）。
 // 仅内存不落盘；全局单例存最近一次登录者的 token（多用户下用量归集到该用户）。
 var (
 	vosTokenMu      sync.Mutex
@@ -136,7 +136,7 @@ func (s *AuthService) LoginWithVOSOIDC(token, ip, ua string) (*TokenResponse, er
 	}
 	s.updateLastLogin(user.ID, ip)
 	s.recordLogin(user.ID, user.Username, ip, ua, "vos_oidc", true)
-	// 登录成功后保留 accessToken（仅内存），供 AI 调 V-Router 时转发用量归属
+	// 登录成功后保留 accessToken（仅内存），供 AI 调 V-Scheduler 时转发用量归属
 	StoreVOSAccessToken(token, claims.ExpiresAt)
 	return s.generateToken(user)
 }

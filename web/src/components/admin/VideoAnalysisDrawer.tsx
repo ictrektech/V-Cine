@@ -23,7 +23,7 @@ interface VideoAnalysisDrawerProps {
 
 // embeddingModeLabel 后端类型 → 显示名
 const embeddingModeLabel = (mode: string): string => {
-  const labels: Record<string, string> = { vrouter: 'V-Router' }
+  const labels: Record<string, string> = { vscheduler: 'V-Scheduler' }
   return labels[mode] ?? mode
 }
 
@@ -156,7 +156,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                 <Switch checked={settings.enabled} onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })} />
               </div>
 
-              {/* 服务地址 + V-Router 视觉嵌入：分组卡片，简洁 shadcn 样式 */}
+              {/* 服务地址 + V-Scheduler 视觉嵌入：分组卡片，简洁 shadcn 样式 */}
               <section aria-disabled={gated} className={cn('space-y-3 transition-opacity', gated && 'pointer-events-none opacity-50')}>
                 <div className="rounded-lg border p-5">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">{t('va.serviceAddr')}</h3>
@@ -184,7 +184,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                   </div>
                 </div>
 
-                {/* V-Router 视觉嵌入：突出模型标识，仅表明探测可达性 */}
+                {/* V-Scheduler 视觉嵌入：突出模型标识，仅表明探测可达性 */}
                 <div className="rounded-lg border bg-muted/40 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">

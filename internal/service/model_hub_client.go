@@ -13,7 +13,7 @@ import (
 )
 
 // ModelHubClient 是 Model Hub 后端（model-hub-backend:5005）的只读/拉取客户端。
-// 视频分析 describe 阶段可能因 V-Router 缺少模型（unknown model: model-hub/xxx）
+// 视频分析 describe 阶段可能因 V-Scheduler 缺少模型（unknown model: model-hub/xxx）
 // 而失败；本客户端用于查询该模型在 Model Hub 的下载状态并触发拉取。
 type ModelHubClient struct {
 	baseURL string
@@ -51,9 +51,9 @@ type modelHubTask struct {
 	ErrorMsg        string  `json:"error_msg"`
 }
 
-// ModelHubModelStatus 描述一个 V-Router 模型名在 Model Hub 侧的下载状态。
+// ModelHubModelStatus 描述一个 V-Scheduler 模型名在 Model Hub 侧的下载状态。
 type ModelHubModelStatus struct {
-	// Requested 前端传入的 V-Router 模型名（如 model-hub/minicpm-v4.6:latest）。
+	// Requested 前端传入的 V-Scheduler 模型名（如 model-hub/minicpm-v4.6:latest）。
 	Requested string `json:"requested"`
 	// ModelID 映射后的 Model Hub model_id（如 ollama://minicpm-v4.6:latest）。
 	ModelID string `json:"model_id"`
@@ -68,7 +68,7 @@ type ModelHubModelStatus struct {
 	TaskID      string  `json:"task_id,omitempty"`
 }
 
-// resolveModelHubModelID 把 V-Router 的模型名（model-hub/xxx）映射为
+// resolveModelHubModelID 把 V-Scheduler 的模型名（model-hub/xxx）映射为
 // Model Hub 的拉取标识（ollama://xxx 或 hf://xxx / ms://xxx）。
 // 仅支持 model-hub/ 前缀的模型；其他来源（image-studio/、registered/ 等）不支持下载。
 func resolveModelHubModelID(requested string) (source, modelID string, ok bool) {

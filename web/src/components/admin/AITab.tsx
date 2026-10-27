@@ -229,9 +229,9 @@ export default function AITab() {
     setFetchedSearch('')
   }
 
-  // 网关判定：后端下发 is_gateway（config.IsVRouterGateway 唯一特征表），
+  // 网关判定：后端下发 is_gateway（config.IsVSchedulerGateway 唯一特征表），
   // 前端不再自行猜测。弹窗内表单用编辑对象的 is_gateway。
-  const isBuiltInVRouter = editingProvider?.id === 'vrouter'
+  const isBuiltInVScheduler = editingProvider?.id === 'vscheduler'
   const isGatewayForm = (): boolean => !!editingProvider?.is_gateway
 
   const handleFetchModels = async () => {
@@ -858,7 +858,7 @@ export default function AITab() {
                           {t('ait.active')}
                         </span>
                       )}
-                      {p.id === 'vrouter' && (
+                      {p.id === 'vscheduler' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-neon"
                           style={{ background: 'var(--nav-hover-bg)' }}>
                           {t('ait.builtin')}
@@ -915,8 +915,8 @@ export default function AITab() {
                   </button>
                   <button
                     onClick={() => handleDeleteProvider(p)}
-                    disabled={p.id === 'vrouter'}
-                    title={p.id === 'vrouter' ? t('ait.vrouterProtected') : undefined}
+                    disabled={p.id === 'vscheduler'}
+                    title={p.id === 'vscheduler' ? t('ait.vschedulerProtected') : undefined}
                     className="btn-ghost gap-1 px-2.5 py-1 text-xs text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Trash2 size={12} />
@@ -981,9 +981,9 @@ export default function AITab() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-theme-secondary">API Base</label>
-                {isBuiltInVRouter ? (
+                {isBuiltInVScheduler ? (
                   <p className="input w-full font-mono text-sm bg-surface-700/50 text-theme-muted cursor-not-allowed truncate">
-                    {providerForm.api_base || 'http://v-router:8080/v1'}
+                    {providerForm.api_base || 'http://v-scheduler:8080/v1'}
                   </p>
                 ) : (
                   <input
@@ -995,9 +995,9 @@ export default function AITab() {
                   />
                 )}
               </div>
-              {isBuiltInVRouter ? (
+              {isBuiltInVScheduler ? (
                 <p className="flex items-center gap-1 text-xs text-green-400">
-                  <Check size={12} /> {t('ait.vrouterHint')}
+                  <Check size={12} /> {t('ait.vschedulerHint')}
                 </p>
               ) : (
                 <div>

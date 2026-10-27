@@ -37,35 +37,35 @@ func keyfreeStubServer(t *testing.T, authHeader *string) *httptest.Server {
 	return srv
 }
 
-// TestKeyFreeVRouterEnabled 验证：vrouter 条目只配 APIBase（无 key）时 IsEnabled() 为 true。
-// 免 key 依据：V-Router REQUIRE_KEY=false（默认）时容器网络内无凭证即可调用。
-func TestKeyFreeVRouterEnabled(t *testing.T) {
+// TestKeyFreeVSchedulerEnabled 验证：vscheduler 条目只配 APIBase（无 key）时 IsEnabled() 为 true。
+// 免 key 依据：V-Scheduler REQUIRE_KEY=false（默认）时容器网络内无凭证即可调用。
+func TestKeyFreeVSchedulerEnabled(t *testing.T) {
 	app := &config.Config{AI: config.AIConfig{
 		Enabled:        true,
-		ActiveProvider: "vrouter",
+		ActiveProvider: "vscheduler",
 		Providers: []config.AIProviderEntry{{
-			ID:      "vrouter",
-			APIBase: "http://v-router:8080/v1",
+			ID:      "vscheduler",
+			APIBase: "http://v-scheduler:8080/v1",
 			APIKey:  "", // 免 key
 		}},
 	}}
 	p := NewAIConfigProvider(app)
 	if !p.IsEnabled() {
-		t.Fatal("vrouter 只配 APIBase（无 key）时 IsEnabled() 应为 true")
+		t.Fatal("vscheduler 只配 APIBase（无 key）时 IsEnabled() 应为 true")
 	}
 }
 
-// TestKeyFreeChatCompletionNoAuthHeader 验证：vrouter 无 key 调用时不发送 Authorization 头。
-// 配置模型后调用（V-Router 网关要求请求体必须带 model）。
+// TestKeyFreeChatCompletionNoAuthHeader 验证：vscheduler 无 key 调用时不发送 Authorization 头。
+// 配置模型后调用（V-Scheduler 网关要求请求体必须带 model）。
 func TestKeyFreeChatCompletionNoAuthHeader(t *testing.T) {
 	var gotAuth string
 	srv := keyfreeStubServer(t, &gotAuth)
 
 	app := &config.Config{AI: config.AIConfig{
 		Enabled:        true,
-		ActiveProvider: "vrouter",
+		ActiveProvider: "vscheduler",
 		Providers: []config.AIProviderEntry{{
-			ID:      "vrouter",
+			ID:      "vscheduler",
 			APIBase: srv.URL, // httptest 地址，无 key
 			Models:  []config.AIModelEntry{{Name: "test-model"}},
 		}},
@@ -74,7 +74,7 @@ func TestKeyFreeChatCompletionNoAuthHeader(t *testing.T) {
 
 	resp, err := svc.ChatCompletion("sys", "user", 0.1, 10)
 	if err != nil {
-		t.Fatalf("vrouter 无 key 调用应成功，实际报错: %v", err)
+		t.Fatalf("vscheduler 无 key 调用应成功，实际报错: %v", err)
 	}
 	if resp != "OK" {
 		t.Errorf("resp = %q, 期望 OK", resp)
@@ -84,16 +84,16 @@ func TestKeyFreeChatCompletionNoAuthHeader(t *testing.T) {
 	}
 }
 
-// TestChatCompletionRequiresModel 验证：vrouter 未配置模型时报可读错误，
+// TestChatCompletionRequiresModel 验证：vscheduler 未配置模型时报可读错误，
 // 而不是向网关发出无 model 的请求（会得到 400 "JSON body requires model"）。
-// 依据 V-ChatCut model-selection 语义：vrouter 无模型即不可用。
+// 依据 V-ChatCut model-selection 语义：vscheduler 无模型即不可用。
 func TestChatCompletionRequiresModel(t *testing.T) {
 	app := &config.Config{AI: config.AIConfig{
 		Enabled:        true,
-		ActiveProvider: "vrouter",
+		ActiveProvider: "vscheduler",
 		Providers: []config.AIProviderEntry{{
-			ID:      "vrouter",
-			APIBase: "http://v-router:8080/v1",
+			ID:      "vscheduler",
+			APIBase: "http://v-scheduler:8080/v1",
 		}},
 	}}
 	svc := keyfreeTestService(app)
@@ -115,9 +115,9 @@ func TestKeyFreeTestConnection(t *testing.T) {
 
 	app := &config.Config{AI: config.AIConfig{
 		Enabled:        true,
-		ActiveProvider: "vrouter",
+		ActiveProvider: "vscheduler",
 		Providers: []config.AIProviderEntry{{
-			ID:      "vrouter",
+			ID:      "vscheduler",
 			APIBase: srv.URL,
 			Models:  []config.AIModelEntry{{Name: "test-model"}},
 		}},
@@ -126,7 +126,7 @@ func TestKeyFreeTestConnection(t *testing.T) {
 
 	result, err := svc.TestConnection("")
 	if err != nil {
-		t.Fatalf("vrouter 无 key 测试连接应成功，实际报错: %v", err)
+		t.Fatalf("vscheduler 无 key 测试连接应成功，实际报错: %v", err)
 	}
 	if result["success"] != true {
 		t.Errorf("success 应为 true，实际 %v (error: %v)", result["success"], result["error"])
@@ -190,54 +190,54 @@ func TestLocalProviderKeyFreeTestConnection(t *testing.T) {
 }
 
 // TestFriendlyProviderError 验证错误解释按 provider 类别与 key 配置分流：
-// gateway 报网关专属文案；custom 空 key 报"未配置"、有 key 报"鉴权失败"，均不含 V-Router。
+// gateway 报网关专属文案；custom 空 key 报"未配置"、有 key 报"鉴权失败"，均不含 V-Scheduler。
 func TestFriendlyProviderError(t *testing.T) {
-	// custom provider：401 分空 key 与无效 key 两种文案，均不含 V-Router
+	// custom provider：401 分空 key 与无效 key 两种文案，均不含 V-Scheduler
 	got := friendlyProviderError(false, false, http.StatusUnauthorized, `{"error":"invalid api key"}`)
-	if got == "" || !strings.Contains(got, "未配置 API Key") || strings.Contains(got, "V-Router") {
-		t.Errorf("custom 空 key 401 应报「未配置 API Key」且不含 V-Router，实际: %s", got)
+	if got == "" || !strings.Contains(got, "未配置 API Key") || strings.Contains(got, "V-Scheduler") {
+		t.Errorf("custom 空 key 401 应报「未配置 API Key」且不含 V-Scheduler，实际: %s", got)
 	}
 	got = friendlyProviderError(false, true, http.StatusUnauthorized, `{"error":"invalid api key"}`)
-	if got == "" || !strings.Contains(got, "鉴权失败") || strings.Contains(got, "V-Router") {
-		t.Errorf("custom 有 key 401 应报「鉴权失败」且不含 V-Router，实际: %s", got)
+	if got == "" || !strings.Contains(got, "鉴权失败") || strings.Contains(got, "V-Scheduler") {
+		t.Errorf("custom 有 key 401 应报「鉴权失败」且不含 V-Scheduler，实际: %s", got)
 	}
-	// 非网关的 400 "requires model"：不套 V-Router 文案，沿用原始错误
+	// 非网关的 400 "requires model"：不套 V-Scheduler 文案，沿用原始错误
 	if got := friendlyProviderError(false, true, http.StatusBadRequest, `body requires model`); got != "" {
 		t.Errorf("非网关 provider 400 不应套网关文案，实际: %s", got)
 	}
 	// gateway：id 或 APIBase 任一特征命中即报网关专属文案
 	for _, tc := range [][2]string{
-		{"vrouter", ""},
-		{"custom_v-router", ""},
-		{"任意命名", "http://v-router:8080/v1"},
+		{"vscheduler", ""},
+		{"custom_v-scheduler", ""},
+		{"任意命名", "http://v-scheduler:8080/v1"},
 		{"任意命名", "http://172.17.0.1:22888/v1"},
 	} {
 		got := friendlyProviderError(true, false, http.StatusUnauthorized, "")
-		if got == "" || !strings.Contains(got, "V-Router") {
-			t.Errorf("网关 %v 401 应报 V-Router 文案，实际: %s", tc, got)
+		if got == "" || !strings.Contains(got, "V-Scheduler") {
+			t.Errorf("网关 %v 401 应报 V-Scheduler 文案，实际: %s", tc, got)
 		}
 	}
 }
 
-// TestBlockLocalAIExemptsVRouter 验证：BlockLocalAI=true 时 vrouter 不被"禁止本地 AI"拦截。
-// V-Router 是云模型网关，APIBase 为私网 IP（宿主机端口模式）也不代表本地推理。
-func TestBlockLocalAIExemptsVRouter(t *testing.T) {
+// TestBlockLocalAIExemptsVScheduler 验证：BlockLocalAI=true 时 vscheduler 不被"禁止本地 AI"拦截。
+// V-Scheduler 是云模型网关，APIBase 为私网 IP（宿主机端口模式）也不代表本地推理。
+func TestBlockLocalAIExemptsVScheduler(t *testing.T) {
 	var gotAuth string
 	srv := keyfreeStubServer(t, &gotAuth) // httptest 监听 127.0.0.1，必命中本地地址特征
 
 	app := &config.Config{AI: config.AIConfig{
 		Enabled:        true,
 		BlockLocalAI:   true,
-		ActiveProvider: "vrouter",
+		ActiveProvider: "vscheduler",
 		Providers: []config.AIProviderEntry{{
-			ID:      "vrouter",
+			ID:      "vscheduler",
 			APIBase: srv.URL,
 			Models:  []config.AIModelEntry{{Name: "test-model"}},
 		}},
 	}}
 	svc := keyfreeTestService(app)
 	if _, err := svc.ChatCompletion("sys", "user", 0.1, 10); err != nil {
-		t.Fatalf("BlockLocalAI=true 时 vrouter 不应被拦截，实际报错: %v", err)
+		t.Fatalf("BlockLocalAI=true 时 vscheduler 不应被拦截，实际报错: %v", err)
 	}
 }
 
@@ -266,9 +266,9 @@ func TestChatCompletionJSONSchemaLayeredFallback(t *testing.T) {
 
 	app := &config.Config{AI: config.AIConfig{
 		Enabled:        true,
-		ActiveProvider: "vrouter",
+		ActiveProvider: "vscheduler",
 		Providers: []config.AIProviderEntry{{
-			ID:      "vrouter",
+			ID:      "vscheduler",
 			APIBase: srv.URL,
 			Models:  []config.AIModelEntry{{Name: "test-model"}},
 		}},
@@ -309,9 +309,9 @@ func TestChatCompletionReasoningEffortRejectedStripped(t *testing.T) {
 
 	app := &config.Config{AI: config.AIConfig{
 		Enabled:        true,
-		ActiveProvider: "vrouter",
+		ActiveProvider: "vscheduler",
 		Providers: []config.AIProviderEntry{{
-			ID:      "vrouter",
+			ID:      "vscheduler",
 			APIBase: srv.URL,
 			Models:  []config.AIModelEntry{{Name: "test-model"}},
 		}},

@@ -18,27 +18,27 @@ import (
 	"github.com/nowen-video/nowen-video/internal/config"
 )
 
-// vrouterTestVec 构造 dim 维测试向量（第 pos 维 = 1，其余 0）
-func vrouterTestVec(pos int) []float64 {
+// vschedulerTestVec 构造 dim 维测试向量（第 pos 维 = 1，其余 0）
+func vschedulerTestVec(pos int) []float64 {
 	vec := make([]float64, clipEmbeddingDim)
 	vec[pos] = 1
 	return vec
 }
 
-// fakeVRouter 记录最后一次请求的 model / 文本 / 图片字节，
+// fakeVScheduler 记录最后一次请求的 model / 文本 / 图片字节，
 // 并统计 /models 被调用次数。
-type fakeVRouter struct {
+type fakeVScheduler struct {
 	modelsCalls int32
 	lastModel   string
 	lastText    string
 	lastImage   []byte
 }
 
-// newFakeVRouter 起一个假 v-router：/models 返回 models 列表，/embeddings 返回 queryVec，
+// newFakeVScheduler 起一个假 v-scheduler：/models 返回 models 列表，/embeddings 返回 queryVec，
 // /ml/predictions 解析 multipart 并返回 clip 字符串向量。
-func newFakeVRouter(t *testing.T, models []string, queryVec []float64) (*httptest.Server, *fakeVRouter) {
+func newFakeVScheduler(t *testing.T, models []string, queryVec []float64) (*httptest.Server, *fakeVScheduler) {
 	t.Helper()
-	f := &fakeVRouter{}
+	f := &fakeVScheduler{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/models":
@@ -84,9 +84,9 @@ func newFakeVRouter(t *testing.T, models []string, queryVec []float64) (*httptes
 	return srv, f
 }
 
-func TestVRouterClientComputeTextEmbedding(t *testing.T) {
-	srv, f := newFakeVRouter(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vrouterTestVec(0))
-	c := newVRouterClient(
+func TestVSchedulerClientComputeTextEmbedding(t *testing.T) {
+	srv, f := newFakeVScheduler(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vschedulerTestVec(0))
+	c := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -112,12 +112,12 @@ func TestVRouterClientComputeTextEmbedding(t *testing.T) {
 	}
 }
 
-func TestVRouterClientComputeImageEmbedding(t *testing.T) {
+func TestVSchedulerClientComputeImageEmbedding(t *testing.T) {
 	imgBytes := []byte("fake-image-content")
-	srv, f := newFakeVRouter(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vrouterTestVec(2))
+	srv, f := newFakeVScheduler(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vschedulerTestVec(2))
 	var desensitized string
 	// 脱敏回调返回纯 base64（真实脱敏服务返回 image_base64 裸串形态）→ 验证 dataURLToBytes 容错
-	c := newVRouterClient(
+	c := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -151,9 +151,9 @@ func TestVRouterClientComputeImageEmbedding(t *testing.T) {
 	}
 }
 
-func TestVRouterClientProbeModelMissing(t *testing.T) {
-	srv, _ := newFakeVRouter(t, []string{"ml-server/qwen3-embedding-0.6b"}, vrouterTestVec(0))
-	c := newVRouterClient(
+func TestVSchedulerClientProbeModelMissing(t *testing.T) {
+	srv, _ := newFakeVScheduler(t, []string{"ml-server/qwen3-embedding-0.6b"}, vschedulerTestVec(0))
+	c := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -173,8 +173,8 @@ func TestVRouterClientProbeModelMissing(t *testing.T) {
 	}
 }
 
-func TestVRouterClientProbeUnreachable(t *testing.T) {
-	c := newVRouterClient(
+func TestVSchedulerClientProbeUnreachable(t *testing.T) {
+	c := newVSchedulerClient(
 		"http://127.0.0.1:1/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -190,9 +190,9 @@ func TestVRouterClientProbeUnreachable(t *testing.T) {
 	}
 }
 
-func TestVRouterClientProbeCache(t *testing.T) {
-	srv, f := newFakeVRouter(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vrouterTestVec(0))
-	c := newVRouterClient(
+func TestVSchedulerClientProbeCache(t *testing.T) {
+	srv, f := newFakeVScheduler(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vschedulerTestVec(0))
+	c := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -216,10 +216,10 @@ func TestVRouterClientProbeCache(t *testing.T) {
 	}
 }
 
-func TestVRouterClientDimensionMismatch(t *testing.T) {
+func TestVSchedulerClientDimensionMismatch(t *testing.T) {
 	vec := make([]float64, 3)
-	srv, _ := newFakeVRouter(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vec)
-	c := newVRouterClient(
+	srv, _ := newFakeVScheduler(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vec)
+	c := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -231,7 +231,7 @@ func TestVRouterClientDimensionMismatch(t *testing.T) {
 	}
 }
 
-func TestVRouterClientAuthHeader(t *testing.T) {
+func TestVSchedulerClientAuthHeader(t *testing.T) {
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/models" {
@@ -242,7 +242,7 @@ func TestVRouterClientAuthHeader(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	c := newVRouterClient(
+	c := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"sk-gateway-key",
@@ -255,9 +255,9 @@ func TestVRouterClientAuthHeader(t *testing.T) {
 	}
 }
 
-// TestVRouterClientVOSTokenInjection 验证凭证源是注入的（依赖抽象而非全局单例）：
+// TestVSchedulerClientVOSTokenInjection 验证凭证源是注入的（依赖抽象而非全局单例）：
 // 未配 api_key 时转发注入的 VOS token。
-func TestVRouterClientVOSTokenInjection(t *testing.T) {
+func TestVSchedulerClientVOSTokenInjection(t *testing.T) {
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/models" {
@@ -268,7 +268,7 @@ func TestVRouterClientVOSTokenInjection(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	c := newVRouterClient(
+	c := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -282,21 +282,21 @@ func TestVRouterClientVOSTokenInjection(t *testing.T) {
 }
 
 func TestNewEmbeddingProvider(t *testing.T) {
-	// 合法配置 → vRouterClient
-	p1, err := NewEmbeddingProvider(config.EmbeddingAIConfig{APIBase: "http://v-router:8080/v1", Model: "ml-server/ViT-B-16-SigLIP2__webli"}, nil)
+	// 合法配置 → vSchedulerClient
+	p1, err := NewEmbeddingProvider(config.EmbeddingAIConfig{APIBase: "http://v-scheduler:8080/v1", Model: "ml-server/ViT-B-16-SigLIP2__webli"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := p1.(*vRouterClient); !ok {
-		t.Fatalf("expected vRouterClient, got %T", p1)
+	if _, ok := p1.(*vSchedulerClient); !ok {
+		t.Fatalf("expected vSchedulerClient, got %T", p1)
 	}
 	// model 留空 → 兜底默认模型
-	p2, err := NewEmbeddingProvider(config.EmbeddingAIConfig{APIBase: "http://v-router:8080/v1"}, nil)
+	p2, err := NewEmbeddingProvider(config.EmbeddingAIConfig{APIBase: "http://v-scheduler:8080/v1"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if vr, ok := p2.(*vRouterClient); !ok || vr.model != defaultVRouterModel {
-		t.Fatalf("default model = %q, want %q", vr.model, defaultVRouterModel)
+	if vr, ok := p2.(*vSchedulerClient); !ok || vr.model != defaultVSchedulerModel {
+		t.Fatalf("default model = %q, want %q", vr.model, defaultVSchedulerModel)
 	}
 	// 空 api_base 报错（地址即开关）
 	if _, err := NewEmbeddingProvider(config.EmbeddingAIConfig{}, nil); err == nil {
@@ -317,20 +317,20 @@ func TestDataURLToBytes(t *testing.T) {
 	}
 }
 
-// TestVRouterClientResponseTooLarge 响应超过上限时报明确错误，而不是静默截断后报 JSON 解析失败
-func TestVRouterClientResponseTooLarge(t *testing.T) {
+// TestVSchedulerClientResponseTooLarge 响应超过上限时报明确错误，而不是静默截断后报 JSON 解析失败
+func TestVSchedulerClientResponseTooLarge(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/models":
 			_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": []map[string]string{{"id": "ml-server/ViT-B-16-SigLIP2__webli"}}})
 		case "/v1/embeddings":
-			_, _ = w.Write(bytes.Repeat([]byte("a"), vRouterMaxBody+1)) // 超过 4MiB 上限
+			_, _ = w.Write(bytes.Repeat([]byte("a"), vSchedulerMaxBody+1)) // 超过 4MiB 上限
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	t.Cleanup(srv.Close)
-	c := newVRouterClient(
+	c := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -345,8 +345,8 @@ func TestVRouterClientResponseTooLarge(t *testing.T) {
 // TestVideoAnalysisServiceGetHealthShowsEmbeddingWhenServiceUnavailable
 // 视频分析主服务不可用（Available=false）时，embedding 健康仍应被探测并返回
 func TestVideoAnalysisServiceGetHealthShowsEmbeddingWhenServiceUnavailable(t *testing.T) {
-	srv, _ := newFakeVRouter(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vrouterTestVec(0))
-	ec := newVRouterClient(
+	srv, _ := newFakeVScheduler(t, []string{"ml-server/ViT-B-16-SigLIP2__webli"}, vschedulerTestVec(0))
+	ec := newVSchedulerClient(
 		srv.URL+"/v1",
 		"ml-server/ViT-B-16-SigLIP2__webli",
 		"",
@@ -358,7 +358,7 @@ func TestVideoAnalysisServiceGetHealthShowsEmbeddingWhenServiceUnavailable(t *te
 	if info.Available {
 		t.Fatal("expected service unavailable")
 	}
-	if info.EmbeddingMode != "vrouter" || info.EmbeddingModel == "" || !info.EmbeddingAvailable || info.EmbeddingError != "" {
+	if info.EmbeddingMode != "vscheduler" || info.EmbeddingModel == "" || !info.EmbeddingAvailable || info.EmbeddingError != "" {
 		t.Fatalf("embedding health must be reported even when service unavailable: %+v", info)
 	}
 }

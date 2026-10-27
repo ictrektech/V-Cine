@@ -489,11 +489,11 @@ func TestDescribeLocalClientRebuildsOnConfigChange(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.SetSaveDir(t.TempDir())
 	cfg.AI.Providers = []config.AIProviderEntry{{
-		ID: "vrouter", Name: "V-Router", APIBase: "http://v-router:8080/v1", Enabled: true,
+		ID: "vscheduler", Name: "V-Scheduler", APIBase: "http://v-scheduler:8080/v1", Enabled: true,
 		Models: []config.AIModelEntry{{Name: "model-hub/test-vlm", IsVision: true}},
 	}}
-	cfg.AI.ActiveProvider = "vrouter"
-	cfg.AI.SceneDescribeAI = config.SceneDescribeAIConfig{ProviderID: "vrouter", Model: "model-hub/test-vlm"}
+	cfg.AI.ActiveProvider = "vscheduler"
+	cfg.AI.SceneDescribeAI = config.SceneDescribeAIConfig{ProviderID: "vscheduler", Model: "model-hub/test-vlm"}
 	svc := &VideoAnalysisService{appCfg: cfg, sceneDescriptionStore: &fakeSceneStore{}}
 
 	first, ok := svc.describeLocalClient().(*openAIVisionClient)

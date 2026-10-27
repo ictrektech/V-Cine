@@ -19,7 +19,7 @@ import (
 // sceneTestDim 测试用 embedding 维度（与生产 768 维对齐）
 const sceneTestDim = 768
 
-// newFakeEmbeddingServer 返回固定查询向量的假 V-Router（/v1/models + /v1/embeddings）：
+// newFakeEmbeddingServer 返回固定查询向量的假 V-Scheduler（/v1/models + /v1/embeddings）：
 // 任意文本 query 都返回 e0（第 0 维 = 1 的单位向量），验证文本向量被送入检索。
 func newFakeEmbeddingServer(t *testing.T) *httptest.Server {
 	t.Helper()
@@ -51,7 +51,7 @@ func sceneUnitVector(pos int) pgvector.Vector {
 }
 
 // setupSceneSearchService 构建带真实 sceneRepo + 假 embedding 服务的 VideoAnalysisService
-func setupSceneSearchService(t *testing.T, fakeVRouter *httptest.Server) (*VideoAnalysisService, *repository.VideoAnalysisTaskRepo, string) {
+func setupSceneSearchService(t *testing.T, fakeVScheduler *httptest.Server) (*VideoAnalysisService, *repository.VideoAnalysisTaskRepo, string) {
 	t.Helper()
 	db := testutil.NewTestDB(t)
 	if err := db.AutoMigrate(&model.Media{}, &model.VideoAnalysisTask{}, &model.Scene{}); err != nil {
@@ -68,9 +68,9 @@ func setupSceneSearchService(t *testing.T, fakeVRouter *httptest.Server) (*Video
 		t.Fatal(err)
 	}
 	embClient, err := NewEmbeddingProvider(config.EmbeddingAIConfig{
-		// v-router 客户端的 baseURL 含 /v1 后缀（doProbe 请求 baseURL+/models），
+		// v-scheduler 客户端的 baseURL 含 /v1 后缀（doProbe 请求 baseURL+/models），
 		// 与生产配置 api_base 形态一致；fake server 也只注册了 /v1/models。
-		APIBase: fakeVRouter.URL + "/v1",
+		APIBase: fakeVScheduler.URL + "/v1",
 		Model:   "ml-server/ViT-B-16-SigLIP2__webli",
 	}, nil)
 	if err != nil {
@@ -161,7 +161,7 @@ func TestVideoAnalysisServiceSceneSearchEmbeddingUnavailable(t *testing.T) {
 
 // TestVideoAnalysisServiceSceneSearchSceneRepoUnavailable 验证 sceneRepo 不可用时报错
 func TestVideoAnalysisServiceSceneSearchSceneRepoUnavailable(t *testing.T) {
-	svc := &VideoAnalysisService{embeddingProvider: &vRouterClient{}}
+	svc := &VideoAnalysisService{embeddingProvider: &vSchedulerClient{}}
 	if _, err := svc.SearchScenesByTextToImage("q", 10); err == nil {
 		t.Fatal("expected error when scene repo unavailable, got nil")
 	}

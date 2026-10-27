@@ -81,7 +81,7 @@ func newOpenAIVisionClient(cfg openAIVisionConfig) *openAIVisionClient {
 		baseURL:     baseURL,
 		model:       model,
 		apiKey:      strings.TrimSpace(cfg.APIKey),
-		isGateway:   config.IsVRouterGateway(cfg.ProviderID, baseURL),
+		isGateway:   config.IsVSchedulerGateway(cfg.ProviderID, baseURL),
 		desensitize: cfg.Desensitize,
 		httpClient:  &http.Client{Timeout: sceneDescribeHTTPTimeout},
 		logger:      cfg.Logger,

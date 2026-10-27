@@ -52,7 +52,7 @@ type ChatCompletionRequest struct {
 	MaxTokens      int                           `json:"max_tokens,omitempty"`
 	ResponseFormat *ChatCompletionResponseFormat `json:"response_format,omitempty"`
 	// ReasoningEffort 是 OpenAI 标准思考控制字段（none/low/medium/high），
-	// Ollama OpenAI 兼容端点、vLLM 与 vrouter 均识别（vLLM 映射为 enable_thinking）。
+	// Ollama OpenAI 兼容端点、vLLM 与 V-Scheduler 均识别（vLLM 映射为 enable_thinking）。
 	// reasoning 模型的思维链会烧穿 max_tokens 导致 content 为空，禁用思考时发 "none"；
 	// 后端不识别时静默忽略或由 400 兜底剥离。
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
@@ -310,7 +310,7 @@ func (s *AIService) ChatCompletionNoReasoning(systemPrompt, userPrompt string, t
 // ChatCompletionJSONSchema 结构化输出补全（response_format=json_schema + strict），
 // 用于意图解析等结构化任务。后端在解码层做语法约束，即使小模型也强制遵循 schema。
 // 不支持的后端由 400 兜底降级为 json_object 再降级为纯 prompt。
-// reasoningEffort 思考控制（OpenAI 标准，Ollama/vLLM/vrouter 均识别）：
+// reasoningEffort 思考控制（OpenAI 标准，Ollama/vLLM/V-Scheduler 均识别）：
 // "" 不发字段（保留后端默认思考）；"none" 禁用思考；"low"/"medium"/"high" 指定思考强度。
 func (s *AIService) ChatCompletionJSONSchema(systemPrompt, userPrompt string, temperature float64, maxTokens int, schema string, reasoningEffort string) (string, error) {
 	return s.chatCompletion(systemPrompt, userPrompt, temperature, maxTokens, false, reasoningEffort, &ChatCompletionJSONSchema{
@@ -344,17 +344,17 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 	apiKey := ap.APIKey
 	model := cfg.ActiveModelName()
 
-	// V-Router 网关要求请求体必须带 model（V-ChatCut 同款语义：vrouter 无模型即不可用）。
+	// V-Scheduler 网关要求请求体必须带 model（V-ChatCut 同款语义：V-Scheduler 无模型即不可用）。
 	// 空 model 提前报可读错误，而不是让网关返回 400 "JSON body requires model"。
 	if model == "" {
 		return "", fmt.Errorf("%w（provider=%s）", ErrAIModelNotConfigured, cfg.ActiveProvider)
 	}
 
 	// 网关判定（唯一特征表），凭证策略与 BlockLocalAI 豁免共用。
-	isGateway := config.IsVRouterGateway(cfg.ActiveProvider, apiBase)
+	isGateway := config.IsVSchedulerGateway(cfg.ActiveProvider, apiBase)
 
 	// 云端强制：拦截本地 AI（如 ollama），避免「全自动托管」语义下走本地推理。
-	// 网关豁免：V-Router 是云模型网关而非本地推理，APIBase 为私网 IP
+	// 网关豁免：V-Scheduler 是云模型网关而非本地推理，APIBase 为私网 IP
 	// （宿主机端口模式）不代表本地推理。
 	if cfg.BlockLocalAI && !isGateway && isLocalAIProvider(cfg.ActiveProvider, apiBase) {
 		return "", fmt.Errorf("%w（provider=%s）", ErrLocalAIBlocked, cfg.ActiveProvider)
@@ -408,7 +408,7 @@ func (s *AIService) chatCompletion(systemPrompt, userPrompt string, temperature 
 
 	authorization := s.resolveCredential(isGateway, apiKey)
 	// 凭证方式（可观测）：configured=用户配置的 key；vos_token=VOS 登录态转发；
-	// none=无凭证（网关归 internal）。用于日志区分 vrouter 调用的用量归属。
+	// none=无凭证（网关归 internal）。用于日志区分 V-Scheduler 调用的用量归属。
 	credential := "none"
 	switch {
 	case apiKey != "":
@@ -1216,18 +1216,18 @@ func (s *AIService) resolveCredential(isGateway bool, apiKey string) string {
 
 // friendlyProviderError 按 provider 类别与 key 配置解释 HTTP 错误，
 // 指出原因与下一步。返回空串表示非已知模式，沿用原始错误。
-// 网关专属文案仅对 V-Router 网关生效；其他 provider 走通用文案，
-// 避免误报「V-Router 网关鉴权失败」。空 key 与无效 key 分开提示。
+// 网关专属文案仅对 V-Scheduler 网关生效；其他 provider 走通用文案，
+// 避免误报「V-Scheduler 网关鉴权失败」。空 key 与无效 key 分开提示。
 func friendlyProviderError(isGateway, hasKey bool, statusCode int, body string) string {
 	switch {
 	case statusCode == http.StatusBadRequest && strings.Contains(body, "requires model"):
 		if isGateway {
-			return "V-Router 网关要求先选择模型：请点击「设置」拉取模型并添加后重试"
+			return "V-Scheduler 网关要求先选择模型：请点击「设置」拉取模型并添加后重试"
 		}
 		return ""
 	case statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden:
 		if isGateway {
-			return "V-Router 网关鉴权失败：网关开启了 REQUIRE_KEY 或 VOS 账户校验，请检查网关配置或 API Key"
+			return "V-Scheduler 网关鉴权失败：网关开启了 REQUIRE_KEY 或 VOS 账户校验，请检查网关配置或 API Key"
 		}
 		if !hasKey {
 			return "未配置 API Key：该服务商可能需要密钥，请在「设置」中配置后重试"
@@ -1280,7 +1280,7 @@ func (s *AIService) TestConnection(providerID string) (map[string]interface{}, e
 			"error":   fmt.Sprintf("供应商 %q 未配置 API Base", label),
 		}, fmt.Errorf("供应商 %q 未配置", label)
 	}
-	// V-Router 网关要求请求体必须带 model：空 model 提前报可读错误，
+	// V-Scheduler 网关要求请求体必须带 model：空 model 提前报可读错误，
 	// 而不是让网关返回 400 "JSON body requires model"。
 	if model == "" {
 		errMsg := fmt.Sprintf("供应商 %q 未配置模型，请点击「设置」拉取模型或手动添加后重试", label)
@@ -1312,7 +1312,7 @@ func (s *AIService) TestConnection(providerID string) (map[string]interface{}, e
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	if authorization := s.resolveCredential(config.IsVRouterGateway(testProviderID, apiBase), apiKey); authorization != "" {
+	if authorization := s.resolveCredential(config.IsVSchedulerGateway(testProviderID, apiBase), apiKey); authorization != "" {
 		req.Header.Set("Authorization", authorization)
 	}
 
@@ -1343,7 +1343,7 @@ func (s *AIService) TestConnection(providerID string) (map[string]interface{}, e
 	if resp.StatusCode != http.StatusOK {
 		errMsg := fmt.Errorf("API 返回 HTTP %d: %s", resp.StatusCode, string(respBody))
 		// 错误的友好翻译：按 provider 类别与 key 配置解释（设计验收标准 5）。
-		if friendly := friendlyProviderError(config.IsVRouterGateway(testProviderID, apiBase), apiKey != "", resp.StatusCode, string(respBody)); friendly != "" {
+		if friendly := friendlyProviderError(config.IsVSchedulerGateway(testProviderID, apiBase), apiKey != "", resp.StatusCode, string(respBody)); friendly != "" {
 			s.addErrorLog("connection_test", fmt.Errorf("%s（原始: %s）", friendly, string(respBody)), latency)
 			return map[string]interface{}{
 				"success":    false,

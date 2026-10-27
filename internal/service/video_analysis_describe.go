@@ -169,7 +169,7 @@ func (s *VideoAnalysisService) runRemoteDescribeStage(ctx context.Context, task 
 		)
 	}
 
-	// Phase 3b: 计算描述文本的 CLIP embedding（经 V-Router 调用 ML Server）
+	// Phase 3b: 计算描述文本的 CLIP embedding（经 V-Scheduler 调用 ML Server）
 	if err := s.computeDescriptionEmbeddings(task); err != nil && s.logger != nil {
 		s.logger.Warnw("Video analysis compute description embeddings failed (non-fatal)",
 			"task_id", task.ID,
