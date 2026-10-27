@@ -9,7 +9,8 @@ import { usePosterVersion } from '@/stores/mediaRefresh'
 import { routes } from '@/lib/routes'
 import { useTranslation } from '@/i18n'
 import type { VideoAnalysisTask } from '@/types/videoAnalysis'
-import { formatVideoAnalysisError, formatVideoAnalysisTime, videoAnalysisStatusKeys, videoAnalysisStatusMeta } from './videoAnalysisResultUtils'
+import { formatVideoAnalysisTime, videoAnalysisStatusKeys, videoAnalysisStatusMeta } from './videoAnalysisResultUtils'
+import VideoAnalysisErrorDetail from './VideoAnalysisErrorDetail'
 import VideoAnalysisResultPanel from './VideoAnalysisResultPanel'
 
 interface VideoAnalysisResultDrawerProps {
@@ -54,16 +55,14 @@ export default function VideoAnalysisResultDrawer({ task, onClose }: VideoAnalys
                 <p className="mt-1 text-xs text-muted-foreground">
                   {t('vat.executionN', { n: visibleTask.seq || visibleTask.attempt || 1 })} · {visibleTask.trigger === 'auto' ? t('vat.triggerAuto') : t('vat.triggerManual')} · {t('vat.submittedAt', { time: formatVideoAnalysisTime(visibleTask.created_at) })}
                 </p>
-                {visibleTask.error_message && (
-                  <p className="mt-1 truncate text-xs text-red-400" title={formatVideoAnalysisError(visibleTask.error_message, t)}>{formatVideoAnalysisError(visibleTask.error_message, t)}</p>
-                )}
+                <VideoAnalysisErrorDetail key={visibleTask.id} task={visibleTask} />
               </div>
               <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate(routes.player(visibleTask.media_id))}>
                 <ExternalLink /> {t('vat.openPlayer')}
               </Button>
             </div>
 
-            {/* 结果内容：工作流时间线 + 摘要/告警 + 场景九宫格 */}
+            {/* 结果内容：工作流时间线 + 摘要 + 场景九宫格 */}
             <VideoAnalysisResultPanel task={visibleTask} />
           </div>
         )}

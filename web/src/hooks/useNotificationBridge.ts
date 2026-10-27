@@ -3,7 +3,7 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { t } from '@/i18n'
 import { useNotificationCenterStore, type NotificationStep, type NotificationPlanStep, type NotificationStatus } from '@/stores/notificationCenter'
 import type { VideoAnalysisTask } from '@/types/videoAnalysis'
-import { formatVideoAnalysisError } from '@/components/video-analysis/videoAnalysisResultUtils'
+import { formatVideoAnalysisError, videoAnalysisStageKeys } from '@/components/video-analysis/videoAnalysisResultUtils'
 import { routes } from '@/lib/routes'
 
 // ==================== 全局 WS 事件 → 通知中心桥接 ====================
@@ -59,12 +59,7 @@ const analysisStatusMap: Record<string, NotificationStatus> = {
   failed: 'failed',
 }
 
-// 视频分析阶段 → i18n key（与结果面板的阶段标签一致）
-const analysisStageLabelKeys: Record<string, string> = {
-  detect: 'vat.stageDetect',
-  structure: 'vat.stageStructure',
-  describe: 'vat.stageDescribe',
-}
+
 
 /**
  * 后端 message 形如 "xxx失败: <技术细节>"，本地化时仅提取冒号后的细节段
@@ -192,11 +187,11 @@ export function useNotificationBridge() {
 
       // queued 归一化为 running：立即展示且不计未读
       const status: NotificationStatus = analysisStatusMap[data.status] || 'running'
-      const stageLabel = t(analysisStageLabelKeys[data.stage] || '')
+      const stageLabel = t(videoAnalysisStageKeys[data.stage] || '')
       // 三阶段链路徽标：detect → structure → describe（空状态阶段不出现）
       const steps: NotificationStep[] = (['detect', 'structure', 'describe'] as const).flatMap((stage) => {
         const stepStatus = analysisStageStatusMap[data[`${stage}_status`]]
-        return stepStatus ? [{ provider: t(analysisStageLabelKeys[stage]), status: stepStatus }] : []
+        return stepStatus ? [{ provider: t(videoAnalysisStageKeys[stage]), status: stepStatus }] : []
       })
 
       let message: string

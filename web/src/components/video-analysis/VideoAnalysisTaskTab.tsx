@@ -19,19 +19,12 @@ import { cn } from '@/lib/utils'
 import { routes } from '@/lib/routes'
 import type { VideoAnalysisDetailedStats, VideoAnalysisStatistics, VideoAnalysisStatus, VideoAnalysisTask } from '@/types/videoAnalysis'
 import VideoAnalysisResultDrawer from './VideoAnalysisResultDrawer'
-import { formatVideoAnalysisError, formatVideoAnalysisTime, videoAnalysisStatusKeys, videoAnalysisStatusMeta } from './videoAnalysisResultUtils'
+import { formatVideoAnalysisError, formatVideoAnalysisTime, videoAnalysisStageKeys, videoAnalysisStatusKeys, videoAnalysisStatusMeta } from './videoAnalysisResultUtils'
 
 const statusFilters: Array<{ value: '' | VideoAnalysisStatus; labelKey: string }> = [
   { value: '', labelKey: 'vat.statusAll' }, { value: 'queued', labelKey: 'vat.statusQueued' }, { value: 'running', labelKey: 'vat.statusRunning' },
   { value: 'succeeded', labelKey: 'vat.statusSucceeded' }, { value: 'partial', labelKey: 'vat.statusPartial' }, { value: 'failed', labelKey: 'vat.statusFailed' },
 ]
-
-const stageLabelKeys: Record<string, string> = {
-  detect: 'vat.stageDetect',
-  structure: 'vat.stageStructure',
-  describe: 'vat.stageDescribe',
-  done: 'vat.stageDone',
-}
 
 function StatusBadge({ status }: { status: VideoAnalysisStatus }) {
   const { t } = useTranslation()
@@ -373,7 +366,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
                         <div className="mt-1 text-xs text-muted-foreground">{task.trigger === 'auto' ? t('vat.triggerAuto') : t('vat.triggerManual')} · {formatVideoAnalysisTime(task.created_at)}</div>
                         {task.status === 'running' && (
                           <div className="mt-1.5 flex items-center gap-2 text-xs">
-                            <span className="text-muted-foreground">{t(stageLabelKeys[task.stage] || 'vat.stageDone')} {Math.round(task.progress)}%</span>
+                            <span className="text-muted-foreground">{t(videoAnalysisStageKeys[task.stage] || 'vat.stageDone')} {Math.round(task.progress)}%</span>
                             <div className="h-1.5 w-32 overflow-hidden rounded-full bg-secondary"><div className="h-full bg-primary transition-all" style={{ width: `${Math.max(0, Math.min(100, task.progress))}%` }} /></div>
                           </div>
                         )}

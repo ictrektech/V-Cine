@@ -127,6 +127,8 @@ export interface VideoAnalysisHealthInfo {
 export interface VideoAnalysisWarning {
   code?: string
   message: string
+  /** 上游原始诊断（finish_reason/usage/响应体），面向排查；message 保持简短给用户看 */
+  detail?: string
   scope?: string
   target_id?: string
 }

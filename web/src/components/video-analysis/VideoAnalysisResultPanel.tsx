@@ -4,7 +4,6 @@ import { AlertCircle, Loader2 } from 'lucide-react'
 import { videoAnalysisApi } from '@/api'
 import { useTranslation } from '@/i18n'
 import type { VideoAnalysisResult, VideoAnalysisSceneResult, VideoAnalysisTask } from '@/types/videoAnalysis'
-import VideoAnalysisResultInsights from './VideoAnalysisResultInsights'
 import VideoAnalysisResultSummary from './VideoAnalysisResultSummary'
 import VideoAnalysisSceneGrid, { type VideoAnalysisSceneGridState } from './VideoAnalysisSceneGrid'
 import VideoAnalysisWorkflow from './VideoAnalysisWorkflow'
@@ -150,7 +149,6 @@ export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPa
       ) : !result ? null : (
         <>
           <VideoAnalysisResultSummary result={result} />
-          <VideoAnalysisResultInsights result={result} />
           <VideoAnalysisSceneGrid
             scenes={visibleScenes}
             page={page}

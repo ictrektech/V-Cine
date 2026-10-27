@@ -24,6 +24,14 @@ export const videoAnalysisStatusKeys: Record<VideoAnalysisStatus, string> = {
   skipped: 'vat.statusSkipped',
 }
 
+// 阶段 → i18n key（任务列表、错误详情、通知共用；工作流面板的 structure 另有文案）
+export const videoAnalysisStageKeys: Record<string, string> = {
+  detect: 'vat.stageDetect',
+  structure: 'vat.stageStructure',
+  describe: 'vat.stageDescribe',
+  done: 'vat.stageDone',
+}
+
 export function formatVideoAnalysisTime(value: string | null) {
   return value ? new Date(value).toLocaleString() : '—'
 }
