@@ -6,6 +6,7 @@ import { useTranslation } from '@/i18n'
 import type { VideoAnalysisResult, VideoAnalysisSceneResult, VideoAnalysisTask } from '@/types/videoAnalysis'
 import VideoAnalysisResultSummary from './VideoAnalysisResultSummary'
 import VideoAnalysisSceneGrid, { type VideoAnalysisSceneGridState } from './VideoAnalysisSceneGrid'
+import VideoAnalysisWarningList from './VideoAnalysisWarningList'
 import VideoAnalysisWorkflow from './VideoAnalysisWorkflow'
 import { VIDEO_ANALYSIS_SCENES_PER_PAGE } from './videoAnalysisResultUtils'
 import { routes } from '@/lib/routes'
@@ -149,6 +150,15 @@ export default function VideoAnalysisResultPanel({ task }: VideoAnalysisResultPa
       ) : !result ? null : (
         <>
           <VideoAnalysisResultSummary result={result} />
+          {/* 告警与任务状态无关：只要结果里有就展示（含成功后仍带告警的情况） */}
+          {result.warnings && result.warnings.length > 0 && (
+            <div className="rounded-xl border bg-muted/30 p-3">
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                <AlertCircle size={14} className="text-amber-400" /> {t('vat.warnings', { count: result.warnings.length })}
+              </div>
+              <VideoAnalysisWarningList warnings={result.warnings} />
+            </div>
+          )}
           <VideoAnalysisSceneGrid
             scenes={visibleScenes}
             page={page}

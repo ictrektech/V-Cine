@@ -900,6 +900,7 @@ const enUS: Record<string, string> = {
   'vat.summaryResolution': 'Resolution',
   'vat.summaryCodecFps': 'Codec / FPS',
   'vat.summaryElapsed': 'Elapsed',
+  'vat.warnings': 'Warnings ({count})',
   'vat.errorDetailExpand': 'Show details',
   'vat.errorDetailCollapse': 'Hide details',
   'vat.errorDetailRaw': 'Raw error message',

@@ -900,6 +900,7 @@ const jaJP: Record<string, string> = {
   'vat.summaryResolution': '解像度',
   'vat.summaryCodecFps': 'コーデック / FPS',
   'vat.summaryElapsed': '経過時間',
+  'vat.warnings': '警告（{count} 件）',
   'vat.errorDetailExpand': '詳細を表示',
   'vat.errorDetailCollapse': '詳細を閉じる',
   'vat.errorDetailRaw': '元のエラーメッセージ',

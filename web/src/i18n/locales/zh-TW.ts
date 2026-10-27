@@ -891,6 +891,7 @@ const zhTW: Record<string, string> = {
   'vat.summaryResolution': '解析度',
   'vat.summaryCodecFps': '編碼 / FPS',
   'vat.summaryElapsed': '耗時',
+  'vat.warnings': '告警（{count} 條）',
   'vat.errorDetailExpand': '展開詳細',
   'vat.errorDetailCollapse': '收起詳細',
   'vat.errorDetailRaw': '原始錯誤資訊',

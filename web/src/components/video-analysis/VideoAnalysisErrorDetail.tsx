@@ -13,6 +13,7 @@ import {
   videoAnalysisStageKeys,
   videoAnalysisStatusKeys,
 } from './videoAnalysisResultUtils'
+import VideoAnalysisWarningList, { sortVideoAnalysisWarnings } from './VideoAnalysisWarningList'
 
 interface VideoAnalysisErrorDetailProps {
   task: VideoAnalysisTask
@@ -71,13 +72,8 @@ export default function VideoAnalysisErrorDetail({ task }: VideoAnalysisErrorDet
   meta.push([t('vat.errorDetailSubmittedAt'), formatVideoAnalysisTime(task.created_at)])
   if (task.finished_at) meta.push([t('vat.errorDetailFinishedAt'), formatVideoAnalysisTime(task.finished_at)])
 
-  // 场景级告警按 scene_index 排序，避免并发写入导致的乱序
-  const failureItems = [...(warnings || [])].sort((a, b) => {
-    const left = a.target_id != null && a.target_id !== '' ? Number(a.target_id) : NaN
-    const right = b.target_id != null && b.target_id !== '' ? Number(b.target_id) : NaN
-    if (Number.isFinite(left) && Number.isFinite(right)) return left - right
-    return 0
-  })
+  // 与列表展示同序，复制出来的内容也按场景号排列
+  const failureItems = sortVideoAnalysisWarnings(warnings || [])
 
   // 复制内容用稳定的英文键名与原文，便于开发人员直接检索排查（不受界面语言影响）
   const copyLines = [
@@ -154,23 +150,7 @@ export default function VideoAnalysisErrorDetail({ task }: VideoAnalysisErrorDet
                 <span className="text-[11px] font-medium text-muted-foreground">{t('vat.errorDetailFailures', { count: failureItems.length })}</span>
                 {copyButton}
               </div>
-              <ul className="mt-1 max-h-48 space-y-1 overflow-auto pr-0.5">
-                {failureItems.map((item, index) => (
-                  <li key={`${item.code || 'warning'}-${item.target_id || index}`} className="rounded-md bg-background/70 px-2 py-1.5">
-                    <div>
-                      {item.code && (
-                        <span className="mr-1.5 rounded bg-red-500/10 px-1 py-0.5 font-mono text-[10px] text-red-400">{item.code}</span>
-                      )}
-                      <span className="text-[11px] leading-relaxed text-foreground [overflow-wrap:anywhere]">{item.message}</span>
-                    </div>
-                    {item.detail && (
-                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-red-500/5 p-1.5 font-mono text-[10px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-                        {item.detail}
-                      </pre>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <VideoAnalysisWarningList warnings={failureItems} />
             </>
           ) : (
             <>

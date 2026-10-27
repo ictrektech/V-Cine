@@ -891,6 +891,7 @@ const zhCN: Record<string, string> = {
   'vat.summaryResolution': '分辨率',
   'vat.summaryCodecFps': '编码 / FPS',
   'vat.summaryElapsed': '耗时',
+  'vat.warnings': '告警（{count} 条）',
   'vat.errorDetailExpand': '展开详细',
   'vat.errorDetailCollapse': '收起详细',
   'vat.errorDetailRaw': '原始错误信息',
