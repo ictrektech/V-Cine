@@ -11,6 +11,31 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestPruneSceneWarningsDropsResolvedAndStaleDuplicates(t *testing.T) {
+	scenes := []videoAnalysisScene{
+		{SceneIndex: 1},
+		{SceneIndex: 2, Description: "已有描述"},
+	}
+	warnings := []VideoAnalysisWarning{
+		{Code: "DESCRIBE_SCENE_FAILED", Scope: "scene", TargetID: "1", Message: "旧失败"},
+		{Code: "STRUCTURE_WARN", Message: "结构告警"},
+		{Code: "DESCRIBE_SCENE_FAILED", Scope: "scene", TargetID: "2", Message: "已恢复场景的历史失败"},
+		// 上一轮是「未执行」，本轮才真失败：错误码不同，但仍须按场景号去重。
+		{Code: "DESCRIBE_SCENE_CANCELED", Scope: "scene", TargetID: "1", Message: "未执行（任务已取消或超时）"},
+		{Code: "DESCRIBE_SCENE_FAILED", Scope: "scene", TargetID: "1", Message: "本次失败"},
+	}
+	got := pruneSceneWarnings(warnings, scenes)
+	if len(got) != 2 {
+		t.Fatalf("pruned = %d warnings, want 2: %+v", len(got), got)
+	}
+	if got[0].Code != "STRUCTURE_WARN" {
+		t.Fatalf("non-scene warning must be kept: %+v", got[0])
+	}
+	if got[1].Message != "本次失败" {
+		t.Fatalf("scene warning must keep the latest attempt: %+v", got[1])
+	}
+}
+
 func TestVideoAnalysisServiceGetResultByMediaBuildsDTO(t *testing.T) {
 	client := &fakeVideoAnalysisClient{}
 	service, tasks, mediaID := setupVideoAnalysisService(t, client)

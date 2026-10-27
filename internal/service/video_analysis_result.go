@@ -16,8 +16,10 @@ import (
 )
 
 type VideoAnalysisWarning struct {
-	Code     string `json:"code,omitempty"`
-	Message  string `json:"message"`
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message"`
+	// Detail 上游原始诊断（finish_reason/usage/响应体等），面向排查；Message 保持简短给用户看。
+	Detail   string `json:"detail,omitempty"`
 	Scope    string `json:"scope,omitempty"`
 	TargetID string `json:"target_id,omitempty"`
 }
@@ -239,6 +241,9 @@ func buildVideoAnalysisResult(task *model.VideoAnalysisTask) (*VideoAnalysisResu
 	sort.Slice(scenes, func(i, j int) bool {
 		return scenes[i].SceneIndex < scenes[j].SceneIndex
 	})
+	// 结果 JSON 里可能残留已恢复场景的告警：读取侧再清理一次，
+	// 保证接口返回的告警与当前场景状态一致。
+	warnings := pruneSceneWarnings(result.Warnings, result.Scenes)
 	return &VideoAnalysisResult{
 		TaskID:              task.ID,
 		MediaID:             task.MediaID,
@@ -260,7 +265,7 @@ func buildVideoAnalysisResult(task *model.VideoAnalysisTask) (*VideoAnalysisResu
 		HasAudio:            result.Metadata.HasAudio,
 		TotalFrames:         result.Metadata.TotalFrames,
 		SceneCount:          len(scenes),
-		Warnings:            result.Warnings,
+		Warnings:            warnings,
 		StageTimings:        result.StageTimings,
 		ElapsedSec:          result.ElapsedSec,
 		FallbackUsed:        task.FallbackUsed,
@@ -394,6 +399,8 @@ func mergeDescribeResult(structureJSON string, describeJSON []byte) (string, err
 	if len(describeResult.Warnings) > 0 {
 		structureResult.Warnings = append(structureResult.Warnings, describeResult.Warnings...)
 	}
+	// 本批告警已追加：清理已补齐场景的旧条目与重复条目，保证明细与 error_message 一致。
+	structureResult.Warnings = pruneSceneWarnings(structureResult.Warnings, structureResult.Scenes)
 	if structureResult.VideoHash == "" {
 		structureResult.VideoHash = strings.TrimSpace(describeResult.VideoHash)
 	}
@@ -402,6 +409,51 @@ func mergeDescribeResult(structureJSON string, describeJSON []byte) (string, err
 		return "", fmt.Errorf("encode merged describe result: %w", err)
 	}
 	return string(merged), nil
+}
+
+// pruneSceneWarnings 清理跨多次 describe 累积的场景告警：
+//   - 场景已有描述 → 丢弃该场景的失败告警；
+//   - 同一场景保留最后一条（告警按批次追加，最后一条是本批结果）。
+//
+// 按场景号去重：同一场景在不同批次里可能换错误码（如取消 → 真实失败），
+// 旧错误码的那条不能留着。
+//
+// 非场景级告警（structure/detect 等）原样保留。
+func pruneSceneWarnings(warnings []VideoAnalysisWarning, scenes []videoAnalysisScene) []VideoAnalysisWarning {
+	if len(warnings) == 0 {
+		return warnings
+	}
+	described := make(map[string]bool, len(scenes))
+	for _, scene := range scenes {
+		if strings.TrimSpace(scene.Description) != "" {
+			described[fmt.Sprintf("%d", scene.SceneIndex)] = true
+		}
+	}
+	lastIndex := make(map[string]int, len(warnings))
+	for i, warning := range warnings {
+		if !isSceneWarning(warning) {
+			continue
+		}
+		lastIndex[warning.TargetID] = i
+	}
+	pruned := make([]VideoAnalysisWarning, 0, len(warnings))
+	for i, warning := range warnings {
+		if isSceneWarning(warning) {
+			if described[warning.TargetID] {
+				continue
+			}
+			if lastIndex[warning.TargetID] != i {
+				continue
+			}
+		}
+		pruned = append(pruned, warning)
+	}
+	return pruned
+}
+
+// isSceneWarning 场景级告警：本地 describe 扇出写入 Scope=scene，并带场景号 TargetID。
+func isSceneWarning(warning VideoAnalysisWarning) bool {
+	return warning.Scope == "scene" && strings.TrimSpace(warning.TargetID) != ""
 }
 
 func firstNonEmptyVideoAnalysis(values ...string) string {

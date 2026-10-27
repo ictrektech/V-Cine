@@ -1153,7 +1153,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 // 先尽力 claim 九宫格产物（staging 有 TTL，避免重试前丢失；幂等，失败不致命），
 // 再把任务标记为 partial（结构已成功，仅描述未全部完成）。
 // 同时清空 describe_job_id，重试时重新提交 describe job（服务端按 staging 增量/全量生成）。
-func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysisTask, err error, errorCode string) error {
+func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysisTask, err error, errorCode string, detail ...string) error {
 	if claimErr := s.claimArtifactsForTask(task, false); claimErr != nil && s.logger != nil {
 		s.logger.Warnw("Video analysis claim artifacts after describe failure failed (non-fatal)",
 			"task_id", task.ID,
@@ -1173,9 +1173,23 @@ func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysis
 		task.ErrorCode = analysisErrorCode(err)
 	}
 	task.ErrorMessage = err.Error()
+	if s.logger != nil {
+		// 保留任务级失败摘要；逐场景原因见 local describe 的 per-scene 日志与结果 warnings。
+		s.logger.Warnw("Video analysis describe stage partially failed",
+			"task_id", task.ID,
+			"media_id", task.MediaID,
+			"error_code", task.ErrorCode,
+			"error", task.ErrorMessage,
+		)
+	}
 	// describe 阶段因 Model Hub 缺少模型失败（unknown model: model-hub/xxx）时
 	// 记录缺失模型名，供前端展示“一键下载”入口。无匹配时清空，避免旧值残留误导。
-	task.MissingModel = extractMissingModel(task.ErrorMessage)
+	// 识别源包含 detail（逐场景上游响应）：上游把 unknown model 放在响应体里也能识别。
+	missingModelSource := task.ErrorMessage
+	if len(detail) > 0 {
+		missingModelSource += " " + strings.Join(detail, "\n")
+	}
+	task.MissingModel = extractMissingModel(missingModelSource)
 	if persistErr := s.persist(task); persistErr != nil {
 		return persistErr
 	}
@@ -1223,12 +1237,12 @@ func extractMissingModel(errText string) string {
 	return ""
 }
 
-// ensureMissingModel 读取时同步缺失模型名：以 error_message 为准推导，
-// 覆盖三类场景：
-// 1) 历史任务（missing_model 字段引入前已落库，列为空）；
-// 2) 旧值残留（换失败原因后新错误不含模型名）；
-// 3) 重试成功（成功后不再有意义）。
-// 仅在内存副本上推导，不回写 DB（error_message 已是权威来源）。
+// ensureMissingModel 读取时同步缺失模型名：
+// 1) 已落库值优先：completeDescribePartial 已用 error_message + 逐场景 warnings.detail
+// 重算后落库；模型名可能只出现在 detail 里（error_message 只保留首个失败原因）；
+// 2) 落库值为空（该字段引入前落库的任务）→ 从 error_message 推导；
+// 3) 状态 succeeded（已重试成功）→ 清空。
+// 仅在内存副本上推导，不回写 DB。
 func ensureMissingModel(task *model.VideoAnalysisTask) {
 	if task == nil {
 		return
@@ -1237,7 +1251,9 @@ func ensureMissingModel(task *model.VideoAnalysisTask) {
 		task.MissingModel = ""
 		return
 	}
-	task.MissingModel = extractMissingModel(task.ErrorMessage)
+	if strings.TrimSpace(task.MissingModel) == "" {
+		task.MissingModel = extractMissingModel(task.ErrorMessage)
+	}
 }
 
 // describeResultStatus 解析 describe result 的整体状态（"completed"/"partial"）。

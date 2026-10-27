@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -94,6 +95,7 @@ func (s *VideoAnalysisService) describeLocalClient() SceneDescriptionClient {
 			}
 			return desensitize(dataURL)
 		},
+		Logger: s.logger,
 	})
 }
 
@@ -231,7 +233,27 @@ func (s *VideoAnalysisService) runLocalDescribeStage(ctx context.Context, task *
 	}
 
 	if len(outcome.Failed) > 0 {
-		return s.completeDescribePartial(task, localDescribeError(outcome), "DESCRIBE_PARTIAL")
+		// 逐场景记录上游原始报错：任务级 error_message 只有聚合文案，排查时需要每条原因。
+		if s.logger != nil {
+			for _, warning := range outcome.Warnings {
+				s.logger.Warnw("Video analysis scene description failed",
+					"task_id", task.ID,
+					"media_id", task.MediaID,
+					"scene_index", warning.TargetID,
+					"code", warning.Code,
+					"error", warning.Message,
+					"detail", warning.Detail,
+				)
+			}
+		}
+		details := make([]string, 0, len(outcome.Warnings))
+		for _, warning := range outcome.Warnings {
+			if warning.Detail != "" {
+				details = append(details, warning.Detail)
+			}
+		}
+		// Detail 一并参与缺失模型识别：上游把 unknown model 放在响应体里时也能提示下载。
+		return s.completeDescribePartial(task, localDescribeError(outcome), "DESCRIBE_PARTIAL", details...)
 	}
 	if describeErr != nil {
 		// 无失败场景但存在确定性错误（例如全部场景被取消）：按 partial 收尾保留已有结果。
@@ -306,14 +328,19 @@ func (s *VideoAnalysisService) describeLocally(ctx context.Context, client Scene
 			defer mu.Unlock()
 			if err != nil {
 				failed = append(failed, target.SceneIndex)
-				warnings = append(warnings, VideoAnalysisWarning{
+				warning := VideoAnalysisWarning{
 					Code:     "DESCRIBE_SCENE_FAILED",
 					Message:  fmt.Sprintf("场景 %d：%s", target.SceneIndex, err.Error()),
 					Scope:    "scene",
 					TargetID: fmt.Sprintf("%d", target.SceneIndex),
-				})
+				}
 				var describeErr *sceneDescribeError
-				if errors.As(err, &describeErr) && !describeErr.Retryable {
+				if errors.As(err, &describeErr) {
+					// 上游原始诊断（finish_reason/usage/响应体）随结果落库，供前端明细与日志排查。
+					warning.Detail = describeErr.Detail
+				}
+				warnings = append(warnings, warning)
+				if describeErr != nil && !describeErr.Retryable {
 					// 确定性失败：返回错误以取消组内上下文，剩余场景不再派发。
 					return errors.Join(errSceneDescriptionUnretryable, err)
 				}
@@ -331,6 +358,15 @@ func (s *VideoAnalysisService) describeLocally(ctx context.Context, client Scene
 	waitErr := g.Wait()
 
 	sort.Ints(failed)
+	// warnings 并发写入顺序不定：按场景号排序，便于日志与前端逐条对照排查。
+	sort.SliceStable(warnings, func(i, j int) bool {
+		left, leftErr := strconv.Atoi(warnings[i].TargetID)
+		right, rightErr := strconv.Atoi(warnings[j].TargetID)
+		if leftErr != nil || rightErr != nil {
+			return false
+		}
+		return left < right
+	})
 	sort.Slice(items, func(i, j int) bool { return items[i].SceneIndex < items[j].SceneIndex })
 	outcome.Failed = failed
 	outcome.Warnings = warnings

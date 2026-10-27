@@ -95,15 +95,16 @@ func TestEnsureMissingModel(t *testing.T) {
 		t.Fatalf("historical missing_model = %q, want model-hub/minicpm-v4.6:latest", historical.MissingModel)
 	}
 
-	// 旧值残留：新错误不含模型名 → 推导清空，不残留误导
-	stale := &model.VideoAnalysisTask{
+	// 已落库值优先：模型名可能只出现在逐场景 warnings.detail 里，
+	// error_message 只保留首个失败原因。
+	persisted := &model.VideoAnalysisTask{
 		Status:       model.VideoAnalysisStatusPartial,
-		ErrorMessage: `describe stage: external job failed: code=DESCRIBE_ERROR message=Connection error.`,
+		ErrorMessage: `describe stage: external job failed: code=DESCRIBE_PARTIAL message=2/5 个场景描述失败（scene_index: 1,3）: 场景 1：场景描述模型不可达`,
 		MissingModel: "model-hub/minicpm-v4.6:latest",
 	}
-	ensureMissingModel(stale)
-	if stale.MissingModel != "" {
-		t.Fatalf("stale missing_model = %q, want empty", stale.MissingModel)
+	ensureMissingModel(persisted)
+	if persisted.MissingModel != "model-hub/minicpm-v4.6:latest" {
+		t.Fatalf("persisted missing_model = %q, want kept", persisted.MissingModel)
 	}
 
 	// 重试成功：即使 error_message 残留也不再提示下载

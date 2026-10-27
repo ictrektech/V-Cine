@@ -113,7 +113,7 @@ func describedIndexes(t *testing.T, repo *repository.SceneRepo, taskID string) [
 // 错误码 DESCRIBE_PARTIAL，成功场景落库。
 func TestRunLocalDescribeStagePartialKeepsTaskPartial(t *testing.T) {
 	vision := &fakeVisionClient{failOn: map[int]error{
-		1: &sceneDescribeError{Retryable: true, Message: "上游 503"},
+		1: &sceneDescribeError{Retryable: true, Message: "上游 503", Detail: "finish_reason=length\nraw={\"id\":\"chatcmpl-x\"}"},
 	}}
 	svc, task, sceneRepo := newLocalStageFixture(t, 3, vision)
 
@@ -137,6 +137,23 @@ func TestRunLocalDescribeStagePartialKeepsTaskPartial(t *testing.T) {
 	}
 	if stored.Status != model.VideoAnalysisStatusPartial {
 		t.Fatalf("persisted status = %q, want partial", stored.Status)
+	}
+	// 任务级错误保持简短（面向用户），上游原始诊断落到结果 warnings.detail。
+	if !strings.Contains(stored.ErrorMessage, "上游 503") || strings.Contains(stored.ErrorMessage, "raw=") {
+		t.Fatalf("error_message = %q, want short reason without upstream detail", stored.ErrorMessage)
+	}
+	var result videoAnalysisStructureResult
+	if err := json.Unmarshal([]byte(stored.ResultJSON), &result); err != nil {
+		t.Fatal(err)
+	}
+	var detail string
+	for _, warning := range result.Warnings {
+		if warning.TargetID == "1" {
+			detail = warning.Detail
+		}
+	}
+	if !strings.Contains(detail, "finish_reason=length") {
+		t.Fatalf("warning detail = %q, want upstream diagnostics", detail)
 	}
 }
 
