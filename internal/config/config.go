@@ -173,7 +173,8 @@ type VideoAnalysisConfig struct {
 	DescribeConcurrency int `mapstructure:"describe_concurrency" yaml:"describe_concurrency" json:"describe_concurrency"`
 	// DescribeSceneTimeoutSeconds 单场景描述超时（秒），默认 90。
 	DescribeSceneTimeoutSeconds int `mapstructure:"describe_scene_timeout_seconds" yaml:"describe_scene_timeout_seconds" json:"describe_scene_timeout_seconds"`
-	// ModelHubAPIURL Model Hub 后端地址，用于触发缺失模型下载（如 scene 描述模型）。
+	// ModelHubAPIURL V-Scheduler 模型仓库地址，用于触发缺失模型下载（如 scene 描述模型）。
+	// 名称沿用 model_hub_*（配置键保持兼容），实际由 V-Scheduler 的模型管理模块提供。
 	ModelHubAPIURL string `mapstructure:"model_hub_api_url" yaml:"model_hub_api_url" json:"model_hub_api_url"`
 }
 
@@ -826,6 +827,7 @@ func Load() (*Config, error) {
 		cfg.VideoAnalysis.JobTimeoutMinutes = 120
 	}
 	cfg.VideoAnalysis.ModelHubAPIURL = strings.TrimRight(strings.TrimSpace(cfg.VideoAnalysis.ModelHubAPIURL), "/")
+	cfg.migrateLegacyModelHubURL()
 
 	// 11. V9/V10 迁移已完成，旧的 custom_providers / 顶层字段不再需要迁移。
 	// writeAIYaml 已显式清除这些废弃 key，确保它们不会残留在 yaml 中。
@@ -915,7 +917,7 @@ func setDefaults() {
 	viper.SetDefault("video_analysis.poll_interval_seconds", 2)
 	viper.SetDefault("video_analysis.job_timeout_minutes", 120)
 	viper.SetDefault("video_analysis.describe_enabled", false)
-	viper.SetDefault("video_analysis.model_hub_api_url", "http://model-hub-backend:5005")
+	viper.SetDefault("video_analysis.model_hub_api_url", modelHubAPIURLDefault)
 
 	// ---- AI ----
 	viper.SetDefault("ai.enabled", false)
@@ -1220,6 +1222,22 @@ func (c *Config) migrateLegacyGatewayProvider() {
 	}
 	if migrated && c.AI.ActiveProvider == legacyGatewayProviderID {
 		c.AI.ActiveProvider = GatewayProviderID
+	}
+}
+
+// 模型仓库地址：旧的 Model Hub 独立服务已并入 V-Scheduler 的模型管理模块。
+const (
+	modelHubAPIURLDefault = "http://v-scheduler:6005"
+	// legacyModelHubAPIURL 旧版独立 Model Hub 的默认地址，仅用于识别并迁移既有配置。
+	legacyModelHubAPIURL = "http://model-hub-backend:5005"
+)
+
+// migrateLegacyModelHubURL 把旧默认地址就地换成 V-Scheduler 模型仓库：
+// 只替换恰好等于旧默认值的配置，用户自定义的地址不动
+// （旧地址若仍走 V-Scheduler 的兼容 alias，也能继续访问）。
+func (c *Config) migrateLegacyModelHubURL() {
+	if strings.TrimRight(strings.TrimSpace(c.VideoAnalysis.ModelHubAPIURL), "/") == legacyModelHubAPIURL {
+		c.VideoAnalysis.ModelHubAPIURL = modelHubAPIURLDefault
 	}
 }
 

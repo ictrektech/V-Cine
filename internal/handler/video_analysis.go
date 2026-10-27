@@ -237,39 +237,42 @@ func (h *VideoAnalysisHandler) GetHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": h.service.GetHealth(c.Request.Context())})
 }
 
-// ModelHubStatus 查询一个 V-Scheduler 模型名（model-hub/xxx）在 Model Hub 的下载状态。
+// ModelHubStatus 查询一个网关模型名在 V-Scheduler 模型仓库的下载状态。
 // 用途：describe 阶段因模型缺失失败时，前端据此展示下载入口与进度。
 func (h *VideoAnalysisHandler) ModelHubStatus(c *gin.Context) {
 	model := strings.TrimSpace(c.Query("model"))
 	if model == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 model 参数（如 model-hub/minicpm-v4.6:latest）"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 model 参数（如 v-scheduler/ollama-qa/minicpm-v4.6:latest）"})
 		return
 	}
 	client := service.NewModelHubClient(h.cfg.VideoAnalysisSnapshot().ModelHubAPIURL)
 	if client == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "未配置 Model Hub 地址（video_analysis.model_hub_api_url）"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "未配置 V-Scheduler 模型仓库地址（video_analysis.model_hub_api_url）"})
 		return
 	}
 	status, err := client.Status(c.Request.Context(), model)
 	if err != nil {
-		respondErr(c, http.StatusBadGateway, "查询 Model Hub 模型状态失败", err)
+		respondErr(c, http.StatusBadGateway, "查询 V-Scheduler 模型仓库状态失败", err)
 		return
 	}
+	// 仓库里 ready 只说明模型文件在；网关不认识这个名称时重试仍会 404。
+	providerID, apiBase, apiKey := service.ResolveSceneDescribeProvider(h.cfg.AISnapshot())
+	service.VerifyGatewayModel(c.Request.Context(), status, providerID, apiBase, apiKey)
 	c.JSON(http.StatusOK, gin.H{"data": status})
 }
 
-// PullModelHubModel 触发 Model Hub 下载缺失模型（管理员操作：占用共享存储与带宽）。
+// PullModelHubModel 触发 V-Scheduler 模型仓库下载缺失模型（管理员操作：占用共享存储与带宽）。
 func (h *VideoAnalysisHandler) PullModelHubModel(c *gin.Context) {
 	var request struct {
 		Model string `json:"model" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 model 参数（如 model-hub/minicpm-v4.6:latest）"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供 model 参数（如 v-scheduler/ollama-qa/minicpm-v4.6:latest）"})
 		return
 	}
 	client := service.NewModelHubClient(h.cfg.VideoAnalysisSnapshot().ModelHubAPIURL)
 	if client == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "未配置 Model Hub 地址（video_analysis.model_hub_api_url）"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "未配置 V-Scheduler 模型仓库地址（video_analysis.model_hub_api_url）"})
 		return
 	}
 	taskID, err := client.Pull(c.Request.Context(), strings.TrimSpace(request.Model))
@@ -280,12 +283,12 @@ func (h *VideoAnalysisHandler) PullModelHubModel(c *gin.Context) {
 		case errors.Is(err, service.ErrModelHubPullConflict):
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		default:
-			respondErr(c, http.StatusBadGateway, "触发 Model Hub 模型下载失败", err)
+			respondErr(c, http.StatusBadGateway, "触发 V-Scheduler 模型仓库下载失败", err)
 		}
 		return
 	}
 	operatorID, _ := c.Get("user_id")
-	h.logger.Infow("Model Hub 模型下载已触发",
+	h.logger.Infow("V-Scheduler 模型仓库下载已触发",
 		"operator_id", operatorID, "model", request.Model, "task_id", taskID)
 	c.JSON(http.StatusAccepted, gin.H{"data": gin.H{"task_id": taskID}})
 }

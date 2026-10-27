@@ -47,6 +47,8 @@ type localDescribeOutcome struct {
 	// Warnings 每个失败场景的原因（与 Failed 同序），供错误信息带上上游原文。
 	// extractMissingModel 从该文本识别缺失模型名。
 	Warnings []VideoAnalysisWarning
+	// MissingModel 网关明确回"模型不存在"时本次请求的模型名（上游 404 不回显 model id）。
+	MissingModel string
 	// Total 本次派发的场景总数（= 此前缺口数），用于日志与进度展示。
 	Total int
 }
@@ -76,13 +78,9 @@ func (s *VideoAnalysisService) describeLocalClient() SceneDescriptionClient {
 	if modelName == "" {
 		return nil
 	}
-	apiBase, apiKey := resolveSceneDescribeProvider(ai)
+	providerID, apiBase, apiKey := ResolveSceneDescribeProvider(ai)
 	if apiBase == "" {
 		return nil
-	}
-	providerID := strings.TrimSpace(ai.SceneDescribeAI.ProviderID)
-	if providerID == "" {
-		providerID = ai.ActiveProvider
 	}
 	return newOpenAIVisionClient(openAIVisionConfig{
 		BaseURL:    apiBase,
@@ -180,7 +178,8 @@ func (s *VideoAnalysisService) runRemoteDescribeStage(ctx context.Context, task 
 
 	// describe 部分失败（result.status = "partial"）：成功场景的描述已保留，
 	// 标记任务 partial，可重新提交 describe job 增量补齐失败场景。
-	if describeResultStatus(describeResult.Result) == describeStatusPartial {
+	// 合并后若每个场景都有描述（本轮失败但此前已描述），按完成处理。
+	if describeResultStatus(describeResult.Result) == describeStatusPartial && !allScenesDescribed(task.ResultJSON) {
 		return s.completeDescribePartial(task, describePartialError(describeResult.Result), "DESCRIBE_PARTIAL")
 	}
 
@@ -249,11 +248,16 @@ func (s *VideoAnalysisService) runLocalDescribeStage(ctx context.Context, task *
 		details := make([]string, 0, len(outcome.Warnings))
 		for _, warning := range outcome.Warnings {
 			if warning.Detail != "" {
-				details = append(details, warning.Detail)
+				details = append(details, string(warning.Detail))
 			}
 		}
 		// Detail 一并参与缺失模型识别：上游把 unknown model 放在响应体里时也能提示下载。
-		return s.completeDescribePartial(task, localDescribeError(outcome), "DESCRIBE_PARTIAL", details...)
+		describeErr := localDescribeError(outcome)
+		if outcome.MissingModel != "" {
+			// 带上本次请求的模型名，收尾时直接作为 missing_model，不再靠正则猜。
+			describeErr = &missingModelError{err: describeErr, model: outcome.MissingModel}
+		}
+		return s.completeDescribePartial(task, describeErr, "DESCRIBE_PARTIAL", details...)
 	}
 	if describeErr != nil {
 		// 无失败场景但存在确定性错误（例如全部场景被取消）：按 partial 收尾保留已有结果。
@@ -337,7 +341,11 @@ func (s *VideoAnalysisService) describeLocally(ctx context.Context, client Scene
 				var describeErr *sceneDescribeError
 				if errors.As(err, &describeErr) {
 					// 上游原始诊断（finish_reason/usage/响应体）随结果落库，供前端明细与日志排查。
-					warning.Detail = describeErr.Detail
+					warning.Detail = DetailText(describeErr.Detail)
+					// 只有调用方知道请求的模型名；记下来供 missing_model 使用。
+					if describeErr.MissingModel != "" && outcome.MissingModel == "" {
+						outcome.MissingModel = describeErr.MissingModel
+					}
 				}
 				warnings = append(warnings, warning)
 				if describeErr != nil && !describeErr.Retryable {

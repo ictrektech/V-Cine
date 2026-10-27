@@ -63,7 +63,7 @@ type VideoAnalysisTask struct {
 	ResultJSON     string `json:"-" gorm:"type:text"`
 	ErrorCode      string `json:"error_code" gorm:"type:text"`
 	ErrorMessage   string `json:"error_message" gorm:"type:text"`
-	// MissingModel describe 阶段因 V-Scheduler/Model Hub 缺少模型而失败时记录缺失的模型名
+	// MissingModel describe 阶段因 V-Scheduler 模型仓库缺少模型而失败时记录缺失的模型名
 	// （如 model-hub/minicpm-v4.6:latest），供前端展示下载入口。
 	MissingModel string `json:"missing_model" gorm:"type:text"`
 	Attempt      int    `json:"attempt" gorm:"default:0"`

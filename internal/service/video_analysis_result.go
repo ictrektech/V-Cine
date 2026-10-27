@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,9 +20,42 @@ type VideoAnalysisWarning struct {
 	Code    string `json:"code,omitempty"`
 	Message string `json:"message"`
 	// Detail 上游原始诊断（finish_reason/usage/响应体等），面向排查；Message 保持简短给用户看。
-	Detail   string `json:"detail,omitempty"`
-	Scope    string `json:"scope,omitempty"`
-	TargetID string `json:"target_id,omitempty"`
+	Detail   DetailText `json:"detail,omitempty"`
+	Scope    string     `json:"scope,omitempty"`
+	TargetID string     `json:"target_id,omitempty"`
+}
+
+// DetailText 上游诊断文本：兼容上游把 detail 传成字符串或结构化对象。
+// 对象/数组会被压成紧凑 JSON 文本，落库与下发保持字符串形态，前端 <pre> 直接可读。
+type DetailText string
+
+// UnmarshalJSON 接受 string / object / array / number / null，统一转成文本。
+func (d *DetailText) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		*d = ""
+		return nil
+	}
+	if trimmed[0] == '"' {
+		var text string
+		if err := json.Unmarshal(trimmed, &text); err != nil {
+			return err
+		}
+		*d = DetailText(text)
+		return nil
+	}
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, trimmed); err != nil {
+		*d = DetailText(string(trimmed))
+		return nil
+	}
+	*d = DetailText(compact.String())
+	return nil
+}
+
+// MarshalJSON 始终输出字符串，与落库/前端契约保持一致。
+func (d DetailText) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(d))
 }
 
 type SceneResult struct {
@@ -387,14 +421,24 @@ func mergeDescribeResult(structureJSON string, describeJSON []byte) (string, err
 		byIndex[item.SceneIndex] = item
 	}
 	for i := range structureResult.Scenes {
-		if item, ok := byIndex[structureResult.Scenes[i].SceneIndex]; ok {
-			structureResult.Scenes[i].Description = strings.TrimSpace(item.Description)
-			structureResult.Scenes[i].Status = strings.TrimSpace(item.Status)
-			structureResult.Scenes[i].Error = strings.TrimSpace(item.Error)
-			if strings.TrimSpace(structureResult.Scenes[i].GridImage) == "" {
-				structureResult.Scenes[i].GridImage = strings.TrimSpace(item.GridImage)
-			}
+		scene := &structureResult.Scenes[i]
+		item, ok := byIndex[scene.SceneIndex]
+		if !ok {
+			continue
 		}
+		if strings.TrimSpace(scene.GridImage) == "" {
+			scene.GridImage = strings.TrimSpace(item.GridImage)
+		}
+		incoming := strings.TrimSpace(item.Description)
+		if incoming == "" {
+			// 本轮失败/跳过：本轮状态照记（含沿用了旧描述的场景），但不用空描述覆盖旧描述。
+			scene.Status = strings.TrimSpace(item.Status)
+			scene.Error = strings.TrimSpace(item.Error)
+			continue
+		}
+		scene.Description = incoming
+		scene.Status = strings.TrimSpace(item.Status)
+		scene.Error = ""
 	}
 	if len(describeResult.Warnings) > 0 {
 		structureResult.Warnings = append(structureResult.Warnings, describeResult.Warnings...)
@@ -411,8 +455,30 @@ func mergeDescribeResult(structureJSON string, describeJSON []byte) (string, err
 	return string(merged), nil
 }
 
+// allScenesDescribed 判断结果里是否每个场景都已有描述。
+// 重试时本轮失败的场景可能仍带着上一轮成功的描述，此时任务应视为完成而不是 partial。
+func allScenesDescribed(resultJSON string) bool {
+	if strings.TrimSpace(resultJSON) == "" {
+		return false
+	}
+	var result videoAnalysisStructureResult
+	if err := json.Unmarshal([]byte(resultJSON), &result); err != nil {
+		return false
+	}
+	if len(result.Scenes) == 0 {
+		return false
+	}
+	for _, scene := range result.Scenes {
+		if strings.TrimSpace(scene.Description) == "" {
+			return false
+		}
+	}
+	return true
+}
+
 // pruneSceneWarnings 清理跨多次 describe 累积的场景告警：
-//   - 场景已有描述 → 丢弃该场景的失败告警；
+//   - 场景已补齐描述且本轮未失败 → 丢弃该场景的失败告警；
+//   - 场景已有旧描述但本轮仍失败（重试沿用上次描述）→ 保留告警，否则看不出本轮失败；
 //   - 同一场景保留最后一条（告警按批次追加，最后一条是本批结果）。
 //
 // 按场景号去重：同一场景在不同批次里可能换错误码（如取消 → 真实失败），
@@ -424,9 +490,14 @@ func pruneSceneWarnings(warnings []VideoAnalysisWarning, scenes []videoAnalysisS
 		return warnings
 	}
 	described := make(map[string]bool, len(scenes))
+	failed := make(map[string]bool, len(scenes))
 	for _, scene := range scenes {
+		key := fmt.Sprintf("%d", scene.SceneIndex)
 		if strings.TrimSpace(scene.Description) != "" {
-			described[fmt.Sprintf("%d", scene.SceneIndex)] = true
+			described[key] = true
+		}
+		if strings.EqualFold(strings.TrimSpace(scene.Status), "failed") {
+			failed[key] = true
 		}
 	}
 	lastIndex := make(map[string]int, len(warnings))
@@ -439,7 +510,7 @@ func pruneSceneWarnings(warnings []VideoAnalysisWarning, scenes []videoAnalysisS
 	pruned := make([]VideoAnalysisWarning, 0, len(warnings))
 	for i, warning := range warnings {
 		if isSceneWarning(warning) {
-			if described[warning.TargetID] {
+			if described[warning.TargetID] && !failed[warning.TargetID] {
 				continue
 			}
 			if lastIndex[warning.TargetID] != i {

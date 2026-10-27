@@ -149,7 +149,7 @@ func TestRunLocalDescribeStagePartialKeepsTaskPartial(t *testing.T) {
 	var detail string
 	for _, warning := range result.Warnings {
 		if warning.TargetID == "1" {
-			detail = warning.Detail
+			detail = string(warning.Detail)
 		}
 	}
 	if !strings.Contains(detail, "finish_reason=length") {

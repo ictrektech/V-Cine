@@ -196,7 +196,9 @@ video_analysis:
 - 任务状态为 partial/failed 时可直接重试；配置了自定义描述模型时，重试只会为缺口场景调用视觉模型
 - 描述服务的 staging 产物有 TTL（生产 6 小时 / dev 7 天），请在 TTL 内重试；V-Cine 已在描述失败时把九宫格 claim 到本地，不受 TTL 影响
 - 检查 describe 使用的视觉模型配置（`scene_describe_ai`）与供应商连通性
-- 鉴权失败（401/403）与模型缺失（`unknown model: model-hub/...`）属于不可重试错误：系统会立即中止本轮扇出，修好配置后重试即可，不会逐个场景白跑
+- 鉴权失败（401/403）与模型缺失（网关 404 `unknown model or upstream`）属于不可重试错误：系统会立即中止本轮扇出，修好配置后重试即可，不会逐个场景白跑
+- 模型缺失时，上游（structure/describe 服务）通过 `error.detail.model` 回传本次请求的模型名（形如 `v-scheduler/ollama-qa/minicpm-v4.6:latest`），任务据此给出 V-Scheduler 模型仓库的下载入口；旧版上游没有该字段时退回 `unknown model: model-hub/...` 文本解析
+- 模型仓库里存的是 `ollama://minicpm-v4.6:latest` 这类 id，V-Cine 用"最后一段原生模型名"对齐网关命名；同名模型在多个来源下存在时不做猜测，直接提示"不在模型仓库中"，需人工确认
 
 ### 6. 九宫格图片无法显示
 

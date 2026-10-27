@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nowen-video/nowen-video/internal/model"
@@ -306,6 +307,77 @@ func TestMergeDescribeResultMergesSceneDescriptions(t *testing.T) {
 	}
 }
 
+// TestMergeDescribeResultKeepsPreviousDescription 验证重试不会把上一轮成功的描述冲成空：
+// 本轮该场景失败（description 为空、status=failed）时保留原有描述与状态。
+func TestMergeDescribeResultKeepsPreviousDescription(t *testing.T) {
+	merged, err := mergeDescribeResult(
+		mustMarshalJSON(t, map[string]any{
+			"video_hash": "hash-1",
+			"scenes": []map[string]any{
+				{"scene_index": 0, "description": "上一轮已成功描述。", "status": "ok"},
+				{"scene_index": 1, "description": "", "status": "failed", "error": "本轮失败"},
+			},
+		}),
+		mustMarshalJSONBytes(t, map[string]any{
+			"video_hash": "hash-1",
+			"status":     "partial",
+			"descriptions": []map[string]any{
+				{"scene_index": 0, "description": "", "status": "failed", "error": "HTTP 429"},
+				{"scene_index": 1, "description": "", "status": "failed", "error": "HTTP 429"},
+			},
+			"warnings": []map[string]any{
+				{"code": "DESC_LLM_ERROR", "message": "场景 0 描述失败", "scope": "scene", "target_id": "0"},
+				{"code": "DESC_LLM_ERROR", "message": "场景 1 描述失败", "scope": "scene", "target_id": "1"},
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Scenes []struct {
+			SceneIndex  int    `json:"scene_index"`
+			Description string `json:"description"`
+			Status      string `json:"status"`
+		} `json:"scenes"`
+	}
+	if err := json.Unmarshal([]byte(merged), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Scenes[0].Description != "上一轮已成功描述。" {
+		t.Fatalf("scene 0 = %+v, want previous description kept", result.Scenes[0])
+	}
+	if result.Scenes[0].Status != "failed" {
+		t.Fatalf("scene 0 = %+v, want this round's failure recorded", result.Scenes[0])
+	}
+	if result.Scenes[1].Status != "failed" {
+		t.Fatalf("scene 1 = %+v, want failed status recorded", result.Scenes[1])
+	}
+
+	// 沿用旧描述但本轮失败 → 告警必须保留，否则看不出为什么还是 partial
+	var withWarnings struct {
+		Warnings []VideoAnalysisWarning `json:"warnings"`
+	}
+	if err := json.Unmarshal([]byte(merged), &withWarnings); err != nil {
+		t.Fatal(err)
+	}
+	if len(withWarnings.Warnings) != 2 {
+		t.Fatalf("warnings = %d, want 2 (both scenes failed this round)", len(withWarnings.Warnings))
+	}
+
+	if !allScenesDescribed(mustMarshalJSON(t, map[string]any{
+		"scenes": []map[string]any{{"scene_index": 0, "description": "x"}, {"scene_index": 1, "description": "y"}},
+	})) {
+		t.Fatal("all scenes described should be true")
+	}
+	if allScenesDescribed(merged) {
+		t.Fatal("scene 1 without description should make it false")
+	}
+	if allScenesDescribed("") || allScenesDescribed(`{"scenes":[]}`) {
+		t.Fatal("empty result must not count as all described")
+	}
+}
+
 func mustMarshalJSON(t *testing.T, value any) string {
 	t.Helper()
 	encoded, err := json.Marshal(value)
@@ -313,4 +385,40 @@ func mustMarshalJSON(t *testing.T, value any) string {
 		t.Fatal(err)
 	}
 	return string(encoded)
+}
+
+// TestVideoAnalysisWarningDetailAcceptsObject 验证 warnings[].detail 的三种形态都能解码：
+// 上游结构化诊断（对象）、纯文本（字符串）、缺省为空，且重新序列化后仍是字符串。
+func TestVideoAnalysisWarningDetailAcceptsObject(t *testing.T) {
+	payload := []byte(`{"warnings":[
+		{"code":"DESC_LLM_ERROR","message":"场景 1 描述失败","detail":{"model":"v-scheduler/ollama-qa/minicpm-v4.6:latest","status_code":404,"upstream_code":"NOT_FOUND"}},
+		{"code":"DESC_EMPTY","message":"空内容","detail":"finish_reason=length"},
+		{"code":"DESC_NONE","message":"无 detail"}
+	]}`)
+	var parsed videoAnalysisDescribeResult
+	if err := json.Unmarshal(payload, &parsed); err != nil {
+		t.Fatalf("unmarshal describe result: %v", err)
+	}
+	if len(parsed.Warnings) != 3 {
+		t.Fatalf("warnings = %d, want 3", len(parsed.Warnings))
+	}
+	const wantObject = `{"model":"v-scheduler/ollama-qa/minicpm-v4.6:latest","status_code":404,"upstream_code":"NOT_FOUND"}`
+	if got := string(parsed.Warnings[0].Detail); got != wantObject {
+		t.Fatalf("object detail = %q, want %q", got, wantObject)
+	}
+	if got := string(parsed.Warnings[1].Detail); got != "finish_reason=length" {
+		t.Fatalf("string detail = %q, want finish_reason=length", got)
+	}
+	if parsed.Warnings[2].Detail != "" {
+		t.Fatalf("missing detail = %q, want empty", parsed.Warnings[2].Detail)
+	}
+
+	// 落库与下发都保持字符串形态，前端 <pre> 直接可读
+	encoded, err := json.Marshal(parsed.Warnings[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"detail":"{\"model\"`) {
+		t.Fatalf("re-encoded warning = %s, want detail as escaped JSON string", encoded)
+	}
 }

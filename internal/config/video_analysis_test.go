@@ -135,3 +135,24 @@ func TestUpdateVideoAnalysisConfigRollsBackOnSaveError(t *testing.T) {
 		t.Fatal("expected in-memory config to roll back after save failure")
 	}
 }
+
+// TestMigrateLegacyModelHubURL 验证：旧版独立 Model Hub 的默认地址迁移到 V-Scheduler 模型仓库，
+// 自定义地址与空值不受影响。
+func TestMigrateLegacyModelHubURL(t *testing.T) {
+	cases := []struct{ name, input, want string }{
+		{"legacy default", legacyModelHubAPIURL, modelHubAPIURLDefault},
+		{"legacy default with slash", legacyModelHubAPIURL + "/", modelHubAPIURLDefault},
+		{"custom address", "http://my-hub:6005", "http://my-hub:6005"},
+		{"empty stays empty", "", ""},
+		{"already new", modelHubAPIURLDefault, modelHubAPIURLDefault},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &Config{VideoAnalysis: VideoAnalysisConfig{ModelHubAPIURL: tc.input}}
+			cfg.migrateLegacyModelHubURL()
+			if cfg.VideoAnalysis.ModelHubAPIURL != tc.want {
+				t.Fatalf("ModelHubAPIURL = %q, want %q", cfg.VideoAnalysis.ModelHubAPIURL, tc.want)
+			}
+		})
+	}
+}

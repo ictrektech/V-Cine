@@ -139,8 +139,8 @@ video_analysis:
   # 未配置自定义模型时，describe 仍交给 structure 服务端，本节配置不生效。
   describe_concurrency: 3
   describe_scene_timeout_seconds: 90
-  # Model Hub 后端地址（场景描述模型缺失时的“一键下载”入口）
-  model_hub_api_url: http://model-hub-backend:5005
+  # V-Scheduler 模型仓库地址（场景描述模型缺失时的“一键下载”入口）
+  model_hub_api_url: http://v-scheduler:6005
 
 # ==================== Emby / Jellyfin 兼容层配置 ====================
 # 用于移动端 Emby/Infuse/Jellyfin 客户端登录与播放。无需客户端额外配置，

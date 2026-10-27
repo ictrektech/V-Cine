@@ -566,8 +566,55 @@ func TestVideoAnalysisServiceDescribeJobFailedMarksPartialAndClaims(t *testing.T
 	}
 }
 
+func TestVideoAnalysisServiceDescribeMissingModelFromDetail(t *testing.T) {
+	// 新契约：上游把"模型缺失"的模型名放在 error.detail.model（网关 404 不回显 model id，
+	// 消息里也没有模型名）→ 直接取结构化字段，无需正则解析。
+	const modelID = "v-scheduler/ollama-qa/minicpm-v4.6:latest"
+	detail, _ := json.Marshal(map[string]any{
+		"model":         modelID,
+		"base_url":      "http://v-scheduler:8080/v1",
+		"status_code":   404,
+		"upstream_code": "NOT_FOUND",
+		"request_id":    "75cc452e-e385-49b4-bd2a-5c349c5c5820",
+		"failed_scenes": 6,
+		"total_scenes":  6,
+	})
+	client := &fakeVideoAnalysisClient{
+		artifact: &VideoAnalysisArtifact{
+			Files: []VideoAnalysisArtifactFile{{Path: "manifest.json", Size: 2}},
+		},
+		describeJobFailure: &ExternalJobError{
+			Code:    errorCodeDescribeModelNotFound,
+			Message: "模型 " + modelID + " 调用失败（HTTP 404 NOT_FOUND）：unknown model or upstream",
+			Detail:  detail,
+		},
+	}
+	service, tasks, mediaID := setupVideoAnalysisService(t, client)
+	service.describeEnabled = true
+	task, _, err := service.SubmitMedia(mediaID, VideoAnalysisSubmitOptions{IncludeDescriptions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessTask(context.Background(), task.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := tasks.FindByID(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != model.VideoAnalysisStatusPartial {
+		t.Fatalf("status = %q, want partial", stored.Status)
+	}
+	if stored.ErrorCode != errorCodeDescribeModelNotFound {
+		t.Fatalf("error_code = %q, want %q", stored.ErrorCode, errorCodeDescribeModelNotFound)
+	}
+	if stored.MissingModel != modelID {
+		t.Fatalf("missing_model = %q, want %q", stored.MissingModel, modelID)
+	}
+}
+
 func TestVideoAnalysisServiceDescribeMissingModelRecordsMissingModel(t *testing.T) {
-	// describe job 因 V-Scheduler 缺少模型失败（unknown model: model-hub/xxx）→
+	// 旧版上游：模型缺失只体现为文本（unknown model: model-hub/xxx），退回正则解析 →
 	// 任务 partial 且记录 missing_model，供前端展示“一键下载”入口。
 	client := &fakeVideoAnalysisClient{
 		artifact: &VideoAnalysisArtifact{
@@ -607,7 +654,7 @@ func TestVideoAnalysisServiceDescribeMissingModelRecordsMissingModel(t *testing.
 }
 
 func TestVideoAnalysisServiceDescribeOllamaGatewayMissingModel(t *testing.T) {
-	// Model Hub ollama 网关 404 格式（model 'xxx' not found，无 model-hub/ 前缀）
+	// 旧版 Model Hub / ollama 网关 404 格式（model 'xxx' not found，无 model-hub/ 前缀）
 	// 也要正确识别并规范化为 model-hub/<name>。
 	client := &fakeVideoAnalysisClient{
 		artifact: &VideoAnalysisArtifact{

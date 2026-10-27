@@ -1055,16 +1055,16 @@ func (s *VideoAnalysisService) submitStructureWithScenes(ctx context.Context, ta
 	return job.JobID, nil
 }
 
-// resolveSceneDescribeProvider 解析场景描述视觉模型的连接信息。
+// ResolveSceneDescribeProvider 解析场景描述视觉模型的连接信息。
 // 优先从 scene_describe_ai 指定的 provider 获取，回退到当前激活的 provider。
-func resolveSceneDescribeProvider(ai config.AIConfig) (apiBase, apiKey string) {
+func ResolveSceneDescribeProvider(ai config.AIConfig) (providerID, apiBase, apiKey string) {
 	if p := ai.FindProvider(ai.SceneDescribeAI.ProviderID); p != nil && p.APIBase != "" {
-		return p.APIBase, p.APIKey
+		return p.ID, p.APIBase, p.APIKey
 	}
 	if ap := ai.ActiveProfile(); ap != nil && ap.APIBase != "" {
-		return ap.APIBase, ap.APIKey
+		return ap.ID, ap.APIBase, ap.APIKey
 	}
-	return "", ""
+	return "", "", ""
 }
 
 func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *model.VideoAnalysisTask) (string, error) {
@@ -1090,7 +1090,7 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 		ai = s.appCfg.AISnapshot()
 	}
 	if ai.SceneDescribeAI.Model != "" {
-		apiBase, apiKey := resolveSceneDescribeProvider(ai)
+		providerID, apiBase, apiKey := ResolveSceneDescribeProvider(ai)
 		if apiBase != "" {
 			// worker 对空 api_key 的语义是"省略 Authorization 头"（匿名 internal 身份），
 			// V-Scheduler 网关 REQUIRE_KEY=false（默认）时直接放行。
@@ -1098,9 +1098,10 @@ func (s *VideoAnalysisService) ensureDescribeJob(ctx context.Context, task *mode
 			// 假 key 必然 401（"invalid or missing gateway Key / VOS access token"）。
 			// 凭证优先级：provider 配置的 key > 网关场景的 VOS 登录 token > 匿名（空 key）。
 			if apiKey == "" {
-				activeProviderID := ai.SceneDescribeAI.ProviderID
+				activeProviderID := providerID
 				if activeProviderID == "" {
-					activeProviderID = ai.ActiveProvider
+					// FindProvider 没命中（如只配了 scene_describe_ai.model 但没指定 provider）
+					activeProviderID = ai.SceneDescribeAI.ProviderID
 				}
 				credential := "anonymous"
 				if config.IsVSchedulerGateway(activeProviderID, apiBase) {
@@ -1182,14 +1183,15 @@ func (s *VideoAnalysisService) completeDescribePartial(task *model.VideoAnalysis
 			"error", task.ErrorMessage,
 		)
 	}
-	// describe 阶段因 Model Hub 缺少模型失败（unknown model: model-hub/xxx）时
+	// describe 阶段因缺少模型失败（网关 404 unknown model or upstream）时
 	// 记录缺失模型名，供前端展示“一键下载”入口。无匹配时清空，避免旧值残留误导。
-	// 识别源包含 detail（逐场景上游响应）：上游把 unknown model 放在响应体里也能识别。
+	// 优先取上游结构化 error.detail.model（网关不回显 model id，只有调用方知道请求的模型）；
+	// 上游未提供结构化 detail 时，退回 message / 逐场景响应原文的正则解析。
 	missingModelSource := task.ErrorMessage
 	if len(detail) > 0 {
 		missingModelSource += " " + strings.Join(detail, "\n")
 	}
-	task.MissingModel = extractMissingModel(missingModelSource)
+	task.MissingModel = missingModelFromError(err, missingModelSource)
 	if persistErr := s.persist(task); persistErr != nil {
 		return persistErr
 	}
@@ -1213,13 +1215,13 @@ func describePartialError(describeJSON []byte) error {
 	return fmt.Errorf("%d 个场景描述失败: %s", len(parsed.Warnings), parsed.Warnings[0].Message)
 }
 
-// extractMissingModel 从 describe 失败错误文本中提取缺失的模型名，供前端展示 Model Hub
+// extractMissingModel 从 describe 失败错误文本中提取缺失的模型名，供前端展示模型仓库
 // 下载入口。识别两种上游回显格式：
 //
 //  1. V-Scheduler：unknown model: model-hub/<name>（已带前缀，原样返回）
 //  2. ollama / 部分 OpenAI 兼容网关：model '<name>' not found（补 model-hub/ 前缀）
 //
-// 只返回 Model Hub 可下载的名字：带 `/` 但不是 model-hub/ 前缀的、以及与模型缺失
+// 只返回模型仓库可下载的名字：带 `/` 但不是 model-hub/ 前缀的、以及与模型缺失
 // 无关的报错，一律返回空串。
 var missingModelPattern = regexp.MustCompile(`unknown model[:：]?\s*["']?(model-hub/[A-Za-z0-9][A-Za-z0-9._:/@-]*)`)
 
@@ -1235,6 +1237,35 @@ func extractMissingModel(errText string) string {
 		return "model-hub/" + m[1]
 	}
 	return ""
+}
+
+// missingModelCarrier 能明确给出缺失模型名的错误（上游结构化 detail / 本地扇出记录的模型名）。
+type missingModelCarrier interface {
+	MissingModel() string
+}
+
+// missingModelError 给没有结构化字段的错误补上模型名（本地 describe 路径使用）。
+type missingModelError struct {
+	err   error
+	model string
+}
+
+func (e *missingModelError) Error() string { return e.err.Error() }
+
+func (e *missingModelError) Unwrap() error { return e.err }
+
+func (e *missingModelError) MissingModel() string { return e.model }
+
+// missingModelFromError 取缺失模型名：优先错误自带的模型名（上游 error.detail.model），
+// 上游未提供结构化 detail 时，退回文本解析。
+func missingModelFromError(err error, sources ...string) string {
+	var carrier missingModelCarrier
+	if err != nil && errors.As(err, &carrier) {
+		if model := strings.TrimSpace(carrier.MissingModel()); model != "" {
+			return model
+		}
+	}
+	return extractMissingModel(strings.Join(sources, "\n"))
 }
 
 // ensureMissingModel 读取时同步缺失模型名：
@@ -1290,7 +1321,7 @@ func (s *VideoAnalysisService) waitForJobWithProgress(ctx context.Context, jobID
 			if job.Error == nil {
 				return nil, errors.New("external job failed without error details")
 			}
-			return nil, &externalJobFailedError{Code: job.Error.Code, Message: job.Error.Message}
+			return nil, &externalJobFailedError{Code: job.Error.Code, Message: job.Error.Message, Detail: job.Error.Detail}
 		}
 		if onPoll != nil {
 			onPoll(job)
@@ -1504,10 +1535,47 @@ func (s *VideoAnalysisService) broadcast(task *model.VideoAnalysisTask) {
 type externalJobFailedError struct {
 	Code    string
 	Message string
+	// Detail 上游结构化错误明细（error.detail），新契约里含 model/status_code/upstream_code 等。
+	Detail json.RawMessage
 }
 
 func (e *externalJobFailedError) Error() string {
 	return fmt.Sprintf("external job failed: code=%s message=%s", e.Code, e.Message)
+}
+
+// errorCodeDescribeModelNotFound 上游 describe 因模型未在网关注册失败。
+const errorCodeDescribeModelNotFound = "DESCRIBE_MODEL_NOT_FOUND"
+
+// MissingModel 从结构化 detail 取缺失的模型名。
+// 网关注册表 404 不回显 model id，只有调用方知道请求了什么，所以 model 由上游填入。
+// 只在"模型缺失"类失败上返回值：上游对所有 LLM 异常都带 model，普通失败不能当作缺模型。
+func (e *externalJobFailedError) MissingModel() string {
+	if len(e.Detail) == 0 {
+		return ""
+	}
+	var payload struct {
+		Model        string `json:"model"`
+		UpstreamCode string `json:"upstream_code"`
+	}
+	if err := unmarshalJobDetail(e.Detail, &payload); err != nil {
+		return ""
+	}
+	if e.Code != errorCodeDescribeModelNotFound && !strings.EqualFold(payload.UpstreamCode, "NOT_FOUND") {
+		return ""
+	}
+	return strings.TrimSpace(payload.Model)
+}
+
+// unmarshalJobDetail 兼容 detail 的两种形态：对象（新契约）与被序列化成字符串的 JSON（历史数据）。
+func unmarshalJobDetail(raw json.RawMessage, out any) error {
+	if err := json.Unmarshal(raw, out); err == nil {
+		return nil
+	}
+	var nested string
+	if err := json.Unmarshal(raw, &nested); err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(nested), out)
 }
 
 func shouldFallbackToScenes(err error) bool {

@@ -141,7 +141,7 @@ func (c *openAIVisionClient) DescribeImage(ctx context.Context, imagePath string
 			return "", err
 		}
 		if statusCode < 200 || statusCode >= 300 {
-			return "", classifySceneDescribeStatus(c.isGateway, c.apiKey != "", statusCode, respBody)
+			return "", classifySceneDescribeStatus(c.isGateway, c.apiKey != "", statusCode, respBody, c.model)
 		}
 
 		var out openAIVisionResponse
@@ -229,7 +229,7 @@ func (c *openAIVisionClient) doDescribeRequest(ctx context.Context, request open
 		// 400 降级用尽了重试次数：传输层返回的是上游状态错误，必须按状态码与响应体分类。
 		var statusErr *chatTransportStatusError
 		if errors.As(err, &statusErr) {
-			return nil, 0, stripped, classifySceneDescribeStatus(c.isGateway, c.apiKey != "", statusErr.StatusCode, statusErr.Body)
+			return nil, 0, stripped, classifySceneDescribeStatus(c.isGateway, c.apiKey != "", statusErr.StatusCode, statusErr.Body, c.model)
 		}
 		var describeErr *sceneDescribeError
 		if errors.As(err, &describeErr) {
@@ -362,7 +362,9 @@ func sceneDescriptionImageDataURL(imagePath string, desensitize func(string) str
 
 // classifySceneDescribeStatus 把上游 HTTP 失败翻译成可读原因并标记可重试性。
 // 400/401/403/404/422 标记为不可重试，429/5xx 标记为可重试。
-func classifySceneDescribeStatus(isGateway, hasKey bool, status int, body []byte) error {
+// model 是本次请求的模型名：网关 404 不回显 model id，只有调用方知道自己请求了什么，
+// 命中"模型缺失"时带上它，上层才能定位到具体模型。
+func classifySceneDescribeStatus(isGateway, hasKey bool, status int, body []byte, model string) error {
 	tail := strings.TrimSpace(string(body))
 	tail = truncateSceneDescribeText(tail, 400)
 	message := friendlyProviderError(isGateway, hasKey, status, tail)
@@ -373,20 +375,34 @@ func classifySceneDescribeStatus(isGateway, hasKey bool, status int, body []byte
 		// 附带上游响应原文。
 		message = message + " | " + tail
 	}
-	return &sceneDescribeError{
-		Retryable: status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || status >= 500,
-		Message:   message,
+	missingModel := ""
+	if status == http.StatusNotFound && mentionsMissingModel(body) {
+		missingModel = strings.TrimSpace(model)
 	}
+	return &sceneDescribeError{
+		Retryable:    status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || status >= 500,
+		Message:      message,
+		MissingModel: missingModel,
+	}
+}
+
+// mentionsMissingModel 识别网关"模型不存在"的 404：V-Scheduler 回
+// {"code":"NOT_FOUND","msg":"unknown model or upstream"}，旧格式为 unknown model: model-hub/<name>。
+func mentionsMissingModel(body []byte) bool {
+	text := strings.ToLower(string(body))
+	return strings.Contains(text, "unknown model") || strings.Contains(text, "not_found")
 }
 
 // sceneDescribeError 场景描述调用失败。
 // Retryable=false 表示配置/输入层面的确定性失败，扇出应立即中止而不是逐个重试。
 // Message 面向用户的简短原因；Detail 保存上游原始诊断，供结果明细与日志排查。
+// MissingModel 非空表示失败原因是该模型未在网关注册（网关不回显 model id，由调用方补上）。
 type sceneDescribeError struct {
-	Retryable bool
-	Message   string
-	Detail    string
-	Err       error
+	Retryable    bool
+	Message      string
+	Detail       string
+	MissingModel string
+	Err          error
 }
 
 func (e *sceneDescribeError) Error() string {
