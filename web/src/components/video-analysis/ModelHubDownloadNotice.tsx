@@ -15,7 +15,7 @@ function errorMessage(e: unknown, fallback: string): string {
   return data?.error || e.message || fallback
 }
 
-/** 展示 Model Hub 缺失模型的“一键下载”入口：查询状态 → 触发下载 → 展示进度。 */
+/** 展示缺失模型的“一键下载”入口（V-Scheduler 模型仓库）：查询状态 → 触发下载 → 展示进度。 */
 export default function ModelHubDownloadNotice({ model }: { model: string }) {
   const toast = useToast()
   const { t } = useTranslation()
@@ -67,8 +67,12 @@ export default function ModelHubDownloadNotice({ model }: { model: string }) {
     fetchStatus()
   }
 
-  // 状态文案：ready/pulling 有专属文案，其余（missing/failed/unsupported/未知）统一缺省文案
-  const hintTexts: Record<string, string> = { ready: t('vat.modelReady'), pulling: t('vat.modelPulling') }
+  // 状态文案：ready/pulling/not_registered 有专属文案，其余（missing/failed/unsupported/未知）统一缺省文案
+  const hintTexts: Record<string, string> = {
+    ready: t('vat.modelReady'),
+    pulling: t('vat.modelPulling'),
+    not_registered: t('vat.modelNotRegistered'),
+  }
   const hintText = hintTexts[s ?? ''] ?? t('vat.modelMissing')
   const hintClassName = s === 'ready' ? 'text-emerald-400' : 'text-amber-300'
 
@@ -99,6 +103,9 @@ export default function ModelHubDownloadNotice({ model }: { model: string }) {
         {error && !status && <p className="text-[11px] text-red-400">{error}</p>}
         {status?.status === 'unsupported' && (
           <p className="text-[11px] text-muted-foreground">{t('vat.modelUnsupported')}</p>
+        )}
+        {status?.status === 'not_registered' && (
+          <p className="text-[11px] text-muted-foreground">{t('vat.modelNotRegisteredHint')}</p>
         )}
         <div className="flex gap-2 pt-0.5">
           {isAdmin && (status?.status === 'missing' || status?.status === 'failed' || !status) && (

@@ -19,7 +19,7 @@ export interface VideoAnalysisTask {
   video_hash: string
   error_code: string
   error_message: string
-  /** 场景描述阶段缺少的模型名（model-hub/xxx），供“一键下载”入口使用 */
+  /** 场景描述阶段缺少的模型名（上游 error.detail.model，旧版为 model-hub/xxx），供“一键下载”入口使用 */
   missing_model?: string
   attempt: number
   /** 媒体级执行序号（按创建时间升序，最新一次最大），由后端查询侧计算 */
@@ -50,7 +50,7 @@ export interface VideoAnalysisWorkflow {
   stage_timings?: Record<string, number>
   error_code?: string
   error_message?: string
-  /** 场景描述阶段缺少的模型名（model-hub/xxx） */
+  /** 场景描述阶段缺少的模型名（上游 error.detail.model，旧版为 model-hub/xxx） */
   missing_model?: string
   started_at?: string | null
   finished_at?: string | null

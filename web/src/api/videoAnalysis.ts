@@ -79,18 +79,19 @@ export const videoAnalysisApi = {
   runMissing: (taskId: string) =>
     api.post<{ message: string }>(`/video-analysis/tasks/${taskId}/run-missing`),
 
-  // Model Hub 模型状态查询（只读，登录用户可用）
+  // V-Scheduler 模型仓库状态查询（只读，登录用户可用）
   getModelHubStatus: (model: string) =>
     api.get<{ data: ModelHubModelStatus }>('/video-analysis/models/status', {
       params: { model },
     }),
 
-  // 触发 Model Hub 下载缺失模型（管理员）
+  // 触发 V-Scheduler 模型仓库下载缺失模型（管理员）
   pullModelHubModel: (model: string) =>
     api.post<{ data: { task_id: string } }>('/admin/video-analysis/models/pull', { model }),
 }
 
-export type ModelHubStatusValue = 'missing' | 'pulling' | 'ready' | 'failed' | 'unsupported'
+// not_registered：仓库里有模型文件，但网关注册表里没有这个模型名（多为旧命名 model-hub/…）
+export type ModelHubStatusValue = 'missing' | 'pulling' | 'ready' | 'failed' | 'unsupported' | 'not_registered'
 
 export interface ModelHubModelStatus {
   requested: string

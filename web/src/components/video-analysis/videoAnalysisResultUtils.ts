@@ -73,6 +73,34 @@ function dedupeMessageSegments(message: string, translate?: TFunc): string {
   return parts.join(translate ? ': ' : '：')
 }
 
+// 上游统一错误体（V-Scheduler / OpenAI 兼容网关）：
+// "Error code: 404 - {'category': 'v-scheduler', 'code': 'NOT_FOUND', ..., 'msg': 'unknown model or upstream'}"
+const upstreamErrorPattern = /Error code:\s*(\d{3})\s*-\s*(\{[\s\S]*\})\s*$/
+
+// 把上游的 JSON 错误体折叠成一句话：状态码 + 错误码 + msg。
+// 上游体是 Python repr（单引号），不能 JSON.parse，按字段取即可。
+function formatUpstreamError(text: string, translate?: TFunc): string | null {
+  const matched = text.match(upstreamErrorPattern)
+  if (!matched) return null
+  const [, status, body] = matched
+  const code = body.match(/'code':\s*'([^']+)'/)?.[1] || ''
+  const message = body.match(/'(?:msg|message)':\s*'([^']+)'/)?.[1] || ''
+  if (!message) return null
+
+  const params = { status, code, msg: message }
+  const sentence = code
+    ? translate
+      ? translate('vat.upstreamErrorWithCode', params)
+      : `上游返回 ${status}（${code}）：${message}`
+    : translate
+      ? translate('vat.upstreamError', params)
+      : `上游返回 ${status}：${message}`
+
+  // 模型缺失额外补一句可操作提示：上游不回显模型名，只能指向模型仓库
+  const hint = /unknown model/i.test(message) ? (translate ? translate('vat.upstreamModelHint') : '（模型未在 V-Scheduler 注册或未下载）') : ''
+  return text.slice(0, matched.index ?? 0) + sentence + hint
+}
+
 /**
  * 格式化视频分析错误信息为友好文案，同时保留阶段与错误码：
  * "describe stage: external job failed: code=DESCRIBE_ERROR message=X"
@@ -91,5 +119,6 @@ export function formatVideoAnalysisError(message?: string | null, translate?: TF
     const sep = translate ? ': ' : '：'
     text = `${stageLabel}${failedSuffix}${code}${sep}${m[3]}`
   }
+  text = formatUpstreamError(text, translate) ?? text
   return dedupeMessageSegments(text, translate)
 }
