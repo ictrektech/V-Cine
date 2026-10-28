@@ -46,7 +46,7 @@ import {
   FileListView,
   FolderTree,
   Breadcrumb,
-  ImportFileModal,
+  MediaImportModal,
   EditFileModal,
   FileDetailModal,
   RenameModal,
@@ -1030,11 +1030,11 @@ export default function FileManagerPage() {
 
       {/* ==================== 对话框 ==================== */}
 
-      <ImportFileModal
+      <MediaImportModal
         open={activeDialog === 'import'}
         libraries={visibleLibraries}
-          onClose={() => setActiveDialog('none')}
-          onSuccess={refreshData}
+        onClose={() => setActiveDialog('none')}
+        onSuccess={refreshData}
       />
 
       {detailMedia && (

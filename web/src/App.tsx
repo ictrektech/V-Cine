@@ -12,6 +12,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import TitleBar from '@/components/TitleBar'
 import NotificationCenter from '@/components/NotificationCenter'
 import NotificationToaster from '@/components/NotificationToaster'
+import TransferDock from '@/components/transfer/TransferDock'
 import { useNotificationBridge } from '@/hooks/useNotificationBridge'
 import LoginPage from '@/pages/LoginPage'
 import ForceChangePasswordPage from '@/pages/ForceChangePasswordPage'
@@ -124,6 +125,8 @@ export default function App() {
         <NotificationCenter />
         {/* 右上角通知弹窗（紧凑版）：新任务启动/完成时弹出，点击打开通知中心 */}
         <NotificationToaster />
+        {/* 全局上传队列抽屉（「添加视频」的设备上传任务，跨页面常驻） */}
+        <TransferDock />
         {/* 顶层应用壳：桌面端标题栏 + 全屏主体 */}
         <div className="nv-app-shell">
           <TitleBar />

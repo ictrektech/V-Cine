@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 import FileBrowser from '@/components/FileBrowser'
+import { importTargetApi, type ImportLocation } from '@/api/importTargets'
 import { formatFileSize, LANGUAGE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from './constants'
 import { streamApi } from '@/api/stream'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
@@ -40,7 +41,17 @@ function guessLibraryId(path: string, libraries: Library[]): string {
   return hits[0]?.id || ''
 }
 
-export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportFileModalProps) {
+interface ImportFileFormProps {
+  libraries: Library[]
+  onCancel: () => void
+  onSuccess: () => void
+}
+
+/**
+ * 「添加视频」中「文件已在 NAS 上」的表单（不含 Modal 外壳）。
+ * 由 ImportFileModal（单来源）与 MediaImportModal（双来源选择）复用。
+ */
+export function ImportFileForm({ libraries, onCancel, onSuccess }: ImportFileFormProps) {
   const toast = useToast()
   const { t } = useTranslation()
   const [importPath, setImportPath] = useState('')
@@ -51,22 +62,56 @@ export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportF
 
   // libraries 异步加载后补默认值（组件随页面常驻挂载，初始值可能取到空数组）
   useEffect(() => {
-    if (open && !importLibraryId && libraries[0]?.id) setImportLibraryId(libraries[0].id)
-  }, [open, libraries, importLibraryId])
+    if (!importLibraryId && libraries[0]?.id) setImportLibraryId(libraries[0].id)
+  }, [libraries, importLibraryId])
   const [importing, setImporting] = useState(false)
   const [browserOpen, setBrowserOpen] = useState(false)
 
+  // 零库冷启动：还没有媒体库时，按所选文件所在位置自动建库（与「添加视频」上传同一套规则）
+  const [locations, setLocations] = useState<ImportLocation[]>([])
+  useEffect(() => {
+    if (libraries.length > 0) return
+    let cancelled = false
+    importTargetApi.targets()
+      .then((res) => {
+        if (!cancelled) setLocations((res.data?.data || []).filter((x) => x.uploadable))
+      })
+      .catch(() => {
+        if (!cancelled) setLocations([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [libraries.length])
+
+  /** 文件所属的落点（最长前缀匹配） */
+  const pickLocationFor = (filePath: string): ImportLocation | undefined =>
+    locations
+      .filter((loc) => {
+        const root = loc.local_path.endsWith('/') ? loc.local_path : `${loc.local_path}/`
+        return filePath === loc.local_path || filePath.startsWith(root)
+      })
+      .sort((a, b) => b.local_path.length - a.local_path.length)[0]
+
   const handleImport = async () => {
     if (!importPath) { toast.error(t('fm.importPathRequired')); return }
-    if (!importLibraryId) { toast.error(t('fm.importLibRequired')); return }
     setImporting(true)
     try {
+      let libraryId = importLibraryId
+      if (!libraryId) {
+        const loc = pickLocationFor(importPath)
+        if (!loc) { toast.error(t('fm.importLibRequired')); return }
+        const ensured = await importTargetApi.ensureLibrary(loc.local_path)
+        libraryId = ensured.data?.data?.library_id || ''
+        if (!libraryId) { toast.error(t('fm.importFailed')); return }
+        setImportLibraryId(libraryId)
+      }
       await fileManagerApi.importFile({
         file_path: importPath, title: importTitle || undefined,
-        media_type: importMediaType, library_id: importLibraryId,
+        media_type: importMediaType, library_id: libraryId,
       })
       toast.success(t('fm.importSuccess'))
-      onClose()
+      onCancel()
       onSuccess()
     } catch (err: any) {
       toast.error(err?.response?.data?.error || t('fm.importFailed'))
@@ -75,9 +120,11 @@ export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportF
     }
   }
 
+  // 选中的文件不在任何媒体库目录内：仍可加入（单独条目），但要说明清楚（A 通道边界）
+  const outsideAllLibraries = importPath !== '' && guessLibraryId(importPath, libraries) === ''
+
   return (
-    <Modal open={open} onClose={onClose} className="max-w-lg">
-      <div className="glass-panel-strong rounded-2xl p-6">
+    <>
         <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
           <Plus className="inline-block mr-2 mb-0.5" size={20} /> {t('fm.importTitle')}
         </h3>
@@ -97,6 +144,11 @@ export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportF
               </span>
               <ChevronRight size={14} className="flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
             </button>
+            {outsideAllLibraries && (
+              <p className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                {t('fm.importOutsideLibrary')}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm mb-1 font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -120,28 +172,34 @@ export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportF
             </div>
             <div>
               <label className="block text-sm mb-1 font-medium" style={{ color: 'var(--text-primary)' }}>
-                {t('fm.libraryLabel')} <span style={{ color: 'var(--text-tertiary)' }}>*</span>
+                {t('fm.libraryLabel')}
+                {libraries.length > 0 && <span style={{ color: 'var(--text-tertiary)' }}> *</span>}
               </label>
-              <Select value={importLibraryId} onValueChange={v => setImportLibraryId(v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('fm.selectLibrary')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {libraries.map(lib => <SelectItem key={lib.id} value={lib.id}>{lib.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {libraries.length > 0 ? (
+                <Select value={importLibraryId} onValueChange={v => setImportLibraryId(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('fm.selectLibrary')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {libraries.map(lib => <SelectItem key={lib.id} value={lib.id}>{lib.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  {t('fm.importWillCreateLibrary')}
+                </p>
+              )}
             </div>
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
+          <button onClick={onCancel} className="btn-ghost px-4 py-2 rounded-lg text-sm">{t('common.cancel')}</button>
           <button onClick={handleImport} disabled={importing}
             className="btn-primary flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm">
             {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
             {importing ? t('fm.importing') : t('fm.importBtn')}
           </button>
         </div>
-      </div>
       <FileBrowser open={browserOpen} onClose={() => setBrowserOpen(false)}
         selectMode="file" fileExtensions={VIDEO_EXTS}
         onSelect={(p) => {
@@ -151,6 +209,17 @@ export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportF
           if (guessed) setImportLibraryId(guessed)
           setBrowserOpen(false)
         }} />
+    </>
+  )
+}
+
+/** 单来源场景的薄壳：仅「文件已在 NAS 上」时使用（无设备上传能力时由 MediaImportModal 直接复用） */
+export function ImportFileModal({ open, libraries, onClose, onSuccess }: ImportFileModalProps) {
+  return (
+    <Modal open={open} onClose={onClose} className="max-w-lg">
+      <div className="glass-panel-strong rounded-2xl p-6">
+        <ImportFileForm libraries={libraries} onCancel={onClose} onSuccess={onSuccess} />
+      </div>
     </Modal>
   )
 }
