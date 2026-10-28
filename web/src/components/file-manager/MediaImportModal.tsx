@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/modal'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/i18n'
-import { importTargetApi, type ImportLocation } from '@/api/importTargets'
+import { importTargetApi, libraryNameForLocation, type ImportLocation } from '@/api/importTargets'
 import { resolvePublicDirUuid } from '@/lib/vosDirectoryMap'
 import { useTransferStore, type ScanMode } from '@/stores/transfer'
 import { acquireVOSAccessToken } from '@/utils/vos-oidc'
@@ -126,7 +126,7 @@ export default function MediaImportModal({ open, libraries, onClose, onSuccess }
     if (!loc.library_id) {
       // 还没有库：用「角色化」的库名，与自动建库后的库名保持一致
       if (loc.kind === 'user_data') return t('fm.uploadUserLibraryLabel', { name: loc.name || loc.user || '' })
-      return t('fm.uploadPublicLibraryLabel')
+      return t('fm.uploadPublicLibraryLabel', { name: loc.name || '' })
     }
     // 已有库：用真实库名（与媒体库页一致），目录名/路径放说明行
     return loc.library_name || loc.name || loc.local_path
@@ -147,8 +147,7 @@ export default function MediaImportModal({ open, libraries, onClose, onSuccess }
       return parts.join(' · ')
     }
     if (!loc.library_id) {
-      // 多个公共目录都叫「公共媒体库」，这里用目录名 + 卷昵称区分
-      if (loc.name) parts.push(loc.name)
+      // 目录名已进入标题（公共媒体库（<目录名>）），说明行只留来源与"自动建库"
       if (loc.volume_name) parts.push(t('fb.publicDirDesc', { name: loc.volume_name }))
       parts.push(t('fm.uploadWillCreateLibrary'))
       return parts.join(' · ')
@@ -168,7 +167,7 @@ export default function MediaImportModal({ open, libraries, onClose, onSuccess }
 
   const handleEnqueue = () => {
     if (!currentLocation || files.length === 0) return
-    const count = enqueue(files, currentLocation, scanMode)
+    const count = enqueue(files, currentLocation, libraryNameForLocation(currentLocation, t), scanMode)
     toast.success(t('fm.transferAdded', { count }))
     onSuccess()
     onClose()

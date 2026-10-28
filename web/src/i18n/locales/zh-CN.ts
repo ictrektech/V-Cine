@@ -3912,7 +3912,7 @@ const zhCN: Record<string, string> = {
   'fm.transferScanFailed': "扫描失败，请在媒体库中手动扫描",
   'fm.transferAdded': "已加入上传队列（{count} 个）",
   'fm.uploadWillCreateLibrary': "还没有媒体库 · 上传后自动创建",
-  'fm.uploadPublicLibraryLabel': "公共媒体库",
+  'fm.uploadPublicLibraryLabel': "公共媒体库（{name}）",
   'fm.uploadUserLibraryLabel': "{name} 的个人媒体库",
   'fm.uploadScanScope': "上传后扫描范围",
   'fm.uploadScanUploaded': "只处理这次上传的文件",

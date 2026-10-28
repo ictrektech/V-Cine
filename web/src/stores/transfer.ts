@@ -23,6 +23,8 @@ export interface TransferItem {
   file: File
   /** 上传落点；library_id 为空时在批次收口阶段自动建库 */
   location: ImportLocation
+  /** 自动建库用的库名（前端按当前语言生成，库名会落库） */
+  libraryName: string
   scanMode: ScanMode
   status: TransferStatus
   progress: number
@@ -37,7 +39,7 @@ interface TransferStore {
   concurrency: number
   dockOpen: boolean
   /** 入队一批文件，返回入队数量 */
-  enqueue: (files: File[], location: ImportLocation, scanMode?: ScanMode) => number
+  enqueue: (files: File[], location: ImportLocation, libraryName: string, scanMode?: ScanMode) => number
   retry: (id: string) => void
   cancel: (id: string) => void
   /** 移除已完成/已取消的条目 */
@@ -88,14 +90,14 @@ async function maybeSettleBatch(batchId: string) {
   settledBatches.add(batchId)
 
   const ids = uploaded.map((i) => i.id)
-  const { location, scanMode } = uploaded[0]
+  const { location, scanMode, libraryName } = uploaded[0]
   const localPath = location.local_path
 
   patch(ids, { status: 'scanning' })
   let scanFailed = false
 
   try {
-    const libraryId = location.library_id || (await ensureLibrary(localPath))
+    const libraryId = location.library_id || (await ensureLibrary(localPath, libraryName))
     if (!libraryId) {
       scanFailed = true
     } else if (scanMode === 'library') {
@@ -126,9 +128,9 @@ async function requestScan(libraryId: string, paths?: string[], files?: string[]
   }
 }
 
-async function ensureLibrary(localPath: string): Promise<string | null> {
+async function ensureLibrary(localPath: string, libraryName: string): Promise<string | null> {
   try {
-    const resp = await importTargetApi.ensureLibrary(localPath)
+    const resp = await importTargetApi.ensureLibrary(localPath, libraryName)
     return resp.data?.data?.library_id ?? null
   } catch {
     return null
@@ -199,7 +201,7 @@ export const useTransferStore = create<TransferStore>((set, get) => ({
   concurrency: 2,
   dockOpen: false,
 
-  enqueue: (files, location, scanMode = 'uploaded') => {
+  enqueue: (files, location, libraryName, scanMode = 'uploaded') => {
     if (!files.length) return 0
     const batchId = nextId()
     const items: TransferItem[] = files.map((file) => ({
@@ -207,6 +209,7 @@ export const useTransferStore = create<TransferStore>((set, get) => ({
       batchId,
       file,
       location,
+      libraryName,
       scanMode,
       status: 'queued',
       progress: 0,

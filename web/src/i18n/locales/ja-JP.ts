@@ -3912,7 +3912,7 @@ const jaJP: Record<string, string> = {
   'fm.transferScanFailed': "スキャンに失敗しました。ライブラリで手動スキャンしてください",
   'fm.transferAdded': "アップロードキューに {count} 件追加しました",
   'fm.uploadWillCreateLibrary': "ライブラリ未作成 · アップロード後に自動作成",
-  'fm.uploadPublicLibraryLabel': "公開メディアライブラリ",
+  'fm.uploadPublicLibraryLabel': "公開メディアライブラリ（{name}）",
   'fm.uploadUserLibraryLabel': "{name} の個人ライブラリ",
   'fm.uploadScanScope': "アップロード後のスキャン範囲",
   'fm.uploadScanUploaded': "今回アップロードしたファイルのみ",

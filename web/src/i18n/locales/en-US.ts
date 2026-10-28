@@ -3912,7 +3912,7 @@ const enUS: Record<string, string> = {
   'fm.transferScanFailed': "Scan failed. Please scan the library manually.",
   'fm.transferAdded': "Added {count} file(s) to the upload queue",
   'fm.uploadWillCreateLibrary': "No library yet · created automatically after upload",
-  'fm.uploadPublicLibraryLabel': "Public media library",
+  'fm.uploadPublicLibraryLabel': "Public media library ({name})",
   'fm.uploadUserLibraryLabel': "{name}'s media library",
   'fm.uploadScanScope': "Scan after upload",
   'fm.uploadScanUploaded': "Only the files I just uploaded",

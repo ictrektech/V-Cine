@@ -55,6 +55,8 @@ func (h *ImportTargetHandler) List(c *gin.Context) {
 
 type ensureLibraryRequest struct {
 	LocalPath string `json:"local_path" binding:"required"`
+	// LibraryName 由前端按当前语言给出（库名会落库，服务端不本地化）
+	LibraryName string `json:"library_name"`
 }
 
 // EnsureLibrary POST /api/admin/import/ensure-library
@@ -92,7 +94,7 @@ func (h *ImportTargetHandler) EnsureLibrary(c *gin.Context) {
 		return
 	}
 
-	lib, created, err := h.libService.EnsureForPath(req.LocalPath)
+	lib, created, err := h.libService.EnsureForPath(req.LocalPath, req.LibraryName)
 	if err != nil {
 		h.logger.Warnw("按位置确保媒体库失败", "local_path", req.LocalPath, "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "创建媒体库失败"})

@@ -64,29 +64,39 @@ func userDataOwner(localPath string) (string, bool) {
 	return segs[0], true
 }
 
-// LibraryNameForPath 自动建库的库名：
-//   - /media                       → 媒体库
-//   - /users/<用户>/data[/...]      → <用户> 的个人媒体库
-//   - 其它（公共目录等）            → 目录名（保证唯一，避免多个库同名）
-func LibraryNameForPath(localPath string) string {
+// DefaultLibraryNameForPath 自动建库的**兜底**库名（语言中立）。
+// 正常由前端按当前语言传名字（库名会落库，不能在服务端本地化）：
+// 主媒体库 / 公共媒体库（<目录名>）/ <用户> 的个人媒体库。
+func DefaultLibraryNameForPath(localPath string) string {
 	p := strings.TrimSuffix(strings.TrimSpace(localPath), "/")
-	if p == "/media" {
-		return "媒体库"
-	}
 	if owner, ok := userDataOwner(p); ok {
-		return owner + " 的个人媒体库"
+		return owner
 	}
 	if name := path.Base(p); name != "" && name != "." && name != "/" {
 		return name
 	}
-	return "媒体库"
+	return "media"
+}
+
+// normalizeLibraryName 清洗前端传入的库名：去空白、限长；为空时用语言中立的兜底名
+func normalizeLibraryName(name, localPath string) string {
+	n := strings.TrimSpace(name)
+	if n == "" {
+		return DefaultLibraryNameForPath(localPath)
+	}
+	if r := []rune(n); len(r) > 64 {
+		n = string(r[:64])
+	}
+	return n
 }
 
 // EnsureForPath 幂等确保「覆盖该路径的媒体库」存在：
 //   - 已有库覆盖 → 返回该库（created=false）；
 //   - 目标路径是某个库的父目录 → ErrLibraryOverlap；
 //   - 否则以该路径创建 mixed 库（created=true）。
-func (s *LibraryService) EnsureForPath(localPath string) (*model.Library, bool, error) {
+//
+// name 由前端按当前语言传入（库名落库，不在服务端本地化）；为空时用目录名兜底。
+func (s *LibraryService) EnsureForPath(localPath, name string) (*model.Library, bool, error) {
 	libs, err := s.repo.List()
 	if err != nil {
 		return nil, false, err
@@ -116,7 +126,7 @@ func (s *LibraryService) EnsureForPath(localPath string) (*model.Library, bool, 
 		return lib, false, nil
 	}
 
-	lib, err := s.CreateWithPaths(LibraryNameForPath(target), []string{target}, "mixed")
+	lib, err := s.CreateWithPaths(normalizeLibraryName(name, target), []string{target}, "mixed")
 	if err != nil {
 		return nil, false, err
 	}

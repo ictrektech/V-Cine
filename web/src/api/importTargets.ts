@@ -1,4 +1,5 @@
 import api from './client'
+import type { TFunc } from '@/i18n'
 
 /**
  * 「添加视频」上传落点（后端本地推导，不含公共目录 uuid）
@@ -35,7 +36,21 @@ export interface EnsureLibraryResult {
 
 export const importTargetApi = {
   targets: () => api.get<{ data: ImportLocation[] }>('/admin/import/targets'),
-  /** 幂等：确保覆盖该路径的媒体库存在（没有则以该路径建 mixed 库） */
-  ensureLibrary: (localPath: string) =>
-    api.post<{ data: EnsureLibraryResult }>('/admin/import/ensure-library', { local_path: localPath }),
+  /**
+   * 幂等：确保覆盖该路径的媒体库存在（没有则以该路径建 mixed 库）。
+   * libraryName 由前端按当前语言给出——库名会落库，服务端不做本地化。
+   */
+  ensureLibrary: (localPath: string, libraryName: string) =>
+    api.post<{ data: EnsureLibraryResult }>('/admin/import/ensure-library', {
+      local_path: localPath,
+      library_name: libraryName,
+    }),
+}
+
+/** 位置对应的（本地化）库名：上传前展示、以及自动建库时落库的名字保持一致 */
+export function libraryNameForLocation(loc: ImportLocation, t: TFunc): string {
+  if (loc.library_id && loc.library_name) return loc.library_name
+  if (loc.local_path === '/media') return t('fb.mediaLibrary')
+  if (loc.kind === 'user_data') return t('fm.uploadUserLibraryLabel', { name: loc.name || loc.user || '' })
+  return t('fm.uploadPublicLibraryLabel', { name: loc.name || '' })
 }

@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toAppUrl } from '@/lib/appUrl'
 import { routes } from '@/lib/routes'
 import FileBrowser from '@/components/FileBrowser'
-import { importTargetApi, type ImportLocation } from '@/api/importTargets'
+import { importTargetApi, libraryNameForLocation, type ImportLocation } from '@/api/importTargets'
 import { formatFileSize, LANGUAGE_OPTIONS, REMOTE_ANALYSIS_DISABLED_TIP } from './constants'
 import { streamApi } from '@/api/stream'
 import { storageTypeFromPath } from '@/lib/storageSchemes'
@@ -101,7 +101,7 @@ export function ImportFileForm({ libraries, onCancel, onSuccess }: ImportFileFor
       if (!libraryId) {
         const loc = pickLocationFor(importPath)
         if (!loc) { toast.error(t('fm.importLibRequired')); return }
-        const ensured = await importTargetApi.ensureLibrary(loc.local_path)
+        const ensured = await importTargetApi.ensureLibrary(loc.local_path, libraryNameForLocation(loc, t))
         libraryId = ensured.data?.data?.library_id || ''
         if (!libraryId) { toast.error(t('fm.importFailed')); return }
         setImportLibraryId(libraryId)

@@ -3912,7 +3912,7 @@ const zhTW: Record<string, string> = {
   'fm.transferScanFailed': "掃描失敗，請在媒體庫中手動掃描",
   'fm.transferAdded': "已加入上傳佇列（{count} 個）",
   'fm.uploadWillCreateLibrary': "還沒有媒體庫 · 上傳後自動建立",
-  'fm.uploadPublicLibraryLabel': "公共媒體庫",
+  'fm.uploadPublicLibraryLabel': "公共媒體庫（{name}）",
   'fm.uploadUserLibraryLabel': "{name} 的個人媒體庫",
   'fm.uploadScanScope': "上傳後掃描範圍",
   'fm.uploadScanUploaded': "只處理這次上傳的檔案",

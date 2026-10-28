@@ -3,6 +3,7 @@ package service
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nowen-video/nowen-video/internal/model"
@@ -304,19 +305,33 @@ func TestFindCoveringLibrary(t *testing.T) {
 }
 
 func TestLibraryNameForPath(t *testing.T) {
+	// 兜底名必须语言中立（库名落库，正名由前端按语言传入）
 	cases := map[string]string{
-		"/media":                            "媒体库",
+		"/media":                            "media",
 		"/media/Movies":                     "Movies",
 		"/exposed/01VOL/public/media_video": "media_video",
-		// 用户数据目录：库名不能取 "data"
-		"/exposed/01VOL/users/admin/data":        "admin 的个人媒体库",
-		"/exposed/01VOL/users/admin/data/movies": "admin 的个人媒体库",
+		// 用户数据目录：不能取 "data"
+		"/exposed/01VOL/users/admin/data":        "admin",
+		"/exposed/01VOL/users/admin/data/movies": "admin",
 		// 非 data 层级不误判
 		"/exposed/01VOL/users/admin/share": "share",
 	}
 	for in, want := range cases {
-		if got := LibraryNameForPath(in); got != want {
-			t.Errorf("LibraryNameForPath(%q) = %q, want %q", in, got, want)
+		if got := DefaultLibraryNameForPath(in); got != want {
+			t.Errorf("DefaultLibraryNameForPath(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestNormalizeLibraryName(t *testing.T) {
+	if got := normalizeLibraryName("  主媒体库  ", "/media"); got != "主媒体库" {
+		t.Errorf("应保留前端传入的本地化名并去空白, got %q", got)
+	}
+	if got := normalizeLibraryName("", "/exposed/01VOL/public/media_video"); got != "media_video" {
+		t.Errorf("空名应回落到目录名, got %q", got)
+	}
+	long := strings.Repeat("长", 100)
+	if got := normalizeLibraryName(long, "/media"); len([]rune(got)) != 64 {
+		t.Errorf("超长库名应截断到 64 字符, got %d", len([]rune(got)))
 	}
 }
