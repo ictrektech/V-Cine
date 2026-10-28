@@ -210,12 +210,31 @@ func (h *LibraryHandler) Create(c *gin.Context) {
 // Scan 触发扫描
 func (h *LibraryHandler) Scan(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.libService.Scan(id); err != nil {
+
+	// 可选 body {paths:[...], files:[...]}：只扫描指定子路径 / 只入库指定文件
+	// （「添加视频」上传后的"只处理这次上传的文件"，files 用于排除同目录历史遗留文件）
+	var req struct {
+		Paths []string `json:"paths"`
+		Files []string `json:"files"`
+	}
+	_ = c.ShouldBindJSON(&req) // 空 body / 非 JSON 时按全库扫描处理
+
+	var scanErr error
+	if len(req.Paths) > 0 {
+		scanErr = h.libService.ScanPathsWithFiles(id, req.Paths, req.Files)
+	} else {
+		scanErr = h.libService.Scan(id)
+	}
+	if err := scanErr; err != nil {
 		if errors.Is(err, service.ErrScanInProgress) {
 			c.JSON(http.StatusAccepted, gin.H{
 				"message": "扫描已在进行中",
 				"data":    h.libService.ActiveScanPhases(),
 			})
+			return
+		}
+		if errors.Is(err, service.ErrInvalidScanPath) {
+			respondErr(c, http.StatusBadRequest, "路径不在该媒体库内", err)
 			return
 		}
 		respondErr(c, http.StatusInternalServerError, "", err)

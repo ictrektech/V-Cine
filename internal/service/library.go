@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -238,6 +239,99 @@ func (s *LibraryService) clearScanPhaseState(libraryID string) {
 	if libraryID != "" {
 		s.scanStates.Delete(libraryID)
 	}
+}
+
+// ErrInvalidScanPath 请求的路径/文件不在该媒体库范围内
+var ErrInvalidScanPath = errors.New("路径不在该媒体库内")
+
+// pathWithinRoot 判断 p 是否位于 root 内（或等于 root）
+func pathWithinRoot(p, root string) bool {
+	p = filepath.Clean(strings.TrimSuffix(strings.TrimSpace(p), "/"))
+	root = filepath.Clean(strings.TrimSuffix(strings.TrimSpace(root), "/"))
+	if p == "" || root == "" {
+		return false
+	}
+	return p == root || strings.HasPrefix(p, root+"/")
+}
+
+// ScanPaths 只扫描库内指定子路径（异步），用于「添加视频」上传后的"只处理这次上传的文件"。
+func (s *LibraryService) ScanPaths(id string, paths []string) error {
+	return s.ScanPathsWithFiles(id, paths, nil)
+}
+
+// ScanPathsWithFiles 在 ScanPaths 基础上再限定"只入库这些文件"，
+// 用于排除扫描目录下的历史遗留文件（例如 _incoming 里上一次上传的残留）。
+// 与 Scan 的差异：只遍历给定子路径、只入库给定文件、跳过全库失效清理、
+// 不做 AI 整理与全库刮削，因此更快且不会改动库里已有条目。
+func (s *LibraryService) ScanPathsWithFiles(id string, paths, files []string) error {
+	lib, err := s.repo.FindByID(id)
+	if err != nil {
+		return ErrLibraryNotFound
+	}
+	if len(paths) == 0 {
+		return s.Scan(id)
+	}
+
+	// 只允许扫描库根内的路径，避免被当作任意目录遍历入口
+	roots := lib.AllPaths()
+	clean := make([]string, 0, len(paths))
+	for _, p := range paths {
+		cp := strings.TrimSuffix(strings.TrimSpace(p), "/")
+		if cp == "" {
+			continue
+		}
+		allowed := false
+		for _, root := range roots {
+			if IsRemotePath(root) || pathWithinRoot(cp, root) {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			s.logger.Warnw("拒绝扫描库外路径", "library", lib.Name, "path", cp)
+			continue
+		}
+		clean = append(clean, cp)
+	}
+	if len(clean) == 0 {
+		return ErrInvalidScanPath
+	}
+
+	// 只入库指定文件：必须落在上面允许的路径内，避免被当作任意文件入口
+	cleanFiles := make([]string, 0, len(files))
+	for _, f := range files {
+		cf := strings.TrimSuffix(strings.TrimSpace(f), "/")
+		if cf == "" {
+			continue
+		}
+		for _, root := range clean {
+			if pathWithinRoot(cf, root) {
+				cleanFiles = append(cleanFiles, cf)
+				break
+			}
+		}
+	}
+	if len(files) > 0 && len(cleanFiles) == 0 {
+		return ErrInvalidScanPath
+	}
+
+	if _, scanning := s.scanning.LoadOrStore(id, true); scanning {
+		return ErrScanInProgress
+	}
+
+	go safego.Run(func() {
+		defer s.scanning.Delete(id)
+		defer s.clearScanPhaseState(id)
+
+		count, scanErr := s.scanner.ScanLibraryWithOptions(lib, ScanLibraryOptions{OnlyPaths: clean, OnlyFiles: cleanFiles})
+		if scanErr != nil {
+			s.logger.Errorw("部分扫描失败", "library", lib.Name, "paths", clean, "error", scanErr)
+			return
+		}
+		s.logger.Infof("部分扫描完成: %s, 新增 %d 个媒体 (范围: %v)", lib.Name, count, clean)
+	})
+
+	return nil
 }
 
 // Scan 触发扫描（异步）- 包含文件扫描和元数据刮削
@@ -842,7 +936,12 @@ func (s *LibraryService) Reindex(id string) error {
 
 		// 第一步：重新扫描文件。scan_completed / onScanComplete 由完整重建流程结束时统一发送，避免前端提前刷新。
 		broadcastPhase("scanning", fmt.Sprintf("正在扫描媒体文件: %s", lib.Name))
-		count, err := s.scanner.ScanLibraryWithOptions(lib, ScanLibraryOptions{SuppressCompletedEvent: true, SuppressCompletionCallback: true})
+		count, err := s.scanner.ScanLibraryWithOptions(lib, ScanLibraryOptions{
+			SuppressCompletedEvent:     true,
+			SuppressCompletionCallback: true,
+			// 重建索引是用户明确要求"重来"的动作：允许清理失效记录（否则删光文件后记录永远留着）
+			ForceStaleCleanup: true,
+		})
 		if err != nil {
 			s.logger.Errorw("重建索引扫描失败", "lib_Name", lib.Name, "error", err)
 			return

@@ -139,6 +139,55 @@ func isCategoryDirName(name string) bool {
 		xiaoyaCategoryDirs[strings.TrimSpace(name)]
 }
 
+// isHiddenDirName 判断是否为隐藏/系统目录（以 "." 开头）
+// 典型：平台的回收站 .recycle、macOS 的 .Trashes/.Spotlight-V100、NAS 的 .@__thumb
+func isHiddenDirName(name string) bool {
+	return strings.HasPrefix(strings.TrimSpace(name), ".")
+}
+
+// hasHiddenPathSegment 判断路径中是否含隐藏段（如 .../.recycle/x.mp4、._foo.mkv）。
+// 用于清理历史遗留的"隐藏目录下的媒体记录"。
+func hasHiddenPathSegment(p string) bool {
+	for _, seg := range strings.Split(strings.ReplaceAll(p, "\\", "/"), "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			continue
+		}
+		if strings.HasPrefix(seg, ".") {
+			return true
+		}
+	}
+	return false
+}
+
+// hiddenSegmentBeyondRoot 判断路径在库根之下是否含隐藏段（库根本身允许是隐藏目录）。
+// 找不到匹配的库根时退化为整条路径判断。
+func hiddenSegmentBeyondRoot(p string, roots []string) bool {
+	best := ""
+	for _, r := range roots {
+		rr := strings.TrimSuffix(strings.TrimSpace(r), "/")
+		if rr == "" || !pathWithinRoot(p, rr) {
+			continue
+		}
+		if len(rr) > len(best) {
+			best = rr
+		}
+	}
+	rel := p
+	if best != "" {
+		rel = strings.TrimPrefix(strings.TrimPrefix(p, best), "/")
+	}
+	return hasHiddenPathSegment(rel)
+}
+
+// isSkippedDirName 扫描时应整体跳过的目录：隐藏目录 + 已知特殊目录 + Emby extras
+func isSkippedDirName(name string) bool {
+	n := strings.TrimSpace(name)
+	if n == "" {
+		return false
+	}
+	return isHiddenDirName(n) || isXiaoyaSkipDir(n) || extrasExcludeDirs[strings.ToLower(n)]
+}
+
 // isXiaoyaSkipDir 按名字判断是否为需要完全跳过的特殊目录
 func isXiaoyaSkipDir(name string) bool {
 	lower := strings.ToLower(strings.TrimSpace(name))
@@ -417,6 +466,55 @@ type ScannerService struct {
 	onScanComplete  func(libraryID string) // 扫描完成回调（用于触发预处理）
 	vfsMgr          *VFSManager            // V2.1: VFS 管理器（支持 webdav:// 路径）
 	notificationSvc *NotificationService   // 扫描汇总通知服务
+	// partialScans 标记"本次只扫描了库内部分路径"的库（key = 库ID），用于跳过全库失效清理
+	partialScans sync.Map
+	// partialFiles 记录"本次只入库这些文件"的库（key = 库ID，value = map[清理后的路径]struct{}）
+	partialFiles sync.Map
+	// forceCleanup 记录"本次强制清理失效记录"的库（重建索引用），跳过库根安全阀
+	forceCleanup sync.Map
+}
+
+// isPartialScan 本次扫描是否只覆盖了库内部分路径
+func (s *ScannerService) isPartialScan(libraryID string) bool {
+	_, ok := s.partialScans.Load(libraryID)
+	return ok
+}
+
+// setPartialFiles 登记"本次只入库这些文件"，返回生效的文件数
+func (s *ScannerService) setPartialFiles(libraryID string, files []string) int {
+	allowed := make(map[string]struct{}, len(files))
+	for _, f := range files {
+		if f = strings.TrimSpace(f); f != "" {
+			allowed[filepath.Clean(f)] = struct{}{}
+		}
+	}
+	if len(allowed) == 0 {
+		return 0
+	}
+	s.partialFiles.Store(libraryID, allowed)
+	return len(allowed)
+}
+
+// shouldSkipCleanup 清理前的安全阀；重建索引（ForceStaleCleanup）时强制放行
+func (s *ScannerService) shouldSkipCleanup(libraryID string, paths []string, dbRecords int) (bool, string) {
+	if _, forced := s.forceCleanup.Load(libraryID); forced {
+		return false, ""
+	}
+	return shouldSkipStaleCleanup(paths, dbRecords)
+}
+
+// allowFile 判断某个文件是否允许入库；本次扫描未限定文件时恒为 true
+func (s *ScannerService) allowFile(libraryID, path string) bool {
+	v, ok := s.partialFiles.Load(libraryID)
+	if !ok {
+		return true
+	}
+	allowed, ok := v.(map[string]struct{})
+	if !ok || len(allowed) == 0 {
+		return true
+	}
+	_, hit := allowed[filepath.Clean(path)]
+	return hit
 }
 
 func NewScannerService(
@@ -533,7 +631,8 @@ func (s *ScannerService) collectMediaRoots(root string, kind string) []string {
 		seen[path] = true
 
 		base := filepath.Base(path)
-		if isXiaoyaSkipDir(base) || extrasExcludeDirs[strings.ToLower(base)] {
+		// 隐藏目录（.recycle 等）只在非根层跳过：用户显式把库根指到隐藏目录时保留
+		if isXiaoyaSkipDir(base) || extrasExcludeDirs[strings.ToLower(base)] || (depth > 0 && isHiddenDirName(base)) {
 			s.logger.Debugf("[xiaoya] 跳过特殊目录: %s", path)
 			return
 		}
@@ -605,7 +704,7 @@ func (s *ScannerService) collectMediaRoots(root string, kind string) []string {
 				}
 				for i := 0; i < sampleN; i++ {
 					sd := subDirs[i]
-					if isXiaoyaSkipDir(sd.Name()) || extrasExcludeDirs[strings.ToLower(sd.Name())] {
+					if isSkippedDirName(sd.Name()) {
 						continue
 					}
 					childPath := vfsJoin(path, sd.Name())
@@ -634,7 +733,7 @@ func (s *ScannerService) collectMediaRoots(root string, kind string) []string {
 		// 穿透：把每个子目录递归展开
 		expandedCount := 0
 		for _, sd := range subDirs {
-			if isXiaoyaSkipDir(sd.Name()) || extrasExcludeDirs[strings.ToLower(sd.Name())] {
+			if isSkippedDirName(sd.Name()) {
 				continue
 			}
 			// [tvshow 扫描] 子目录层级过滤非剧集分类（综艺/演唱会/音乐/MV/每日更新）
@@ -685,6 +784,14 @@ type ScanLibraryOptions struct {
 	SuppressCompletedEvent bool
 	// SuppressCompletionCallback 用于把 onScanComplete 延后到多阶段流程真正结束后执行。
 	SuppressCompletionCallback bool
+	// OnlyPaths 非空时只遍历这些子路径（用于「添加视频」上传后的"只处理这次上传的文件"）。
+	// 此时必定跳过全库失效清理：没遍历到的旧文件不能被当成已删除。
+	OnlyPaths []string
+	// OnlyFiles 非空时只入库这些文件（配合 OnlyPaths 使用），用于排除同目录下的历史遗留文件。
+	OnlyFiles []string
+	// ForceStaleCleanup 跳过"库根不可用"的安全阀，强制清理失效记录。
+	// 仅供「重建索引」这类用户明确要求重来的链路使用。
+	ForceStaleCleanup bool
 }
 
 // ScanLibrary 扫描媒体库目录
@@ -741,6 +848,29 @@ func (s *ScannerService) notifyScanSummary(libraryID, libraryName string, count 
 func (s *ScannerService) ScanLibraryWithOptions(library *model.Library, opts ScanLibraryOptions) (int, error) {
 	s.logger.Infof("开始扫描媒体库: %s (路径数: %d)", library.Name, len(library.AllPaths()))
 	scanStartedAt := time.Now()
+
+	// 部分扫描：只遍历指定子路径，并禁止全库失效清理（见 isPartialScan）
+	if len(opts.OnlyPaths) > 0 {
+		scoped := *library
+		scoped.SetAllPaths(opts.OnlyPaths)
+		library = &scoped
+		s.partialScans.Store(scoped.ID, true)
+		defer s.partialScans.Delete(scoped.ID)
+		s.logger.Infof("部分扫描: %s 仅处理 %v", library.Name, opts.OnlyPaths)
+	}
+	// 重建索引：用户明确要求重来，跳过"库根不可用就不清理"的安全阀
+	if opts.ForceStaleCleanup {
+		s.forceCleanup.Store(library.ID, true)
+		defer s.forceCleanup.Delete(library.ID)
+	}
+
+	// 只入库指定文件：排除同目录下的历史遗留文件
+	if len(opts.OnlyFiles) > 0 {
+		if n := s.setPartialFiles(library.ID, opts.OnlyFiles); n > 0 {
+			defer s.partialFiles.Delete(library.ID)
+			s.logger.Infof("部分扫描: %s 仅入库 %d 个指定文件", library.Name, n)
+		}
+	}
 
 	// 发送扫描开始事件
 	s.broadcastScanEvent(EventScanStarted, &ScanProgressData{
@@ -809,6 +939,12 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 	allPaths := library.AllPaths()
 	s.logger.Infof("电影库扫描开始: %s, 路径: %v, 上次扫描: %v", library.Name, allPaths, lastScanTime)
 
+	// 用户显式指定的库根：即使目录名以 "." 开头也照常扫描（避免"库根是隐藏目录"时整库扫不到）
+	rootSet := make(map[string]bool, len(allPaths))
+	for _, p := range allPaths {
+		rootSet[p] = true
+	}
+
 	// P2: 文件路径预加载到内存 Set（避免 N+1 查询）
 	existingPaths, err := s.mediaRepo.GetAllFilePathsByLibrary(library.ID)
 	if err != nil {
@@ -835,10 +971,20 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 			return nil
 		}
 		if info.IsDir() {
-			// 跳过 extras/trailers 等非正片目录（P0: 兼容 Emby 标准）
-			if extrasExcludeDirs[strings.ToLower(filepath.Base(path))] {
+			base := filepath.Base(path)
+			// 跳过 extras/trailers 等非正片目录（P0: 兼容 Emby 标准）；
+			// 同时跳过隐藏目录（.recycle/.Trashes 等），库根本身除外
+			if extrasExcludeDirs[strings.ToLower(base)] || (isHiddenDirName(base) && !rootSet[path]) {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		// 隐藏文件（.DS_Store、AppleDouble 的 ._xxx.mkv 等）一律忽略
+		if isHiddenDirName(filepath.Base(path)) {
+			return nil
+		}
+		// 部分扫描：只入库本次指定上传的文件，同目录的历史遗留文件跳过
+		if !s.allowFile(library.ID, path) {
 			return nil
 		}
 		// 计数类字段放到最后统一用细粒度锁保护，中间先做无锁过滤
@@ -1135,8 +1281,25 @@ func (s *ScannerService) scanMovieLibrary(library *model.Library) (int, error) {
 	// 清理失效记录：walk 正常完成后，existingPaths 里剩余的路径可能是磁盘已不存在的记录，
 	// 也可能是 AI 整理后指向虚拟化/硬链接输出目录的记录。因此必须先 stat，不能直接删除。
 	staleRemoved := 0
-	if err == nil && existingPaths != nil && len(existingPaths) > 0 {
+	if s.isPartialScan(library.ID) {
+		// 只扫了子目录：未遍历到的旧文件不能被当成已删除
+		s.logger.Infof("[部分扫描] 跳过失效记录清理: %s", library.Name)
+	} else if skip, reason := s.shouldSkipCleanup(library.ID, library.AllPaths(), len(existingPaths)); skip {
+		s.logger.Warnw("跳过失效媒体记录清理：库根疑似未挂载或为空",
+			"library", library.Name, "reason", reason, "db_records", len(existingPaths))
+	} else if err == nil && existingPaths != nil && len(existingPaths) > 0 {
 		for stalePath := range existingPaths {
+			// 历史遗留：位于隐藏目录（.recycle 等）下的记录直接清掉，不再当作媒体
+			// 注意按"相对库根"判断：库根本身允许是隐藏目录，否则会误删整库
+			if hiddenSegmentBeyondRoot(stalePath, allPaths) {
+				if m, findErr := s.mediaRepo.FindByFilePath(stalePath); findErr == nil && m != nil {
+					if delErr := s.mediaRepo.DeleteByID(m.ID); delErr == nil {
+						staleRemoved++
+						s.logger.Infof("清理隐藏目录下的媒体记录: %s", stalePath)
+					}
+				}
+				continue
+			}
 			if _, statErr := s.statLibraryPath(stalePath); !os.IsNotExist(statErr) {
 				continue
 			}
@@ -1340,7 +1503,7 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 			if e.IsDir() {
 				if isSeasonOnlyDirName(e.Name()) {
 					seasonChildCount++
-				} else if !isXiaoyaSkipDir(e.Name()) && !extrasExcludeDirs[strings.ToLower(e.Name())] {
+				} else if !isSkippedDirName(e.Name()) {
 					nonSeasonChildCount++
 				}
 			}
@@ -1372,17 +1535,20 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 
 		for _, entry := range entries {
 			if !entry.IsDir() {
-				// 根目录下的散落视频文件
+				// 根目录下的散落视频文件（隐藏文件如 ._xxx.mkv 忽略）
 				ext := strings.ToLower(filepath.Ext(entry.Name()))
-				if supportedExts[ext] {
+				if supportedExts[ext] && !isHiddenDirName(entry.Name()) {
+					if !s.allowFile(library.ID, vfsJoin(root, entry.Name())) {
+						continue
+					}
 					looseVideoFiles = append(looseVideoFiles, looseEntry{entry: entry, rootPath: root})
 				}
 				continue
 			}
 
 			dirName := entry.Name()
-			// [xiaoya 适配] 跳过特殊目录（ISO/json/画质演示/extras 等）
-			if isXiaoyaSkipDir(dirName) || extrasExcludeDirs[strings.ToLower(dirName)] {
+			// 跳过隐藏目录（.recycle/.Trashes）与特殊目录（ISO/json/画质演示/extras）
+			if isSkippedDirName(dirName) {
 				s.logger.Debugf("[xiaoya] 混合库扫描跳过特殊目录: %s", dirName)
 				continue
 			}
@@ -1443,7 +1609,21 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 	for _, entry := range movieDirs {
 		folderPath := vfsJoin(entry.rootPath, entry.entry.Name())
 		err := s.walkLibraryPath(folderPath, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
+				// 不进入隐藏/特殊目录（.recycle/.Trashes 等）
+				if path != folderPath && isSkippedDirName(filepath.Base(path)) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if isHiddenDirName(filepath.Base(path)) {
+				return nil
+			}
+			// 部分扫描：只入库本次指定上传的文件
+			if !s.allowFile(library.ID, path) {
 				return nil
 			}
 			ext := strings.ToLower(filepath.Ext(path))
@@ -1530,9 +1710,24 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 	// 不存在的直接删除。这样无论文件原来属于电影目录还是剧集目录，都能正确清理。
 	// 之前的"限定范围"策略会遗漏被判为剧集目录的电影文件夹中的失效记录。
 	dbPathSet, cleanupErr := s.mediaRepo.GetAllFilePathsByLibrary(library.ID)
-	if cleanupErr == nil && dbPathSet != nil {
+	if cleanupErr == nil && dbPathSet != nil && s.isPartialScan(library.ID) {
+		s.logger.Infof("[部分扫描] 跳过失效记录清理: %s", library.Name)
+	} else if skip, reason := s.shouldSkipCleanup(library.ID, library.AllPaths(), len(dbPathSet)); skip {
+		s.logger.Warnw("跳过失效媒体记录清理：库根疑似未挂载或为空",
+			"library", library.Name, "reason", reason, "db_records", len(dbPathSet))
+	} else if cleanupErr == nil && dbPathSet != nil {
 		staleRemoved := 0
 		for dbPath := range dbPathSet {
+			// 历史遗留：隐藏目录（.recycle 等）下的记录直接清掉（按相对库根判断）
+			if hiddenSegmentBeyondRoot(dbPath, library.AllPaths()) {
+				if m, findErr := s.mediaRepo.FindByFilePath(dbPath); findErr == nil && m != nil {
+					if delErr := s.mediaRepo.DeleteByID(m.ID); delErr == nil {
+						staleRemoved++
+						s.logger.Infof("清理隐藏目录下的媒体记录: %s", dbPath)
+					}
+				}
+				continue
+			}
 			if _, statErr := s.statLibraryPath(dbPath); os.IsNotExist(statErr) {
 				if m, findErr := s.mediaRepo.FindByFilePath(dbPath); findErr == nil && m != nil {
 					if delErr := s.mediaRepo.DeleteByID(m.ID); delErr != nil {
@@ -1753,10 +1948,13 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 
 		for _, entry := range entries {
 			if !entry.IsDir() {
-				// 根目录下的视频文件
+				// 根目录下的视频文件（隐藏文件忽略）
 				ext := strings.ToLower(filepath.Ext(entry.Name()))
-				if supportedExts[ext] {
+				if supportedExts[ext] && !isHiddenDirName(entry.Name()) {
 					filePath := vfsJoin(root, entry.Name())
+					if !s.allowFile(library.ID, filePath) {
+						continue
+					}
 					info, _ := entry.Info()
 					if info == nil {
 						continue
@@ -1779,8 +1977,8 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 			}
 
 			dirName := entry.Name()
-			// [xiaoya 适配] 跳过特殊目录（ISO/json/画质演示/extras 等）
-			if isXiaoyaSkipDir(dirName) || extrasExcludeDirs[strings.ToLower(dirName)] {
+			// 跳过隐藏目录（.recycle/.Trashes）与特殊目录（ISO/json/画质演示/extras）
+			if isSkippedDirName(dirName) {
 				s.logger.Debugf("[xiaoya] 剧集扫描跳过特殊目录: %s", dirName)
 				continue
 			}
@@ -1976,22 +2174,40 @@ func (s *ScannerService) scanTVShowLibrary(library *model.Library) (int, error) 
 
 	// 收尾清理：检查该库 DB 中所有文件路径，磁盘上不存在的视为失效记录删除
 	dbPathSet, ppErr := s.mediaRepo.GetAllFilePathsByLibrary(library.ID)
-	if ppErr == nil && dbPathSet != nil {
-		staleRemoved := 0
-		for dbPath := range dbPathSet {
-			if _, statErr := s.statLibraryPath(dbPath); os.IsNotExist(statErr) {
-				if m, findErr := s.mediaRepo.FindByFilePath(dbPath); findErr == nil && m != nil {
-					if delErr := s.mediaRepo.DeleteByID(m.ID); delErr != nil {
-						s.logger.Warnw("删除失效媒体记录失败", "dbPath", dbPath, "error", delErr)
-						continue
+	if ppErr == nil && dbPathSet != nil && s.isPartialScan(library.ID) {
+		s.logger.Infof("[部分扫描] 跳过失效记录清理: %s", library.Name)
+	} else if ppErr == nil && dbPathSet != nil {
+		if skip, reason := s.shouldSkipCleanup(library.ID, library.AllPaths(), len(dbPathSet)); skip {
+			s.logger.Warnw("跳过失效媒体记录清理：库根疑似未挂载或为空",
+				"library", library.Name, "reason", reason, "db_records", len(dbPathSet))
+		} else {
+			staleRemoved := 0
+			for dbPath := range dbPathSet {
+				// 历史遗留：位于隐藏目录（.recycle 等）下的记录直接清掉
+				// 按"相对库根"判断：库根本身允许是隐藏目录
+				if hiddenSegmentBeyondRoot(dbPath, library.AllPaths()) {
+					if m, findErr := s.mediaRepo.FindByFilePath(dbPath); findErr == nil && m != nil {
+						if delErr := s.mediaRepo.DeleteByID(m.ID); delErr == nil {
+							staleRemoved++
+							s.logger.Infof("清理隐藏目录下的媒体记录: %s", dbPath)
+						}
 					}
-					staleRemoved++
-					s.logger.Infof("清理失效媒体记录（磁盘已不存在）: %s", dbPath)
+					continue
+				}
+				if _, statErr := s.statLibraryPath(dbPath); os.IsNotExist(statErr) {
+					if m, findErr := s.mediaRepo.FindByFilePath(dbPath); findErr == nil && m != nil {
+						if delErr := s.mediaRepo.DeleteByID(m.ID); delErr != nil {
+							s.logger.Warnw("删除失效媒体记录失败", "dbPath", dbPath, "error", delErr)
+							continue
+						}
+						staleRemoved++
+						s.logger.Infof("清理失效媒体记录（磁盘已不存在）: %s", dbPath)
+					}
 				}
 			}
-		}
-		if staleRemoved > 0 {
-			s.logger.Infof("剧集库 %s 清理失效媒体记录: %d 条", library.Name, staleRemoved)
+			if staleRemoved > 0 {
+				s.logger.Infof("剧集库 %s 清理失效媒体记录: %d 条", library.Name, staleRemoved)
+			}
 		}
 	}
 
@@ -2467,7 +2683,17 @@ func (s *ScannerService) collectEpisodes(folderPath string) []EpisodeInfo {
 	var episodes []EpisodeInfo
 
 	s.walkLibraryPath(folderPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			// 不进入隐藏/特殊目录（.recycle/.Trashes 等）
+			if path != folderPath && isSkippedDirName(filepath.Base(path)) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if isHiddenDirName(filepath.Base(path)) {
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(path))
