@@ -64,6 +64,8 @@ type Handlers struct {
 	AdultScraper *AdultScraperHandler
 	// 智能扫描重命名
 	SmartRename *SmartRenameHandler
+	// 「添加视频」上传落点（VOS Finder adapter 推导）
+	ImportTarget *ImportTargetHandler
 	// 扫描后处理：虚拟归类与命名映射（仅 DB 层）
 	ScanPostProcess *ScanPostProcessHandler
 	// 懒人入库（一键入库）
@@ -163,6 +165,8 @@ func NewHandlers(services *service.Services, repos *repository.Repositories, cfg
 		AdultScraper: &AdultScraperHandler{scraperService: services.AdultScraper, danmakuService: services.Danmaku, cfg: cfg, logger: logger},
 		// 智能扫描重命名
 		SmartRename: NewSmartRenameHandler(services.SmartRename, logger),
+		// 「添加视频」上传落点（VOS Finder adapter 推导）
+		ImportTarget: NewImportTargetHandler(services.Library, logger),
 		// 扫描后处理：虚拟归类与命名映射（仅 DB 层）
 		ScanPostProcess: NewScanPostProcessHandler(services.ScanPostProcess, repos.ScanClassification, logger),
 		// 懒人入库（一键入库）

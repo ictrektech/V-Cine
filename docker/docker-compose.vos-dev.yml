@@ -73,3 +73,5 @@ services:
       # 绑 0.0.0.0 才能被容器外抓取（默认 127.0.0.1 仅容器内可达）；
       # /metrics 与 /debug/pprof 随之无鉴权暴露到 LAN，不受信网络建议 PPROF_ENABLED=0
       - VCINE_OBSERVABILITY_METRICS_ADDR=0.0.0.0:9090
+      # /media 的宿主路径，与上方 volumes 同源：供「添加视频」上传落点推导使用
+      - VCINE_MEDIA_PATH=${VOS_DEV_MEDIA_PATH:-/data/vos_workspace/public/media_video}

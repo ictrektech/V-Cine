@@ -864,6 +864,11 @@ func main() {
 		admin.GET("/export/library", handlers.BatchMetadata.ExportLibrary)
 		admin.POST("/import/data", handlers.BatchMetadata.ImportFromExportData)
 
+		// 「添加视频」上传落点（本地推导，不访问平台 API）
+		admin.GET("/import/targets", handlers.ImportTarget.List)
+		// 按位置幂等建库（零库冷启动：上传完成后自动建 mixed 库再扫描）
+		admin.POST("/import/ensure-library", handlers.ImportTarget.EnsureLibrary)
+
 		// ==================== EMBY 格式兼容导入 ====================
 		admin.GET("/emby/detect", handlers.EmbyCompat.DetectEmbyFormat)
 		admin.POST("/emby/import", handlers.EmbyCompat.ImportEmbyLibrary)

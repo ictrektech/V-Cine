@@ -47,6 +47,9 @@ services:
       VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL: "${VCINE_VIDEO_ANALYSIS_MEDIA_BASE_URL:-http://172.17.0.1:${VCINE_PORT:-38085}}"
       # 绑 0.0.0.0 才能被容器外抓取（默认 127.0.0.1 仅容器内可达）
       VCINE_OBSERVABILITY_METRICS_ADDR: "0.0.0.0:9090"
+      # 主媒体库的宿主绝对路径：仅用于「添加视频」上传落点的 adapter 推导
+      # （/media → /share/<卷>/public/<目录>），不参与挂载语义
+      VCINE_MEDIA_PATH: "${VCINE_MEDIA_PATH:-}"
       TZ: "${TZ:-Asia/Shanghai}"
     # 宿主端口：Traefik file provider 经 docker0 网关 172.17.0.1 转发到该端口
     ports:
