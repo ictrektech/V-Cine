@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -157,19 +158,20 @@ func (s *ArtworkFallbackService) run(ctx context.Context, mediaID string) {
 		"title", media.DisplayTitle(),
 		"path", media.FilePath,
 	)
-	if s.hasUsableArtwork(media) {
-		return // 已有可展示的真海报，兜底没有意义
+	if s.artworkReady(media) {
+		return // 已有可展示的海报，且派生图未过期
 	}
 
 	// 按注册表优先级依次尝试：单来源失败（如内嵌封面流损坏）不阻断后续来源。
 	// 逐个来源的失败只在 Debug 留痕，本轮最终只上报一次 Warn。
 	var lastErr error
 	var lastSource ArtworkSource
+	stamp := artworkStamp(media.FilePath)
 	for _, spec := range artworkSourceRegistry {
 		if !spec.Enabled(s.cfg.Artwork.Fallback) {
 			continue
 		}
-		dst := derivedArtworkPath(s.cfg.Cache.CacheDir, media.ID, spec.Source)
+		dst := derivedArtworkPath(s.cfg.Cache.CacheDir, media.ID, spec.Source, stamp)
 		generated, genErr := spec.New(s.cfg, s.logger).Generate(ctx, media, dst)
 		if genErr != nil {
 			lastErr, lastSource = genErr, spec.Source
@@ -181,6 +183,7 @@ func (s *ArtworkFallbackService) run(ctx context.Context, mediaID string) {
 			continue
 		}
 		if generated {
+			pruneDerivedArtwork(s.cfg.Cache.CacheDir, media.ID, spec.Source, dst)
 			s.clearFailure(mediaID)
 			return
 		}
@@ -220,6 +223,20 @@ func (s *ArtworkFallbackService) clearFailure(mediaID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.attempts, mediaID)
+}
+
+// artworkReady 判断现有海报是否无需重做：
+// 没有可展示的图 → false；可展示的是真海报 → true；
+// 可展示的是派生图 → 只有 stamp 与源文件 mtime 一致才算最新（源文件被替换后要重做）。
+func (s *ArtworkFallbackService) artworkReady(media *model.Media) bool {
+	if !s.hasUsableArtwork(media) {
+		return false
+	}
+	path, _ := resolveDerivedArtwork(s.cfg.Cache.CacheDir, media.ID)
+	if path == "" {
+		return true
+	}
+	return strings.HasSuffix(path, fmt.Sprintf("-%d.jpg", artworkStamp(media.FilePath)))
 }
 
 // hasUsableArtwork 判断媒体是否已有可展示的海报，决定要不要生成兜底图。

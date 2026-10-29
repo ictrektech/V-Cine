@@ -201,7 +201,7 @@ func TestFrameArtworkGeneratorGenerate(t *testing.T) {
 	g := NewFrameArtworkGenerator(cfg, zap.NewNop().Sugar())
 
 	media := &model.Media{ID: "m1", FilePath: video, Duration: 3}
-	dst := derivedArtworkPath(cache, "m1", ArtworkSourceFrame)
+	dst := derivedArtworkPath(cache, "m1", ArtworkSourceFrame, artworkStamp(video))
 
 	generated, err := g.Generate(context.Background(), media, dst)
 	if err != nil {

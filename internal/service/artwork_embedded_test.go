@@ -123,7 +123,7 @@ func TestEmbeddedArtworkGeneratorGenerate(t *testing.T) {
 
 	// 带内嵌封面 → 提取成功
 	withCoverMedia := &model.Media{ID: "m1", FilePath: withCover}
-	dst := derivedArtworkPath(cache, "m1", ArtworkSourceEmbedded)
+	dst := derivedArtworkPath(cache, "m1", ArtworkSourceEmbedded, artworkStamp(withCover))
 	generated, err := g.Generate(context.Background(), withCoverMedia, dst)
 	if err != nil {
 		t.Fatalf("Generate 失败: %v", err)
@@ -148,7 +148,7 @@ func TestEmbeddedArtworkGeneratorGenerate(t *testing.T) {
 	}
 
 	// 无内嵌封面 → 返回"不适用"，且不留下任何产物
-	noCoverDst := derivedArtworkPath(cache, "m2", ArtworkSourceEmbedded)
+	noCoverDst := derivedArtworkPath(cache, "m2", ArtworkSourceEmbedded, artworkStamp(video))
 	generated, err = g.Generate(context.Background(), &model.Media{ID: "m2", FilePath: video}, noCoverDst)
 	if err != nil || generated {
 		t.Fatalf("无内嵌封面时应返回不适用, got %v/%v", generated, err)

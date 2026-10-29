@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,28 +40,81 @@ const (
 // artworkExtractTimeout 单帧抽取（抽帧 / 内嵌封面提取）的最长耗时（远程源 seek 较慢，给足余量）
 const artworkExtractTimeout = 30 * time.Second
 
-// derivedArtworkPath 派生图落盘路径：cache/images/{mediaID}/poster-{source}.jpg。
+// derivedArtworkDir 派生图目录：cache/images/{mediaID}。
+func derivedArtworkDir(cacheDir, mediaID string) string {
+	return filepath.Join(cacheDir, "images", mediaID)
+}
+
+// derivedArtworkPath 派生图落盘路径：cache/images/{mediaID}/poster-{source}-{stamp}.jpg。
+// stamp 是源文件 mtime（秒）：源文件被替换后路径随之变化，旧图自然失效。
 // 唯一的分拼路径入口——生成侧与解析侧都必须走它，避免两处路径规则漂移。
-// JPEG 与既有产物（preprocess / ai_scene 抽帧、雪碧图）一致，且被 image_validate.go
-// 的内容嗅探与 Emby handler 的 Content-Type 映射覆盖。
-func derivedArtworkPath(cacheDir, mediaID string, src ArtworkSource) string {
-	return filepath.Join(cacheDir, "images", mediaID, "poster-"+string(src)+".jpg")
+func derivedArtworkPath(cacheDir, mediaID string, src ArtworkSource, stamp int64) string {
+	return filepath.Join(derivedArtworkDir(cacheDir, mediaID), "poster-"+string(src)+"-"+strconv.FormatInt(stamp, 10)+".jpg")
+}
+
+// artworkStamp 源文件 mtime（秒）。远程路径不 stat（生成侧对远程走 VFS 翻译，代价高），
+// 缺失或取不到时返回 0：此时产物不参与失效判断，沿用"存在即复用"。
+func artworkStamp(path string) int64 {
+	if path == "" || IsRemotePath(path) {
+		return 0
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.ModTime().Unix()
 }
 
 // resolveDerivedArtwork 按注册表优先级探测已生成的派生图，返回命中路径与其来源
-// （均未命中返回空串与空来源）。只做 stat，不读文件内容、不解码：
-// 内容校验由生成侧在落盘后完成（见 image_validate.go）。
+// （均未命中返回空串与空来源）。同一来源有多份时取 stamp 最大的一份。
+// 只读目录名，不读文件内容、不解码：内容校验由生成侧在落盘后完成（见 image_validate.go）。
 func resolveDerivedArtwork(cacheDir, mediaID string) (string, ArtworkSource) {
 	if cacheDir == "" || mediaID == "" {
 		return "", ""
 	}
+	dir := derivedArtworkDir(cacheDir, mediaID)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", ""
+	}
 	for _, spec := range artworkSourceRegistry {
-		path := derivedArtworkPath(cacheDir, mediaID, spec.Source)
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return path, spec.Source
+		prefix := "poster-" + string(spec.Source) + "-"
+		best, bestStamp := "", int64(-1)
+		for _, e := range entries {
+			name := e.Name()
+			if e.IsDir() || !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, ".jpg") {
+				continue
+			}
+			stamp, convErr := strconv.ParseInt(strings.TrimSuffix(strings.TrimPrefix(name, prefix), ".jpg"), 10, 64)
+			if convErr != nil || stamp <= bestStamp {
+				continue
+			}
+			best, bestStamp = filepath.Join(dir, name), stamp
+		}
+		if best != "" {
+			return best, spec.Source
 		}
 	}
 	return "", ""
+}
+
+// pruneDerivedArtwork 清掉同来源的旧 stamp 产物，只保留 keep 这一份。
+// 失败只影响磁盘占用，不影响本次生成结果，因此错误忽略。
+func pruneDerivedArtwork(cacheDir, mediaID string, src ArtworkSource, keep string) {
+	dir := derivedArtworkDir(cacheDir, mediaID)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	prefix := "poster-" + string(src) + "-"
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), prefix) {
+			continue
+		}
+		if p := filepath.Join(dir, e.Name()); p != keep {
+			_ = os.Remove(p)
+		}
+	}
 }
 
 // resolveDerivedPoster 派生图路径（来源见 resolveDerivedArtwork）。

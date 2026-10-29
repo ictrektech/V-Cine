@@ -32,6 +32,9 @@ type ArtworkResolver struct {
 	seriesRepo *repository.SeriesRepo
 	cfg        *config.Config
 	vfsMgr     *VFSManager
+	// onMissing 完全没有海报时投递兜底生成（ArtworkFallbackService.Submit，非阻塞）。
+	// 只在 PosterPath（HTTP 入口）触发，解析函数本身保持无副作用。
+	onMissing func(mediaID string) bool
 }
 
 func NewArtworkResolver(
@@ -50,6 +53,12 @@ func NewArtworkResolver(
 // 由 StreamService.SetVFSManager 转发，不要在别处单独调用。
 func (r *ArtworkResolver) SetVFSManager(vfsMgr *VFSManager) {
 	r.vfsMgr = vfsMgr
+}
+
+// SetMissingHandler 注入"完全没有海报"的回调，用于按需生成兜底图。
+// 由 service 构造期注入一次，运行期只读。
+func (r *ArtworkResolver) SetMissingHandler(fn func(mediaID string) bool) {
+	r.onMissing = fn
 }
 
 // statFile 文件判断：同时支持本地路径和远程路径
@@ -124,7 +133,12 @@ func (r *ArtworkResolver) PosterPath(mediaID string) (string, error) {
 	if err != nil {
 		return "", mediaLookupError(err)
 	}
-	return r.ResolvePoster(media), nil
+	path := r.ResolvePoster(media)
+	// 连派生图都没有：本次返回占位图，同时投递一次异步生成（去重与限流由兜底服务负责）
+	if path == "" && r.onMissing != nil {
+		r.onMissing(media.ID)
+	}
+	return path, nil
 }
 
 // DerivedPosterSource 回答"这张封面是不是程序生成的"：命中派生图时返回其来源

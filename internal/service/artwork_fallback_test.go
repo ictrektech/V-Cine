@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/nowen-video/nowen-video/internal/config"
 	"github.com/nowen-video/nowen-video/internal/model"
@@ -124,9 +125,52 @@ func TestArtworkFallbackRunSkipsWhenPosterExists(t *testing.T) {
 	if finder.calls != 1 {
 		t.Fatalf("应查询一次媒体, got %d", finder.calls)
 	}
-	derived := derivedArtworkPath(cache, "m1", ArtworkSourceFrame)
+	derived := derivedArtworkPath(cache, "m1", ArtworkSourceFrame, 0)
 	if _, err := os.Stat(derived); !os.IsNotExist(err) {
 		t.Fatal("已有真海报时不应生成兜底图")
+	}
+}
+
+// 派生图 stamp 与源文件 mtime 不一致时视为过期，需要重做
+func TestArtworkReadyChecksSourceMtime(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "v.mkv")
+	if err := os.WriteFile(video, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	modTime := time.Unix(1700000000, 0)
+	if err := os.Chtimes(video, modTime, modTime); err != nil {
+		t.Fatal(err)
+	}
+
+	cache := filepath.Join(dir, "cache")
+	cfg := &config.Config{Cache: config.CacheConfig{CacheDir: cache}}
+	cfg.Artwork.Fallback = config.ArtworkFallbackConfig{
+		Enabled: true, Frame: true, Embedded: true, Concurrency: 1,
+	}
+	media := &model.Media{ID: "m1", FilePath: video}
+	svc := NewArtworkFallbackService(cfg, &fakeMediaFinder{media: media}, zap.NewNop().Sugar())
+
+	writeDerived := func(stamp int64) string {
+		p := derivedArtworkPath(cache, media.ID, ArtworkSourceFrame, stamp)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("img"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	freshStamp := modTime.Unix()
+	svc.SetArtworkProbe(&fakeArtworkProbe{path: writeDerived(freshStamp)})
+	if !svc.artworkReady(media) {
+		t.Fatal("stamp 与源文件一致时应视为最新")
+	}
+
+	svc.SetArtworkProbe(&fakeArtworkProbe{path: writeDerived(freshStamp + 1)})
+	if svc.artworkReady(media) {
+		t.Fatal("stamp 与源文件不一致时应视为过期")
 	}
 }
 

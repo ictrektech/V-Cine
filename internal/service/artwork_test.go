@@ -48,8 +48,8 @@ func TestResolveDerivedPoster(t *testing.T) {
 	cache := t.TempDir()
 	const mediaID = "m1"
 
-	writeDerived := func(id string, src ArtworkSource, body string) string {
-		p := derivedArtworkPath(cache, id, src)
+	writeDerived := func(id string, src ArtworkSource, stamp int64, body string) string {
+		p := derivedArtworkPath(cache, id, src, stamp)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -72,19 +72,25 @@ func TestResolveDerivedPoster(t *testing.T) {
 	}
 
 	// 只有抽帧图 → 命中
-	framePath := writeDerived(mediaID, ArtworkSourceFrame, "frame")
+	framePath := writeDerived(mediaID, ArtworkSourceFrame, 100, "frame")
 	if path := resolveDerivedPoster(cache, mediaID); path != framePath {
 		t.Fatalf("got %q, want %q", path, framePath)
 	}
 
+	// 同一来源有多个 stamp（源文件被替换过）→ 取最新的一份
+	newerFrame := writeDerived(mediaID, ArtworkSourceFrame, 200, "frame-new")
+	if path := resolveDerivedPoster(cache, mediaID); path != newerFrame {
+		t.Fatalf("应取最新 stamp 的产物, got %q want %q", path, newerFrame)
+	}
+
 	// 内嵌封面出现后 → 优先于抽帧
-	embeddedPath := writeDerived(mediaID, ArtworkSourceEmbedded, "embedded")
+	embeddedPath := writeDerived(mediaID, ArtworkSourceEmbedded, 100, "embedded")
 	if path := resolveDerivedPoster(cache, mediaID); path != embeddedPath {
 		t.Fatalf("embedded should outrank frame, got %q", path)
 	}
 
 	// 同名目录不算命中
-	dirPath := derivedArtworkPath(cache, "m2", ArtworkSourceFrame)
+	dirPath := derivedArtworkPath(cache, "m2", ArtworkSourceFrame, 100)
 	if err := os.MkdirAll(dirPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -93,9 +99,18 @@ func TestResolveDerivedPoster(t *testing.T) {
 	}
 
 	// 非图片内容也算命中（生成侧才会校验内容）
-	corruptPath := writeDerived("m3", ArtworkSourceFrame, "not an image")
+	corruptPath := writeDerived("m3", ArtworkSourceFrame, 100, "not an image")
 	if path := resolveDerivedPoster(cache, "m3"); path != corruptPath {
 		t.Fatalf("resolve is stat-only, got %q want %q", path, corruptPath)
+	}
+
+	// 清理旧 stamp 产物：只留当前一份
+	pruneDerivedArtwork(cache, mediaID, ArtworkSourceFrame, newerFrame)
+	if _, err := os.Stat(framePath); !os.IsNotExist(err) {
+		t.Fatal("旧 stamp 产物应被清理")
+	}
+	if _, err := os.Stat(newerFrame); err != nil {
+		t.Errorf("当前产物不应被清理: %v", err)
 	}
 }
 
@@ -121,7 +136,7 @@ func TestResolveBackdropForMediaPriority(t *testing.T) {
 	}
 
 	// 只有竖版派生图 → 退而用它（横版槽位由前端裁切）
-	poster := derivedArtworkPath(cache, "m1", ArtworkSourceFrame)
+	poster := derivedArtworkPath(cache, "m1", ArtworkSourceFrame, 100)
 	if err := os.MkdirAll(filepath.Dir(poster), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +181,7 @@ func TestDerivedPosterSource(t *testing.T) {
 		t.Fatalf("无派生产物时应返回空, got %q", src)
 	}
 
-	derived := derivedArtworkPath(cache, "m1", ArtworkSourceFrame)
+	derived := derivedArtworkPath(cache, "m1", ArtworkSourceFrame, 100)
 	if err := os.MkdirAll(filepath.Dir(derived), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +223,7 @@ func TestResolvePosterForMediaPriority(t *testing.T) {
 		t.Fatalf("nil media should resolve to empty, got %q", got)
 	}
 
-	derived := derivedArtworkPath(cache, "m1", ArtworkSourceFrame)
+	derived := derivedArtworkPath(cache, "m1", ArtworkSourceFrame, 100)
 	if err := os.MkdirAll(filepath.Dir(derived), 0o755); err != nil {
 		t.Fatal(err)
 	}
