@@ -1748,6 +1748,9 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 	return totalCount, nil
 }
 
+// uploadStagingDirName 「添加视频」上传的暂存目录名，与前端 transfer store 保持一致
+const uploadStagingDirName = "_incoming"
+
 // isTVShowFolder 智能判断一个目录是否为电视剧文件夹
 // 判断依据（满足任一即认定为电视剧）：
 // 1. 目录名包含季号标识（如 S1、Season 1、第一季）
@@ -1756,6 +1759,11 @@ func (s *ScannerService) scanMixedLibrary(library *model.Library) (int, error) {
 // 4. 目录内有多个视频文件且文件名包含连续编号
 func (s *ScannerService) isTVShowFolder(folderPath string) bool {
 	dirName := filepath.Base(folderPath)
+
+	// 上传暂存目录里的文件彼此无关，按散落文件处理
+	if dirName == uploadStagingDirName {
+		return false
+	}
 
 	// 规则1: 目录名包含季号标识
 	if s.extractSeasonFromDirName(dirName) > 0 {
@@ -2375,7 +2383,7 @@ func (s *ScannerService) scanMultiSeasonSeries(library *model.Library, seriesTit
 
 	// 扫描每个季目录
 	for _, f := range folders {
-		episodes := s.collectEpisodes(f.path)
+		episodes := s.collectEpisodes(library.ID, f.path)
 		if len(episodes) == 0 {
 			s.logger.Debugf("多季合集目录无视频文件: %s", f.path)
 			continue
@@ -2585,7 +2593,7 @@ func (s *ScannerService) scanSeriesFolder(library *model.Library, folderPath, se
 	s.seriesRepo.Update(series)
 
 	// 收集所有剧集文件
-	episodes := s.collectEpisodes(folderPath)
+	episodes := s.collectEpisodes(library.ID, folderPath)
 
 	if len(episodes) == 0 {
 		s.logger.Debugf("剧集文件夹无视频文件: %s", folderPath)
@@ -2678,8 +2686,9 @@ func (s *ScannerService) scanSeriesFolder(library *model.Library, folderPath, se
 	return newCount, nil
 }
 
-// collectEpisodes 递归收集剧集文件夹下的所有视频文件
-func (s *ScannerService) collectEpisodes(folderPath string) []EpisodeInfo {
+// collectEpisodes 递归收集剧集文件夹下的所有视频文件；
+// libraryID 用于「部分扫描」时只收录本次指定上传的文件（见 allowFile）
+func (s *ScannerService) collectEpisodes(libraryID, folderPath string) []EpisodeInfo {
 	var episodes []EpisodeInfo
 
 	s.walkLibraryPath(folderPath, func(path string, info os.FileInfo, err error) error {
@@ -2698,6 +2707,10 @@ func (s *ScannerService) collectEpisodes(folderPath string) []EpisodeInfo {
 		}
 		ext := strings.ToLower(filepath.Ext(path))
 		if !supportedExts[ext] {
+			return nil
+		}
+		// 部分扫描：只入库本次指定上传的文件，同目录的历史遗留文件跳过
+		if !s.allowFile(libraryID, path) {
 			return nil
 		}
 
