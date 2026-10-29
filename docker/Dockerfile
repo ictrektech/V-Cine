@@ -189,6 +189,24 @@ fi\n\
 mkdir -p /data/config\n\
 chown -R nowen:nowen /data /cache 2>/dev/null || true\n\
 chown nowen:nowen /media 2>/dev/null || true\n\
+# 上传落盘身份是 nobody:nogroup(65534)；应用加入该组即可读，VCINE_MEDIA_GID=0 关闭对齐\n\
+media_gid=${VCINE_MEDIA_GID:-65534}\n\
+if [ "$media_gid" != "0" ]; then\n\
+  media_group=$(getent group "$media_gid" | cut -d: -f1)\n\
+  if [ -z "$media_group" ]; then\n\
+    groupadd -o -g "$media_gid" vosmedia 2>/dev/null || true\n\
+    media_group=vosmedia\n\
+  fi\n\
+  usermod -aG "$media_group" nowen 2>/dev/null || true\n\
+fi\n\
+# 上传暂存目录：组对齐时用 2770，关闭对齐时用 2777\n\
+mkdir -p /media/_incoming 2>/dev/null || true\n\
+if [ "$media_gid" != "0" ]; then\n\
+  chgrp "$media_gid" /media/_incoming 2>/dev/null || true\n\
+  chmod 2770 /media/_incoming 2>/dev/null || true\n\
+else\n\
+  chmod 2777 /media/_incoming 2>/dev/null || true\n\
+fi\n\
 chown -R nowen:nowen /app/scripts 2>/dev/null || true\n\
 if [ "$PUID" = "0" ]; then\n\
   exec nowen-video\n\
