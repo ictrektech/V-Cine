@@ -17,7 +17,7 @@ import (
 )
 
 func TestFrameSampleTimes(t *testing.T) {
-	// 等距 10 点，首尾各留余量，全部落在 (0, duration) 内
+	// 等距采样，首尾各留余量，全部落在 (0, duration) 内
 	times := frameSampleTimes(600)
 	if len(times) != artworkFrameSampleCount {
 		t.Fatalf("采样点数 = %d, want %d", len(times), artworkFrameSampleCount)

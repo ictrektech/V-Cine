@@ -23,8 +23,9 @@ import (
 // 幂等：目标文件存在即跳过，因此可被周期性重试安全地重复调用。
 
 const (
-	// artworkFrameSampleCount 采样点数。等距取样（i/(N+1)），天然避开片头片尾
-	artworkFrameSampleCount = 10
+	// artworkFrameSampleCount 采样点数。等距取样（i/(N+1)），天然避开片头片尾。
+	// 每点起一次 ffmpeg，点数直接决定单视频耗时；5 点已能覆盖 20%~80% 区间。
+	artworkFrameSampleCount = 5
 
 	// artworkFrameMinLuma 平均亮度下限：低于此值判为黑帧
 	artworkFrameMinLuma = 16.0
