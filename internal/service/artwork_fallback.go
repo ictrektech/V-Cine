@@ -49,6 +49,11 @@ type artworkProbe interface {
 	ResolvePoster(media *model.Media) string
 }
 
+// eventBroadcaster 生成完成后的推送通道（传 WSHub），让前端只刷新这一条的海报。
+type eventBroadcaster interface {
+	BroadcastEvent(eventType string, data interface{})
+}
+
 // ArtworkFallbackService 派生海报兜底图的触发与调度。
 type ArtworkFallbackService struct {
 	cfg    *config.Config
@@ -57,6 +62,8 @@ type ArtworkFallbackService struct {
 	// probe 可选的图片解析链（*ArtworkResolver）。延迟注入：解析器由 StreamService 持有，
 	// 构造顺序上晚于本服务；未注入时退化为只校验 DB 指针（见 hasUsableArtwork）。
 	probe artworkProbe
+	// events 可选的推送通道：生成成功后通知前端刷新该条海报。
+	events eventBroadcaster
 
 	concurrency int            // 工作协程数量
 	jobs        chan string    // 待生成队列
@@ -93,6 +100,14 @@ func (s *ArtworkFallbackService) SetArtworkProbe(p artworkProbe) {
 		return
 	}
 	s.probe = p
+}
+
+// SetEventBroadcaster 注入推送通道（传 WSHub）。不注入时生成照常进行，只是前端不会即时刷新。
+func (s *ArtworkFallbackService) SetEventBroadcaster(b eventBroadcaster) {
+	if s == nil {
+		return
+	}
+	s.events = b
 }
 
 // Submit 异步投递一次兜底海报生成，不等待生成完成。
@@ -193,6 +208,12 @@ func (s *ArtworkFallbackService) run(ctx context.Context, mediaID string) {
 		if generated {
 			pruneDerivedArtwork(s.cfg.Cache.CacheDir, media.ID, spec.Source, dst)
 			s.clearFailure(mediaID)
+			if s.events != nil {
+				s.events.BroadcastEvent("poster_ready", map[string]string{
+					"media_id": media.ID,
+					"source":   string(spec.Source),
+				})
+			}
 			return
 		}
 	}

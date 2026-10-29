@@ -551,6 +551,8 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	artworkFallbackService.SetArtworkProbe(svcs.Stream.ArtworkResolver())
 	// 海报完全缺失时按需生成兜底图：只对实际被请求的条目抽帧
 	svcs.Stream.ArtworkResolver().SetMissingHandler(artworkFallbackService.Submit)
+	// 生成完成后推送 poster_ready，前端只刷新对应条目的海报
+	artworkFallbackService.SetEventBroadcaster(wsHub)
 
 	// 延迟注入：扫描完成后自动触发预处理（受系统设置控制）
 	scanner.SetOnScanComplete(func(libraryID string, since time.Time) {

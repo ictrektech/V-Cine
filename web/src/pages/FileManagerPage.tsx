@@ -24,7 +24,7 @@ import AdultScraperProSection from '@/components/admin/AdultScraperPro'
 import VideoAnalysisTaskTab from '@/components/video-analysis/VideoAnalysisTaskTab'
 import SegmentedTabs from '@/components/ui/segmented-tabs'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { bumpPosterVersion } from '@/stores/mediaRefresh'
+import { bumpPoster, bumpPosterVersion } from '@/stores/mediaRefresh'
 import {
   FolderOpen,
   RefreshCw,
@@ -312,6 +312,10 @@ export default function FileManagerPage() {
       fetchFiles()
       fetchStats()
     }
+    // 派生封面生成完成：只刷新对应条目的海报
+    const handlePosterReady = (data: { media_id?: string }) => {
+      if (data?.media_id) bumpPoster(data.media_id)
+    }
 
     on('file_imported', handleUpdate)
     on('file_deleted', handleUpdate)
@@ -321,6 +325,7 @@ export default function FileManagerPage() {
     on('scan_completed', handleGlobalUpdate)
     on('scan_phase', handleUpdate)
     on('scrape_completed', handleScrapeCompleted)
+    on('poster_ready', handlePosterReady)
     on('library_updated', handleGlobalUpdate)
     on('adult_batch_completed', handleGlobalUpdate)
     on('folder_renamed', handleGlobalUpdate)
@@ -334,6 +339,7 @@ export default function FileManagerPage() {
       off('scan_completed', handleGlobalUpdate)
       off('scan_phase', handleUpdate)
       off('scrape_completed', handleScrapeCompleted)
+      off('poster_ready', handlePosterReady)
       off('library_updated', handleGlobalUpdate)
       off('adult_batch_completed', handleGlobalUpdate)
       off('folder_renamed', handleGlobalUpdate)

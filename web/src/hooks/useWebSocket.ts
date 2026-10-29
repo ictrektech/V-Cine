@@ -25,6 +25,8 @@ export const WS_EVENTS = {
   LIBRARY_UPDATED: 'library_updated',
   // 扫描阶段事件
   SCAN_PHASE: 'scan_phase',
+  // 派生海报生成完成（只影响单条媒体）
+  POSTER_READY: 'poster_ready',
   // 文件管理事件
   FILE_IMPORTED: 'file_imported',
   FILE_DELETED: 'file_deleted',
@@ -128,6 +130,11 @@ export interface TranscodeProgressData {
   progress: number
   speed: string
   message: string
+}
+
+export interface PosterReadyData {
+  media_id: string
+  source?: 'embedded' | 'frame'
 }
 
 export interface LibraryChangedData {

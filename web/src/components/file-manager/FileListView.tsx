@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { streamApi } from '@/api/stream'
-import { usePosterVersion } from '@/stores/mediaRefresh'
+import { useMediaRefreshStore, usePosterVersion } from '@/stores/mediaRefresh'
 import Pagination from '@/components/Pagination'
 import ContextMenu from './ContextMenu'
 import type { ContextMenuItem } from './ContextMenu'
@@ -79,8 +79,9 @@ export default function FileListView({
   onCreateSubFolder, onRenameSubFolder, onDeleteSubFolder, onRefreshSubFolder, onCopyFolderPath,
 }: FileListViewProps) {
   const { t } = useTranslation()
-  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存
+  // 海报版本戳：刮削/替换海报后自动绕过浏览器缓存；派生封面按条目递增
   usePosterVersion()
+  const posterVersions = useMediaRefreshStore((s) => s.posterVersions)
   // 右键菜单状态
   const [ctxMenu, setCtxMenu] = useState<{
     visible: boolean; x: number; y: number;
@@ -351,7 +352,7 @@ export default function FileListView({
                     <div className="flex items-center gap-3">
                       <div className="relative flex-shrink-0">
                         <img
-                          src={streamApi.getPosterUrl(file.id)}
+                          src={streamApi.getPosterUrl(file.id, posterVersions[file.id])}
                           alt=""
                           className="w-8 h-12 rounded object-cover"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
@@ -461,7 +462,7 @@ export default function FileListView({
               {/* 海报 */}
               <div className="aspect-[2/3] bg-surface-800 relative">
                 <img
-                  src={streamApi.getPosterUrl(file.id)}
+                  src={streamApi.getPosterUrl(file.id, posterVersions[file.id])}
                   alt=""
                   className="w-full h-full object-cover"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
