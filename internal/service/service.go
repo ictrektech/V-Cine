@@ -103,6 +103,9 @@ type Services struct {
 	EnsureVideoAnalysis EnsureServicesFn
 }
 
+// artworkWarmupLimit 单次扫描最多预热多少条封面；其余条目在首次被请求时按需生成
+const artworkWarmupLimit = 50
+
 func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap.SugaredLogger) *Services {
 	transcoder := NewTranscodeService(repos.Transcode, repos.Media, cfg, logger)
 	transcoder.SetSettingRepo(repos.SystemSetting)
@@ -546,9 +549,25 @@ func NewServices(repos *repository.Repositories, cfg *config.Config, logger *zap
 	// 兜底海报生成复用同一条图片解析链判断"是否已有可展示的海报"（侧车图 / 剧集海报），
 	// 避免对已经有图的条目白跑探测与抽帧。延迟注入：解析器由 StreamService 持有。
 	artworkFallbackService.SetArtworkProbe(svcs.Stream.ArtworkResolver())
+	// 海报完全缺失时按需生成兜底图：只对实际被请求的条目抽帧
+	svcs.Stream.ArtworkResolver().SetMissingHandler(artworkFallbackService.Submit)
 
 	// 延迟注入：扫描完成后自动触发预处理（受系统设置控制）
-	scanner.SetOnScanComplete(func(libraryID string) {
+	scanner.SetOnScanComplete(func(libraryID string, since time.Time) {
+		// 本次扫描新增的媒体先出封面（内嵌封面优先，其次抽帧）；刮到真海报后解析链自动改用海报
+		if mediaList, err := repos.Media.ListByLibraryCreatedSince(libraryID, since); err == nil {
+			for i, m := range mediaList {
+				if i >= artworkWarmupLimit {
+					break
+				}
+				if strings.TrimSpace(m.PosterPath) == "" {
+					artworkFallbackService.Submit(m.ID)
+				}
+			}
+		} else {
+			logger.Warnw("扫描后预热封面失败", "error", err)
+		}
+
 		// 检查系统设置：是否启用扫描后自动预处理
 		autoPreprocess := false
 		if setting, err := repos.SystemSetting.Get("auto_preprocess_on_scan"); err == nil && (setting == "true" || setting == "1") {

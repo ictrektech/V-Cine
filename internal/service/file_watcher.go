@@ -416,7 +416,7 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 			}
 			fw.logger.Infof("%s", completedMessage)
 			fw.scanner.notifyScanSummary(libraryID, lib.Name, count, scanStartedAt)
-			fw.scanner.NotifyScanComplete(libraryID)
+			fw.scanner.NotifyScanComplete(libraryID, scanStartedAt)
 		})
 	} else {
 		if fw.wsHub != nil {
@@ -428,7 +428,7 @@ func (fw *FileWatcherService) triggerIncrementalScan(libraryID string) {
 				Message:     fmt.Sprintf("增量扫描完成: %s, 新增 %d 个媒体", lib.Name, count),
 			})
 		}
-		fw.scanner.NotifyScanComplete(libraryID)
+		fw.scanner.NotifyScanComplete(libraryID, scanStartedAt)
 	}
 
 	// 清理防抖定时器

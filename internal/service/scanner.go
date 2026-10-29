@@ -461,11 +461,11 @@ type ScannerService struct {
 	seriesRepo      *repository.SeriesRepo
 	cfg             *config.Config
 	logger          *zap.SugaredLogger
-	wsHub           *WSHub                 // WebSocket事件广播
-	nfoService      *NFOService            // NFO 本地元数据解析服务
-	onScanComplete  func(libraryID string) // 扫描完成回调（用于触发预处理）
-	vfsMgr          *VFSManager            // V2.1: VFS 管理器（支持 webdav:// 路径）
-	notificationSvc *NotificationService   // 扫描汇总通知服务
+	wsHub           *WSHub                                  // WebSocket事件广播
+	nfoService      *NFOService                             // NFO 本地元数据解析服务
+	onScanComplete  func(libraryID string, since time.Time) // 扫描完成回调（用于触发预处理）
+	vfsMgr          *VFSManager                             // V2.1: VFS 管理器（支持 webdav:// 路径）
+	notificationSvc *NotificationService                    // 扫描汇总通知服务
 	// partialScans 标记"本次只扫描了库内部分路径"的库（key = 库ID），用于跳过全库失效清理
 	partialScans sync.Map
 	// partialFiles 记录"本次只入库这些文件"的库（key = 库ID，value = map[清理后的路径]struct{}）
@@ -774,8 +774,8 @@ func (s *ScannerService) collectMediaRoots(root string, kind string) []string {
 	return uniq
 }
 
-// SetOnScanComplete 设置扫描完成回调（用于触发视频预处理）
-func (s *ScannerService) SetOnScanComplete(fn func(libraryID string)) {
+// SetOnScanComplete 设置扫描完成回调（用于触发视频预处理）；since 为本次扫描开始时间
+func (s *ScannerService) SetOnScanComplete(fn func(libraryID string, since time.Time)) {
 	s.onScanComplete = fn
 }
 
@@ -800,9 +800,9 @@ func (s *ScannerService) ScanLibrary(library *model.Library) (int, error) {
 }
 
 // NotifyScanComplete 触发扫描完成回调。多阶段流程可在真正完成后手动调用。
-func (s *ScannerService) NotifyScanComplete(libraryID string) {
+func (s *ScannerService) NotifyScanComplete(libraryID string, since time.Time) {
 	if s.onScanComplete != nil {
-		go safego.Run(func() { s.onScanComplete(libraryID) })
+		go safego.Run(func() { s.onScanComplete(libraryID, since) })
 	}
 }
 
@@ -916,7 +916,7 @@ func (s *ScannerService) ScanLibraryWithOptions(library *model.Library, opts Sca
 
 	// 触发预处理回调（如果已配置）
 	if !opts.SuppressCompletionCallback {
-		s.NotifyScanComplete(library.ID)
+		s.NotifyScanComplete(library.ID, scanStartedAt)
 	}
 
 	return count, err
