@@ -162,6 +162,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         pkg-config \
         libv4l-dev \
         libx264-dev \
+        libdav1d-dev \
         bzip2 \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*
@@ -200,6 +201,7 @@ RUN cd /tmp/jetson-ffmpeg \
         --disable-static \
         --enable-gpl \
         --enable-libx264 \
+        --enable-libdav1d \
         --enable-nvmpi \
         --disable-x86asm \
         --disable-doc \
@@ -233,6 +235,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         wget \
         gosu \
         coreutils \
+        libdav1d5 \
         python3 \
         python3-pip \
         python3-flask \
