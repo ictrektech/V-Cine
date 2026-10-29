@@ -27,6 +27,8 @@ import clsx from 'clsx'
 import { aiAssistantApi } from '@/api'
 import type { ChatMsg, SuggestedAction, OperationPreview, AssistantOperation } from '@/types'
 import { useToast } from '@/components/Toast'
+import { useAIPanelStore } from '@/stores/aiPanel'
+import { useTransferStore } from '@/stores/transfer'
 import { t, useTranslation } from '@/i18n'
 
 interface AIAssistantProps {
@@ -48,11 +50,18 @@ export function AIAssistantButton({ isOpen, onToggle, selectedCount }: {
   onToggle: () => void
   selectedCount: number
 }) {
+  const hasTransfer = useTransferStore((s) => s.items.length > 0)
+  const dockHeight = useTransferStore((s) => s.dockHeight)
+  // 上传抽屉可见时 FAB 抬到其上方：抽屉底距 16 + 自身高度 56 + 间隙 12
+  const lifted = hasTransfer && !isOpen && dockHeight > 0
+  const bottom = lifted ? 16 + dockHeight + 12 : 24
+
   return createPortal(
     <button
       onClick={onToggle}
+      style={{ bottom }}
       className={clsx(
-        'fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 hover:scale-105',
+        'fixed right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 hover:scale-105',
         isOpen ? 'bg-surface-800 text-surface-100' : 'bg-primary text-primary-foreground'
       )}
       title={isOpen ? t('aa.closeTitle') : t('aa.openTitle')}
@@ -606,6 +615,14 @@ export default function AIAssistant({ selectedMediaIds, libraryId, onOperationCo
 
 /** AI助手侧边面板包装器（带动画过渡） */
 export function AIAssistantPanel({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) {
+  const setAIPanelOpen = useAIPanelStore((s) => s.setOpen)
+
+  // 展开状态写入全局 store；组件卸载时复位
+  useEffect(() => {
+    setAIPanelOpen(isOpen)
+    return () => setAIPanelOpen(false)
+  }, [isOpen, setAIPanelOpen])
+
   return (
     <div
       className={clsx(

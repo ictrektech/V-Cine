@@ -3907,6 +3907,7 @@ const jaJP: Record<string, string> = {
   'fm.transferRetry': "再試行",
   'fm.transferCancel': "キャンセル",
   'fm.transferClearDone': "完了分をクリア",
+  'fm.transferClose': "閉じる",
   'fm.transferConcurrency': "同時実行数",
   'fm.transferRefreshHint': "ページを再読み込みすると未完了のアップロードは失われます",
   'fm.transferScanFailed': "スキャンに失敗しました。ライブラリで手動スキャンしてください",

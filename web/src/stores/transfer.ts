@@ -38,6 +38,8 @@ interface TransferStore {
   /** 并发上传数（1–3，默认 2） */
   concurrency: number
   dockOpen: boolean
+  /** 抽屉当前渲染高度（px，0 表示未显示） */
+  dockHeight: number
   /** 入队一批文件，返回入队数量 */
   enqueue: (files: File[], location: ImportLocation, libraryName: string, scanMode?: ScanMode) => number
   retry: (id: string) => void
@@ -45,6 +47,7 @@ interface TransferStore {
   /** 移除已完成/已取消的条目 */
   clearFinished: () => void
   setDockOpen: (open: boolean) => void
+  setDockHeight: (h: number) => void
   setConcurrency: (n: number) => void
 }
 
@@ -200,6 +203,7 @@ export const useTransferStore = create<TransferStore>((set, get) => ({
   items: [],
   concurrency: 2,
   dockOpen: false,
+  dockHeight: 0,
 
   enqueue: (files, location, libraryName, scanMode = 'uploaded') => {
     if (!files.length) return 0
@@ -245,6 +249,8 @@ export const useTransferStore = create<TransferStore>((set, get) => ({
   },
 
   setDockOpen: (open) => set({ dockOpen: open }),
+
+  setDockHeight: (h) => set((s) => (s.dockHeight === h ? s : { dockHeight: h })),
 
   setConcurrency: (n) => {
     set({ concurrency: Math.min(3, Math.max(1, n)) })

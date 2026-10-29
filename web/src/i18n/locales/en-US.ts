@@ -3907,6 +3907,7 @@ const enUS: Record<string, string> = {
   'fm.transferRetry': "Retry",
   'fm.transferCancel': "Cancel",
   'fm.transferClearDone': "Clear finished",
+  'fm.transferClose': "Close",
   'fm.transferConcurrency': "Concurrency",
   'fm.transferRefreshHint': "Unfinished uploads are lost if you refresh the page",
   'fm.transferScanFailed': "Scan failed. Please scan the library manually.",

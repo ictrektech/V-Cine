@@ -3907,6 +3907,7 @@ const zhCN: Record<string, string> = {
   'fm.transferRetry': "重试",
   'fm.transferCancel': "取消",
   'fm.transferClearDone': "清空已完成",
+  'fm.transferClose': "关闭",
   'fm.transferConcurrency': "并发",
   'fm.transferRefreshHint': "刷新页面会丢失未完成的上传项",
   'fm.transferScanFailed': "扫描失败，请在媒体库中手动扫描",

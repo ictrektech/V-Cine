@@ -3907,6 +3907,7 @@ const zhTW: Record<string, string> = {
   'fm.transferRetry': "重試",
   'fm.transferCancel': "取消",
   'fm.transferClearDone': "清除已完成",
+  'fm.transferClose': "關閉",
   'fm.transferConcurrency': "併發",
   'fm.transferRefreshHint': "重新整理頁面會遺失未完成的上傳項目",
   'fm.transferScanFailed': "掃描失敗，請在媒體庫中手動掃描",
