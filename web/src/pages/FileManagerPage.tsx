@@ -23,7 +23,8 @@ import AdultScraperSection from '@/components/admin/AdultScraperTab'
 import AdultScraperProSection from '@/components/admin/AdultScraperPro'
 import VideoAnalysisTaskTab from '@/components/video-analysis/VideoAnalysisTaskTab'
 import SegmentedTabs from '@/components/ui/segmented-tabs'
-import { useWebSocket } from '@/hooks/useWebSocket'
+import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
+import type { LibraryChangedData } from '@/hooks/useWebSocket'
 import { bumpPoster, bumpPosterVersion } from '@/stores/mediaRefresh'
 import {
   FolderOpen,
@@ -316,6 +317,19 @@ export default function FileManagerPage() {
     const handlePosterReady = (data: { media_id?: string }) => {
       if (data?.media_id) bumpPoster(data.media_id)
     }
+    // 媒体库被删除：若筛选项正是该库，先清空筛选，避免继续用已删除的 library_id 查询
+    const handleLibraryDeleted = (data: LibraryChangedData) => {
+      const deletedId = data?.library_id
+      if (deletedId && deletedId === filterLibrary) {
+        // 状态变化会触发列表/统计/目录树重新加载
+        setFilterLibrary('')
+        setPage(1)
+        setCurrentFolderPath('')
+      } else {
+        handleGlobalUpdate()
+      }
+      fetchLibraries()
+    }
 
     on('file_imported', handleUpdate)
     on('file_deleted', handleUpdate)
@@ -326,7 +340,8 @@ export default function FileManagerPage() {
     on('scan_phase', handleUpdate)
     on('scrape_completed', handleScrapeCompleted)
     on('poster_ready', handlePosterReady)
-    on('library_updated', handleGlobalUpdate)
+    on(WS_EVENTS.LIBRARY_UPDATED, handleGlobalUpdate)
+    on(WS_EVENTS.LIBRARY_DELETED, handleLibraryDeleted)
     on('adult_batch_completed', handleGlobalUpdate)
     on('folder_renamed', handleGlobalUpdate)
     on('folder_deleted', handleGlobalUpdate)
@@ -340,12 +355,13 @@ export default function FileManagerPage() {
       off('scan_phase', handleUpdate)
       off('scrape_completed', handleScrapeCompleted)
       off('poster_ready', handlePosterReady)
-      off('library_updated', handleGlobalUpdate)
+      off(WS_EVENTS.LIBRARY_UPDATED, handleGlobalUpdate)
+      off(WS_EVENTS.LIBRARY_DELETED, handleLibraryDeleted)
       off('adult_batch_completed', handleGlobalUpdate)
       off('folder_renamed', handleGlobalUpdate)
       off('folder_deleted', handleGlobalUpdate)
     }
-  }, [on, off, fetchFiles, fetchStats, fetchFolderTree])
+  }, [on, off, fetchFiles, fetchStats, fetchFolderTree, fetchLibraries, filterLibrary])
 
   // ==================== 选择操作 ====================
 
