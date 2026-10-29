@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -67,16 +68,6 @@ func TestArtworkFallbackSubmitGuards(t *testing.T) {
 		t.Fatal("空 mediaID 不应投递")
 	}
 
-	// 闸门占满 → 直接丢弃（不阻塞、不排队，交由下一轮刮削重试）
-	svc.sem <- struct{}{}
-	if svc.Submit("m1") {
-		t.Fatal("闸门占满时不应投递")
-	}
-	if _, loaded := svc.inFlight.Load("m1"); loaded {
-		t.Fatal("被丢弃的投递不应残留在途标记")
-	}
-	<-svc.sem
-
 	// 同一媒体在途去重
 	svc.inFlight.Store("m2", struct{}{})
 	if svc.Submit("m2") {
@@ -84,9 +75,16 @@ func TestArtworkFallbackSubmitGuards(t *testing.T) {
 	}
 	svc.inFlight.Delete("m2")
 
-	// 正常投递（媒体查不到，后台 goroutine 会立即安全退出）
+	// 正常投递（媒体查不到，工作协程会立即安全退出）
 	if !svc.Submit("m3") {
 		t.Fatal("应投递成功")
+	}
+
+	// 队列容量远大于并发：一次打开列表投递多条时都不应被丢弃
+	for i := 0; i < 10; i++ {
+		if !svc.Submit(fmt.Sprintf("q%d", i)) {
+			t.Fatalf("第 %d 条投递不应被丢弃", i)
+		}
 	}
 }
 

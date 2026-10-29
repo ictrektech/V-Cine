@@ -20,10 +20,9 @@ import (
 // 触发源：刮削降级为 partial（MetadataService.SubmitArtworkFallback 投递）。
 //
 // 调度语义：
-//   - 异步执行，不阻塞刮削；
-//   - 闸门限流：同时进行的生成不超过 Concurrency；队列满时直接丢弃——
-//     该媒体仍是 partial，下一轮刮削重试会再次投递，因此不需要无界队列；
-//   - 同一媒体在途去重；
+//   - 异步执行，不阻塞调用方（刮削 / 扫描完成 / 海报请求）；
+//   - 固定数量工作协程消费队列，同时进行的生成不超过 Concurrency；
+//   - 队列有界，满了才丢弃；同一媒体在途去重；
 //   - 进程内失败计数，达到上限后不再重试（避免对同一个坏文件反复起 ffmpeg）。
 //
 // 注意：派生图不写 media.PosterPath，因此本服务不会影响刮削的 partial 语义。
@@ -31,6 +30,9 @@ import (
 const (
 	// artworkFallbackDefaultConcurrency 未配置时的并发上限
 	artworkFallbackDefaultConcurrency = 2
+	// artworkFallbackQueueSize 待生成队列长度。一次打开列表会同时请求几十张海报，
+	// 若用"并发闸门满即丢弃"，多数条目会一直显示占位图，因此改为有界队列排队。
+	artworkFallbackQueueSize = 256
 	// artworkFallbackMaxAttempts 同一媒体的失败重试上限（进程内计数，重启后清零）
 	artworkFallbackMaxAttempts = 3
 )
@@ -56,11 +58,12 @@ type ArtworkFallbackService struct {
 	// 构造顺序上晚于本服务；未注入时退化为只校验 DB 指针（见 hasUsableArtwork）。
 	probe artworkProbe
 
-	sem      chan struct{} // 并发闸门
-	inFlight sync.Map      // mediaID -> struct{}，在途去重
-
-	mu       sync.Mutex     // 保护 attempts
-	attempts map[string]int // mediaID -> 失败次数
+	concurrency int            // 工作协程数量
+	jobs        chan string    // 待生成队列
+	startOnce   sync.Once      // 首次投递时启动工作协程
+	inFlight    sync.Map       // mediaID -> struct{}，在途去重
+	mu          sync.Mutex     // 保护 attempts
+	attempts    map[string]int // mediaID -> 失败次数
 }
 
 func NewArtworkFallbackService(
@@ -73,11 +76,12 @@ func NewArtworkFallbackService(
 		concurrency = cfg.Artwork.Fallback.Concurrency
 	}
 	return &ArtworkFallbackService{
-		cfg:      cfg,
-		medias:   medias,
-		logger:   logger,
-		sem:      make(chan struct{}, concurrency),
-		attempts: make(map[string]int),
+		cfg:         cfg,
+		medias:      medias,
+		logger:      logger,
+		concurrency: concurrency,
+		jobs:        make(chan string, artworkFallbackQueueSize),
+		attempts:    make(map[string]int),
 	}
 }
 
@@ -92,7 +96,7 @@ func (s *ArtworkFallbackService) SetArtworkProbe(p artworkProbe) {
 }
 
 // Submit 异步投递一次兜底海报生成，不等待生成完成。
-// 返回 false 表示未投递：功能未开启 / mediaID 为空 / 该媒体已在处理中 / 并发已满被丢弃。
+// 返回 false 表示未投递：功能未开启 / mediaID 为空 / 该媒体已在队列或处理中 / 队列已满。
 func (s *ArtworkFallbackService) Submit(mediaID string) bool {
 	if s == nil || !s.enabled() {
 		return false
@@ -103,22 +107,26 @@ func (s *ArtworkFallbackService) Submit(mediaID string) bool {
 	if _, loaded := s.inFlight.LoadOrStore(mediaID, struct{}{}); loaded {
 		return false
 	}
-	// 非阻塞取闸门：拿不到就丢弃，交给下一轮刮削重试
+	s.startOnce.Do(s.startWorkers)
 	select {
-	case s.sem <- struct{}{}:
+	case s.jobs <- mediaID:
+		return true
 	default:
 		s.inFlight.Delete(mediaID)
 		return false
 	}
+}
 
-	safego.Run(func() {
-		defer func() {
-			<-s.sem
-			s.inFlight.Delete(mediaID)
+// startWorkers 启动固定数量的工作协程，从队列取出 mediaID 逐个生成。
+func (s *ArtworkFallbackService) startWorkers() {
+	for i := 0; i < s.concurrency; i++ {
+		go func() {
+			for mediaID := range s.jobs {
+				safego.Run(func() { s.run(context.Background(), mediaID) })
+				s.inFlight.Delete(mediaID)
+			}
 		}()
-		s.run(context.Background(), mediaID)
-	})
-	return true
+	}
 }
 
 // run 同步执行一次生成。独立成方法便于单测直接调用（Submit 只是它的调度外壳）。
@@ -190,7 +198,9 @@ func (s *ArtworkFallbackService) run(ctx context.Context, mediaID string) {
 	}
 
 	if lastErr == nil {
-		return // 所有来源都"不适用"（无内嵌封面 / 全黑帧等），无需重试
+		// 所有来源都"不适用"（无内嵌封面 / 全黑帧等），无需重试
+		s.logger.Debugw("兜底海报跳过：没有可用来源", "media", mediaID, "path", media.FilePath)
+		return
 	}
 	s.logger.Warnw("兜底海报本轮失败",
 		"media", mediaID,

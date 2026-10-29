@@ -78,7 +78,9 @@ func (g *FrameArtworkGenerator) Generate(
 		return false, nil
 	}
 	if media.Duration <= 0 {
-		return false, nil // 时长未知 → 无法定位采样点
+		// 时长未知 → 无法定位采样点
+		g.logger.Debugw("跳过抽帧：媒体时长未知", "media", media.ID, "path", media.FilePath)
+		return false, nil
 	}
 
 	// 适用性判断（STRM 远程流 / 文件缺失 / 远程路径翻译）与内嵌封面来源共用同一套规则
