@@ -193,7 +193,20 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
   // ---- 订阅海报版本戳：刮削/替换海报后自动绕过浏览器缓存 ----
   usePosterVersion()
 
-  // ---- 海报 URL 缓存 ----
+  // ---- 背景图 URL 缓存：统一走横版接口 ----
+  // 后端无真横版图时返回由竖版海报合成的 16:9 图，失败则回退竖版派生图。
+  const backdropUrls = useMemo(() => {
+    const urls = new Map<string, string>()
+    items.forEach((rec) => {
+      const url = rec.media.series_id
+        ? streamApi.getSeriesBackdropUrl(rec.media.series_id)
+        : streamApi.getMediaBackdropUrl(rec.media.id)
+      urls.set(rec.media.id, url)
+    })
+    return urls
+  }, [items])
+
+  // ---- 海报 URL 缓存（缩略图与背景图兜底）----
   const posterUrls = useMemo(() => {
     const urls = new Map<string, string>()
     items.forEach((rec) => {
@@ -205,12 +218,19 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
     return urls
   }, [items])
 
-  // ---- 图片加载回调 ----
-  const handleImageLoad = useCallback((mediaId: string) => {
+  // 横版背景请求失败时退回竖版海报
+  const [posterBgFallback, setPosterBgFallback] = useState<Set<string>>(new Set())
+  const backdropSrc = useCallback((mediaId: string) => {
+    const url = posterBgFallback.has(mediaId) ? posterUrls.get(mediaId) : backdropUrls.get(mediaId)
+    return url ?? ''
+  }, [posterBgFallback, posterUrls, backdropUrls])
+
+  // ---- 图片加载回调（按 URL 记录，背景图与缩略图各自独立淡入）----
+  const handleImageLoad = useCallback((url: string) => {
     setLoadedImages((prev) => {
-      if (prev.has(mediaId)) return prev
+      if (prev.has(url)) return prev
       const next = new Set(prev)
-      next.add(mediaId)
+      next.add(url)
       return next
     })
   }, [])
@@ -347,17 +367,17 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
             style={{ x: dragX, cursor: items.length > 1 ? 'grab' : 'default' }}
           >
             <motion.img
-              src={posterUrls.get(item.media.id)}
+              src={backdropSrc(item.media.id)}
               alt=""
               className={clsx(
                 'h-full w-full object-cover select-none pointer-events-none',
-                loadedImages.has(item.media.id) ? 'opacity-100' : 'opacity-0'
+                loadedImages.has(backdropSrc(item.media.id)) ? 'opacity-100' : 'opacity-0'
               )}
               style={{ transition: 'opacity 0.4s' }}
               loading="eager"
               draggable={false}
-              onLoad={() => handleImageLoad(item.media.id)}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              onLoad={() => handleImageLoad(backdropSrc(item.media.id))}
+              onError={() => setPosterBgFallback((prev) => (prev.has(item.media.id) ? prev : new Set(prev).add(item.media.id)))}
             />
           </motion.div>
         </AnimatePresence>
@@ -366,11 +386,11 @@ export default function HeroCarousel({ items: rawItems, fallbackItems, maxItems 
         {items.map((rec, i) => i !== current && (
           <img
             key={`preload-${rec.media.id}`}
-            src={posterUrls.get(rec.media.id)}
+            src={backdropSrc(rec.media.id)}
             alt=""
             className="hidden"
             loading="lazy"
-            onLoad={() => handleImageLoad(rec.media.id)}
+            onLoad={() => handleImageLoad(backdropSrc(rec.media.id))}
           />
         ))}
 
