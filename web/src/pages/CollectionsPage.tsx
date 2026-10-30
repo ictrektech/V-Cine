@@ -5,9 +5,13 @@ import { collectionApi } from '@/api'
 import { streamApi } from '@/api'
 import { libraryApi } from '@/api'
 import { usePageCache, invalidatePageCachePrefix } from '@/hooks/usePageCache'
+import { useAuthStore } from '@/stores/auth'
 import type { MovieCollection, Library } from '@/types'
 import Pagination from '@/components/Pagination'
-import { Library as LibraryIcon, Search, Film, Loader2, X, Play, Merge, Trash2, RefreshCw, Grid3X3, LayoutList, ArrowUpDown, ChevronDown, Filter } from 'lucide-react'
+import { Modal } from '@/components/ui/modal'
+import { Input } from '@/components/ui/input'
+import MediaPickerList from '@/components/media/MediaPickerList'
+import { Library as LibraryIcon, Search, Film, Loader2, X, Play, Merge, Trash2, RefreshCw, Grid3X3, LayoutList, ArrowUpDown, ChevronDown, Filter, Plus } from 'lucide-react'
 import clsx from 'clsx'
 import { useTranslation } from '@/i18n'
 
@@ -33,6 +37,8 @@ interface CollectionsData {
 
 export default function CollectionsPage() {
   const { t } = useTranslation()
+  // 新建合集走 admin 接口，仅管理员显示入口
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
   // 订阅海报版本戳：刮削/替换海报后触发重渲染，图片 URL 自动带上新版本号
   usePosterVersion()
   const navigate = useNavigate()
@@ -51,6 +57,10 @@ export default function CollectionsPage() {
   const [showSortDropdown, setShowSortDropdown] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [libraries, setLibraries] = useState<Library[]>([])
+  const [showCreate, setShowCreate] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createMediaIds, setCreateMediaIds] = useState<string[]>([])
+  const [creating, setCreating] = useState(false)
   const pageSizeOptions = [12, 24, 36, 48]
 
   // 加载媒体库列表
@@ -155,6 +165,26 @@ export default function CollectionsPage() {
       setOperating(false)
     }
   }, [operating, refetch, setSearchParams])
+
+  // 手动创建合集
+  const handleCreate = useCallback(async () => {
+    const name = createName.trim()
+    if (!name || creating) return
+    setCreating(true)
+    try {
+      await collectionApi.create({ name, media_ids: createMediaIds })
+      setShowCreate(false)
+      setCreateName('')
+      setCreateMediaIds([])
+      setOperationMsg(t('collections.createDone', { name }))
+      invalidatePageCachePrefix('collections:')
+      refetch(true)
+    } catch {
+      setOperationMsg(t('collections.createFailed'))
+    } finally {
+      setCreating(false)
+    }
+  }, [createName, createMediaIds, creating, refetch, t])
 
   // ===== 显示列表 =====
   // 正常浏览模式下，后端已经完成排序和筛选，直接使用 collections
@@ -366,6 +396,15 @@ export default function CollectionsPage() {
           </button>
         </div>
         <div className="flex gap-2 ml-auto">
+          {isAdmin && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="btn-primary flex items-center gap-1.5 px-3 py-2 text-xs"
+            >
+              <Plus size={14} />
+              {t('collections.newCollection')}
+            </button>
+          )}
           <button
             onClick={handleRematch}
             disabled={operating}
@@ -512,6 +551,49 @@ export default function CollectionsPage() {
           onPageSizeChange={handlePageSizeChange}
         />
       )}
+
+      {/* 新建合集 */}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} className="max-w-lg">
+        <div className="glass-panel-strong rounded-2xl p-6">
+          <h3 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+            {t('collections.newCollection')}
+          </h3>
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {t('collections.createHint')}
+          </p>
+          <Input
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+            placeholder={t('collections.namePlaceholder')}
+            className="mt-4"
+            style={{
+              background: 'var(--bg-input)',
+              borderColor: 'var(--border-default)',
+              color: 'var(--text-primary)',
+            }}
+          />
+          <div className="mt-3">
+            {showCreate && <MediaPickerList selected={createMediaIds} onChange={setCreateMediaIds} />}
+          </div>
+          <div className="mt-5 flex items-center justify-between">
+            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              {t('collections.selectedCount', { count: createMediaIds.length })}
+            </span>
+            <div className="flex gap-2">
+              <button className="btn-ghost px-4 py-2 text-sm" onClick={() => setShowCreate(false)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                className="btn-primary px-4 py-2 text-sm"
+                onClick={handleCreate}
+                disabled={creating || !createName.trim()}
+              >
+                {creating ? t('collections.creating') : t('common.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

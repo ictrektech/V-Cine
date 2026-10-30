@@ -9,6 +9,7 @@ import type {
   MixedItem,
   MediaDetailEnhanced,
   DanmakuComment,
+  MovieCollection,
 } from '@/types'
 
 // ==================== 媒体 ====================
@@ -121,4 +122,24 @@ export const collectionApi = {
   /** 获取重复合集统计信息（管理员） */
   getDuplicateStats: () =>
     api.get<{ data: Record<string, number>; count: number }>('/admin/collections/duplicate-stats'),
+
+  /** 手动创建合集（管理员） */
+  create: (data: { name: string; media_ids?: string[] }) =>
+    api.post<{ data: MovieCollection }>('/admin/collections', data),
+
+  /** 更新合集名称与简介（管理员） */
+  update: (collectionId: string, data: { name: string; overview?: string }) =>
+    api.put<{ message: string }>(`/admin/collections/${collectionId}`, data),
+
+  /** 删除合集（管理员） */
+  remove: (collectionId: string) =>
+    api.delete<{ message: string }>(`/admin/collections/${collectionId}`),
+
+  /** 往合集添加影片（管理员） */
+  addMedia: (collectionId: string, mediaId: string) =>
+    api.post<{ message: string }>(`/admin/collections/${collectionId}/media`, { media_id: mediaId }),
+
+  /** 从合集移除影片（管理员） */
+  removeMedia: (collectionId: string, mediaId: string) =>
+    api.delete<{ message: string }>(`/admin/collections/${collectionId}/media/${mediaId}`),
 }
