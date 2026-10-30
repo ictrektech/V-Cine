@@ -321,7 +321,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
 
       <Card className="overflow-hidden">
         {disabled ? (
-          <div className="px-4 py-16 text-center" role="status"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">{t('vat.disabledTitle')}</h3><p className="mt-1 text-sm text-muted-foreground">{disabledReason || t('vat.disabledDesc')}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin()) }}>{t('vat.goConfig')}</Button></div></div>
+          <div className="px-4 py-16 text-center" role="status"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">{t('vat.disabledTitle')}</h3><p className="mt-1 text-sm text-muted-foreground">{disabledReason || t('vat.disabledDesc')}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin('video-analysis')) }}>{t('vat.goConfig')}</Button></div></div>
         ) : loading ? (
           <div className="divide-y divide-border" aria-busy="true" aria-label={t('vat.loadingTasks')}>
             {Array.from({ length: 4 }).map((_, i) => (
@@ -336,7 +336,7 @@ export default function VideoAnalysisTaskTab({ disabled = false, disabledReason 
             ))}
           </div>
         ) : unavailable ? (
-          <div className="px-4 py-16 text-center" role="alert"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">{t('vat.loadFailed')}</h3><p className="mt-1 text-sm text-muted-foreground">{t('vat.loadFailedDesc')}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => load()}>{t('vat.recheck')}</Button><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin()) }}>{t('vat.goConfig')}</Button></div></div>
+          <div className="px-4 py-16 text-center" role="alert"><AlertCircle className="mx-auto text-amber-400" /><h3 className="mt-3 font-medium">{t('vat.loadFailed')}</h3><p className="mt-1 text-sm text-muted-foreground">{t('vat.loadFailedDesc')}</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => load()}>{t('vat.recheck')}</Button><Button variant="outline" size="sm" onClick={() => { window.location.href = toAppUrl(routes.admin('video-analysis')) }}>{t('vat.goConfig')}</Button></div></div>
         ) : tasks.length === 0 ? (
           <div className="py-16 text-center"><ScanLine className="mx-auto text-muted-foreground" /><h3 className="mt-3 font-medium">{t('vat.empty')}</h3><p className="mt-1 text-sm text-muted-foreground">{t('vat.emptyHint')}</p></div>
         ) : (

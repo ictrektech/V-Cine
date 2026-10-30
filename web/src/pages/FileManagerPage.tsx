@@ -22,6 +22,7 @@ import { isSmallScreen, useIsSmallScreen } from '@/hooks/useSmallScreen'
 import AdultScraperSection from '@/components/admin/AdultScraperTab'
 import AdultScraperProSection from '@/components/admin/AdultScraperPro'
 import VideoAnalysisTaskTab from '@/components/video-analysis/VideoAnalysisTaskTab'
+import FeatureGate from '@/components/feature/FeatureGate'
 import SegmentedTabs from '@/components/ui/segmented-tabs'
 import { useWebSocket, WS_EVENTS } from '@/hooks/useWebSocket'
 import type { LibraryChangedData } from '@/hooks/useWebSocket'
@@ -547,7 +548,7 @@ export default function FileManagerPage() {
       message: message || t('fm.analysisDialogMessage'),
       confirmText: t('fm.goSettings'),
       variant: 'warning',
-    })) window.location.href = toAppUrl(routes.admin())
+    })) window.location.href = toAppUrl(routes.admin('video-analysis'))
   }, [dialog])
 
   const submitBatchAnalyze = useCallback(async (force = false, includeDescriptions = false) => {
@@ -927,12 +928,14 @@ export default function FileManagerPage() {
           onBatchDelete={handleBatchDelete}
           onClearSelection={() => setSelectedIds(new Set())}
         >
-          {/* AI助手按钮 — 嵌入在列表/网格切换按钮右侧 */}
-          <AIAssistantButton
-            isOpen={showAIPanel}
-            onToggle={() => setShowAIPanel(!showAIPanel)}
-            selectedCount={selectedIds.size}
-          />
+          {/* AI助手按钮 — 嵌入在列表/网格切换按钮右侧；AI 未就绪时隐藏入口 */}
+          <FeatureGate feature="ai" hideWhenUnavailable>
+            <AIAssistantButton
+              isOpen={showAIPanel}
+              onToggle={() => setShowAIPanel(!showAIPanel)}
+              selectedCount={selectedIds.size}
+            />
+          </FeatureGate>
         </FileToolbar>
 
         {/* 面包屑 + 左侧文件夹树 + 文件列表，整体一个框 */}
@@ -1037,16 +1040,18 @@ export default function FileManagerPage() {
             </div>
           </div>
 
-          {/* 右侧 AI 助手面板 — 使用 CSS 过渡动画 */}
-          <AIAssistantPanel isOpen={showAIPanel}>
-            <AIAssistant
-              selectedMediaIds={Array.from(selectedIds)}
-              libraryId={filterLibrary || undefined}
-              onOperationComplete={fetchFiles}
-              isOpen={showAIPanel}
-              onToggle={() => setShowAIPanel(!showAIPanel)}
-            />
-          </AIAssistantPanel>
+          {/* 右侧 AI 助手面板 — 使用 CSS 过渡动画；AI 未就绪时不挂载，避免请求返回 400 */}
+          <FeatureGate feature="ai" hideWhenUnavailable>
+            <AIAssistantPanel isOpen={showAIPanel}>
+              <AIAssistant
+                selectedMediaIds={Array.from(selectedIds)}
+                libraryId={filterLibrary || undefined}
+                onOperationComplete={fetchFiles}
+                isOpen={showAIPanel}
+                onToggle={() => setShowAIPanel(!showAIPanel)}
+              />
+            </AIAssistantPanel>
+          </FeatureGate>
         </div>
       </>)}
 

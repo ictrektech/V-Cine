@@ -223,7 +223,7 @@ export default function FileToolbar({
               variant="ghost"
               size="sm"
               className="px-2.5 text-xs text-amber-300 hover:bg-amber-400/10 hover:text-amber-200"
-              onClick={() => { window.location.href = toAppUrl(routes.admin()) }}
+              onClick={() => { window.location.href = toAppUrl(routes.admin('video-analysis')) }}
               title={videoAnalysisDisabledReason || t('fm.goAnalysisConfig')}
             >
               {t('fm.goConfig')}

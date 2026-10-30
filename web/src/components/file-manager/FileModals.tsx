@@ -436,7 +436,7 @@ export function FileDetailModal({ open, media, videoAnalysisDescribeEnabled = tr
                 <div className="space-y-2">
                   <div className="text-sm text-amber-300">{t('fm.analysisDisabled')}</div>
                   <button
-                    onClick={() => { window.location.href = toAppUrl(routes.admin()) }}
+                    onClick={() => { window.location.href = toAppUrl(routes.admin('video-analysis')) }}
                     className="inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-400/10"
                   >
                     {t('fm.goSystemConfig')}
@@ -575,7 +575,7 @@ export function BatchAnalyzeModal({ open, selectedCount, videoAnalysisEnabled, v
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
             <div>{disabledReason || t('fm.analysisDisabled')}</div>
             <button
-              onClick={() => { window.location.href = toAppUrl(routes.admin()) }}
+              onClick={() => { window.location.href = toAppUrl(routes.admin('video-analysis')) }}
               className="mt-3 inline-flex items-center rounded-lg border border-amber-400/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-400/10"
             >
               {t('fm.goSystemConfig')}
