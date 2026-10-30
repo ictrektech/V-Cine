@@ -4052,6 +4052,31 @@ const zhCN: Record<string, string> = {
   'vid.activeTier': "活跃档位",
   'vid.suspended': "已挂起",
   'vid.bufferLead': "缓冲领先",
+
+  // ===== 能力门禁（capability.*）=====
+  'capability.action.enable': '去开启',
+  'capability.action.fix': '去补齐',
+  'capability.unknownReason': '暂时无法获取该功能的可用状态，功能保持默认行为。',
+  'capability.name.ai': 'AI 功能',
+  'capability.name.ai_auto_pilot': '全自动托管',
+  'capability.name.ai_smart_search': '智能搜索',
+  'capability.name.ai_recommend_reason': '推荐理由',
+  'capability.name.ai_metadata_enhance': '元数据增强',
+  'capability.name.video_analysis': '视频场景识别',
+  'capability.name.video_analysis_describe': '视频场景描述',
+  'capability.name.video_analysis_remote': '远程视频结构化',
+  'capability.name.scene_search': '场景搜索',
+  'capability.ai.disabled': 'AI 功能未开启。开启后可使用智能搜索、推荐理由与元数据增强。',
+  'capability.ai.no_provider': '还没有配置 AI 供应商。填好服务地址与模型后即可开启。',
+  'capability.ai.missing_model': '已配置供应商，但还没有选择可用模型。',
+  'capability.ai.unavailable': 'AI 服务未就绪。',
+  'capability.ai.auto_pilot_disabled': '全自动托管未开启。开启后扫描与识别全流程自动完成。',
+  'capability.ai.sub_switch_off': 'AI 已开启，但这个子功能还关着。',
+  'capability.video_analysis.disabled': '视频分析未开启。开启后可自动切分场景并生成结构化数据。',
+  'capability.video_analysis.invalid': '视频分析已开启，但服务没有就绪。请确认场景检测与结构化服务可访问。',
+  'capability.describe.disabled': '场景描述未开启。开启后可为每个场景生成文字说明。',
+  'capability.remote_video.disabled': '远程视频结构化未开启。开启后可分析 WebDAV、Alist、S3 上的视频。',
+  'capability.scene_search.no_endpoint': '场景搜索需要先配置向量服务地址。',
 }
 
 export default zhCN

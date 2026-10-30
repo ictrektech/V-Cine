@@ -4052,6 +4052,31 @@ const enUS: Record<string, string> = {
   'vid.activeTier': "Active Tier",
   'vid.suspended': "Suspended",
   'vid.bufferLead': "Buffer Lead",
+
+  // ===== Feature gates (capability.*) =====
+  'capability.action.enable': 'Turn on',
+  'capability.action.fix': 'Finish setup',
+  'capability.unknownReason': 'Feature status is unavailable. The feature keeps its default behavior.',
+  'capability.name.ai': 'AI features',
+  'capability.name.ai_auto_pilot': 'Full auto-pilot',
+  'capability.name.ai_smart_search': 'Smart search',
+  'capability.name.ai_recommend_reason': 'Recommendation reasons',
+  'capability.name.ai_metadata_enhance': 'Metadata enhance',
+  'capability.name.video_analysis': 'Video scene recognition',
+  'capability.name.video_analysis_describe': 'Video scene descriptions',
+  'capability.name.video_analysis_remote': 'Remote video structure',
+  'capability.name.scene_search': 'Scene search',
+  'capability.ai.disabled': 'AI features are off. Turn them on to use smart search, recommendation reasons and metadata enhance.',
+  'capability.ai.no_provider': 'No AI provider yet. Add a service address and a model, then turn it on.',
+  'capability.ai.missing_model': 'A provider is configured, but no usable model is selected.',
+  'capability.ai.unavailable': 'The AI service is not ready.',
+  'capability.ai.auto_pilot_disabled': 'Full auto-pilot is off. Turn it on to run scanning and identification automatically.',
+  'capability.ai.sub_switch_off': 'AI is on, but this sub-feature is still off.',
+  'capability.video_analysis.disabled': 'Video analysis is off. Turn it on to split scenes and produce structured data.',
+  'capability.video_analysis.invalid': 'Video analysis is on, but the service is not ready. Check that scene detection and structure services are reachable.',
+  'capability.describe.disabled': 'Scene descriptions are off. Turn them on to write text for each scene.',
+  'capability.remote_video.disabled': 'Remote video structure is off. Turn it on to analyze videos on WebDAV, Alist and S3.',
+  'capability.scene_search.no_endpoint': 'Scene search needs an embedding service address first.',
 }
 
 export default enUS

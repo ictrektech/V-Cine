@@ -4052,6 +4052,31 @@ const zhTW: Record<string, string> = {
   'vid.activeTier': "活躍檔位",
   'vid.suspended': "已掛起",
   'vid.bufferLead': "緩衝領先",
+
+  // ===== 能力門檻（capability.*）=====
+  'capability.action.enable': '去開啟',
+  'capability.action.fix': '去補齊',
+  'capability.unknownReason': '暫時無法取得該功能的可用狀態，功能維持預設行為。',
+  'capability.name.ai': 'AI 功能',
+  'capability.name.ai_auto_pilot': '全自動託管',
+  'capability.name.ai_smart_search': '智慧搜尋',
+  'capability.name.ai_recommend_reason': '推薦理由',
+  'capability.name.ai_metadata_enhance': '中繼資料增強',
+  'capability.name.video_analysis': '影片場景識別',
+  'capability.name.video_analysis_describe': '影片場景描述',
+  'capability.name.video_analysis_remote': '遠端影片結構化',
+  'capability.name.scene_search': '場景搜尋',
+  'capability.ai.disabled': 'AI 功能未開啟。開啟後可使用智慧搜尋、推薦理由與中繼資料增強。',
+  'capability.ai.no_provider': '尚未設定 AI 供應商。填好服務位址與模型後即可開啟。',
+  'capability.ai.missing_model': '已設定供應商，但尚未選擇可用模型。',
+  'capability.ai.unavailable': 'AI 服務尚未就緒。',
+  'capability.ai.auto_pilot_disabled': '全自動託管未開啟。開啟後掃描與識別全流程自動完成。',
+  'capability.ai.sub_switch_off': 'AI 已開啟，但這個子功能仍關閉。',
+  'capability.video_analysis.disabled': '影片分析未開啟。開啟後可自動切分場景並產生結構化資料。',
+  'capability.video_analysis.invalid': '影片分析已開啟，但服務尚未就緒。請確認場景檢測與結構化服務可連線。',
+  'capability.describe.disabled': '場景描述未開啟。開啟後可為每個場景產生文字說明。',
+  'capability.remote_video.disabled': '遠端影片結構化未開啟。開啟後可分析 WebDAV、Alist、S3 上的影片。',
+  'capability.scene_search.no_endpoint': '場景搜尋需要先設定向量服務位址。',
 }
 
 export default zhTW

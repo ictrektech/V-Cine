@@ -4052,6 +4052,31 @@ const jaJP: Record<string, string> = {
   'vid.activeTier': "アクティブなプリセット",
   'vid.suspended': "保留中",
   'vid.bufferLead': "バッファ先行",
+
+  // ===== 機能ゲート（capability.*）=====
+  'capability.action.enable': 'オンにする',
+  'capability.action.fix': '設定を完了する',
+  'capability.unknownReason': '機能の状態を取得できません。機能は既定の動作を続けます。',
+  'capability.name.ai': 'AI 機能',
+  'capability.name.ai_auto_pilot': '全自動運用',
+  'capability.name.ai_smart_search': 'スマート検索',
+  'capability.name.ai_recommend_reason': 'おすすめ理由',
+  'capability.name.ai_metadata_enhance': 'メタデータ強化',
+  'capability.name.video_analysis': '動画シーン認識',
+  'capability.name.video_analysis_describe': '動画シーン説明',
+  'capability.name.video_analysis_remote': 'リモート動画構造化',
+  'capability.name.scene_search': 'シーン検索',
+  'capability.ai.disabled': 'AI 機能はオフです。オンにするとスマート検索、おすすめ理由、メタデータ強化を使えます。',
+  'capability.ai.no_provider': 'AI プロバイダーが未設定です。サービスアドレスとモデルを入力するとオンにできます。',
+  'capability.ai.missing_model': 'プロバイダーは設定済みですが、利用できるモデルが未選択です。',
+  'capability.ai.unavailable': 'AI サービスは準備できていません。',
+  'capability.ai.auto_pilot_disabled': '全自動運用はオフです。オンにするとスキャンと識別を自動で実行します。',
+  'capability.ai.sub_switch_off': 'AI はオンですが、このサブ機能はオフです。',
+  'capability.video_analysis.disabled': '動画解析はオフです。オンにするとシーンを分割し、構造化データを生成します。',
+  'capability.video_analysis.invalid': '動画解析はオンですが、サービスが準備できていません。シーン検出と構造化サービスへの接続を確認してください。',
+  'capability.describe.disabled': 'シーン説明はオフです。オンにすると各シーンの説明文を生成します。',
+  'capability.remote_video.disabled': 'リモート動画構造化はオフです。オンにすると WebDAV、Alist、S3 上の動画を解析できます。',
+  'capability.scene_search.no_endpoint': 'シーン検索には埋め込みサービスアドレスの設定が必要です。',
 }
 
 export default jaJP

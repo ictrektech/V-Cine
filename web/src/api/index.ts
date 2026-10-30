@@ -13,6 +13,7 @@
 
 // 核心模块
 export { authApi } from './auth'
+export { capabilityApi } from './capability'
 export { libraryApi } from './library'
 export { mediaApi, personApi, collectionApi } from './media'
 export { streamApi } from './stream'

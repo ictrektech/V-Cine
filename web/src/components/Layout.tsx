@@ -4,6 +4,7 @@ import Sidebar from './Sidebar'
 import { Menu } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 import { StorageStatusesProvider } from '@/hooks/useStorageStatuses'
+import { CapabilitiesProvider } from '@/hooks/useCapabilities'
 import OnboardingTour from './OnboardingTour'
 
 // 滚动位置保存 key 前缀
@@ -115,10 +116,12 @@ export default function Layout() {
   // Provider 始终挂载（AdminPage 等管理组件依赖 useStorageStatuses），
   // 非管理员仅跳过轮询（探测接口仅管理员可用）
   return (
-    <StorageStatusesProvider poll={isAdmin}>
-      {body}
-      {/* 首次上手导览（聚光灯指引：遮罩压暗 + 目标高亮 + 气泡说明） */}
-      <OnboardingTour />
-    </StorageStatusesProvider>
+    <CapabilitiesProvider>
+      <StorageStatusesProvider poll={isAdmin}>
+        {body}
+        {/* 首次上手导览（聚光灯指引：遮罩压暗 + 目标高亮 + 气泡说明） */}
+        <OnboardingTour />
+      </StorageStatusesProvider>
+    </CapabilitiesProvider>
   )
 }
