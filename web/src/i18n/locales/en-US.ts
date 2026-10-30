@@ -4053,6 +4053,25 @@ const enUS: Record<string, string> = {
   'vid.suspended': "Suspended",
   'vid.bufferLead': "Buffer Lead",
 
+  // ===== Recommended setup (admin.setup*) =====
+  'admin.setupModeBase': 'Base mode',
+  'admin.setupModeEnhanced': 'Enhanced mode',
+  'admin.setupModeFull': 'Full mode',
+  'admin.setupRemaining': '{count} left to enable',
+  'admin.setupAdvisorTitle': 'Recommended setup',
+  'admin.setupAdvisorHint': 'Finish the steps in order to unlock more. Base features keep working until then.',
+  'admin.setupDone': 'Done',
+  'admin.setupStepMetadata': 'Set up metadata scraping',
+  'admin.setupStepMetadataDesc': 'Add a TMDb key or a Douban cookie to fetch posters and overviews.',
+  'admin.setupStepAiProvider': 'Add an AI provider and model',
+  'admin.setupStepAiProviderDesc': 'Enter the service address and fetch an available model.',
+  'admin.setupStepVideoAnalysis': 'Turn on video scene recognition',
+  'admin.setupStepVideoAnalysisDesc': 'Connect detection and structure services to identify and split scenes automatically.',
+  'admin.setupStepAiSwitch': 'Turn on AI features',
+  'admin.setupStepAiSwitchDesc': 'Unlocks smart search, recommendation reasons and metadata enhance. Full auto-pilot can be turned on separately.',
+  'admin.setupStepDescribe': 'Turn on video scene descriptions',
+  'admin.setupStepDescribeDesc': 'Writes text for each scene. Uses the structure service model by default.',
+
   // ===== Feature gates (capability.*) =====
   'capability.action.enable': 'Turn on',
   'capability.action.fix': 'Finish setup',

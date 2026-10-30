@@ -13,12 +13,17 @@ import { aiApi, videoAnalysisApi } from '@/api'
 import type { AIStatus } from '@/types'
 import type { VideoAnalysisHealthInfo, VideoAnalysisSettings } from '@/types/videoAnalysis'
 import { cn } from '@/lib/utils'
+import { useSetupHighlight } from '@/hooks/useSetupHighlight'
+import type { SetupTarget } from '@/lib/setupTargets'
 import { extractErrMsg } from '@/utils/error'
 
 interface VideoAnalysisDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onNavigateToAI: () => void
+  /** 从推荐配置跳进来时需要高亮的锚点。 */
+  target?: SetupTarget
+  targetNonce?: number
 }
 
 // embeddingModeLabel 后端类型 → 显示名
@@ -41,7 +46,7 @@ function ServiceBadge({ ok, okText, failText }: { ok: boolean | null; okText?: s
   )
 }
 
-export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI }: VideoAnalysisDrawerProps) {
+export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI, target, targetNonce }: VideoAnalysisDrawerProps) {
   const { t } = useTranslation()
   const [health, setHealth] = useState<VideoAnalysisHealthInfo | null>(null)
   const [error, setError] = useState('')
@@ -134,6 +139,9 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
   // 总开关关闭时，依赖设置整组禁用（保持可见，便于发现要配置的内容）
   const gated = !settings || !settings.enabled
 
+  // 推荐配置跳转：滚动到目标设置项并高亮。
+  useSetupHighlight(target, targetNonce, open)
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent size="xl" title={t('va.title')} description={t('admin.ovCardVaDesc')}>
@@ -148,7 +156,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
           {settings && (
             <>
               {/* 总开关：主视觉，第一眼焦点 */}
-              <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-4" data-setup-target="video-analysis">
                 <div className="space-y-0.5">
                   <p className="text-sm font-semibold text-theme-primary">{t('va.enableTitle')}</p>
                   <p className="text-xs text-surface-500">{t('va.enableDesc')}</p>
@@ -230,7 +238,7 @@ export default function VideoAnalysisDrawer({ open, onOpenChange, onNavigateToAI
                   <Switch checked={settings.remote_video_enabled} onCheckedChange={(checked) => setSettings({ ...settings, remote_video_enabled: checked })} disabled={gated} />
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center justify-between gap-4" data-setup-target="describe">
                   <div className="space-y-0.5">
                     <p className="text-sm font-semibold text-theme-primary">{t('va.sceneDescTitle')}</p>
                     <p className="text-xs text-surface-500">{t('va.sceneDescDesc')}</p>

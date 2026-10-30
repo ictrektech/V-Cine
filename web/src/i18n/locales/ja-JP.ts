@@ -4053,6 +4053,25 @@ const jaJP: Record<string, string> = {
   'vid.suspended': "保留中",
   'vid.bufferLead': "バッファ先行",
 
+  // ===== 推奨設定（admin.setup*）=====
+  'admin.setupModeBase': 'ベーシックモード',
+  'admin.setupModeEnhanced': '拡張モード',
+  'admin.setupModeFull': 'フルモード',
+  'admin.setupRemaining': 'あと {count} 項目で有効化',
+  'admin.setupAdvisorTitle': '推奨設定',
+  'admin.setupAdvisorHint': '順番に完了すると機能が増えます。未完了でも基本機能は使えます。',
+  'admin.setupDone': '完了',
+  'admin.setupStepMetadata': 'メタデータ取得の設定',
+  'admin.setupStepMetadataDesc': 'TMDb キーまたは豆瓣 Cookie を入力すると、ポスターとあらすじを取得します。',
+  'admin.setupStepAiProvider': 'AI プロバイダーとモデルを追加',
+  'admin.setupStepAiProviderDesc': 'サービスアドレスを入力し、利用できるモデルを取得します。',
+  'admin.setupStepVideoAnalysis': '動画シーン認識をオンにする',
+  'admin.setupStepVideoAnalysisDesc': '検出と構造化サービスに接続すると、シーンを自動で認識して分割します。',
+  'admin.setupStepAiSwitch': 'AI 機能をオンにする',
+  'admin.setupStepAiSwitchDesc': 'スマート検索、おすすめ理由、メタデータ強化が使えます。全自動運用は別途オンにできます。',
+  'admin.setupStepDescribe': '動画シーン説明をオンにする',
+  'admin.setupStepDescribeDesc': '各シーンの説明文を生成します。既定では構造化サービスのモデルを使います。',
+
   // ===== 機能ゲート（capability.*）=====
   'capability.action.enable': 'オンにする',
   'capability.action.fix': '設定を完了する',

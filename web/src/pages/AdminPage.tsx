@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminApi, libraryApi } from '@/api'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { useCapabilities } from '@/hooks/useCapabilities'
+import type { SetupTarget } from '@/lib/setupTargets'
 import { useScanProgress } from '@/hooks/useScanProgress'
 import type { SystemInfo, Library, User, TMDbConfigStatus, DoubanConfigStatus, SystemSettings } from '@/types'
 import {
@@ -10,8 +12,6 @@ import {
   Settings as SettingsIcon,
   Activity,
   ShieldCheck,
-  CheckCircle2,
-  CircleAlert,
 } from 'lucide-react'
 import PulsePage from '@/pages/PulsePage'
 import SegmentedTabs from '@/components/ui/segmented-tabs'
@@ -20,11 +20,12 @@ import { AIDrawer, StorageDrawer, STRMDrawer, UsersDrawer, LogsDrawer, Dashboard
 
 import { useTranslation } from '@/i18n'
 import AdminOverview from '@/components/admin/AdminOverview'
+import SetupAdvisor from '@/components/admin/SetupAdvisor'
 import PlaybackDrawer from '@/components/admin/PlaybackDrawer'
 import VideoAnalysisDrawer from '@/components/admin/VideoAnalysisDrawer'
 
 // 概览页状态卡对应的全部 Drawer
-const DRAWER_IDS = ['metadata', 'playback', 'ai', 'storage', 'strm', 'users', 'logs', 'dashboard', 'video-analysis'] as const
+const DRAWER_IDS = ['metadata', 'playback', 'ai', 'ai-providers', 'storage', 'strm', 'users', 'logs', 'dashboard', 'video-analysis'] as const
 type DrawerId = (typeof DRAWER_IDS)[number]
 
 export default function AdminPage() {
@@ -59,6 +60,8 @@ export default function AdminPage() {
   const [doubanConfig, setDoubanConfig] = useState<DoubanConfigStatus | null>(null)
   // 当前打开的 Drawer（同一时刻最多一个）
   const [activeDrawer, setActiveDrawer] = useState<DrawerId | null>(null)
+  // 抽屉内需要高亮定位的设置项锚点（来自推荐配置清单）。
+  const [drawerTarget, setDrawerTarget] = useState<{ target: SetupTarget; nonce: number } | null>(null)
   // AI 抽屉关闭时自增：通知首页状态卡重新拉取 AI 状态（避免显示过期的开启状态）
   const [aiStatusRefresh, setAiStatusRefresh] = useState(0)
 
@@ -105,19 +108,21 @@ export default function AdminPage() {
   }, [loadAll])
 
   // 概览页状态卡分发：全部 → Drawer
-  const openDrawer = (id: string) => {
+  const openDrawer = (id: string, target?: SetupTarget) => {
     const matched = DRAWER_IDS.find((d) => d === id)
-    if (matched) setActiveDrawer(matched)
+    if (!matched) return
+    setActiveDrawer(matched)
+    // nonce 让「重复点击同一项」也能重新定位并高亮。
+    setDrawerTarget(target ? { target, nonce: Date.now() } : null)
   }
 
-  // 配置进度（由 AdminOverview 上报）：渲染为标题栏右侧的紧凑 chip
-  const [setupStatus, setSetupStatus] = useState<{ complete: boolean; short?: string; target?: string }>({ complete: false })
-  // 关闭 Drawer 后刷新概览数据：
-  // 很多设置项（AI/视频分析/存储等）保存后只更新了自身组件状态，
-  // 概览卡不会自动感知。这里统一在关闭时重新拉取，避免“保存后要手动刷新”。
+  // 关闭抽屉时刷新概览数据与能力清单。
+  const { refresh: refreshCapabilities } = useCapabilities()
   const closeDrawer = () => {
     setActiveDrawer(null)
+    setDrawerTarget(null)
     loadAll()
+    refreshCapabilities()
   }
 
   return (
@@ -130,28 +135,12 @@ export default function AdminPage() {
             {t('admin.consoleTitle')}
           </h1>
           <div className="flex items-center gap-3">
-            {/* 配置进度 chip（仅系统设置 Tab） */}
+            {/* 推荐配置入口：模式 + 剩余项，点击展开清单（仅系统设置 Tab） */}
             {activeTab === 'settings' && (
-              setupStatus.complete ? (
-                <span
-                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-                  style={{ color: '#16A34A', background: 'rgba(22,163,74,0.12)' }}
-                  title={t('admin.setupCompleteHint')}
-                >
-                  <CheckCircle2 size={13} />
-                  {t('admin.setupComplete')}
-                </span>
-              ) : setupStatus.short ? (
-                <button
-                  onClick={() => openDrawer(setupStatus.target || '')}
-                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all hover:brightness-110"
-                  style={{ color: '#38BDF8', background: 'var(--neon-blue-15)', border: '1px solid var(--neon-blue-30)' }}
-                  title={t('admin.setupNextHint', { name: setupStatus.short })}
-                >
-                  <CircleAlert size={13} />
-                  {t('admin.setupPending', { name: setupStatus.short })}
-                </button>
-              ) : null
+              <SetupAdvisor
+                metadataConfigured={!!(tmdbConfig?.configured || doubanConfig?.configured)}
+                onOpenDrawer={openDrawer}
+              />
             )}
             {/* WebSocket 状态 */}
             <div className="flex items-center gap-2 text-xs">
@@ -194,7 +183,6 @@ export default function AdminPage() {
           tmdbConfig={tmdbConfig}
           doubanConfig={doubanConfig}
           onOpenDrawer={openDrawer}
-          onSetupStatusChange={setSetupStatus}
           aiStatusRefresh={aiStatusRefresh}
         />
       )}
@@ -207,6 +195,8 @@ export default function AdminPage() {
         setTmdbConfig={setTmdbConfig}
         doubanConfig={doubanConfig}
         setDoubanConfig={setDoubanConfig}
+        target={drawerTarget?.target}
+        targetNonce={drawerTarget?.nonce}
       />
 
       {/* ===== 播放与转码 Drawer ===== */}
@@ -218,12 +208,18 @@ export default function AdminPage() {
       />
 
       {/* ===== 其余模块 Drawer ===== */}
-      <AIDrawer open={activeDrawer === 'ai'} onOpenChange={(open) => {
-        if (!open) {
-          closeDrawer()
-          setAiStatusRefresh(k => k + 1) // 抽屉关闭 → 首页状态卡重拉
-        }
-      }} />
+      <AIDrawer
+        open={activeDrawer === 'ai' || activeDrawer === 'ai-providers'}
+        initialSection={activeDrawer === 'ai-providers' ? 'providers' : 'overview'}
+        target={drawerTarget?.target}
+        targetNonce={drawerTarget?.nonce}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDrawer()
+            setAiStatusRefresh(k => k + 1) // 抽屉关闭 → 首页状态卡重拉
+          }
+        }}
+      />
       <VideoAnalysisDrawer
         open={activeDrawer === 'video-analysis'}
         onOpenChange={(open) => {
@@ -232,7 +228,13 @@ export default function AdminPage() {
             setAiStatusRefresh(k => k + 1) // 抽屉关闭 → 首页状态卡重拉
           }
         }}
-        onNavigateToAI={() => setActiveDrawer('ai')}
+        target={drawerTarget?.target}
+        targetNonce={drawerTarget?.nonce}
+        onNavigateToAI={() => {
+          setActiveDrawer('ai-providers')
+          // 旧锚点属于视频分析抽屉，AI 页没有该元素，清掉避免无效定位。
+          setDrawerTarget(null)
+        }}
       />
       <StorageDrawer open={activeDrawer === 'storage'} onOpenChange={(open) => { if (!open) closeDrawer() }} />
       <STRMDrawer open={activeDrawer === 'strm'} onOpenChange={(open) => { if (!open) closeDrawer() }} />

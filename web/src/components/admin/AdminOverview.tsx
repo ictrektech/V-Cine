@@ -46,8 +46,6 @@ type Props = {
   tmdbConfig: TMDbConfigStatus | null
   doubanConfig: DoubanConfigStatus | null
   onOpenDrawer: (id: string) => void
-  /** 配置进度上报：由宿主页（AdminPage）渲染到标题栏的紧凑 chip */
-  onSetupStatusChange?: (status: { complete: boolean; short?: string; target?: string }) => void
   /** AI 配置在抽屉里保存后自增，触发首页状态卡重新拉取（避免显示过期的开启状态） */
   aiStatusRefresh?: number
 }
@@ -89,7 +87,7 @@ function Card({ card, onClick }: { card: StatusCard; onClick: () => void }) {
   )
 }
 
-export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer, onSetupStatusChange, aiStatusRefresh = 0 }: Props) {
+export default function AdminOverview({ systemInfo, sysSettings, libraries, users, tmdbConfig, doubanConfig, onOpenDrawer, aiStatusRefresh = 0 }: Props) {
   const { t } = useTranslation()
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null)
   const [vaHealth, setVaHealth] = useState<VideoAnalysisHealthInfo | null>(null)
@@ -157,21 +155,6 @@ export default function AdminOverview({ systemInfo, sysSettings, libraries, user
 
   // 按 id 查卡片，避免下标耦合 —— 在数组中间插卡时分组自动保持正确
   const cardById = Object.fromEntries(cards.map((c) => [c.id, c]))
-
-  // ===== 下一步引导 =====
-  const nextStep = !tmdbOk && !doubanOk
-    ? { short: t('admin.ovCardMetadata'), target: 'metadata' }
-    : (!aiOk ? { short: t('admin.ovCardAi'), target: 'ai' } : null)
-
-  // 配置进度上报给宿主页标题栏（完成 → 绿色"配置就绪"；否则 → "待配置 · xx"）
-  const setupComplete = !nextStep
-  useEffect(() => {
-    onSetupStatusChange?.({
-      complete: setupComplete,
-      short: nextStep?.short,
-      target: nextStep?.target,
-    })
-  }, [setupComplete, nextStep?.short, nextStep?.target, onSetupStatusChange])
 
   // ===== 运行状态摘要 =====
   const memMB = systemInfo?.memory.process_used_mb ?? systemInfo?.memory.sys_mb ?? systemInfo?.memory.alloc_mb ?? 0

@@ -4053,6 +4053,25 @@ const zhCN: Record<string, string> = {
   'vid.suspended': "已挂起",
   'vid.bufferLead': "缓冲领先",
 
+  // ===== 推荐配置（admin.setup*）=====
+  'admin.setupModeBase': '基础模式',
+  'admin.setupModeEnhanced': '增强模式',
+  'admin.setupModeFull': '完整模式',
+  'admin.setupRemaining': '还可开启 {count} 项',
+  'admin.setupAdvisorTitle': '推荐配置',
+  'admin.setupAdvisorHint': '按顺序完成即可解锁更多能力。未完成时基础功能照常可用。',
+  'admin.setupDone': '已完成',
+  'admin.setupStepMetadata': '配置元数据刮削',
+  'admin.setupStepMetadataDesc': '填入 TMDb Key 或豆瓣 Cookie，自动获取海报与简介。',
+  'admin.setupStepAiProvider': '添加 AI 供应商与模型',
+  'admin.setupStepAiProviderDesc': '填写服务地址，拉取一个可用模型。',
+  'admin.setupStepVideoAnalysis': '开启视频场景识别',
+  'admin.setupStepVideoAnalysisDesc': '接入检测与结构化服务后，自动识别并对视频分场景。',
+  'admin.setupStepAiSwitch': '开启 AI 功能',
+  'admin.setupStepAiSwitchDesc': '解锁智能搜索、推荐理由与元数据增强。可另行开启全自动托管。',
+  'admin.setupStepDescribe': '开启视频场景描述',
+  'admin.setupStepDescribeDesc': '为每个场景生成文字说明。默认使用结构化服务的模型。',
+
   // ===== 能力门禁（capability.*）=====
   'capability.action.enable': '去开启',
   'capability.action.fix': '去补齐',

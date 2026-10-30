@@ -4,9 +4,10 @@ import type { ComponentProps, ReactNode } from 'react'
 import DashboardTab from '@/components/admin/DashboardTab'
 import UsersTab from '@/components/admin/UsersTab'
 import LogsTab from '@/components/admin/LogsTab'
-import AITab from '@/components/admin/AITab'
+import AITab, { type AISectionKey } from '@/components/admin/AITab'
 import StorageTab from '@/components/admin/StorageTab'
 import STRMConfigSection from '@/components/admin/STRMConfigSection'
+import type { SetupTarget } from '@/lib/setupTargets'
 import type { SystemInfo, User } from '@/types'
 import type { ScanProgressData, ScrapeProgressData, TranscodeProgressData, ScanPhaseData } from '@/hooks/useWebSocket'
 
@@ -36,11 +37,11 @@ function DrawerShell({ open, onOpenChange, title, description, size, contentClas
   )
 }
 
-export function AIDrawer({ open, onOpenChange }: CommonProps) {
+export function AIDrawer({ open, onOpenChange, initialSection, target, targetNonce }: CommonProps & { initialSection?: AISectionKey; target?: SetupTarget; targetNonce?: number }) {
   const { t } = useTranslation()
   return (
     <DrawerShell open={open} onOpenChange={onOpenChange} size="2xl" contentClassName="h-[85vh]" title={t('admin.ovCardAi')} description={t('admin.ovCardAiDesc')}>
-      <AITab />
+      <AITab initialSection={initialSection} open={open} target={target} targetNonce={targetNonce} />
     </DrawerShell>
   )
 }

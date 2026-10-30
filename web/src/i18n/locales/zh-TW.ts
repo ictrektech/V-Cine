@@ -4053,6 +4053,25 @@ const zhTW: Record<string, string> = {
   'vid.suspended': "已掛起",
   'vid.bufferLead': "緩衝領先",
 
+  // ===== 推薦設定（admin.setup*）=====
+  'admin.setupModeBase': '基礎模式',
+  'admin.setupModeEnhanced': '增強模式',
+  'admin.setupModeFull': '完整模式',
+  'admin.setupRemaining': '還可開啟 {count} 項',
+  'admin.setupAdvisorTitle': '推薦設定',
+  'admin.setupAdvisorHint': '依序完成即可解鎖更多能力。未完成時基礎功能照常可用。',
+  'admin.setupDone': '已完成',
+  'admin.setupStepMetadata': '設定中繼資料刮削',
+  'admin.setupStepMetadataDesc': '填入 TMDb Key 或豆瓣 Cookie，自動取得海報與簡介。',
+  'admin.setupStepAiProvider': '新增 AI 供應商與模型',
+  'admin.setupStepAiProviderDesc': '填寫服務位址，取得一個可用模型。',
+  'admin.setupStepVideoAnalysis': '開啟影片場景識別',
+  'admin.setupStepVideoAnalysisDesc': '接入偵測與結構化服務後，自動識別並將影片分場景。',
+  'admin.setupStepAiSwitch': '開啟 AI 功能',
+  'admin.setupStepAiSwitchDesc': '解鎖智慧搜尋、推薦理由與中繼資料增強。可另外開啟全自動託管。',
+  'admin.setupStepDescribe': '開啟影片場景描述',
+  'admin.setupStepDescribeDesc': '為每個場景產生文字說明。預設使用結構化服務的模型。',
+
   // ===== 能力門檻（capability.*）=====
   'capability.action.enable': '去開啟',
   'capability.action.fix': '去補齊',

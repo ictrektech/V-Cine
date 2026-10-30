@@ -1401,3 +1401,39 @@ html[data-runtime="tauri"] #root {
     color: hsl(var(--foreground));
   }
 }
+
+/* ==================== 推荐配置定位高亮 ====================
+ * 目标设置项加一圈蓝色脉冲光圈。类名由 useSetupHighlight 动态添加与移除。
+ */
+@keyframes setup-target-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(56, 189, 248, 0.6),
+      0 0 18px 2px rgba(56, 189, 248, 0.4);
+  }
+  70% {
+    box-shadow:
+      0 0 0 10px rgba(56, 189, 248, 0),
+      0 0 30px 12px rgba(56, 189, 248, 0);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(56, 189, 248, 0),
+      0 0 24px 6px rgba(56, 189, 248, 0);
+  }
+}
+
+/* 只用 box-shadow 画光波，不覆盖元素自身的 border-radius。 */
+.setup-highlight {
+  animation: setup-target-pulse 1.4s ease-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-highlight {
+    animation: none;
+    /* 关掉动画时保留静态光晕。 */
+    box-shadow:
+      0 0 0 3px rgba(56, 189, 248, 0.3),
+      0 0 18px 4px rgba(56, 189, 248, 0.22);
+  }
+}

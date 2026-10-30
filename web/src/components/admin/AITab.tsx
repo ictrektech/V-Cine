@@ -6,6 +6,8 @@ import { Modal } from '@/components/ui/modal'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'
 import { useTranslation } from '@/i18n'
+import { useSetupHighlight } from '@/hooks/useSetupHighlight'
+import type { SetupTarget } from '@/lib/setupTargets'
 import { extractErrMsg } from '@/utils/error'
 import type { AIStatus, AIErrorLog, AICacheStats, AITestResult } from '@/types'
 import {
@@ -51,7 +53,7 @@ const RECOMMEND_TEST_CASES = [
 ]
 
 // ==================== 分组导航定义（左栏点击点） ====================
-type AISectionKey = 'overview' | 'providers' | 'advanced' | 'ops'
+export type AISectionKey = 'overview' | 'providers' | 'advanced' | 'ops'
 
 const AI_SECTIONS: { key: AISectionKey; labelKey: string; icon: LucideIcon }[] = [
   { key: 'overview', labelKey: 'ait.secOverview', icon: Power },
@@ -60,7 +62,17 @@ const AI_SECTIONS: { key: AISectionKey; labelKey: string; icon: LucideIcon }[] =
   { key: 'ops', labelKey: 'ait.secOps', icon: Activity },
 ]
 
-export default function AITab() {
+interface AITabProps {
+  /** 打开时定位到的子分区。不同入口（概览卡 / 推荐配置）跳不同位置。 */
+  initialSection?: AISectionKey
+  /** 宿主抽屉开关状态。打开时重置分区，保证每次进入都落在入口指定位置。 */
+  open?: boolean
+  /** 从推荐配置跳进来时需要高亮的锚点。 */
+  target?: SetupTarget
+  targetNonce?: number
+}
+
+export default function AITab({ initialSection = 'overview', open, target, targetNonce }: AITabProps = {}) {
   const toast = useToast()
   const dialog = useDialog()
   const { t } = useTranslation()
@@ -106,7 +118,17 @@ export default function AITab() {
   const [showErrors, setShowErrors] = useState(false)
 
   // 当前分组（左栏导航）
-  const [section, setSection] = useState<AISectionKey>('overview')
+  const [section, setSection] = useState<AISectionKey>(initialSection)
+
+  // 抽屉内容常驻不卸载：每次打开都按入口重置分区，
+  // 避免上次手动切换的分区残留。独立使用时 open 为 undefined，按分区变化跟随。
+  useEffect(() => {
+    if (open === false) return
+    setSection(initialSection)
+  }, [initialSection, open])
+
+  // 推荐配置跳转：滚动到目标设置项并高亮。
+  useSetupHighlight(target, targetNonce, open !== false)
 
   // ==================== 供应商列表管理 ====================
   type ModelItem = { name: string; is_vision: boolean; is_default: boolean }
@@ -728,7 +750,7 @@ export default function AITab() {
 
         <div className="glass-panel rounded-xl p-5 space-y-4">
           {/* 总开关 */}
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3" data-setup-target="ai-switch">
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
@@ -826,7 +848,7 @@ export default function AITab() {
           {t('ait.providerList')}
         </h2>
 
-        <div className="glass-panel rounded-xl p-5 space-y-3">
+        <div className="glass-panel rounded-xl p-5 space-y-3" data-setup-target="ai-provider">
           {/* 供应商行 */}
           {providers.length === 0 ? (
             <div className="py-6 text-center text-sm text-theme-muted">
