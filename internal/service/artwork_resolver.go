@@ -157,17 +157,38 @@ func (r *ArtworkResolver) DerivedPosterSource(media *model.Media) ArtworkSource 
 //  1. media.BackdropPath —— 刮削 / 手工上传，DB 指针（可能是远程 URL）
 //  2. 同目录 sidecar —— fanart / backdrop
 //  3. 剧集回退 —— Series.BackdropPath → series 根目录 fanart / backdrop
-//  4. 派生兜底图 —— 抽帧竖版图（前端 object-cover 裁切）
+//  4. 派生横版图 —— 海报合成的 16:9 图（artwork_wide.go）
+//  5. 派生兜底图 —— 抽帧竖版图（前端 object-cover 裁切）
+//  6. 远程海报 —— webdav/alist 的 sidecar 图，交给 handler 代理
 //
-// 与海报链一样：派生图只探测不生成、不回写 DB 指针。
-// 第 4 步意味着本端点**可能返回竖图**——这是刻意为之：对首页"继续观看"、分集卡
-// 这类横版槽位，有一张竖图裁切后也比空占位好。
+// 前 3 档命中即返回；第 4 档缺失时在本端点合成一次（幂等 + 单飞 + 失败冷却）；
+// 第 5 档是竖版派生图，第 6 档是远程海报路径。派生图不回写 DB 指针。
 func (r *ArtworkResolver) BackdropPath(mediaID string) (string, error) {
 	media, err := r.mediaRepo.FindByID(mediaID)
 	if err != nil {
 		return "", mediaLookupError(err)
 	}
-	return r.ResolveBackdrop(media), nil
+	if path := r.resolveRealBackdrop(media); path != "" {
+		return path, nil
+	}
+	if path := r.wideBackdrop(media.ID); path != "" {
+		return path, nil
+	}
+	// 现场合成一次，产物落 cache。
+	if path := r.EnsureWideBackdrop(media); path != "" {
+		return path, nil
+	}
+	if path := r.derivedPoster(media.ID); path != "" {
+		return path, nil
+	}
+	// 远程海报（webdav/alist 的 sidecar 图）交给 handler 代理。
+	if poster := r.ResolvePoster(media); IsRemotePath(poster) {
+		return poster, nil
+	}
+	if r.onMissing != nil {
+		r.onMissing(media.ID)
+	}
+	return "", nil
 }
 
 // mediaLookupError 媒体查询失败时向外返回 ErrMediaNotFound（handler / Emby 据此回退占位图），
@@ -181,8 +202,27 @@ func seriesPosterPath(s *model.Series) string { return s.PosterPath }
 
 func seriesBackdropPath(s *model.Series) string { return s.BackdropPath }
 
-// ResolveBackdrop 背景图解析链。
+// ResolveBackdrop 背景图解析链（只探测不生成）。
 func (r *ArtworkResolver) ResolveBackdrop(media *model.Media) string {
+	if media == nil {
+		return ""
+	}
+
+	if path := r.resolveRealBackdrop(media); path != "" {
+		return path
+	}
+
+	// 4) 派生横版图（海报合成的 16:9，见 artwork_wide.go）
+	if path := r.wideBackdrop(media.ID); path != "" {
+		return path
+	}
+
+	// 5) 派生竖版图（抽帧），横版槽位由调用方裁切
+	return r.derivedPoster(media.ID)
+}
+
+// resolveRealBackdrop 真横版图三档解析：DB 指针 → 同目录 sidecar → 剧集回退。
+func (r *ArtworkResolver) resolveRealBackdrop(media *model.Media) string {
 	if media == nil {
 		return ""
 	}
@@ -198,12 +238,15 @@ func (r *ArtworkResolver) ResolveBackdrop(media *model.Media) string {
 	}
 
 	// 3) 剧集回退：Series.BackdropPath → series 根目录 fanart / backdrop
-	if path := r.seriesArtwork(media, artworkBackdropNames, seriesBackdropPath); path != "" {
-		return path
-	}
+	return r.seriesArtwork(media, artworkBackdropNames, seriesBackdropPath)
+}
 
-	// 4) 派生兜底图（竖版抽帧图，横版槽位由调用方裁切）
-	return r.derivedPoster(media.ID)
+// wideBackdrop 派生横版图探测（只 stat，不生成）。
+func (r *ArtworkResolver) wideBackdrop(mediaID string) string {
+	if r.cfg == nil || mediaID == "" {
+		return ""
+	}
+	return findWideBackdrop(r.cfg.Cache.CacheDir, mediaID)
 }
 
 // ResolvePoster 海报解析链（优先级从高到低）：

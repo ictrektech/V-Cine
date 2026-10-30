@@ -73,29 +73,34 @@ func resolveDerivedArtwork(cacheDir, mediaID string) (string, ArtworkSource) {
 		return "", ""
 	}
 	dir := derivedArtworkDir(cacheDir, mediaID)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", ""
-	}
 	for _, spec := range artworkSourceRegistry {
-		prefix := "poster-" + string(spec.Source) + "-"
-		best, bestStamp := "", int64(-1)
-		for _, e := range entries {
-			name := e.Name()
-			if e.IsDir() || !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, ".jpg") {
-				continue
-			}
-			stamp, convErr := strconv.ParseInt(strings.TrimSuffix(strings.TrimPrefix(name, prefix), ".jpg"), 10, 64)
-			if convErr != nil || stamp <= bestStamp {
-				continue
-			}
-			best, bestStamp = filepath.Join(dir, name), stamp
-		}
-		if best != "" {
+		if best := newestStampedFile(dir, "poster-"+string(spec.Source)+"-"); best != "" {
 			return best, spec.Source
 		}
 	}
 	return "", ""
+}
+
+// newestStampedFile 在 dir 中找形如 {prefix}{stamp}.jpg 的最新一份（stamp 最大）。
+// 派生海报（poster-*）与派生横版图（backdrop-wide-*）共用这条命名与探测规则。
+func newestStampedFile(dir, prefix string) string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+	best, bestStamp := "", int64(-1)
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, ".jpg") {
+			continue
+		}
+		stamp, convErr := strconv.ParseInt(strings.TrimSuffix(strings.TrimPrefix(name, prefix), ".jpg"), 10, 64)
+		if convErr != nil || stamp <= bestStamp {
+			continue
+		}
+		best, bestStamp = filepath.Join(dir, name), stamp
+	}
+	return best
 }
 
 // pruneDerivedArtwork 清掉同来源的旧 stamp 产物，只保留 keep 这一份。

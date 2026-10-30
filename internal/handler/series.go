@@ -18,7 +18,9 @@ import (
 type SeriesHandler struct {
 	seriesService   *service.SeriesService
 	mediaPersonRepo *repository.MediaPersonRepo
-	logger          *zap.SugaredLogger
+	// artwork 图片解析链，用于合成剧集横版派生图
+	artwork *service.ArtworkResolver
+	logger  *zap.SugaredLogger
 }
 
 // List 获取剧集合集列表
@@ -153,6 +155,12 @@ func (h *SeriesHandler) Poster(c *gin.Context) {
 func (h *SeriesHandler) Backdrop(c *gin.Context) {
 	id := c.Param("id")
 	series, err := h.seriesService.GetSeriesDetail(id)
+	// 无横版图时用剧集海报现场合成 16:9（幂等，产物落 cache）
+	if err == nil && series != nil && series.BackdropPath == "" && h.artwork != nil {
+		if wide := h.artwork.EnsureWideBackdropForSeries(series); wide != "" {
+			series.BackdropPath = wide
+		}
+	}
 	if err != nil || series.BackdropPath == "" {
 		// 返回透明占位图（禁止缓存）
 		c.Header("Content-Type", "image/svg+xml")
