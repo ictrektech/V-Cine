@@ -725,7 +725,14 @@ func (s *LibraryService) DeleteSeries(seriesID string) error {
 		return fmt.Errorf("剧集合集不存在")
 	}
 	s.logger.Infof("删除剧集合集: %s (%s)", series.Title, seriesID)
-	return s.seriesRepo.Delete(seriesID)
+	if err := s.seriesRepo.Delete(seriesID); err != nil {
+		return err
+	}
+	// 剧集级派生图（cache/images/series-{id}）随剧集一起回收
+	if s.cacheCleaner != nil {
+		s.cacheCleaner.CleanSeries(seriesID)
+	}
+	return nil
 }
 
 // UpdateSeries 更新剧集合集信息

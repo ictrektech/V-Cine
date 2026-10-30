@@ -55,6 +55,16 @@ func (c *MediaCacheCleaner) Clean(mediaID string) {
 	c.removeMediaScopedDirs(mediaID)
 }
 
+// CleanSeries 删除剧集级图片缓存目录 cache/images/series/{id}。
+func (c *MediaCacheCleaner) CleanSeries(seriesID string) {
+	if seriesID == "" || c.cacheDir == "" || strings.ContainsAny(seriesID, `/\`) || strings.Contains(seriesID, "..") {
+		return
+	}
+	if err := os.RemoveAll(filepath.Join(c.cacheDir, "images", "series", seriesID)); err != nil {
+		c.logger.Warnw("删除剧集后清理缓存失败", "seriesID", seriesID, "error", err)
+	}
+}
+
 // removeMediaScopedDirs 删除该媒体在 cache 下的图片类目录。
 //
 // 只删 cache 内的副本：视频同目录的 {视频名}-poster.jpg 属于用户媒体目录，
