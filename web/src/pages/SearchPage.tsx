@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { mediaApi, aiApi, videoAnalysisApi } from '@/api'
+import { mediaApi, aiApi, libraryApi, videoAnalysisApi } from '@/api'
 import { useToast } from '@/components/Toast'
-import type { Media, SearchIntent } from '@/types'
+import type { Media, SearchIntent, Library } from '@/types'
 import type { SceneSearchResult } from '@/types/videoAnalysis'
 import { formatVideoAnalysisSeconds } from '@/components/video-analysis/videoAnalysisResultUtils'
 import { routes } from '@/lib/routes'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import SceneMoviePicker from '@/components/search/SceneMoviePicker'
 import MediaGrid from '@/components/MediaGrid'
 import Pagination from '@/components/Pagination'
 import {
@@ -60,6 +62,14 @@ export default function SearchPage() {
   const [sceneFailed, setSceneFailed] = useState(false)
   const [sceneSearched, setSceneSearched] = useState(false)
   const [sceneLimit, setSceneLimit] = useState(30)
+  const [libraries, setLibraries] = useState<Library[]>([])
+  // 场景检索范围：库为空串表示全库，影片为空数组表示不限
+  const [sceneLibraryId, setSceneLibraryId] = useState('')
+  const [sceneMovieIds, setSceneMovieIds] = useState<string[]>([])
+  // 上次提交检索的影片选择
+  const sceneMovieCommitRef = useRef('')
+  // 场景检索请求序号：丢弃过期响应
+  const sceneRequestIdRef = useRef(0)
 
   // 从 URL 参数读取分页状态
   const page = parseInt(searchParams.get('page') || '1', 10) || 1
@@ -228,26 +238,46 @@ export default function SearchPage() {
     }
   }, [filterType, sortBy, yearRange, minRating, size])
 
+  // 媒体库列表：场景检索的范围选项
+  useEffect(() => {
+    libraryApi.list()
+      .then((res) => setLibraries(res.data.data || []))
+      .catch(() => setLibraries([]))
+  }, [])
+
   // 场景搜索：点击按钮/回车触发（每次 query 都要跑一次 SigLIP2 文本编码，
   // 不随输入自动搜，避免无效推理带来的 CPU 压力）
-  const runSceneSearch = useCallback((limitOverride?: number) => {
+  const runSceneSearch = useCallback((scope?: { limit?: number; libraryId?: string; mediaIds?: string[] }) => {
     const q = query.trim()
     if (!q) return
-    const limit = limitOverride ?? sceneLimit
+    const limit = scope?.limit ?? sceneLimit
+    const libraryId = scope?.libraryId ?? sceneLibraryId
+    const mediaIds = scope?.mediaIds ?? sceneMovieIds
+    const requestId = ++sceneRequestIdRef.current
     setSceneLoading(true)
     setSceneFailed(false)
     setSceneSearched(true)
     const params = new URLSearchParams(searchParams)
     params.set('q', q)
     setSearchParams(params, { replace: true })
-    videoAnalysisApi.searchScenes(q, 'image', limit)
+    // 有影片选择时不下发媒体库条件
+    const scopedLibraryId = mediaIds.length > 0 ? undefined : libraryId || undefined
+    videoAnalysisApi.searchScenes(q, 'image', limit, { libraryId: scopedLibraryId, mediaIds })
       .then((res) => {
+        // 只采用最后一次请求的结果
+        if (requestId !== sceneRequestIdRef.current) return
         setSceneResults(res.data.data || [])
         setSceneFailed(false)
       })
-      .catch(() => setSceneFailed(true))
-      .finally(() => setSceneLoading(false))
-  }, [query, searchParams, setSearchParams, sceneLimit])
+      .catch(() => {
+        if (requestId !== sceneRequestIdRef.current) return
+        setSceneFailed(true)
+      })
+      .finally(() => {
+        if (requestId !== sceneRequestIdRef.current) return
+        setSceneLoading(false)
+      })
+  }, [query, searchParams, setSearchParams, sceneLimit, sceneLibraryId, sceneMovieIds])
 
   // 输入清空或切出场景模式时清空结果
   useEffect(() => {
@@ -452,7 +482,44 @@ export default function SearchPage() {
           ) : (
             <div className="flex flex-wrap items-center gap-3">
               <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                <Layers size={12} /> {t('search.sceneCountLabel')}:
+                <Layers size={12} /> {t('search.sceneScope')}
+              </span>
+              <Select
+                value={sceneLibraryId || 'all'}
+                onValueChange={(value) => {
+                  const libraryId = value === 'all' ? '' : value
+                  setSceneLibraryId(libraryId)
+                  // 换库时清空影片选择
+                  setSceneMovieIds([])
+                  sceneMovieCommitRef.current = ''
+                  if (sceneSearched) runSceneSearch({ libraryId, mediaIds: [] })
+                }}
+              >
+                <SelectTrigger className="h-9 w-auto rounded-lg px-3 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('search.sceneScopeAll')}</SelectItem>
+                  {libraries.map((lib) => (
+                    <SelectItem key={lib.id} value={lib.id}>
+                      {lib.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <SceneMoviePicker
+                libraryId={sceneLibraryId}
+                selected={sceneMovieIds}
+                onChange={setSceneMovieIds}
+                onCommit={(ids) => {
+                  const key = ids.join(',')
+                  if (key === sceneMovieCommitRef.current) return
+                  sceneMovieCommitRef.current = key
+                  if (sceneSearched) runSceneSearch({ mediaIds: ids })
+                }}
+              />
+              <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                <Film size={12} /> {t('search.sceneCountLabel')}:
               </span>
               {[30, 50, 80, 100].map((n) => (
                 <button
@@ -460,7 +527,7 @@ export default function SearchPage() {
                   onClick={() => {
                     setSceneLimit(n)
                     // 已有结果时立即用新 K 重查；否则下次搜索生效
-                    if (sceneSearched) runSceneSearch(n)
+                    if (sceneSearched) runSceneSearch({ limit: n })
                   }}
                   className={clsx(
                     'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
