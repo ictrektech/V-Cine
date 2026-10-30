@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -454,12 +455,43 @@ func (h *VideoAnalysisHandler) ServeSceneGrid(c *gin.Context) {
 	http.ServeContent(c.Writer, c.Request, filepath.Base(file.Name()), modTime, file)
 }
 
+// sceneSearchMaxMediaIDs 单次检索允许的影片数量上限。
+const sceneSearchMaxMediaIDs = 500
+
+// sceneSearchMediaIDs 汇总 media_id 与 media_ids，去空去重。
+// media_ids 支持逗号分隔与重复传参两种写法。
+func sceneSearchMediaIDs(c *gin.Context) []string {
+	out := make([]string, 0, 4)
+	seen := make(map[string]struct{}, 4)
+	add := func(raw string) {
+		for _, part := range strings.Split(raw, ",") {
+			id := strings.TrimSpace(part)
+			if id == "" {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			out = append(out, id)
+		}
+	}
+	add(c.Query("media_id"))
+	for _, raw := range c.QueryArray("media_ids") {
+		add(raw)
+	}
+	return out
+}
+
 // SearchScenes 搜索场景
-// q      文本查询（必需）
-// mode   检索目标：
-//        text  （默认）文搜文：查询文本 vs 场景描述文本 embedding
-//        image 文搜图：查询文本 vs 场景视觉 embedding（同一 SigLIP2 模型空间）
-// limit  返回条数（默认 20，最大 100）
+// q          文本查询（必需）
+// mode       检索目标：
+//            text  （默认）文搜文：查询文本 vs 场景描述文本 embedding
+//            image 文搜图：查询文本 vs 场景视觉 embedding（同一 SigLIP2 模型空间）
+// limit      返回条数（默认 20，最大 100）
+// library_id 只检索该媒体库（可选）
+// media_id   只检索该影片（可选）
+// media_ids  只检索这些影片，逗号分隔或重复传参（可选）
 func (h *VideoAnalysisHandler) SearchScenes(c *gin.Context) {
 	if h.service == nil || !h.service.IsAvailable() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用"})
@@ -475,13 +507,22 @@ func (h *VideoAnalysisHandler) SearchScenes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少查询参数 q（文本查询）"})
 		return
 	}
+	mediaIDs := sceneSearchMediaIDs(c)
+	if len(mediaIDs) > sceneSearchMaxMediaIDs {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("media_ids 数量超过上限 %d", sceneSearchMaxMediaIDs)})
+		return
+	}
+	filter := repository.SceneSearchFilter{
+		LibraryID: c.Query("library_id"),
+		MediaIDs:  mediaIDs,
+	}
 	var results []repository.SceneSearchResult
 	var err error
 	switch mode {
 	case "image":
-		results, err = h.service.SearchScenesByTextToImage(query, limit)
+		results, err = h.service.SearchScenesByTextToImage(query, limit, filter)
 	default:
-		results, err = h.service.SearchScenesByTextQuery(query, limit)
+		results, err = h.service.SearchScenesByTextQuery(query, limit, filter)
 	}
 	if err != nil {
 		respondErr(c, http.StatusInternalServerError, "场景搜索失败", err)

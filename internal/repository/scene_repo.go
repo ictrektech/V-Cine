@@ -85,8 +85,6 @@ func (r *SceneRepo) DeleteOrphaned() (int64, error) {
 	return result.RowsAffected, result.Error
 }
 
-// SearchByText 通过文本 embedding 搜索场景（余弦距离）
-
 // SceneEmbeddingUpdate 场景图片 embedding 更新参数
 type SceneEmbeddingUpdate struct {
 	SceneIndex int
@@ -110,46 +108,87 @@ func (r *SceneRepo) UpdateEmbeddings(taskID string, updates []SceneEmbeddingUpda
 	})
 }
 
-func (r *SceneRepo) SearchByText(embedding []float32, limit int) ([]SceneSearchResult, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
-	vec := pgvector.NewVector(embedding)
-	var results []SceneSearchResult
-	err := r.db.Raw(`
-		SELECT s.id, s.video_analysis_task_id, s.scene_index, s.start_time, s.end_time,
-			s.image_path, s.description,
-			s.description_embedding <=> ? AS distance,
-			t.media_id, m.title AS media_title
-		FROM scenes s
-		JOIN video_analysis_tasks t ON t.id = s.video_analysis_task_id
-		LEFT JOIN media m ON m.id = t.media_id
-		WHERE s.description_embedding IS NOT NULL
-		ORDER BY s.description_embedding <=> ?
-		LIMIT ?
-	`, vec, vec, limit).Scan(&results).Error
-	return results, err
+// SceneSearchFilter 场景检索范围；零值表示全库检索。
+type SceneSearchFilter struct {
+	LibraryID string
+	MediaIDs  []string
 }
 
-// SearchByImage 通过图片 embedding 搜索场景（余弦距离）
-func (r *SceneRepo) SearchByImage(embedding []float32, limit int) ([]SceneSearchResult, error) {
+// whereSceneScope 生成范围过滤子句：库命中 t.library_id，多片命中 t.media_id。
+func (f SceneSearchFilter) whereSceneScope() (string, []any) {
+	var conds []string
+	var args []any
+	if id := strings.TrimSpace(f.LibraryID); id != "" {
+		conds = append(conds, "t.library_id = ?")
+		args = append(args, id)
+	}
+	if len(f.MediaIDs) > 0 {
+		conds = append(conds, "t.media_id IN ?")
+		args = append(args, f.MediaIDs)
+	}
+	if len(conds) == 0 {
+		return "", nil
+	}
+	return " AND " + strings.Join(conds, " AND "), args
+}
+
+// SearchByText 检索描述 embedding 列（文搜文）
+func (r *SceneRepo) SearchByText(embedding []float32, limit int, filter SceneSearchFilter) ([]SceneSearchResult, error) {
+	return r.searchByVector("description_embedding", embedding, limit, filter)
+}
+
+// SearchByImage 通过图片 embedding 搜索场景（余弦距离，检索视觉列）
+func (r *SceneRepo) SearchByImage(embedding []float32, limit int, filter SceneSearchFilter) ([]SceneSearchResult, error) {
+	return r.searchByVector("embedding", embedding, limit, filter)
+}
+
+// searchByVector 按向量列检索场景；column 为内部常量列名。
+//
+// 无范围条件时走向量索引（ANN）。
+// 有范围条件时先用物化 CTE 缩小候选集，再精确排序。
+func (r *SceneRepo) searchByVector(column string, embedding []float32, limit int, filter SceneSearchFilter) ([]SceneSearchResult, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
 	vec := pgvector.NewVector(embedding)
+	scope, scopeArgs := filter.whereSceneScope()
 	var results []SceneSearchResult
+
+	if scope == "" {
+		err := r.db.Raw(`
+			SELECT s.id, s.video_analysis_task_id, s.scene_index, s.start_time, s.end_time,
+				s.image_path, s.description,
+				s.`+column+` <=> ? AS distance,
+				t.media_id, m.title AS media_title
+			FROM scenes s
+			JOIN video_analysis_tasks t ON t.id = s.video_analysis_task_id
+			LEFT JOIN media m ON m.id = t.media_id
+			WHERE s.`+column+` IS NOT NULL
+			ORDER BY s.`+column+` <=> ?
+			LIMIT ?
+		`, vec, vec, limit).Scan(&results).Error
+		return results, err
+	}
+
+	params := append(scopeArgs, vec, vec, limit)
 	err := r.db.Raw(`
-		SELECT s.id, s.video_analysis_task_id, s.scene_index, s.start_time, s.end_time,
-			s.image_path, s.description,
-			s.embedding <=> ? AS distance,
-			t.media_id, m.title AS media_title
-		FROM scenes s
-		JOIN video_analysis_tasks t ON t.id = s.video_analysis_task_id
-		LEFT JOIN media m ON m.id = t.media_id
-		WHERE s.embedding IS NOT NULL
-		ORDER BY s.embedding <=> ?
+		WITH scoped AS MATERIALIZED (
+			SELECT s.id, s.video_analysis_task_id, s.scene_index, s.start_time, s.end_time,
+				s.image_path, s.description,
+				s.`+column+` AS vec,
+				t.media_id, m.title AS media_title
+			FROM scenes s
+			JOIN video_analysis_tasks t ON t.id = s.video_analysis_task_id
+			LEFT JOIN media m ON m.id = t.media_id
+			WHERE s.`+column+` IS NOT NULL`+scope+`
+		)
+		SELECT id, video_analysis_task_id, scene_index, start_time, end_time,
+			image_path, description, media_id, media_title,
+			vec <=> ? AS distance
+		FROM scoped
+		ORDER BY vec <=> ?
 		LIMIT ?
-	`, vec, vec, limit).Scan(&results).Error
+	`, params...).Scan(&results).Error
 	return results, err
 }
 

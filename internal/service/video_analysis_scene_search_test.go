@@ -117,7 +117,7 @@ func TestVideoAnalysisServiceSceneSearchTextToImage(t *testing.T) {
 	insertSceneSearchFixture(t, tasks, svc, mediaID)
 
 	t.Run("文搜图: 检索视觉 embedding 列", func(t *testing.T) {
-		results, err := svc.SearchScenesByTextToImage("rainy night chase", 10)
+		results, err := svc.SearchScenesByTextToImage("rainy night chase", 10, repository.SceneSearchFilter{})
 		if err != nil {
 			t.Fatalf("SearchScenesByTextToImage: %v", err)
 		}
@@ -134,7 +134,7 @@ func TestVideoAnalysisServiceSceneSearchTextToImage(t *testing.T) {
 	})
 
 	t.Run("文搜文: 检索描述 embedding 列", func(t *testing.T) {
-		results, err := svc.SearchScenesByTextQuery("rainy night chase", 10)
+		results, err := svc.SearchScenesByTextQuery("rainy night chase", 10, repository.SceneSearchFilter{})
 		if err != nil {
 			t.Fatalf("SearchScenesByTextQuery: %v", err)
 		}
@@ -151,10 +151,10 @@ func TestVideoAnalysisServiceSceneSearchTextToImage(t *testing.T) {
 // TestVideoAnalysisServiceSceneSearchEmbeddingUnavailable 验证 embedding 服务不可用时报错
 func TestVideoAnalysisServiceSceneSearchEmbeddingUnavailable(t *testing.T) {
 	svc := &VideoAnalysisService{sceneRepo: &repository.SceneRepo{}}
-	if _, err := svc.SearchScenesByTextToImage("q", 10); err == nil {
+	if _, err := svc.SearchScenesByTextToImage("q", 10, repository.SceneSearchFilter{}); err == nil {
 		t.Fatal("expected error when embedding service unavailable, got nil")
 	}
-	if _, err := svc.SearchScenesByTextQuery("q", 10); err == nil {
+	if _, err := svc.SearchScenesByTextQuery("q", 10, repository.SceneSearchFilter{}); err == nil {
 		t.Fatal("expected error when embedding service unavailable, got nil")
 	}
 }
@@ -162,10 +162,10 @@ func TestVideoAnalysisServiceSceneSearchEmbeddingUnavailable(t *testing.T) {
 // TestVideoAnalysisServiceSceneSearchSceneRepoUnavailable 验证 sceneRepo 不可用时报错
 func TestVideoAnalysisServiceSceneSearchSceneRepoUnavailable(t *testing.T) {
 	svc := &VideoAnalysisService{embeddingProvider: &vSchedulerClient{}}
-	if _, err := svc.SearchScenesByTextToImage("q", 10); err == nil {
+	if _, err := svc.SearchScenesByTextToImage("q", 10, repository.SceneSearchFilter{}); err == nil {
 		t.Fatal("expected error when scene repo unavailable, got nil")
 	}
-	if _, err := svc.SearchScenesByTextQuery("q", 10); err == nil {
+	if _, err := svc.SearchScenesByTextQuery("q", 10, repository.SceneSearchFilter{}); err == nil {
 		t.Fatal("expected error when scene repo unavailable, got nil")
 	}
 }

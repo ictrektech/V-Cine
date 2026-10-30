@@ -309,17 +309,8 @@ func (s *VideoAnalysisService) GetHealth(ctx context.Context) VideoAnalysisHealt
 	return info
 }
 
-// SearchScenesByText 通过文本 embedding 搜索场景
-func (s *VideoAnalysisService) SearchScenesByText(embedding []float32, limit int) ([]repository.SceneSearchResult, error) {
-	if s.sceneRepo == nil {
-		return nil, errors.New("scene repo is not available")
-	}
-	return s.sceneRepo.SearchByText(embedding, limit)
-}
-
-// SearchScenesByTextQuery 通过文本查询搜索场景：文本 → CLIP 文本向量 → 检索描述 embedding 列
-// 文搜文：查询文本向量 vs description_embedding（场景描述文本向量）
-func (s *VideoAnalysisService) SearchScenesByTextQuery(q string, limit int) ([]repository.SceneSearchResult, error) {
+// SearchScenesByTextQuery 文搜文：文本 → CLIP 文本向量 → 检索 description_embedding 列
+func (s *VideoAnalysisService) SearchScenesByTextQuery(q string, limit int, filter repository.SceneSearchFilter) ([]repository.SceneSearchResult, error) {
 	if s.sceneRepo == nil {
 		return nil, errors.New("scene repo is not available")
 	}
@@ -327,12 +318,11 @@ func (s *VideoAnalysisService) SearchScenesByTextQuery(q string, limit int) ([]r
 	if err != nil {
 		return nil, err
 	}
-	return s.sceneRepo.SearchByText(vec, limit)
+	return s.sceneRepo.SearchByText(vec, limit, filter)
 }
 
-// SearchScenesByTextToImage 文搜图：文本查询 → CLIP 文本向量 → 检索场景视觉 embedding 列
-// 文本与图片向量同属 SigLIP2 模型的同一 CLIP 空间，可跨模态直接做余弦检索
-func (s *VideoAnalysisService) SearchScenesByTextToImage(q string, limit int) ([]repository.SceneSearchResult, error) {
+// SearchScenesByTextToImage 文搜图：文本 → CLIP 文本向量 → 检索场景视觉 embedding 列
+func (s *VideoAnalysisService) SearchScenesByTextToImage(q string, limit int, filter repository.SceneSearchFilter) ([]repository.SceneSearchResult, error) {
 	if s.sceneRepo == nil {
 		return nil, errors.New("scene repo is not available")
 	}
@@ -340,7 +330,7 @@ func (s *VideoAnalysisService) SearchScenesByTextToImage(q string, limit int) ([
 	if err != nil {
 		return nil, err
 	}
-	return s.sceneRepo.SearchByImage(vec, limit)
+	return s.sceneRepo.SearchByImage(vec, limit, filter)
 }
 
 // textToEmbeddingVector 文本 → CLIP 文本向量（float32），文搜文/文搜图共用
@@ -357,14 +347,6 @@ func (s *VideoAnalysisService) textToEmbeddingVector(q string) ([]float32, error
 		vec[i] = float32(v)
 	}
 	return vec, nil
-}
-
-// SearchScenesByImage 通过图片 embedding 搜索场景
-func (s *VideoAnalysisService) SearchScenesByImage(embedding []float32, limit int) ([]repository.SceneSearchResult, error) {
-	if s.sceneRepo == nil {
-		return nil, errors.New("scene repo is not available")
-	}
-	return s.sceneRepo.SearchByImage(embedding, limit)
 }
 
 // GetScenesByTaskID 获取某次分析的所有场景
