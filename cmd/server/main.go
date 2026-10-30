@@ -252,6 +252,9 @@ func main() {
 		})
 	})
 
+	// 能力发现（公开，只读）：功能三态清单，供前端决定渲染 / 隐藏 / 提示去配置
+	r.GET("/api/capabilities", handlers.Capability.List)
+
 	// 需要认证的auth路由
 	r.POST("/api/auth/vos-oidc", handlers.Auth.LoginWithVOSOIDC)
 	authProtected := r.Group("/api/auth")

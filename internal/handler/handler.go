@@ -72,6 +72,8 @@ type Handlers struct {
 	LazyIngest *LazyIngestHandler
 	// AI 成本：模型列表 / 估价 / 累计花费
 	AICost *AICostHandler
+	// 能力发现：功能三态清单（可用 / 未开启 / 缺依赖）
+	Capability *CapabilityHandler
 }
 
 func NewHandlers(services *service.Services, repos *repository.Repositories, cfg *config.Config, logger *zap.SugaredLogger) *Handlers {
@@ -173,6 +175,8 @@ func NewHandlers(services *service.Services, repos *repository.Repositories, cfg
 		LazyIngest: NewLazyIngestHandler(services.LazyIngest, logger),
 		// AI 成本：模型列表 / 估价 / 累计花费
 		AICost: NewAICostHandler(services.AICost, logger),
+		// 能力发现：功能三态清单（公开只读）
+		Capability: NewCapabilityHandler(services, cfg),
 	}
 
 	// P3~P5：注入番号刮削扩展服务
