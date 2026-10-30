@@ -61,10 +61,22 @@ export const videoAnalysisApi = {
       responseType: 'blob',
     }),
 
-  /** 场景向量检索：文本 → SigLIP2 文本向量 → 检索场景图片 embedding 列（mode=image） */
-  searchScenes: (q: string, mode: 'image' | 'text' = 'image', limit = 30) =>
+  /** 场景向量检索：文本 → SigLIP2 文本向量 → 检索场景图片 embedding 列（mode=image）
+   *  scope 限定检索范围：libraryId 限媒体库，mediaIds 限多片。 */
+  searchScenes: (
+    q: string,
+    mode: 'image' | 'text' = 'image',
+    limit = 30,
+    scope?: { libraryId?: string; mediaIds?: string[] },
+  ) =>
     api.get<{ data: SceneSearchResult[] }>('/video-analysis/scenes/search', {
-      params: { q, mode, limit },
+      params: {
+        q,
+        mode,
+        limit,
+        library_id: scope?.libraryId || undefined,
+        media_ids: scope?.mediaIds?.length ? scope.mediaIds.join(',') : undefined,
+      },
     }),
     // Workflow
   getWorkflow: (taskId: string) =>
