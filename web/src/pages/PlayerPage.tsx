@@ -221,6 +221,15 @@ export default function PlayerPage() {
 
   // 源离线：不加载播放器，显示不可播放（兕底拦截所有播放入口）
   if (sourceOffline) {
+    const reason = playInfo?.source_unavailable_reason
+    const hintKey =
+      reason === 'not_found'
+        ? 'pp.sourceUnavailableHintNotFound'
+        : reason === 'permission_denied'
+          ? 'pp.sourceUnavailableHintPermission'
+          : reason === 'remote_offline'
+            ? 'pp.sourceOfflineHint'
+            : 'pp.sourceUnavailableHintUnknown'
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-black">
         <div
@@ -229,8 +238,10 @@ export default function PlayerPage() {
         >
           <WifiOff size={28} style={{ color: 'rgb(251, 191, 36)' }} />
         </div>
-        <div className="text-lg font-semibold text-white">{t('pp.sourceOfflineTitle')}</div>
-        <p className="text-sm text-surface-500">{t('pp.sourceOfflineHint')}</p>
+        <div className="text-lg font-semibold text-white">
+          {t(reason ? 'pp.sourceUnavailableTitle' : 'pp.sourceOfflineTitle')}
+        </div>
+        <p className="text-sm text-surface-500">{t(hintKey)}</p>
         {hasHistoryOnMountRef.current && (
           <button
             onClick={() => navigate(-1)}

@@ -43,7 +43,10 @@ type MediaPlayInfo struct {
 	SpriteVTTURL        string  `json:"sprite_vtt_url"`         // 进度条雪碧图 WebVTT 索引地址
 	CanRemux            bool    `json:"can_remux"`              // 是否支持 remux（MKV等容器内编码兼容但容器不兼容）
 	RemuxURL            string  `json:"remux_url"`              // Remux 播放地址（零转码，仅转封装）
-	SourceUnavailable   bool    `json:"source_unavailable"`     // 远程存储不可达（挂载断连），媒体不可播放
+	SourceUnavailable   bool    `json:"source_unavailable"`     // 媒体源不可达（远程存储断连或本地文件不可读），媒体不可播放
+	// SourceUnavailableReason 不可用原因：not_found（文件不存在）/ permission_denied（无读取权限）/
+	// remote_offline（远程存储断连）/ unavailable（其它）
+	SourceUnavailableReason string `json:"source_unavailable_reason"`
 }
 
 // 浏览器可直接播放的文件格式
@@ -338,6 +341,7 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 	// 直接按扩展名直放会导致浏览器 DEMUXER_ERROR_COULD_NOT_OPEN。
 	// 这里对远程直放候选做一次文件头嗅探，确认是浏览器可直放的容器。
 	var sourceUnavailable bool
+	var unavailableReason string
 	// 远程媒体：每次请求实时有界探测连通性（不依赖轮询/缓存，挂载断连时 2s 内失败），
 	// 再嗅探文件头确认可直放
 	if IsRemotePath(media.FilePath) {
@@ -345,12 +349,25 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 		if openErr != nil {
 			// 挂载断连：标记不可用并禁用直放
 			sourceUnavailable = true
+			unavailableReason = "remote_offline"
 			canDirect = false
 		} else {
 			_ = f.Close()
 			if canDirect && !s.looksBrowserDirectPlayableRemote(media.FilePath) {
 				canDirect = false
 			}
+		}
+	} else if _, statErr := s.statMediaFile(media.FilePath); statErr != nil {
+		// 本地文件不可读：区分不存在与权限不足
+		sourceUnavailable = true
+		canDirect = false
+		switch {
+		case os.IsNotExist(statErr):
+			unavailableReason = "not_found"
+		case os.IsPermission(statErr):
+			unavailableReason = "permission_denied"
+		default:
+			unavailableReason = "unavailable"
 		}
 	}
 
@@ -365,6 +382,7 @@ func (s *StreamService) GetMediaPlayInfo(mediaID string) (*MediaPlayInfo, error)
 		IsSTRM:        false,
 	}
 	info.SourceUnavailable = sourceUnavailable
+	info.SourceUnavailableReason = unavailableReason
 
 	// 读取系统设置：播放时是否自动触发转码（默认开启，保持原有自动转码行为）
 	info.AutoTranscodeOnPlay = true

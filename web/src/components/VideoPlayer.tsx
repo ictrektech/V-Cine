@@ -531,6 +531,10 @@ export default function VideoPlayer({
           onRemuxFallback()
           return
         }
+        if (err?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+          setLoadError(t('vid.loadFailedHint'))
+          return
+        }
         setLoadError(t('vid.playFailed', { msg: err?.message || t('vid.unknownError') }))
       }, { once: true })
     } else {
