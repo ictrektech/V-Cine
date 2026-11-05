@@ -470,6 +470,9 @@ export interface MixedItem {
   type: 'movie' | 'series'
   media?: Media
   series?: Series
+  // undefined 表示未检查（远程路径按存储状态判断）
+  available?: boolean
+  unavailable_reason?: 'not_found' | 'permission_denied' | 'unavailable'
 }
 
 export interface ListResponse<T> {

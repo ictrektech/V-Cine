@@ -14,9 +14,12 @@ import { useOfflineRemoteTypes } from '@/hooks/useStorageStatuses'
 interface MediaCardProps {
   media?: Media
   series?: Series
+  /** 后端返回的路径可用性；undefined 表示未检查 */
+  available?: boolean
+  unavailableReason?: 'not_found' | 'permission_denied' | 'unavailable'
 }
 
-export default function MediaCard({ media, series }: MediaCardProps) {
+export default function MediaCard({ media, series, available, unavailableReason }: MediaCardProps) {
   const { t } = useTranslation()
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -103,14 +106,21 @@ export default function MediaCard({ media, series }: MediaCardProps) {
   const sourceOffline = series
     ? offlineTypes.has(storageTypeFromPath(series.folder_path))
     : offlineTypes.has(storageTypeFromPath(media!.file_path))
+  // 本地路径不可读：后端 stat 失败时 available=false
+  const pathUnavailable = available === false
+  const offline = sourceOffline || pathUnavailable
+  const offlineTip = pathUnavailable ? t('mc.pathUnavailableTip') : t('pp.offlineHint')
+  const offlineLabel = pathUnavailable
+    ? t(unavailableReason === 'permission_denied' ? 'mc.permissionDenied' : 'mc.pathUnavailable')
+    : t('mc.sourceOffline')
 
-  // 点击播放按钮 — 阻止冒泡，导航到播放页；源离线时不进入播放页
+  // 点击播放按钮 — 阻止冒泡，导航到播放页；不可用时停留在列表
   const handlePlayClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (sourceOffline) return
+    if (offline) return
     navigate(playTo)
-  }, [navigate, playTo, sourceOffline])
+  }, [navigate, playTo, offline])
 
   return (
     <motion.div
@@ -124,7 +134,13 @@ export default function MediaCard({ media, series }: MediaCardProps) {
       whileTap={{ y: 0 }}
       transition={springDefault}
     >
-      <Link to={detailTo}>
+      <Link
+        to={detailTo}
+        onClick={(e) => { if (offline) e.preventDefault() }}
+        tabIndex={offline ? -1 : undefined}
+        aria-disabled={offline || undefined}
+        className={offline ? 'cursor-not-allowed' : undefined}
+      >
         <motion.div style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}>
           {/* 鼠标追踪光晕 — 使用 motion value，零 re-render */}
           <motion.div
@@ -142,7 +158,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
             <img
               src={posterUrl}
               alt={title}
-              className={sourceOffline
+              className={offline
                 ? 'h-full w-full object-cover opacity-50 grayscale transition-all duration-500'
                 : 'h-full w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110'}
               loading="lazy"
@@ -173,13 +189,14 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handlePlayClick}
-                    className="flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 hover:scale-125 cursor-pointer"
+                    disabled={offline}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 ${offline ? 'cursor-not-allowed opacity-60' : 'hover:scale-125 cursor-pointer'}`}
                     style={{
                       background: 'var(--bg-overlay)',
                       boxShadow: 'none',
                     }}
-                    title={sourceOffline
-                      ? t('pp.offlineHint')
+                    title={offline
+                      ? offlineTip
                       : isSeries ? t('mc.viewSeries') : t('home.playNow')}
                   >
                     <Play size={18} className="ml-0.5 text-white" fill="white" />
@@ -189,7 +206,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
               </div>
               {/* 详情按钮（右下角，更显眼） */}
               <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(detailTo) }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!offline) navigate(detailTo) }}
                 className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full transition-all duration-300 hover:scale-110 cursor-pointer"
                 style={{
                   background: 'rgba(0,0,0,0.7)',
@@ -210,7 +227,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
             )}
 
             {/* 源离线徽章：电影放左上（右上被分辨率标签占用），剧集放右上（左上被季集标签占用） */}
-            {sourceOffline && (
+            {offline && (
               <span
                 className={`absolute z-20 flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium backdrop-blur-md ${isSeries ? 'right-2 top-2' : 'left-2 top-2'}`}
                 style={{
@@ -221,7 +238,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
                 }}
               >
                 <WifiOff size={11} />
-                {t('mc.sourceOffline')}
+                {offlineLabel}
               </span>
             )}
 
@@ -253,7 +270,7 @@ export default function MediaCard({ media, series }: MediaCardProps) {
           <div className="px-2 pt-2.5 pb-2">
             <h3
               className="truncate text-sm font-medium leading-snug text-theme-primary transition-colors duration-200 hover:text-neon cursor-pointer"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(detailTo) }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!offline) navigate(detailTo) }}
               title={title}
             >
               {title}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -98,12 +99,44 @@ func (s *MediaService) ListMixedFiltered(page, size int, rawFilter MixedListFilt
 	if end > len(items) {
 		end = len(items)
 	}
+	pageItems := items[start:end]
+	fillItemAvailability(pageItems)
 	return &MixedListResult{
-		Items:       items[start:end],
+		Items:       pageItems,
 		Total:       total,
 		MovieCount:  movieCount,
 		SeriesCount: seriesCount,
 	}, nil
+}
+
+// fillItemAvailability 标记当前页每项的文件路径是否可读。
+// 只 stat 当前页，远程路径不检查（由前端按存储状态判断）。
+func fillItemAvailability(items []MixedItem) {
+	for i := range items {
+		var p string
+		switch {
+		case items[i].Media != nil:
+			p = items[i].Media.FilePath
+		case items[i].Series != nil:
+			p = items[i].Series.FolderPath
+		}
+		if p == "" || IsRemotePath(p) {
+			continue
+		}
+		available := true
+		if _, err := os.Stat(p); err != nil {
+			available = false
+			switch {
+			case os.IsNotExist(err):
+				items[i].UnavailableReason = "not_found"
+			case os.IsPermission(err):
+				items[i].UnavailableReason = "permission_denied"
+			default:
+				items[i].UnavailableReason = "unavailable"
+			}
+		}
+		items[i].Available = &available
+	}
 }
 
 func applyMixedListFilter(items []MixedItem, rawFilter MixedListFilter) []MixedItem {

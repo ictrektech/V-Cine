@@ -2191,6 +2191,9 @@ const enUS: Record<string, string> = {
   'mc.viewSeries': 'View series',
   'mc.view': 'View',
   'mc.sourceOffline': 'Source offline',
+  'mc.pathUnavailable': 'Path not found',
+  'mc.permissionDenied': 'No read permission',
+  'mc.pathUnavailableTip': 'The file does not exist or cannot be read. Check the library path and data directory permissions.',
   'mc.seasonEpisode': '{season} seasons · {episode} episodes',
   'mc.episodes': '{count} episodes',
 

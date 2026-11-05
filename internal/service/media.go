@@ -117,6 +117,9 @@ type MixedItem struct {
 	Type   string        `json:"type"` // "movie" 或 "series"
 	Media  *model.Media  `json:"media,omitempty"`
 	Series *model.Series `json:"series,omitempty"`
+	// Available 路径是否可读；nil 表示未检查（远程路径交给前端按存储状态判断）
+	Available         *bool  `json:"available,omitempty"`
+	UnavailableReason string `json:"unavailable_reason,omitempty"`
 }
 
 // MixedListResult 混合列表查询结果

@@ -995,14 +995,22 @@ export default function BrowsePage() {
                 if (item.type === 'series' && item.series) {
                   return (
                     <motion.div key={`s-${item.series.id}`} variants={staggerItemVariants} className="min-w-0">
-                      <MediaCard series={item.series} />
+                      <MediaCard
+                        series={item.series}
+                        available={item.available}
+                        unavailableReason={item.unavailable_reason}
+                      />
                     </motion.div>
                   )
                 }
                 if (item.media) {
                   return (
                     <motion.div key={`m-${item.media.id}`} variants={staggerItemVariants} className="min-w-0">
-                      <MediaCard media={item.media} />
+                      <MediaCard
+                        media={item.media}
+                        available={item.available}
+                        unavailableReason={item.unavailable_reason}
+                      />
                     </motion.div>
                   )
                 }

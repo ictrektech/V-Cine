@@ -2191,6 +2191,9 @@ const jaJP: Record<string, string> = {
   'mc.viewSeries': 'シリーズを見る',
   'mc.view': '表示',
   'mc.sourceOffline': 'ソースがオフライン',
+  'mc.pathUnavailable': 'パスが見つかりません',
+  'mc.permissionDenied': '読み取り権限なし',
+  'mc.pathUnavailableTip': 'ファイルが存在しないか読み取れません。メディアライブラリのパスとデータディレクトリの権限を確認してください。',
   'mc.seasonEpisode': '{season} シーズン · {episode} 話',
   'mc.episodes': '{count} 話',
 

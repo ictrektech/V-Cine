@@ -2242,6 +2242,9 @@ const zhTW: Record<string, string> = {
   'mc.viewSeries': '檢視系列',
   'mc.view': '檢視',
   'mc.sourceOffline': '源離線',
+  'mc.pathUnavailable': '路徑找不到',
+  'mc.permissionDenied': '無讀取權限',
+  'mc.pathUnavailableTip': '檔案不存在或無法讀取，請檢查媒體庫路徑與資料目錄權限',
   'mc.seasonEpisode': '{season} 季 · {episode} 集',
   'mc.episodes': '{count} 集',
 

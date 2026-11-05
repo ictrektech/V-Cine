@@ -2242,6 +2242,9 @@ const zhCN: Record<string, string> = {
   'mc.viewSeries': '查看系列',
   'mc.view': '查看',
   'mc.sourceOffline': '源离线',
+  'mc.pathUnavailable': '路径找不到',
+  'mc.permissionDenied': '无读取权限',
+  'mc.pathUnavailableTip': '文件不存在或无法读取，请检查媒体库路径与数据目录权限',
   'mc.seasonEpisode': '{season} 季 · {episode} 集',
   'mc.episodes': '{count} 集',
 

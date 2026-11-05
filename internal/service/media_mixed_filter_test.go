@@ -1,6 +1,8 @@
 package service
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -90,4 +92,33 @@ func TestCountMixedItemTypesUsesFilteredResult(t *testing.T) {
 
 	require.Equal(t, 1, movieCount)
 	require.Equal(t, 1, seriesCount)
+}
+
+func TestFillItemAvailability(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "movie.mp4")
+	require.NoError(t, os.WriteFile(existing, []byte("x"), 0o644))
+
+	movie := model.Media{FilePath: existing}
+	missing := model.Media{FilePath: filepath.Join(dir, "missing.mp4")}
+	remote := model.Media{FilePath: "webdav://host/movie.mp4"}
+	series := model.Series{FolderPath: dir}
+
+	items := []MixedItem{
+		{Type: "movie", Media: &movie},
+		{Type: "movie", Media: &missing},
+		{Type: "series", Series: &series},
+		{Type: "movie", Media: &remote},
+	}
+	fillItemAvailability(items)
+
+	require.NotNil(t, items[0].Available)
+	require.True(t, *items[0].Available)
+	require.NotNil(t, items[1].Available)
+	require.False(t, *items[1].Available)
+	require.Equal(t, "not_found", items[1].UnavailableReason)
+	require.NotNil(t, items[2].Available)
+	require.True(t, *items[2].Available)
+	require.Nil(t, items[3].Available)
+	require.Empty(t, items[3].UnavailableReason)
 }

@@ -571,10 +571,24 @@ export default function LibraryPage() {
               <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 animate-fade-in">
                 {filteredMixed.map((item) => {
                   if (item.type === 'series' && item.series) {
-                    return <MediaCard key={`s-${item.series.id}`} series={item.series} />
+                    return (
+                      <MediaCard
+                        key={`s-${item.series.id}`}
+                        series={item.series}
+                        available={item.available}
+                        unavailableReason={item.unavailable_reason}
+                      />
+                    )
                   }
                   if (item.media) {
-                    return <MediaCard key={`m-${item.media.id}`} media={item.media} />
+                    return (
+                      <MediaCard
+                        key={`m-${item.media.id}`}
+                        media={item.media}
+                        available={item.available}
+                        unavailableReason={item.unavailable_reason}
+                      />
+                    )
                   }
                   return null
                 })}
