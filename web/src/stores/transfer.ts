@@ -21,7 +21,7 @@ export interface TransferItem {
   id: string
   batchId: string
   file: File
-  /** 上传落点；library_id 为空时在批次收口阶段自动建库 */
+  /** 上传落点；library_id 为空时在首个文件入库时自动建库 */
   location: ImportLocation
   /** 自动建库用的库名（前端按当前语言生成，库名会落库） */
   libraryName: string
@@ -78,63 +78,83 @@ async function resolveAdapter(location: ImportLocation, token: string): Promise<
   return `p_${uuid}`
 }
 
+/** 串行入库，并把结果写回条目 */
+async function commitAndPatch(item: TransferItem) {
+  patch([item.id], { status: 'scanning', progress: 100 })
+  const ok = await serialCommit(() => commitItem(item)).catch(() => false)
+  patch([item.id], { status: 'done', progress: 100, note: ok ? undefined : 'scan_failed' })
+}
+
+/** 单文件入库：把 `_incoming` 里的这个文件扫描入库 */
+async function commitItem(item: TransferItem): Promise<boolean> {
+  const localPath = item.location.local_path
+  const libraryId = await resolveLibraryId(item.location, item.libraryName)
+  if (!libraryId) return false
+  // 只入库这一个文件
+  const incoming = `${localPath}/_incoming`
+  return requestScan(libraryId, [incoming], [`${incoming}/${item.file.name}`])
+}
+
+let commitChain: Promise<unknown> = Promise.resolve()
+function serialCommit<T>(task: () => Promise<T>): Promise<T> {
+  const run = commitChain.then(task)
+  commitChain = run.catch(() => undefined)
+  return run
+}
+
 /**
- * 批次收口：所有文件上传结束后，对每个落点各做一次「确保库 → 扫描」。
+ * 批次收口：批次结束且模式为「扫描整个库」时，补一次全库扫描。
  * 落点没有库时（零库冷启动）由后端幂等建 mixed 库（D7：上传/扫描同一条任务的两个阶段）。
  */
 async function maybeSettleBatch(batchId: string) {
   const { items } = useTransferStore.getState()
   const batch = items.filter((i) => i.batchId === batchId)
-  if (batch.some((i) => i.status === 'queued' || i.status === 'uploading')) return
+  if (batch.some((i) => i.status === 'queued' || i.status === 'uploading' || i.status === 'scanning')) return
 
   const uploaded = batch.filter((i) => i.status === 'done')
   if (!uploaded.length) return
+  if (!uploaded.some((i) => i.scanMode === 'library')) return
   if (settledBatches.has(batchId)) return
   settledBatches.add(batchId)
 
-  const ids = uploaded.map((i) => i.id)
-  const { location, scanMode, libraryName } = uploaded[0]
-  const localPath = location.local_path
-
-  patch(ids, { status: 'scanning' })
-  let scanFailed = false
-
+  const { location, libraryName } = uploaded[0]
   try {
-    const libraryId = location.library_id || (await ensureLibrary(localPath, libraryName))
-    if (!libraryId) {
-      scanFailed = true
-    } else if (scanMode === 'library') {
-      await requestScan(libraryId)
-    } else {
-      // 只处理本次上传：限定扫描 `_incoming`，并只入库本批次上传的文件
-      // （否则 `_incoming` 里历史遗留的文件会一起被扫进来）
-      const incoming = `${localPath}/_incoming`
-      const files = uploaded.map((i) => `${incoming}/${i.file.name}`)
-      await requestScan(libraryId, [incoming], files)
-    }
+    const libraryId = await resolveLibraryId(location, libraryName)
+    if (libraryId) await requestScan(libraryId)
   } catch {
-    scanFailed = true
+    // 忽略全库扫描失败
   }
-
-  patch(ids, { status: 'done', note: scanFailed ? 'scan_failed' : undefined })
 }
+
+/** 202 重试窗口：覆盖一次正常库扫描的时长 */
+const scanRetryWindowMs = 60_000
 
 /**
  * 触发扫描；后端同一媒体库同时只允许一个扫描，正在扫时返回 202「扫描已在进行中」。
- * 这里把 202 当作"稍后重试"，否则同一库的并发批次会让后一批的文件永远不入库。
+ * 这里把 202 当作"稍后重试"，返回 false 表示窗口内仍未启动（调用方标记 scan_failed）。
  */
-async function requestScan(libraryId: string, paths?: string[], files?: string[]): Promise<void> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+async function requestScan(libraryId: string, paths?: string[], files?: string[]): Promise<boolean> {
+  const deadline = Date.now() + scanRetryWindowMs
+  for (;;) {
     const resp = paths ? await libraryApi.scanPaths(libraryId, paths, files) : await libraryApi.scan(libraryId)
-    if (resp.status !== 202) return
+    if (resp.status !== 202) return true
+    if (Date.now() >= deadline) return false
     await new Promise((resolve) => setTimeout(resolve, 1500))
   }
 }
 
-async function ensureLibrary(localPath: string, libraryName: string): Promise<string | null> {
+/** local_path → library_id，避免同一落点的每个文件都请求一次自动建库 */
+const ensuredLibraries = new Map<string, string>()
+
+async function resolveLibraryId(location: ImportLocation, libraryName: string): Promise<string | null> {
+  if (location.library_id) return location.library_id
+  const cached = ensuredLibraries.get(location.local_path)
+  if (cached) return cached
   try {
-    const resp = await importTargetApi.ensureLibrary(localPath, libraryName)
-    return resp.data?.data?.library_id ?? null
+    const resp = await importTargetApi.ensureLibrary(location.local_path, libraryName)
+    const id = resp.data?.data?.library_id ?? null
+    if (id) ensuredLibraries.set(location.local_path, id)
+    return id
   } catch {
     return null
   }
@@ -164,7 +184,8 @@ async function runItem(item: TransferItem) {
       signal: controller.signal,
       onProgress: (loaded, total) => patch([item.id], { progress: total > 0 ? Math.round((loaded / total) * 100) : 0 }),
     })
-    patch([item.id], { status: 'done', progress: 100 })
+    // 上传完成后立即入库
+    await commitAndPatch(item)
   } catch (err) {
     const code = err instanceof PlatformUploadError ? err.code : -1
     if (code === -2) {
@@ -225,7 +246,13 @@ export const useTransferStore = create<TransferStore>((set, get) => ({
 
   retry: (id) => {
     const item = get().items.find((i) => i.id === id)
-    if (!item || item.status !== 'failed') return
+    if (!item) return
+    // 上传成功但入库失败：只重试入库，不重新上传
+    if (item.status === 'done' && item.note === 'scan_failed') {
+      void commitAndPatch(item)
+      return
+    }
+    if (item.status !== 'failed') return
     // 重试沿用原批次，但该批次需要重新允许收口（建库/扫描）
     settledBatches.delete(item.batchId)
     patch([id], { status: 'queued', progress: 0, errorCode: undefined, note: undefined })

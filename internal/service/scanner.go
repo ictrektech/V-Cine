@@ -909,7 +909,10 @@ func (s *ScannerService) ScanLibraryWithOptions(library *model.Library, opts Sca
 			NewFound:    count,
 			Message:     fmt.Sprintf("扫描完成: %s, 新增 %d 个媒体", library.Name, count),
 		})
-		s.notifyScanSummary(library.ID, library.Name, count, scanStartedAt)
+		// 单文件入库（OnlyFiles）不上报扫描汇总，否则每上传一个文件就一条通知
+		if len(opts.OnlyFiles) == 0 {
+			s.notifyScanSummary(library.ID, library.Name, count, scanStartedAt)
+		}
 	}
 
 	s.logger.Infof("扫描完成: %s, 新增 %d 个媒体", library.Name, count)

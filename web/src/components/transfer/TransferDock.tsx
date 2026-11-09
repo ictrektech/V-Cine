@@ -83,7 +83,7 @@ export default function TransferDock() {
           <span className="flex-shrink-0 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
             {formatFileSize(item.file.size)}
           </span>
-          {item.status === 'failed' ? (
+          {item.status === 'failed' || item.note === 'scan_failed' ? (
             <button
               onClick={() => retry(item.id)}
               className="btn-ghost flex-shrink-0 rounded p-1"
