@@ -9038,4 +9038,3 @@ JSON(http.StatusOK, gin.H{"data": media})
 	VideoAnalysisTask VideoAnalysisTask `json:"-" gorm:"foreignKey:VideoAnalysisTaskID;constraint:OnDelete:CASCADE"`
 }
 ```
-
