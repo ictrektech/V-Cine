@@ -40,7 +40,7 @@ The following catalogue is generated from actual Gin registrations and handlers.
 
 ### POST /api/auth/login
 
-Access boundary: `separate/public`. [Auth.Login](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/auth.go#L46)
+Access boundary: `separate/public`. [Auth.Login](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/auth.go#L46)
 
 ```go
 service.LoginRequest
@@ -55,7 +55,7 @@ JSON(http.StatusOK, token)
 
 ### GET /api/auth/status
 
-Access boundary: `separate/public`. [Auth.Status](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/auth.go#L69)
+Access boundary: `separate/public`. [Auth.Status](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/auth.go#L69)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取状态失败"})
@@ -74,7 +74,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/auth/register
 
-Access boundary: `separate/public`. [Auth.Register](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/auth.go#L96)
+Access boundary: `separate/public`. [Auth.Register](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/auth.go#L96)
 
 ```go
 service.RegisterRequest
@@ -95,7 +95,7 @@ Access boundary: `separate/public`. Inline health, static resource or preflight 
 
 ### GET /api/capabilities
 
-Access boundary: `separate/public`. [Capability.List](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/capability.go#L26)
+Access boundary: `separate/public`. [Capability.List](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/capability.go#L26)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -105,7 +105,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/auth/vos-oidc
 
-Access boundary: `separate/public`. [Auth.LoginWithVOSOIDC](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/auth.go#L17)
+Access boundary: `separate/public`. [Auth.LoginWithVOSOIDC](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/auth.go#L17)
 
 ```go
 vosOIDCRequest
@@ -121,7 +121,7 @@ JSON(http.StatusOK, resp)
 
 ### POST /api/auth/refresh
 
-Access boundary: `user`. [Auth.RefreshToken](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/auth.go#L122)
+Access boundary: `user`. [Auth.RefreshToken](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/auth.go#L122)
 
 ```go
 JSON(http.StatusUnauthorized, gin.H{"error": "未提供有效的认证信息"})
@@ -132,7 +132,7 @@ JSON(http.StatusOK, token)
 
 ### PUT /api/auth/password
 
-Access boundary: `user`. [Auth.ChangePassword](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/auth.go#L145)
+Access boundary: `user`. [Auth.ChangePassword](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/auth.go#L145)
 
 ```go
 service.ChangePasswordRequest
@@ -158,11 +158,11 @@ Access boundary: `separate/public`. Inline health, static resource or preflight 
 
 ### GET /api/ws
 
-Access boundary: `user`. [WS.HandleWebSocket](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ws.go#L28)
+Access boundary: `user`. [WS.HandleWebSocket](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ws.go#L28)
 
 ### GET /api/libraries
 
-Access boundary: `user`. [Library.List](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L100)
+Access boundary: `user`. [Library.List](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L100)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取媒体库列表失败"})
@@ -171,7 +171,7 @@ JSON(http.StatusOK, gin.H{"data": libs})
 
 ### GET /api/libraries/scan-status
 
-Access boundary: `admin`. [Library.ScanStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L247)
+Access boundary: `admin`. [Library.ScanStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L247)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": h.libService.ActiveScanPhases()})
@@ -179,7 +179,7 @@ JSON(http.StatusOK, gin.H{"data": h.libService.ActiveScanPhases()})
 
 ### POST /api/libraries
 
-Access boundary: `admin`. [Library.Create](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L116)
+Access boundary: `admin`. [Library.Create](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L116)
 
 ```go
 CreateLibraryRequest
@@ -199,7 +199,7 @@ JSON(http.StatusCreated, gin.H{"data": lib})
 
 ### PUT /api/libraries/:id
 
-Access boundary: `admin`. [Library.Update](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L279)
+Access boundary: `admin`. [Library.Update](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L279)
 
 Parameters: `Param id`
 
@@ -222,7 +222,7 @@ JSON(http.StatusOK, gin.H{"data": lib})
 
 ### POST /api/libraries/:id/scan
 
-Access boundary: `admin`. [Library.Scan](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L211)
+Access boundary: `admin`. [Library.Scan](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L211)
 
 Parameters: `Param id`
 
@@ -243,7 +243,7 @@ JSON(http.StatusOK, gin.H{"message": "扫描已启动"})
 
 ### POST /api/libraries/:id/reindex
 
-Access boundary: `admin`. [Library.Reindex](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L262)
+Access boundary: `admin`. [Library.Reindex](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L262)
 
 Parameters: `Param id`
 
@@ -257,7 +257,7 @@ JSON(http.StatusOK, gin.H{"message": "重建索引已启动"})
 
 ### DELETE /api/libraries/:id
 
-Access boundary: `admin`. [Library.Delete](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L252)
+Access boundary: `admin`. [Library.Delete](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L252)
 
 Parameters: `Param id`
 
@@ -268,7 +268,7 @@ JSON(http.StatusOK, gin.H{"message": "已删除"})
 
 ### GET /api/media
 
-Access boundary: `user`. [Media.List](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L28)
+Access boundary: `user`. [Media.List](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L28)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; Query library_id`
 
@@ -284,7 +284,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/media/:id
 
-Access boundary: `user`. [Media.Detail](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L55)
+Access boundary: `user`. [Media.Detail](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L55)
 
 Parameters: `Param id`
 
@@ -295,7 +295,7 @@ JSON(http.StatusOK, gin.H{"data": media})
 
 ### GET /api/media/:id/enhanced
 
-Access boundary: `user`. [Media.DetailEnhanced](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L83)
+Access boundary: `user`. [Media.DetailEnhanced](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L83)
 
 Parameters: `Param id`
 
@@ -306,7 +306,7 @@ JSON(http.StatusOK, gin.H{"data": enhanced})
 
 ### GET /api/media/:id/versions
 
-Access boundary: `user`. [Media.Versions](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L69)
+Access boundary: `user`. [Media.Versions](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L69)
 
 Parameters: `Param id`
 
@@ -320,7 +320,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/media/recent
 
-Access boundary: `user`. [Media.Recent](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L94)
+Access boundary: `user`. [Media.Recent](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L94)
 
 Parameters: `DefaultQuery limit = 20`
 
@@ -331,7 +331,7 @@ JSON(http.StatusOK, gin.H{"data": media})
 
 ### GET /api/media/recent/aggregated
 
-Access boundary: `user`. [Media.RecentAggregated](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L105)
+Access boundary: `user`. [Media.RecentAggregated](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L105)
 
 Parameters: `DefaultQuery limit = 20`
 
@@ -345,7 +345,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/media/recent/mixed
 
-Access boundary: `user`. [Media.RecentMixed](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L186)
+Access boundary: `user`. [Media.RecentMixed](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L186)
 
 Parameters: `DefaultQuery limit = 20`
 
@@ -356,7 +356,7 @@ JSON(http.StatusOK, gin.H{"data": items})
 
 ### GET /api/media/aggregated
 
-Access boundary: `user`. [Media.ListAggregated](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L119)
+Access boundary: `user`. [Media.ListAggregated](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L119)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; Query library_id`
 
@@ -372,7 +372,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/media/mixed
 
-Access boundary: `user`. [Media.ListMixed](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L146)
+Access boundary: `user`. [Media.ListMixed](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L146)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; Query year_from; Query year_to; Query library_id; Query type; Query genre; Query q; Query sort; Query order`
 
@@ -390,7 +390,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/media/continue
 
-Access boundary: `user`. [Media.Continue](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L197)
+Access boundary: `user`. [Media.Continue](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L197)
 
 Parameters: `DefaultQuery limit = 10`
 
@@ -401,7 +401,7 @@ JSON(http.StatusOK, gin.H{"data": histories})
 
 ### GET /api/series
 
-Access boundary: `user`. [Series.List](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/series.go#L27)
+Access boundary: `user`. [Series.List](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/series.go#L27)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; Query library_id`
 
@@ -417,7 +417,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/series/:id
 
-Access boundary: `user`. [Series.Detail](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/series.go#L54)
+Access boundary: `user`. [Series.Detail](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/series.go#L54)
 
 Parameters: `Param id`
 
@@ -428,7 +428,7 @@ JSON(http.StatusOK, gin.H{"data": series})
 
 ### GET /api/series/:id/seasons
 
-Access boundary: `user`. [Series.Seasons](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/series.go#L65)
+Access boundary: `user`. [Series.Seasons](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/series.go#L65)
 
 Parameters: `Param id`
 
@@ -439,7 +439,7 @@ JSON(http.StatusOK, gin.H{"data": seasons})
 
 ### GET /api/series/:id/seasons/:season
 
-Access boundary: `user`. [Series.SeasonEpisodes](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/series.go#L76)
+Access boundary: `user`. [Series.SeasonEpisodes](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/series.go#L76)
 
 Parameters: `Param id; Param season`
 
@@ -450,7 +450,7 @@ JSON(http.StatusOK, gin.H{"data": episodes})
 
 ### GET /api/series/:id/next
 
-Access boundary: `user`. [Series.NextEpisode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/series.go#L89)
+Access boundary: `user`. [Series.NextEpisode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/series.go#L89)
 
 Parameters: `Param id; Query season; Query episode`
 
@@ -462,7 +462,7 @@ JSON(http.StatusOK, gin.H{"data": next})
 
 ### GET /api/stream/:id/info
 
-Access boundary: `user`. [Stream.MediaInfo](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L193)
+Access boundary: `user`. [Stream.MediaInfo](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L193)
 
 Parameters: `Param id`
 
@@ -473,7 +473,7 @@ JSON(http.StatusOK, gin.H{"data": info})
 
 ### GET /api/stream/:id/direct
 
-Access boundary: `user`. [Stream.Direct](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L31)
+Access boundary: `user`. [Stream.Direct](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L31)
 
 Parameters: `Param id`
 
@@ -484,13 +484,13 @@ JSON(http.StatusBadGateway, gin.H{"error": "远程流播放失败: " + err.Error
 
 ### GET /api/stream/:id/remux
 
-Access boundary: `user`. [Stream.Remux](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L182)
+Access boundary: `user`. [Stream.Remux](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L182)
 
 Parameters: `Param id`
 
 ### GET /api/stream/:id/master.m3u8
 
-Access boundary: `user`. [Stream.Master](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L86)
+Access boundary: `user`. [Stream.Master](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L86)
 
 Parameters: `Param id; Query maxBitrate`
 
@@ -501,7 +501,7 @@ String(http.StatusOK, playlist)
 
 ### GET /api/stream/:id/:quality/:segment
 
-Access boundary: `user`. [Stream.Segment](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L113)
+Access boundary: `user`. [Stream.Segment](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L113)
 
 Parameters: `Param id; Param quality; Param segment`
 
@@ -512,7 +512,7 @@ JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 
 ### POST /api/stream/:id/playback
 
-Access boundary: `user`. [Stream.Playback](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L213)
+Access boundary: `user`. [Stream.Playback](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L213)
 
 Parameters: `Param id; Query position; PostForm position`
 
@@ -524,7 +524,7 @@ JSON(http.StatusOK, gin.H{"ok": true})
 
 ### POST /api/stream/:id/bandwidth
 
-Access boundary: `user`. [Stream.Bandwidth](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L249)
+Access boundary: `user`. [Stream.Bandwidth](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L249)
 
 Parameters: `Param id; Query bitrate; PostForm bitrate`
 
@@ -536,7 +536,7 @@ JSON(http.StatusOK, resp)
 
 ### GET /api/stream/:id/throttle
 
-Access boundary: `user`. [Stream.ThrottleStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L285)
+Access boundary: `user`. [Stream.ThrottleStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L285)
 
 Parameters: `Param id`
 
@@ -548,7 +548,7 @@ JSON(http.StatusOK, gin.H{"data": h.transcodeService.GetMediaThrottleStatus(id)}
 
 ### GET /api/stream/:id/strm-seg
 
-Access boundary: `user`. [Stream.STRMSegment](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L304)
+Access boundary: `user`. [Stream.STRMSegment](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L304)
 
 Parameters: `Param id; Query u; Query target`
 
@@ -559,7 +559,7 @@ JSON(http.StatusBadGateway, gin.H{"error": "远程子资源拉取失败: " + err
 
 ### GET /api/stream/:id/strm-check
 
-Access boundary: `user`. [Stream.STRMCheck](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L322)
+Access boundary: `user`. [Stream.STRMCheck](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L322)
 
 Parameters: `Param id`
 
@@ -570,7 +570,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### GET /api/audio-track/:id/:trackIdx
 
-Access boundary: `user`. [Stream.AudioPlaylist](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L145)
+Access boundary: `user`. [Stream.AudioPlaylist](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L145)
 
 Parameters: `Param id; Param trackIdx`
 
@@ -582,7 +582,7 @@ String(http.StatusOK, playlist)
 
 ### GET /api/audio-track/:id/:trackIdx/:seg
 
-Access boundary: `user`. [Stream.AudioSegment](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L167)
+Access boundary: `user`. [Stream.AudioSegment](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L167)
 
 Parameters: `Param id; Param trackIdx; Param seg`
 
@@ -593,19 +593,19 @@ JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 
 ### GET /api/media/:id/poster
 
-Access boundary: `user`. [Stream.Poster](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/imagery.go#L46)
+Access boundary: `user`. [Stream.Poster](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/imagery.go#L46)
 
 Parameters: `Param id`
 
 ### GET /api/media/:id/backdrop
 
-Access boundary: `user`. [Stream.Backdrop](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/imagery.go#L174)
+Access boundary: `user`. [Stream.Backdrop](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/imagery.go#L174)
 
 Parameters: `Param id`
 
 ### GET /api/series/:id/poster
 
-Access boundary: `user`. [Series.Poster](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/series.go#L107)
+Access boundary: `user`. [Series.Poster](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/series.go#L107)
 
 Parameters: `Param id`
 
@@ -618,7 +618,7 @@ File(posterPath)
 
 ### GET /api/series/:id/backdrop
 
-Access boundary: `user`. [Series.Backdrop](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/series.go#L155)
+Access boundary: `user`. [Series.Backdrop](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/series.go#L155)
 
 Parameters: `Param id`
 
@@ -631,7 +631,7 @@ File(series.BackdropPath)
 
 ### GET /api/series/:id/persons
 
-Access boundary: `user`. [Series.GetPersons](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/series.go#L206)
+Access boundary: `user`. [Series.GetPersons](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/series.go#L206)
 
 Parameters: `Param id`
 
@@ -642,7 +642,7 @@ JSON(http.StatusOK, gin.H{"data": deduped})
 
 ### GET /api/media/:id/persons
 
-Access boundary: `user`. [Media.GetPersons](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L299)
+Access boundary: `user`. [Media.GetPersons](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L299)
 
 Parameters: `Param id`
 
@@ -653,7 +653,7 @@ JSON(http.StatusOK, gin.H{"data": persons})
 
 ### GET /api/persons/:id
 
-Access boundary: `user`. [Media.GetPersonDetail](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L311)
+Access boundary: `user`. [Media.GetPersonDetail](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L311)
 
 Parameters: `Param id`
 
@@ -664,7 +664,7 @@ JSON(http.StatusOK, gin.H{"data": person})
 
 ### GET /api/persons/:id/media
 
-Access boundary: `user`. [Media.GetPersonMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L323)
+Access boundary: `user`. [Media.GetPersonMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L323)
 
 Parameters: `Param id`
 
@@ -677,7 +677,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/persons/:id/profile
 
-Access boundary: `user`. [Media.PersonProfile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L346)
+Access boundary: `user`. [Media.PersonProfile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L346)
 
 Parameters: `Param id`
 
@@ -688,7 +688,7 @@ File(person.ProfileURL)
 
 ### GET /api/subtitle/:id/tracks
 
-Access boundary: `user`. [Subtitle.ListTracks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L24)
+Access boundary: `user`. [Subtitle.ListTracks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L24)
 
 Parameters: `Param id`
 
@@ -710,7 +710,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/subtitle/:id/extract/:index
 
-Access boundary: `user`. [Subtitle.ExtractTrack](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L64)
+Access boundary: `user`. [Subtitle.ExtractTrack](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L64)
 
 Parameters: `Param id; Param index`
 
@@ -726,7 +726,7 @@ File(vttPath)
 
 ### GET /api/subtitle/external
 
-Access boundary: `user`. [Subtitle.ServeExternal](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L114)
+Access boundary: `user`. [Subtitle.ServeExternal](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L114)
 
 Parameters: `Query path; Query format`
 
@@ -746,7 +746,7 @@ JSON(http.StatusBadRequest, gin.H{"error": "不支持的字幕格式"})
 
 ### POST /api/subtitle/:id/extract-all
 
-Access boundary: `user`. [Subtitle.ExtractAll](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L424)
+Access boundary: `user`. [Subtitle.ExtractAll](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L424)
 
 Parameters: `Param id`
 
@@ -774,7 +774,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/subtitle/:id/extract-all/async
 
-Access boundary: `user`. [Subtitle.ExtractAllAsync](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L485)
+Access boundary: `user`. [Subtitle.ExtractAllAsync](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L485)
 
 Parameters: `Param id`
 
@@ -796,7 +796,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/subtitle/download
 
-Access boundary: `user`. [Subtitle.DownloadExtracted](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L520)
+Access boundary: `user`. [Subtitle.DownloadExtracted](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L520)
 
 Parameters: `Query path`
 
@@ -809,7 +809,7 @@ File(filePath)
 
 ### GET /api/subtitle/:id/search
 
-Access boundary: `user`. [SubtitleSearch.SearchSubtitles](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L60)
+Access boundary: `user`. [SubtitleSearch.SearchSubtitles](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L60)
 
 Parameters: `Param id; DefaultQuery language = zh-cn,en; Query title; Query year; DefaultQuery type = movie`
 
@@ -820,7 +820,7 @@ JSON(http.StatusOK, gin.H{"data": results})
 
 ### POST /api/subtitle/:id/download
 
-Access boundary: `user`. [SubtitleSearch.DownloadSubtitle](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L96)
+Access boundary: `user`. [SubtitleSearch.DownloadSubtitle](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L96)
 
 Parameters: `Param id`
 
@@ -841,7 +841,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/subtitle/:id/ai/generate
 
-Access boundary: `user`. [Subtitle.GenerateAISubtitle](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L203)
+Access boundary: `user`. [Subtitle.GenerateAISubtitle](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L203)
 
 Parameters: `Param id`
 
@@ -862,7 +862,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/subtitle/:id/ai/status
 
-Access boundary: `user`. [Subtitle.GetAISubtitleStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L230)
+Access boundary: `user`. [Subtitle.GetAISubtitleStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L230)
 
 Parameters: `Param id`
 
@@ -889,7 +889,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### GET /api/subtitle/:id/ai/serve
 
-Access boundary: `user`. [Subtitle.ServeAISubtitle](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L269)
+Access boundary: `user`. [Subtitle.ServeAISubtitle](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L269)
 
 Parameters: `Param id`
 
@@ -901,7 +901,7 @@ File(vttPath)
 
 ### DELETE /api/subtitle/:id/ai
 
-Access boundary: `user`. [Subtitle.DeleteAISubtitle](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L289)
+Access boundary: `user`. [Subtitle.DeleteAISubtitle](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L289)
 
 Parameters: `Param id`
 
@@ -912,7 +912,7 @@ JSON(http.StatusOK, gin.H{"message": "AI 字幕已删除"})
 
 ### POST /api/subtitle/:id/translate
 
-Access boundary: `user`. [Subtitle.TranslateSubtitle](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L308)
+Access boundary: `user`. [Subtitle.TranslateSubtitle](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L308)
 
 Parameters: `Param id`
 
@@ -934,7 +934,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/subtitle/:id/translate/status
 
-Access boundary: `user`. [Subtitle.GetTranslateStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L337)
+Access boundary: `user`. [Subtitle.GetTranslateStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L337)
 
 Parameters: `Param id; Query lang`
 
@@ -965,7 +965,7 @@ JSON(http.StatusOK, gin.H{"data": translated})
 
 ### GET /api/subtitle/:id/translate/:lang/serve
 
-Access boundary: `user`. [Subtitle.ServeTranslatedSubtitle](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L391)
+Access boundary: `user`. [Subtitle.ServeTranslatedSubtitle](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L391)
 
 Parameters: `Param id; Param lang`
 
@@ -977,7 +977,7 @@ File(vttPath)
 
 ### GET /api/asr/status
 
-Access boundary: `user`. [Subtitle.GetASRStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle.go#L412)
+Access boundary: `user`. [Subtitle.GetASRStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle.go#L412)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": false}})
@@ -986,7 +986,7 @@ JSON(http.StatusOK, gin.H{"data": h.asrService.GetStatus()})
 
 ### GET /api/subtitle-preprocess/media/:id/status
 
-Access boundary: `user`. [SubtitlePreprocess.GetMediaStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L247)
+Access boundary: `user`. [SubtitlePreprocess.GetMediaStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L247)
 
 Parameters: `Param id`
 
@@ -1002,7 +1002,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### GET /api/preprocess/media/:id/status
 
-Access boundary: `user`. [Preprocess.GetMediaTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L113)
+Access boundary: `user`. [Preprocess.GetMediaTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L113)
 
 Parameters: `Param id`
 
@@ -1019,7 +1019,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### GET /api/preprocess/media/:id/master.m3u8
 
-Access boundary: `user`. [Preprocess.ServePreprocessedMaster](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L512)
+Access boundary: `user`. [Preprocess.ServePreprocessedMaster](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L512)
 
 Parameters: `Param id`
 
@@ -1030,7 +1030,7 @@ String(http.StatusOK, playlist)
 
 ### GET /api/preprocess/media/:id/:quality/:segment
 
-Access boundary: `user`. [Preprocess.ServePreprocessedSegment](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L527)
+Access boundary: `user`. [Preprocess.ServePreprocessedSegment](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L527)
 
 Parameters: `Param id; Param quality; Param segment`
 
@@ -1041,7 +1041,7 @@ File(filePath)
 
 ### GET /api/preprocess/media/:id/thumbnail
 
-Access boundary: `user`. [Preprocess.ServeThumbnail](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L553)
+Access boundary: `user`. [Preprocess.ServeThumbnail](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L553)
 
 Parameters: `Param id`
 
@@ -1052,7 +1052,7 @@ File(task.ThumbnailPath)
 
 ### GET /api/preprocess/media/:id/keyframe/:index
 
-Access boundary: `user`. [Preprocess.ServeKeyframe](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L568)
+Access boundary: `user`. [Preprocess.ServeKeyframe](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L568)
 
 Parameters: `Param id; Param index`
 
@@ -1063,7 +1063,7 @@ File(filePath)
 
 ### GET /api/preprocess/media/:id/sprite.jpg
 
-Access boundary: `user`. [Preprocess.ServeSprite](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L585)
+Access boundary: `user`. [Preprocess.ServeSprite](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L585)
 
 Parameters: `Param id`
 
@@ -1074,7 +1074,7 @@ File(task.SpritePath)
 
 ### GET /api/preprocess/media/:id/sprite.vtt
 
-Access boundary: `user`. [Preprocess.ServeSpriteVTT](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L600)
+Access boundary: `user`. [Preprocess.ServeSpriteVTT](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L600)
 
 Parameters: `Param id`
 
@@ -1085,7 +1085,7 @@ File(task.SpriteVTTPath)
 
 ### POST /api/media/:id/scrape
 
-Access boundary: `admin`. [Metadata.ScrapeMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/metadata.go#L18)
+Access boundary: `admin`. [Metadata.ScrapeMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/metadata.go#L18)
 
 Parameters: `Param id`
 
@@ -1095,7 +1095,7 @@ JSON(http.StatusOK, gin.H{"message": "元数据刮削成功"})
 
 ### GET /api/media/:id/video-analysis
 
-Access boundary: `user`. [VideoAnalysis.GetMediaResult](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L411)
+Access boundary: `user`. [VideoAnalysis.GetMediaResult](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L411)
 
 Parameters: `Param id; Query task_id`
 
@@ -1109,7 +1109,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### GET /api/media/:id/video-analysis/scenes/:sceneIndex/grid
 
-Access boundary: `user`. [VideoAnalysis.ServeSceneGrid](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L431)
+Access boundary: `user`. [VideoAnalysis.ServeSceneGrid](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L431)
 
 Parameters: `Param sceneIndex; Param id; Query task_id`
 
@@ -1122,7 +1122,7 @@ JSON(http.StatusInternalServerError, gin.H{"error": "读取九宫格图片失败
 
 ### GET /api/video-analysis/scenes/search
 
-Access boundary: `user`. [VideoAnalysis.SearchScenes](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L495)
+Access boundary: `user`. [VideoAnalysis.SearchScenes](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L495)
 
 Parameters: `Query q; DefaultQuery limit = 20; DefaultQuery mode = text; Query library_id`
 
@@ -1135,7 +1135,7 @@ JSON(http.StatusOK, gin.H{"data": results})
 
 ### GET /api/video-analysis/tasks/:id/scenes
 
-Access boundary: `user`. [VideoAnalysis.ListScenesByTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L535)
+Access boundary: `user`. [VideoAnalysis.ListScenesByTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L535)
 
 Parameters: `Param id`
 
@@ -1147,7 +1147,7 @@ JSON(http.StatusOK, gin.H{"scenes": items})
 
 ### GET /api/video-analysis/tasks/:id/workflow
 
-Access boundary: `user`. [VideoAnalysis.GetWorkflow](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L582)
+Access boundary: `user`. [VideoAnalysis.GetWorkflow](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L582)
 
 Parameters: `Param id`
 
@@ -1158,7 +1158,7 @@ JSON(http.StatusOK, gin.H{"data": workflow})
 
 ### POST /api/video-analysis/tasks/:id/run-stage
 
-Access boundary: `user`. [VideoAnalysis.RunStage](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L596)
+Access boundary: `user`. [VideoAnalysis.RunStage](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L596)
 
 Parameters: `Param id`
 
@@ -1176,7 +1176,7 @@ JSON(http.StatusOK, gin.H{"message": "阶段已启动"})
 
 ### POST /api/video-analysis/tasks/:id/run-all
 
-Access boundary: `user`. [VideoAnalysis.RunAll](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L616)
+Access boundary: `user`. [VideoAnalysis.RunAll](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L616)
 
 Parameters: `Param id`
 
@@ -1187,7 +1187,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已全部执行完成"})
 
 ### POST /api/video-analysis/tasks/:id/run-missing
 
-Access boundary: `user`. [VideoAnalysis.RunMissing](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L629)
+Access boundary: `user`. [VideoAnalysis.RunMissing](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L629)
 
 Parameters: `Param id`
 
@@ -1198,7 +1198,7 @@ JSON(http.StatusOK, gin.H{"message": "缺失阶段已补齐"})
 
 ### GET /api/video-analysis/models/status
 
-Access boundary: `user`. [VideoAnalysis.ModelHubStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L243)
+Access boundary: `user`. [VideoAnalysis.ModelHubStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L243)
 
 Parameters: `Query model`
 
@@ -1210,7 +1210,7 @@ JSON(http.StatusOK, gin.H{"data": status})
 
 ### GET /api/users/me
 
-Access boundary: `user`. [User.Profile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L24)
+Access boundary: `user`. [User.Profile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L24)
 
 ```go
 JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
@@ -1219,7 +1219,7 @@ JSON(http.StatusOK, gin.H{"data": user})
 
 ### PUT /api/users/me
 
-Access boundary: `user`. [User.UpdateProfile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L36)
+Access boundary: `user`. [User.UpdateProfile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L36)
 
 ```go
 service.UpdateSelfProfileRequest
@@ -1235,7 +1235,7 @@ JSON(http.StatusOK, resp)
 
 ### GET /api/users/me/login-logs
 
-Access boundary: `user`. [User.LoginLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L68)
+Access boundary: `user`. [User.LoginLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L68)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": []interface{}{}})
@@ -1245,7 +1245,7 @@ JSON(http.StatusOK, gin.H{"data": logs})
 
 ### PUT /api/users/me/progress/:mediaId
 
-Access boundary: `user`. [User.UpdateProgress](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L90)
+Access boundary: `user`. [User.UpdateProgress](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L90)
 
 Parameters: `Param mediaId`
 
@@ -1261,7 +1261,7 @@ JSON(http.StatusOK, gin.H{"message": "已更新"})
 
 ### GET /api/users/me/favorites
 
-Access boundary: `user`. [User.Favorites](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L109)
+Access boundary: `user`. [User.Favorites](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L109)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20`
 
@@ -1277,7 +1277,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/users/me/favorites/:mediaId
 
-Access boundary: `user`. [User.AddFavorite](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L129)
+Access boundary: `user`. [User.AddFavorite](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L129)
 
 Parameters: `Param mediaId`
 
@@ -1289,7 +1289,7 @@ JSON(http.StatusCreated, gin.H{"message": "已收藏"})
 
 ### DELETE /api/users/me/favorites/:mediaId
 
-Access boundary: `user`. [User.RemoveFavorite](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L146)
+Access boundary: `user`. [User.RemoveFavorite](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L146)
 
 Parameters: `Param mediaId`
 
@@ -1300,7 +1300,7 @@ JSON(http.StatusOK, gin.H{"message": "已取消收藏"})
 
 ### GET /api/users/me/favorites/:mediaId/check
 
-Access boundary: `user`. [User.CheckFavorite](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L159)
+Access boundary: `user`. [User.CheckFavorite](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L159)
 
 Parameters: `Param mediaId`
 
@@ -1310,7 +1310,7 @@ JSON(http.StatusOK, gin.H{"data": favorited})
 
 ### GET /api/users/me/progress/:mediaId
 
-Access boundary: `user`. [User.GetProgress](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L168)
+Access boundary: `user`. [User.GetProgress](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L168)
 
 Parameters: `Param mediaId`
 
@@ -1321,7 +1321,7 @@ JSON(http.StatusOK, gin.H{"data": progress})
 
 ### GET /api/users/me/history
 
-Access boundary: `user`. [User.History](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L182)
+Access boundary: `user`. [User.History](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L182)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20`
 
@@ -1337,7 +1337,7 @@ JSON(http.StatusOK, gin.H{
 
 ### DELETE /api/users/me/history/:mediaId
 
-Access boundary: `user`. [User.DeleteHistory](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L209)
+Access boundary: `user`. [User.DeleteHistory](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L209)
 
 Parameters: `Param mediaId`
 
@@ -1348,7 +1348,7 @@ JSON(http.StatusOK, gin.H{"message": "已删除"})
 
 ### DELETE /api/users/me/history
 
-Access boundary: `user`. [User.ClearHistory](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/user.go#L222)
+Access boundary: `user`. [User.ClearHistory](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/user.go#L222)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "清空观看历史失败"})
@@ -1357,7 +1357,7 @@ JSON(http.StatusOK, gin.H{"message": "已清空"})
 
 ### GET /api/users/me/api-keys
 
-Access boundary: `user`. [ApiKey.List](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/api_key.go#L53)
+Access boundary: `user`. [ApiKey.List](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/api_key.go#L53)
 
 ```go
 JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
@@ -1367,7 +1367,7 @@ JSON(http.StatusOK, gin.H{"data": keys})
 
 ### POST /api/users/me/api-keys
 
-Access boundary: `user`. [ApiKey.Create](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/api_key.go#L28)
+Access boundary: `user`. [ApiKey.Create](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/api_key.go#L28)
 
 ```go
 createApiKeyRequest
@@ -1382,7 +1382,7 @@ JSON(http.StatusCreated, gin.H{"data": result})
 
 ### DELETE /api/users/me/api-keys/:id
 
-Access boundary: `user`. [ApiKey.Revoke](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/api_key.go#L74)
+Access boundary: `user`. [ApiKey.Revoke](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/api_key.go#L74)
 
 Parameters: `Param id`
 
@@ -1395,7 +1395,7 @@ JSON(http.StatusOK, gin.H{"message": "已撤销"})
 
 ### DELETE /api/users/me/api-keys/:id/hard
 
-Access boundary: `user`. [ApiKey.Delete](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/api_key.go#L98)
+Access boundary: `user`. [ApiKey.Delete](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/api_key.go#L98)
 
 Parameters: `Param id`
 
@@ -1408,7 +1408,7 @@ JSON(http.StatusOK, gin.H{"message": "已删除"})
 
 ### GET /api/playlists
 
-Access boundary: `user`. [Playlist.List](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/playlist.go#L24)
+Access boundary: `user`. [Playlist.List](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/playlist.go#L24)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取播放列表失败"})
@@ -1417,7 +1417,7 @@ JSON(http.StatusOK, gin.H{"data": playlists})
 
 ### POST /api/playlists
 
-Access boundary: `user`. [Playlist.Create](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/playlist.go#L35)
+Access boundary: `user`. [Playlist.Create](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/playlist.go#L35)
 
 ```go
 CreatePlaylistRequest
@@ -1431,7 +1431,7 @@ JSON(http.StatusCreated, gin.H{"data": playlist})
 
 ### GET /api/playlists/:id
 
-Access boundary: `user`. [Playlist.Detail](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/playlist.go#L53)
+Access boundary: `user`. [Playlist.Detail](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/playlist.go#L53)
 
 Parameters: `Param id`
 
@@ -1443,7 +1443,7 @@ JSON(http.StatusOK, gin.H{"data": playlist})
 
 ### DELETE /api/playlists/:id
 
-Access boundary: `user`. [Playlist.Delete](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/playlist.go#L69)
+Access boundary: `user`. [Playlist.Delete](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/playlist.go#L69)
 
 Parameters: `Param id`
 
@@ -1455,7 +1455,7 @@ JSON(http.StatusOK, gin.H{"message": "已删除"})
 
 ### POST /api/playlists/:id/items/:mediaId
 
-Access boundary: `user`. [Playlist.AddItem](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/playlist.go#L85)
+Access boundary: `user`. [Playlist.AddItem](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/playlist.go#L85)
 
 Parameters: `Param id; Param mediaId`
 
@@ -1467,7 +1467,7 @@ JSON(http.StatusCreated, gin.H{"message": "已添加"})
 
 ### DELETE /api/playlists/:id/items/:mediaId
 
-Access boundary: `user`. [Playlist.RemoveItem](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/playlist.go#L102)
+Access boundary: `user`. [Playlist.RemoveItem](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/playlist.go#L102)
 
 Parameters: `Param id; Param mediaId`
 
@@ -1479,7 +1479,7 @@ JSON(http.StatusOK, gin.H{"message": "已移除"})
 
 ### GET /api/search
 
-Access boundary: `user`. [Media.Search](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L210)
+Access boundary: `user`. [Media.Search](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L210)
 
 Parameters: `Query q; DefaultQuery page = 1; DefaultQuery size = 20`
 
@@ -1496,7 +1496,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/search/advanced
 
-Access boundary: `user`. [Media.SearchAdvanced](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L236)
+Access boundary: `user`. [Media.SearchAdvanced](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L236)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; DefaultQuery year_min = 0; DefaultQuery year_max = 0; DefaultQuery min_rating = 0; Query q; Query type; Query genre; DefaultQuery sort_by = created_at; DefaultQuery sort_order = desc`
 
@@ -1512,7 +1512,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/search/mixed
 
-Access boundary: `user`. [Media.SearchMixed](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/media.go#L272)
+Access boundary: `user`. [Media.SearchMixed](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/media.go#L272)
 
 Parameters: `Query q; DefaultQuery page = 1; DefaultQuery size = 20`
 
@@ -1531,7 +1531,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/recommend
 
-Access boundary: `user`. [Recommend.GetRecommendations](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/recommend.go#L19)
+Access boundary: `user`. [Recommend.GetRecommendations](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/recommend.go#L19)
 
 Parameters: `DefaultQuery limit = 20`
 
@@ -1542,7 +1542,7 @@ JSON(http.StatusOK, gin.H{"data": recommendations})
 
 ### GET /api/recommend/similar/:mediaId
 
-Access boundary: `user`. [Recommend.GetSimilarMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/recommend.go#L38)
+Access boundary: `user`. [Recommend.GetSimilarMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/recommend.go#L38)
 
 Parameters: `Param mediaId; DefaultQuery limit = 12`
 
@@ -1553,7 +1553,7 @@ JSON(http.StatusOK, gin.H{"data": recommendations})
 
 ### GET /api/ai/search
 
-Access boundary: `user`. [AI.SmartSearch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L29)
+Access boundary: `user`. [AI.SmartSearch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L29)
 
 Parameters: `Query q`
 
@@ -1570,7 +1570,7 @@ JSON(http.StatusOK, gin.H{"data": intent})
 
 ### GET /api/cast/devices
 
-Access boundary: `user`. [Cast.ListDevices](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/cast.go#L18)
+Access boundary: `user`. [Cast.ListDevices](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/cast.go#L18)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": devices})
@@ -1578,7 +1578,7 @@ JSON(http.StatusOK, gin.H{"data": devices})
 
 ### POST /api/cast/devices/refresh
 
-Access boundary: `user`. [Cast.RefreshDevices](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/cast.go#L24)
+Access boundary: `user`. [Cast.RefreshDevices](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/cast.go#L24)
 
 ```go
 JSON(http.StatusOK, gin.H{"message": "已触发设备发现，请稍后刷新列表"})
@@ -1586,7 +1586,7 @@ JSON(http.StatusOK, gin.H{"message": "已触发设备发现，请稍后刷新列
 
 ### POST /api/cast/start
 
-Access boundary: `user`. [Cast.CastMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/cast.go#L36)
+Access boundary: `user`. [Cast.CastMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/cast.go#L36)
 
 ```go
 CastRequest
@@ -1602,7 +1602,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/cast/sessions
 
-Access boundary: `user`. [Cast.ListSessions](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/cast.go#L101)
+Access boundary: `user`. [Cast.ListSessions](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/cast.go#L101)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": sessions})
@@ -1610,7 +1610,7 @@ JSON(http.StatusOK, gin.H{"data": sessions})
 
 ### GET /api/cast/sessions/:sessionId
 
-Access boundary: `user`. [Cast.GetSession](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/cast.go#L88)
+Access boundary: `user`. [Cast.GetSession](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/cast.go#L88)
 
 Parameters: `Param sessionId`
 
@@ -1621,7 +1621,7 @@ JSON(http.StatusOK, gin.H{"data": session})
 
 ### POST /api/cast/sessions/:sessionId/control
 
-Access boundary: `user`. [Cast.ControlCast](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/cast.go#L69)
+Access boundary: `user`. [Cast.ControlCast](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/cast.go#L69)
 
 Parameters: `Param sessionId`
 
@@ -1636,7 +1636,7 @@ JSON(http.StatusOK, gin.H{"message": "操作成功"})
 
 ### DELETE /api/cast/sessions/:sessionId
 
-Access boundary: `user`. [Cast.StopSession](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/cast.go#L107)
+Access boundary: `user`. [Cast.StopSession](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/cast.go#L107)
 
 Parameters: `Param sessionId`
 
@@ -1646,7 +1646,7 @@ JSON(http.StatusOK, gin.H{"message": "已停止投屏"})
 
 ### POST /api/bookmarks
 
-Access boundary: `user`. [Bookmark.Create](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/bookmark.go#L27)
+Access boundary: `user`. [Bookmark.Create](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/bookmark.go#L27)
 
 ```go
 CreateBookmarkRequest
@@ -1659,7 +1659,7 @@ JSON(http.StatusCreated, gin.H{"data": bookmark})
 
 ### GET /api/bookmarks
 
-Access boundary: `user`. [Bookmark.ListByUser](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/bookmark.go#L60)
+Access boundary: `user`. [Bookmark.ListByUser](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/bookmark.go#L60)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20`
 
@@ -1670,7 +1670,7 @@ JSON(http.StatusOK, gin.H{"data": bookmarks, "total": total, "page": page, "size
 
 ### GET /api/bookmarks/media/:mediaId
 
-Access boundary: `user`. [Bookmark.ListByMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/bookmark.go#L46)
+Access boundary: `user`. [Bookmark.ListByMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/bookmark.go#L46)
 
 Parameters: `Param mediaId`
 
@@ -1681,7 +1681,7 @@ JSON(http.StatusOK, gin.H{"data": bookmarks})
 
 ### PUT /api/bookmarks/:id
 
-Access boundary: `user`. [Bookmark.Update](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/bookmark.go#L94)
+Access boundary: `user`. [Bookmark.Update](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/bookmark.go#L94)
 
 Parameters: `Param id`
 
@@ -1697,7 +1697,7 @@ JSON(http.StatusOK, gin.H{"message": "已更新"})
 
 ### DELETE /api/bookmarks/:id
 
-Access boundary: `user`. [Bookmark.Delete](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/bookmark.go#L75)
+Access boundary: `user`. [Bookmark.Delete](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/bookmark.go#L75)
 
 Parameters: `Param id`
 
@@ -1708,7 +1708,7 @@ JSON(http.StatusOK, gin.H{"message": "已删除"})
 
 ### GET /api/media/:id/comments
 
-Access boundary: `user`. [Comment.ListByMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/comment.go#L45)
+Access boundary: `user`. [Comment.ListByMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/comment.go#L45)
 
 Parameters: `Param id; DefaultQuery page = 1; DefaultQuery size = 20`
 
@@ -1726,7 +1726,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/media/:id/comments
 
-Access boundary: `user`. [Comment.Create](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/comment.go#L25)
+Access boundary: `user`. [Comment.Create](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/comment.go#L25)
 
 Parameters: `Param id`
 
@@ -1741,7 +1741,7 @@ JSON(http.StatusCreated, gin.H{"data": comment})
 
 ### DELETE /api/comments/:id
 
-Access boundary: `user`. [Comment.Delete](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/comment.go#L70)
+Access boundary: `user`. [Comment.Delete](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/comment.go#L70)
 
 Parameters: `Param id`
 
@@ -1752,7 +1752,7 @@ JSON(http.StatusOK, gin.H{"message": "已删除"})
 
 ### GET /api/media/:id/danmaku
 
-Access boundary: `user`. [Danmaku.ListByMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/danmaku.go#L18)
+Access boundary: `user`. [Danmaku.ListByMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/danmaku.go#L18)
 
 Parameters: `Param id; DefaultQuery limit = 200`
 
@@ -1766,7 +1766,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/stats/playback
 
-Access boundary: `user`. [Stats.RecordPlayback](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stats.go#L18)
+Access boundary: `user`. [Stats.RecordPlayback](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stats.go#L18)
 
 ```go
 {
@@ -1783,7 +1783,7 @@ JSON(http.StatusOK, gin.H{"message": "ok"})
 
 ### GET /api/stats/me
 
-Access boundary: `user`. [Stats.GetUserStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stats.go#L40)
+Access boundary: `user`. [Stats.GetUserStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stats.go#L40)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取统计失败"})
@@ -1792,7 +1792,7 @@ JSON(http.StatusOK, gin.H{"data": overview})
 
 ### POST /api/logs/playback-error
 
-Access boundary: `user`. [SystemLog.ReportPlaybackError](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/system_log.go#L166)
+Access boundary: `user`. [SystemLog.ReportPlaybackError](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/system_log.go#L166)
 
 ```go
 {
@@ -1810,7 +1810,7 @@ JSON(http.StatusOK, gin.H{"message": "已记录"})
 
 ### GET /api/music/tracks
 
-Access boundary: `user`. [Music.ListTracks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L301)
+Access boundary: `user`. [Music.ListTracks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L301)
 
 Parameters: `Query library_id; DefaultQuery page = 1; DefaultQuery size = 50; DefaultQuery sort = artist`
 
@@ -1820,7 +1820,7 @@ JSON(http.StatusOK, gin.H{"data": tracks, "total": total, "page": page, "size": 
 
 ### GET /api/music/albums
 
-Access boundary: `user`. [Music.ListAlbums](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L315)
+Access boundary: `user`. [Music.ListAlbums](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L315)
 
 Parameters: `Query library_id; DefaultQuery page = 1; DefaultQuery size = 30`
 
@@ -1830,7 +1830,7 @@ JSON(http.StatusOK, gin.H{"data": albums, "total": total, "page": page, "size": 
 
 ### GET /api/music/albums/:id
 
-Access boundary: `user`. [Music.GetAlbum](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L328)
+Access boundary: `user`. [Music.GetAlbum](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L328)
 
 Parameters: `Param id`
 
@@ -1841,7 +1841,7 @@ JSON(http.StatusOK, gin.H{"data": album})
 
 ### GET /api/music/search
 
-Access boundary: `user`. [Music.SearchMusic](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L338)
+Access boundary: `user`. [Music.SearchMusic](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L338)
 
 Parameters: `Query q; DefaultQuery limit = 20`
 
@@ -1851,7 +1851,7 @@ JSON(http.StatusOK, gin.H{"data": tracks})
 
 ### GET /api/music/tracks/:id/lyrics
 
-Access boundary: `user`. [Music.GetLyrics](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L349)
+Access boundary: `user`. [Music.GetLyrics](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L349)
 
 Parameters: `Param id`
 
@@ -1862,7 +1862,7 @@ JSON(http.StatusOK, gin.H{"data": lyrics})
 
 ### POST /api/music/tracks/:id/love
 
-Access boundary: `user`. [Music.ToggleLove](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L359)
+Access boundary: `user`. [Music.ToggleLove](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L359)
 
 Parameters: `Param id`
 
@@ -1873,7 +1873,7 @@ JSON(http.StatusOK, gin.H{"loved": loved})
 
 ### GET /api/music/playlists
 
-Access boundary: `user`. [Music.ListPlaylists](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L386)
+Access boundary: `user`. [Music.ListPlaylists](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L386)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": playlists})
@@ -1881,7 +1881,7 @@ JSON(http.StatusOK, gin.H{"data": playlists})
 
 ### POST /api/music/playlists
 
-Access boundary: `user`. [Music.CreatePlaylist](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L396)
+Access boundary: `user`. [Music.CreatePlaylist](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L396)
 
 ```go
 {
@@ -1896,7 +1896,7 @@ JSON(http.StatusOK, gin.H{"data": playlist})
 
 ### GET /api/music/playlists/:id
 
-Access boundary: `user`. [Music.GetPlaylist](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L413)
+Access boundary: `user`. [Music.GetPlaylist](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L413)
 
 Parameters: `Param id`
 
@@ -1907,7 +1907,7 @@ JSON(http.StatusOK, gin.H{"data": playlist})
 
 ### POST /api/music/playlists/:id/tracks
 
-Access boundary: `user`. [Music.AddToPlaylist](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L423)
+Access boundary: `user`. [Music.AddToPlaylist](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L423)
 
 Parameters: `Param id`
 
@@ -1924,7 +1924,7 @@ JSON(http.StatusOK, gin.H{"message": "已添加到播放列表"})
 
 ### GET /api/photos
 
-Access boundary: `user`. [Photo.ListPhotos](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L446)
+Access boundary: `user`. [Photo.ListPhotos](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L446)
 
 Parameters: `Query library_id; DefaultQuery page = 1; DefaultQuery size = 50; DefaultQuery sort = date_desc; Query album_id; Query tag; Query scene; Query favorite`
 
@@ -1934,7 +1934,7 @@ JSON(http.StatusOK, gin.H{"data": photos, "total": total, "page": page, "size": 
 
 ### GET /api/photos/:id
 
-Access boundary: `user`. [Photo.GetPhoto](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L467)
+Access boundary: `user`. [Photo.GetPhoto](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L467)
 
 Parameters: `Param id`
 
@@ -1945,7 +1945,7 @@ JSON(http.StatusOK, gin.H{"data": photo})
 
 ### GET /api/photos/albums
 
-Access boundary: `user`. [Photo.ListAlbums](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L477)
+Access boundary: `user`. [Photo.ListAlbums](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L477)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": albums})
@@ -1953,7 +1953,7 @@ JSON(http.StatusOK, gin.H{"data": albums})
 
 ### POST /api/photos/albums
 
-Access boundary: `user`. [Photo.CreateAlbum](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L487)
+Access boundary: `user`. [Photo.CreateAlbum](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L487)
 
 ```go
 {
@@ -1969,7 +1969,7 @@ JSON(http.StatusOK, gin.H{"data": album})
 
 ### POST /api/photos/albums/:id/photos
 
-Access boundary: `user`. [Photo.AddPhotosToAlbum](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L505)
+Access boundary: `user`. [Photo.AddPhotosToAlbum](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L505)
 
 Parameters: `Param id`
 
@@ -1986,7 +1986,7 @@ JSON(http.StatusOK, gin.H{"message": "照片已添加到相册"})
 
 ### POST /api/photos/:id/favorite
 
-Access boundary: `user`. [Photo.ToggleFavorite](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L521)
+Access boundary: `user`. [Photo.ToggleFavorite](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L521)
 
 Parameters: `Param id`
 
@@ -1997,7 +1997,7 @@ JSON(http.StatusOK, gin.H{"is_favorite": fav})
 
 ### POST /api/photos/:id/rating
 
-Access boundary: `user`. [Photo.SetRating](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L531)
+Access boundary: `user`. [Photo.SetRating](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L531)
 
 Parameters: `Param id`
 
@@ -2015,7 +2015,7 @@ JSON(http.StatusOK, gin.H{"message": "评分已更新"})
 
 ### GET /api/photos/search
 
-Access boundary: `user`. [Photo.SearchPhotos](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L547)
+Access boundary: `user`. [Photo.SearchPhotos](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L547)
 
 Parameters: `Query q; DefaultQuery limit = 50`
 
@@ -2025,7 +2025,7 @@ JSON(http.StatusOK, gin.H{"data": photos})
 
 ### GET /api/photos/stats
 
-Access boundary: `user`. [Photo.GetStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L558)
+Access boundary: `user`. [Photo.GetStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L558)
 
 Parameters: `Query library_id`
 
@@ -2035,7 +2035,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### GET /api/federation/search
 
-Access boundary: `user`. [Federation.SearchSharedMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L636)
+Access boundary: `user`. [Federation.SearchSharedMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L636)
 
 Parameters: `Query q; DefaultQuery page = 1; DefaultQuery size = 20`
 
@@ -2045,7 +2045,7 @@ JSON(http.StatusOK, gin.H{"data": media, "total": total})
 
 ### GET /api/federation/stream/:id
 
-Access boundary: `user`. [Federation.GetSharedMediaStream](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L648)
+Access boundary: `user`. [Federation.GetSharedMediaStream](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L648)
 
 Parameters: `Param id`
 
@@ -2056,7 +2056,7 @@ JSON(http.StatusOK, gin.H{"stream_url": streamURL})
 
 ### POST /api/media/:id/ai/chapters
 
-Access boundary: `user`. [AIScene.GenerateChapters](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L18)
+Access boundary: `user`. [AIScene.GenerateChapters](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L18)
 
 Parameters: `Param id`
 
@@ -2066,7 +2066,7 @@ JSON(http.StatusOK, gin.H{"data": task, "message": "章节生成任务已启动"
 
 ### GET /api/media/:id/collection
 
-Access boundary: `user`. [Collection.GetMediaCollection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L25)
+Access boundary: `user`. [Collection.GetMediaCollection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L25)
 
 Parameters: `Param id`
 
@@ -2078,7 +2078,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### GET /api/collections
 
-Access boundary: `user`. [Collection.ListCollections](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L62)
+Access boundary: `user`. [Collection.ListCollections](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L62)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; DefaultQuery sort = created_desc; Query auto; Query library_id`
 
@@ -2094,7 +2094,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/collections/search
 
-Access boundary: `user`. [Collection.SearchCollections](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L96)
+Access boundary: `user`. [Collection.SearchCollections](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L96)
 
 Parameters: `Query keyword; DefaultQuery limit = 10`
 
@@ -2106,7 +2106,7 @@ JSON(http.StatusOK, gin.H{"data": colls})
 
 ### GET /api/collections/:id
 
-Access boundary: `user`. [Collection.GetCollectionDetail](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L44)
+Access boundary: `user`. [Collection.GetCollectionDetail](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L44)
 
 Parameters: `Param id`
 
@@ -2118,7 +2118,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### GET /api/collections/:id/poster
 
-Access boundary: `user`. [Collection.Poster](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L209)
+Access boundary: `user`. [Collection.Poster](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L209)
 
 Parameters: `Param id`
 
@@ -2129,7 +2129,7 @@ String(http.StatusOK, collectionPosterPlaceholderSVG)
 
 ### GET /api/media/:id/chapters
 
-Access boundary: `user`. [AIScene.GetChapters](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L31)
+Access boundary: `user`. [AIScene.GetChapters](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L31)
 
 Parameters: `Param id`
 
@@ -2140,7 +2140,7 @@ JSON(http.StatusOK, gin.H{"data": chapters})
 
 ### POST /api/media/:id/ai/highlights
 
-Access boundary: `user`. [AIScene.ExtractHighlights](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L44)
+Access boundary: `user`. [AIScene.ExtractHighlights](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L44)
 
 Parameters: `Param id`
 
@@ -2150,7 +2150,7 @@ JSON(http.StatusOK, gin.H{"data": task, "message": "精彩片段提取任务已�
 
 ### GET /api/media/:id/highlights
 
-Access boundary: `user`. [AIScene.GetHighlights](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L57)
+Access boundary: `user`. [AIScene.GetHighlights](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L57)
 
 Parameters: `Param id`
 
@@ -2161,7 +2161,7 @@ JSON(http.StatusOK, gin.H{"data": highlights})
 
 ### POST /api/media/:id/ai/covers
 
-Access boundary: `user`. [AIScene.GenerateCoverCandidates](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L70)
+Access boundary: `user`. [AIScene.GenerateCoverCandidates](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L70)
 
 Parameters: `Param id`
 
@@ -2171,7 +2171,7 @@ JSON(http.StatusOK, gin.H{"data": task, "message": "封面候选生成任务已�
 
 ### GET /api/media/:id/covers
 
-Access boundary: `user`. [AIScene.GetCoverCandidates](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L83)
+Access boundary: `user`. [AIScene.GetCoverCandidates](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L83)
 
 Parameters: `Param id`
 
@@ -2182,7 +2182,7 @@ JSON(http.StatusOK, gin.H{"data": candidates})
 
 ### POST /api/media/:id/covers/:candidateId/select
 
-Access boundary: `user`. [AIScene.SelectCover](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L96)
+Access boundary: `user`. [AIScene.SelectCover](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L96)
 
 Parameters: `Param id; Param candidateId`
 
@@ -2193,7 +2193,7 @@ JSON(http.StatusOK, gin.H{"message": "封面已选择"})
 
 ### POST /api/media/:id/covers/apply
 
-Access boundary: `user`. [AIScene.ApplyCover](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L109)
+Access boundary: `user`. [AIScene.ApplyCover](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L109)
 
 Parameters: `Param id`
 
@@ -2203,7 +2203,7 @@ JSON(http.StatusOK, gin.H{"message": "封面已应用"})
 
 ### GET /api/media/:id/ai/tasks
 
-Access boundary: `user`. [AIScene.GetAnalysisTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L121)
+Access boundary: `user`. [AIScene.GetAnalysisTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L121)
 
 Parameters: `Param id`
 
@@ -2214,7 +2214,7 @@ JSON(http.StatusOK, gin.H{"data": tasks})
 
 ### GET /api/ai/tasks/:taskId
 
-Access boundary: `user`. [AIScene.GetAnalysisTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_scene.go#L134)
+Access boundary: `user`. [AIScene.GetAnalysisTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_scene.go#L134)
 
 Parameters: `Param taskId`
 
@@ -2225,7 +2225,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### GET /internal/video-analysis/source/:id
 
-Access boundary: `separate/public`. [Stream.AnalysisSource](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stream.go#L24)
+Access boundary: `separate/public`. [Stream.AnalysisSource](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stream.go#L24)
 
 ### OPTIONS /api/admin/settings/douban/import
 
@@ -2233,7 +2233,7 @@ Access boundary: `separate/public`. Inline health, static resource or preflight 
 
 ### POST /api/admin/settings/douban/import
 
-Access boundary: `separate/public`. [Admin.ImportDoubanCookie](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L768)
+Access boundary: `separate/public`. [Admin.ImportDoubanCookie](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L768)
 
 Parameters: `Query token`
 
@@ -2259,7 +2259,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/users
 
-Access boundary: `admin`. [Admin.ListUsers](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L44)
+Access boundary: `admin`. [Admin.ListUsers](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L44)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取用户列表失败"})
@@ -2268,7 +2268,7 @@ JSON(http.StatusOK, gin.H{"data": users})
 
 ### POST /api/admin/users
 
-Access boundary: `admin`. [Admin.CreateUser](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L54)
+Access boundary: `admin`. [Admin.CreateUser](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L54)
 
 ```go
 service.CreateUserRequest
@@ -2283,7 +2283,7 @@ JSON(http.StatusCreated, gin.H{"data": user})
 
 ### PUT /api/admin/users/:id
 
-Access boundary: `admin`. [Admin.UpdateUser](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L76)
+Access boundary: `admin`. [Admin.UpdateUser](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L76)
 
 Parameters: `Param id`
 
@@ -2301,7 +2301,7 @@ JSON(http.StatusOK, gin.H{"data": user})
 
 ### POST /api/admin/users/:id/disabled
 
-Access boundary: `admin`. [Admin.SetUserDisabled](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L101)
+Access boundary: `admin`. [Admin.SetUserDisabled](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L101)
 
 Parameters: `Param id`
 
@@ -2322,7 +2322,7 @@ JSON(http.StatusOK, gin.H{"message": "已更新"})
 
 ### DELETE /api/admin/users/:id
 
-Access boundary: `admin`. [Admin.DeleteUser](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L137)
+Access boundary: `admin`. [Admin.DeleteUser](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L137)
 
 Parameters: `Param id`
 
@@ -2336,7 +2336,7 @@ JSON(http.StatusOK, gin.H{"message": "已删除"})
 
 ### PUT /api/admin/users/:id/password
 
-Access boundary: `admin`. [Admin.ResetUserPassword](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L163)
+Access boundary: `admin`. [Admin.ResetUserPassword](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L163)
 
 Parameters: `Param id`
 
@@ -2356,7 +2356,7 @@ JSON(http.StatusOK, gin.H{"message": "密码已重置"})
 
 ### GET /api/admin/login-logs
 
-Access boundary: `admin`. [Admin.ListLoginLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L196)
+Access boundary: `admin`. [Admin.ListLoginLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L196)
 
 Parameters: `Query only_failed`
 
@@ -2368,7 +2368,7 @@ JSON(http.StatusOK, gin.H{"data": logs, "total": total, "page": page, "size": si
 
 ### GET /api/admin/audit-logs
 
-Access boundary: `admin`. [Admin.ListAuditLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L212)
+Access boundary: `admin`. [Admin.ListAuditLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L212)
 
 Parameters: `Query action`
 
@@ -2380,7 +2380,7 @@ JSON(http.StatusOK, gin.H{"data": logs, "total": total, "page": page, "size": si
 
 ### GET /api/admin/invite-codes
 
-Access boundary: `admin`. [Admin.ListInviteCodes](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L230)
+Access boundary: `admin`. [Admin.ListInviteCodes](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L230)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": []interface{}{}})
@@ -2390,7 +2390,7 @@ JSON(http.StatusOK, gin.H{"data": codes})
 
 ### POST /api/admin/invite-codes
 
-Access boundary: `admin`. [Admin.CreateInviteCode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L244)
+Access boundary: `admin`. [Admin.CreateInviteCode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L244)
 
 ```go
 {
@@ -2410,7 +2410,7 @@ JSON(http.StatusCreated, gin.H{"data": ic})
 
 ### DELETE /api/admin/invite-codes/:id
 
-Access boundary: `admin`. [Admin.DeleteInviteCode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L288)
+Access boundary: `admin`. [Admin.DeleteInviteCode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L288)
 
 Parameters: `Param id`
 
@@ -2421,7 +2421,7 @@ JSON(http.StatusOK, gin.H{"message": "已删除"})
 
 ### GET /api/admin/system
 
-Access boundary: `admin`. [Admin.SystemInfo](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L333)
+Access boundary: `admin`. [Admin.SystemInfo](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L333)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -2440,7 +2440,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/transcode/status
 
-Access boundary: `admin`. [Admin.TranscodeStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L368)
+Access boundary: `admin`. [Admin.TranscodeStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L368)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": result})
@@ -2448,7 +2448,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### GET /api/admin/transcode/throttle
 
-Access boundary: `admin`. [Admin.TranscodeThrottleStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L392)
+Access boundary: `admin`. [Admin.TranscodeThrottleStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L392)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": stats})
@@ -2456,7 +2456,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### POST /api/admin/transcode/:taskId/cancel
 
-Access boundary: `admin`. [Admin.CancelTranscode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L398)
+Access boundary: `admin`. [Admin.CancelTranscode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L398)
 
 Parameters: `Param taskId`
 
@@ -2468,7 +2468,7 @@ JSON(http.StatusOK, gin.H{"message": "转码任务已取消"})
 
 ### GET /api/admin/transcode-tasks
 
-Access boundary: `admin`. [Admin.ListTranscodeTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L424)
+Access boundary: `admin`. [Admin.ListTranscodeTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L424)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery page_size = 20; Query status`
 
@@ -2486,7 +2486,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/transcode-tasks/statistics
 
-Access boundary: `admin`. [Admin.GetTranscodeStatistics](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L452)
+Access boundary: `admin`. [Admin.GetTranscodeStatistics](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L452)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": stats})
@@ -2494,7 +2494,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### POST /api/admin/transcode-tasks/batch-cancel
 
-Access boundary: `admin`. [Admin.BatchCancelTranscodeTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L492)
+Access boundary: `admin`. [Admin.BatchCancelTranscodeTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L492)
 
 ```go
 {
@@ -2512,7 +2512,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/transcode-tasks/batch-delete
 
-Access boundary: `admin`. [Admin.BatchDeleteTranscodeTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L508)
+Access boundary: `admin`. [Admin.BatchDeleteTranscodeTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L508)
 
 ```go
 {
@@ -2530,7 +2530,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/transcode-tasks/batch-retry
 
-Access boundary: `admin`. [Admin.BatchRetryTranscodeTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L528)
+Access boundary: `admin`. [Admin.BatchRetryTranscodeTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L528)
 
 ```go
 {
@@ -2548,7 +2548,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/transcode-tasks/batch-submit
 
-Access boundary: `admin`. [Admin.BatchSubmitTranscodeTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L554)
+Access boundary: `admin`. [Admin.BatchSubmitTranscodeTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L554)
 
 ```go
 {
@@ -2573,7 +2573,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/transcode-tasks/:id/cancel
 
-Access boundary: `admin`. [Admin.CancelTranscodeTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L458)
+Access boundary: `admin`. [Admin.CancelTranscodeTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L458)
 
 Parameters: `Param id`
 
@@ -2585,7 +2585,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已取消"})
 
 ### POST /api/admin/transcode-tasks/:id/retry
 
-Access boundary: `admin`. [Admin.RetryTranscodeTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L472)
+Access boundary: `admin`. [Admin.RetryTranscodeTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L472)
 
 Parameters: `Param id`
 
@@ -2596,7 +2596,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已重新提交"})
 
 ### DELETE /api/admin/transcode-tasks/:id
 
-Access boundary: `admin`. [Admin.DeleteTranscodeTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin.go#L482)
+Access boundary: `admin`. [Admin.DeleteTranscodeTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin.go#L482)
 
 Parameters: `Param id`
 
@@ -2607,7 +2607,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已删除"})
 
 ### GET /api/admin/settings/tmdb
 
-Access boundary: `admin`. [Admin.GetTMDbConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L17)
+Access boundary: `admin`. [Admin.GetTMDbConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L17)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -2626,7 +2626,7 @@ JSON(http.StatusOK, gin.H{
 
 ### PUT /api/admin/settings/tmdb
 
-Access boundary: `admin`. [Admin.UpdateTMDbConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L41)
+Access boundary: `admin`. [Admin.UpdateTMDbConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L41)
 
 ```go
 UpdateTMDbConfigRequest
@@ -2646,7 +2646,7 @@ JSON(http.StatusOK, gin.H{
 
 ### DELETE /api/admin/settings/tmdb
 
-Access boundary: `admin`. [Admin.ClearTMDbConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L71)
+Access boundary: `admin`. [Admin.ClearTMDbConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L71)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -2660,7 +2660,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/settings/tmdb/validate
 
-Access boundary: `admin`. [Admin.ValidateTMDbConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L92)
+Access boundary: `admin`. [Admin.ValidateTMDbConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L92)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -2679,7 +2679,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/settings/tmdb/test
 
-Access boundary: `admin`. [Admin.TestTMDbAPIKey](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L122)
+Access boundary: `admin`. [Admin.TestTMDbAPIKey](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L122)
 
 ```go
 TestTMDbAPIKeyRequest
@@ -2698,7 +2698,7 @@ JSON(http.StatusOK, gin.H{
 
 ### PUT /api/admin/settings/tmdb/proxy
 
-Access boundary: `admin`. [Admin.UpdateTMDbProxy](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_tmdb_proxy.go#L38)
+Access boundary: `admin`. [Admin.UpdateTMDbProxy](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_tmdb_proxy.go#L38)
 
 ```go
 UpdateTMDbProxyRequest
@@ -2716,7 +2716,7 @@ JSON(http.StatusOK, gin.H{"message": "TMDb 连接配置已保存，立即生效"
 
 ### DELETE /api/admin/settings/tmdb/proxy
 
-Access boundary: `admin`. [Admin.ClearTMDbProxy](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_tmdb_proxy.go#L79)
+Access boundary: `admin`. [Admin.ClearTMDbProxy](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_tmdb_proxy.go#L79)
 
 ```go
 JSON(http.StatusOK, gin.H{"message": "已恢复 TMDb 官方直连", "data": gin.H{
@@ -2726,7 +2726,7 @@ JSON(http.StatusOK, gin.H{"message": "已恢复 TMDb 官方直连", "data": gin.
 
 ### POST /api/admin/settings/tmdb/proxy/test
 
-Access boundary: `admin`. [Admin.TestTMDbProxy](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_tmdb_proxy.go#L97)
+Access boundary: `admin`. [Admin.TestTMDbProxy](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_tmdb_proxy.go#L97)
 
 ```go
 TestTMDbProxyRequest
@@ -2745,7 +2745,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{
 
 ### GET /api/admin/settings/system
 
-Access boundary: `admin`. [Admin.GetSystemSettings](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L181)
+Access boundary: `admin`. [Admin.GetSystemSettings](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L181)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取系统设置失败"})
@@ -2754,7 +2754,7 @@ JSON(http.StatusOK, gin.H{"data": settings})
 
 ### PUT /api/admin/settings/system
 
-Access boundary: `admin`. [Admin.UpdateSystemSettings](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L206)
+Access boundary: `admin`. [Admin.UpdateSystemSettings](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L206)
 
 ```go
 UpdateSystemSettingsRequest
@@ -2768,7 +2768,7 @@ JSON(http.StatusInternalServerError, gin.H{"error": "保存设置失败"})
 
 ### PUT /api/admin/settings/observability/pprof
 
-Access boundary: `admin`. [Admin.SetPprofEnabled](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L671)
+Access boundary: `admin`. [Admin.SetPprofEnabled](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L671)
 
 ```go
 {
@@ -2783,7 +2783,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": observability.PprofEnabled()}
 
 ### GET /api/admin/strm/config
 
-Access boundary: `admin`. [Admin.GetSTRMConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_strm.go#L14)
+Access boundary: `admin`. [Admin.GetSTRMConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_strm.go#L14)
 
 ```go
 JSON(http.StatusServiceUnavailable, gin.H{"error": "配置未加载"})
@@ -2792,7 +2792,7 @@ JSON(http.StatusOK, gin.H{"data": h.cfg.STRMSnapshot()})
 
 ### PUT /api/admin/strm/config
 
-Access boundary: `admin`. [Admin.UpdateSTRMConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_strm.go#L37)
+Access boundary: `admin`. [Admin.UpdateSTRMConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_strm.go#L37)
 
 ```go
 config.STRMConfig
@@ -2811,7 +2811,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/system-logs
 
-Access boundary: `admin`. [SystemLog.ListSystemLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/system_log.go#L25)
+Access boundary: `admin`. [SystemLog.ListSystemLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/system_log.go#L25)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 50; Query type; Query level; Query keyword; Query method; Query path; Query user_id; Query media_id; Query start; Query end; Query min_status; Query max_status`
 
@@ -2827,7 +2827,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/system-logs/stats
 
-Access boundary: `admin`. [SystemLog.GetSystemLogStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/system_log.go#L73)
+Access boundary: `admin`. [SystemLog.GetSystemLogStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/system_log.go#L73)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取统计失败"})
@@ -2836,7 +2836,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### GET /api/admin/system-logs/export
 
-Access boundary: `admin`. [SystemLog.ExportSystemLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/system_log.go#L84)
+Access boundary: `admin`. [SystemLog.ExportSystemLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/system_log.go#L84)
 
 Parameters: `DefaultQuery max_rows = 5000; Query type; Query level; Query keyword; Query method; Query start; Query end`
 
@@ -2846,7 +2846,7 @@ JSON(http.StatusInternalServerError, gin.H{"error": "导出失败"})
 
 ### POST /api/admin/system-logs/clean
 
-Access boundary: `admin`. [SystemLog.CleanSystemLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/system_log.go#L143)
+Access boundary: `admin`. [SystemLog.CleanSystemLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/system_log.go#L143)
 
 ```go
 {
@@ -2865,7 +2865,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/batch/scan
 
-Access boundary: `admin`. [Admin.BatchScan](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L26)
+Access boundary: `admin`. [Admin.BatchScan](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L26)
 
 ```go
 BatchScanRequest
@@ -2882,7 +2882,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/batch/scrape
 
-Access boundary: `admin`. [Admin.BatchScrape](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L56)
+Access boundary: `admin`. [Admin.BatchScrape](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L56)
 
 ```go
 BatchScrapeRequest
@@ -2898,7 +2898,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/permissions/:userId
 
-Access boundary: `admin`. [Admin.GetUserPermission](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L102)
+Access boundary: `admin`. [Admin.GetUserPermission](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L102)
 
 Parameters: `Param userId`
 
@@ -2909,7 +2909,7 @@ JSON(http.StatusOK, gin.H{"data": perm})
 
 ### PUT /api/admin/permissions/:userId
 
-Access boundary: `admin`. [Admin.UpdateUserPermission](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L120)
+Access boundary: `admin`. [Admin.UpdateUserPermission](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L120)
 
 Parameters: `Param userId`
 
@@ -2925,7 +2925,7 @@ JSON(http.StatusOK, gin.H{"message": "权限已更新"})
 
 ### GET /api/admin/rating/:mediaId
 
-Access boundary: `admin`. [Admin.GetContentRating](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L161)
+Access boundary: `admin`. [Admin.GetContentRating](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L161)
 
 Parameters: `Param mediaId`
 
@@ -2936,7 +2936,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"media_id": mediaID, "level": level}})
 
 ### PUT /api/admin/rating/:mediaId
 
-Access boundary: `admin`. [Admin.SetContentRating](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L143)
+Access boundary: `admin`. [Admin.SetContentRating](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L143)
 
 Parameters: `Param mediaId`
 
@@ -2952,7 +2952,7 @@ JSON(http.StatusOK, gin.H{"message": "分级已设置"})
 
 ### GET /api/admin/metadata/search
 
-Access boundary: `admin`. [Admin.SearchMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L156)
+Access boundary: `admin`. [Admin.SearchMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L156)
 
 Parameters: `Query q; DefaultQuery type = movie; Query year`
 
@@ -2963,7 +2963,7 @@ JSON(http.StatusOK, gin.H{"data": results})
 
 ### POST /api/admin/media/:mediaId/match
 
-Access boundary: `admin`. [Admin.MatchMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L180)
+Access boundary: `admin`. [Admin.MatchMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L180)
 
 Parameters: `Param mediaId`
 
@@ -2978,7 +2978,7 @@ JSON(http.StatusOK, gin.H{"message": "元数据已关联"})
 
 ### POST /api/admin/media/:mediaId/unmatch
 
-Access boundary: `admin`. [Admin.UnmatchMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L198)
+Access boundary: `admin`. [Admin.UnmatchMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L198)
 
 Parameters: `Param mediaId`
 
@@ -2988,7 +2988,7 @@ JSON(http.StatusOK, gin.H{"message": "已解除元数据匹配"})
 
 ### PUT /api/admin/media/:mediaId/metadata
 
-Access boundary: `admin`. [Admin.UpdateMediaMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L151)
+Access boundary: `admin`. [Admin.UpdateMediaMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L151)
 
 Parameters: `Param mediaId`
 
@@ -3005,7 +3005,7 @@ JSON(http.StatusOK, gin.H{"message": "元数据已更新", "data": media})
 
 ### DELETE /api/admin/media/:mediaId
 
-Access boundary: `admin`. [Admin.DeleteMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L17)
+Access boundary: `admin`. [Admin.DeleteMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L17)
 
 Parameters: `Param mediaId`
 
@@ -3015,7 +3015,7 @@ JSON(http.StatusOK, gin.H{"message": "影片已删除"})
 
 ### GET /api/admin/media/:mediaId/strm
 
-Access boundary: `admin`. [Admin.GetMediaSTRM](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L126)
+Access boundary: `admin`. [Admin.GetMediaSTRM](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L126)
 
 Parameters: `Param mediaId`
 
@@ -3036,7 +3036,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{
 
 ### PUT /api/admin/media/:mediaId/strm
 
-Access boundary: `admin`. [Admin.UpdateMediaSTRM](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L61)
+Access boundary: `admin`. [Admin.UpdateMediaSTRM](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L61)
 
 Parameters: `Param mediaId`
 
@@ -3063,7 +3063,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/series/:seriesId/match
 
-Access boundary: `admin`. [Admin.MatchSeriesMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L212)
+Access boundary: `admin`. [Admin.MatchSeriesMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L212)
 
 Parameters: `Param seriesId`
 
@@ -3080,7 +3080,7 @@ JSON(http.StatusOK, gin.H{"message": "元数据已关联"})
 
 ### POST /api/admin/series/:seriesId/unmatch
 
-Access boundary: `admin`. [Admin.UnmatchSeriesMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L232)
+Access boundary: `admin`. [Admin.UnmatchSeriesMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L232)
 
 Parameters: `Param seriesId`
 
@@ -3090,7 +3090,7 @@ JSON(http.StatusOK, gin.H{"message": "已解除元数据匹配"})
 
 ### POST /api/admin/series/:seriesId/scrape
 
-Access boundary: `admin`. [Admin.ScrapeSeriesMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L244)
+Access boundary: `admin`. [Admin.ScrapeSeriesMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L244)
 
 Parameters: `Param seriesId`
 
@@ -3100,7 +3100,7 @@ JSON(http.StatusOK, gin.H{"message": "元数据已刷新"})
 
 ### PUT /api/admin/series/:seriesId/metadata
 
-Access boundary: `admin`. [Admin.UpdateSeriesMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L222)
+Access boundary: `admin`. [Admin.UpdateSeriesMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L222)
 
 Parameters: `Param seriesId`
 
@@ -3117,7 +3117,7 @@ JSON(http.StatusOK, gin.H{"message": "元数据已更新", "data": series})
 
 ### DELETE /api/admin/series/:seriesId
 
-Access boundary: `admin`. [Admin.DeleteSeries](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L274)
+Access boundary: `admin`. [Admin.DeleteSeries](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L274)
 
 Parameters: `Param seriesId`
 
@@ -3127,7 +3127,7 @@ JSON(http.StatusOK, gin.H{"message": "剧集已删除"})
 
 ### POST /api/admin/series/merge
 
-Access boundary: `admin`. [Admin.MergeSeries](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L412)
+Access boundary: `admin`. [Admin.MergeSeries](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L412)
 
 ```go
 MergeSeriesRequest
@@ -3144,7 +3144,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/series/auto-merge
 
-Access boundary: `admin`. [Admin.AutoMergeSeries](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L439)
+Access boundary: `admin`. [Admin.AutoMergeSeries](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L439)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3159,7 +3159,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/series/merge-candidates
 
-Access boundary: `admin`. [Admin.MergeCandidates](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L464)
+Access boundary: `admin`. [Admin.MergeCandidates](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L464)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3170,7 +3170,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/images/tmdb
 
-Access boundary: `admin`. [Admin.SearchTMDbImages](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L288)
+Access boundary: `admin`. [Admin.SearchTMDbImages](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L288)
 
 Parameters: `DefaultQuery type = movie; Query tmdb_id`
 
@@ -3181,7 +3181,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### POST /api/admin/media/:mediaId/image/upload
 
-Access boundary: `admin`. [Admin.UploadMediaImage](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L306)
+Access boundary: `admin`. [Admin.UploadMediaImage](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L306)
 
 Parameters: `Param mediaId; DefaultQuery type = poster`
 
@@ -3197,7 +3197,7 @@ JSON(http.StatusOK, gin.H{"message": "图片已更新", "path": localPath})
 
 ### POST /api/admin/media/:mediaId/image/url
 
-Access boundary: `admin`. [Admin.SetMediaImageByURL](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L406)
+Access boundary: `admin`. [Admin.SetMediaImageByURL](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L406)
 
 Parameters: `Param mediaId`
 
@@ -3216,7 +3216,7 @@ JSON(http.StatusOK, gin.H{"message": "图片已更新", "path": localPath})
 
 ### POST /api/admin/media/:mediaId/image/tmdb
 
-Access boundary: `admin`. [Admin.SetMediaImageFromTMDb](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L466)
+Access boundary: `admin`. [Admin.SetMediaImageFromTMDb](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L466)
 
 Parameters: `Param mediaId`
 
@@ -3234,7 +3234,7 @@ JSON(http.StatusOK, gin.H{"message": "图片已更新", "path": localPath})
 
 ### POST /api/admin/series/:seriesId/image/upload
 
-Access boundary: `admin`. [Admin.UploadSeriesImage](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L357)
+Access boundary: `admin`. [Admin.UploadSeriesImage](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L357)
 
 Parameters: `Param seriesId; DefaultQuery type = poster`
 
@@ -3250,7 +3250,7 @@ JSON(http.StatusOK, gin.H{"message": "图片已更新", "path": localPath})
 
 ### POST /api/admin/series/:seriesId/image/url
 
-Access boundary: `admin`. [Admin.SetSeriesImageByURL](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L436)
+Access boundary: `admin`. [Admin.SetSeriesImageByURL](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L436)
 
 Parameters: `Param seriesId`
 
@@ -3269,7 +3269,7 @@ JSON(http.StatusOK, gin.H{"message": "图片已更新", "path": localPath})
 
 ### POST /api/admin/series/:seriesId/image/tmdb
 
-Access boundary: `admin`. [Admin.SetSeriesImageFromTMDb](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_media.go#L492)
+Access boundary: `admin`. [Admin.SetSeriesImageFromTMDb](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_media.go#L492)
 
 Parameters: `Param seriesId`
 
@@ -3287,7 +3287,7 @@ JSON(http.StatusOK, gin.H{"message": "图片已更新", "path": localPath})
 
 ### GET /api/admin/fs/browse
 
-Access boundary: `admin`. [Admin.BrowseFS](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L261)
+Access boundary: `admin`. [Admin.BrowseFS](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L261)
 
 Parameters: `DefaultQuery path = /; Query include_files`
 
@@ -3305,7 +3305,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/storage/webdav
 
-Access boundary: `admin`. [Storage.GetWebDAVConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage.go#L37)
+Access boundary: `admin`. [Storage.GetWebDAVConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage.go#L37)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": response})
@@ -3313,7 +3313,7 @@ JSON(http.StatusOK, gin.H{"data": response})
 
 ### PUT /api/admin/storage/webdav
 
-Access boundary: `admin`. [Storage.UpdateWebDAVConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage.go#L76)
+Access boundary: `admin`. [Storage.UpdateWebDAVConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage.go#L76)
 
 ```go
 UpdateWebDAVConfigRequest
@@ -3328,7 +3328,7 @@ JSON(http.StatusOK, gin.H{"message": "WebDAV 配置已更新"})
 
 ### POST /api/admin/storage/webdav/test
 
-Access boundary: `admin`. [Storage.TestWebDAVConnection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage.go#L142)
+Access boundary: `admin`. [Storage.TestWebDAVConnection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage.go#L142)
 
 ```go
 TestWebDAVConnectionRequest
@@ -3342,7 +3342,7 @@ JSON(http.StatusOK, gin.H{"message": "WebDAV 连接测试成功"})
 
 ### GET /api/admin/storage/webdav/status
 
-Access boundary: `admin`. [Storage.GetWebDAVStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage.go#L172)
+Access boundary: `admin`. [Storage.GetWebDAVStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage.go#L172)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": status})
@@ -3350,7 +3350,7 @@ JSON(http.StatusOK, gin.H{"data": status})
 
 ### GET /api/admin/storage/browse
 
-Access boundary: `admin`. [Storage.BrowseRemoteDir](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage.go#L178)
+Access boundary: `admin`. [Storage.BrowseRemoteDir](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage.go#L178)
 
 Parameters: `Query type; DefaultQuery path = /`
 
@@ -3368,7 +3368,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/storage/alist
 
-Access boundary: `admin`. [Storage.GetAlistConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage_remote.go#L24)
+Access boundary: `admin`. [Storage.GetAlistConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage_remote.go#L24)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{
@@ -3388,7 +3388,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{
 
 ### PUT /api/admin/storage/alist
 
-Access boundary: `admin`. [Storage.UpdateAlistConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage_remote.go#L57)
+Access boundary: `admin`. [Storage.UpdateAlistConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage_remote.go#L57)
 
 ```go
 UpdateAlistConfigRequest
@@ -3402,7 +3402,7 @@ JSON(http.StatusOK, gin.H{"message": "Alist 配置已更新"})
 
 ### POST /api/admin/storage/alist/test
 
-Access boundary: `admin`. [Storage.TestAlistConnection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage_remote.go#L125)
+Access boundary: `admin`. [Storage.TestAlistConnection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage_remote.go#L125)
 
 ```go
 TestAlistRequest
@@ -3416,7 +3416,7 @@ JSON(http.StatusOK, gin.H{"message": "Alist 连接测试成功"})
 
 ### GET /api/admin/storage/alist/status
 
-Access boundary: `admin`. [Storage.GetAlistStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage_remote.go#L107)
+Access boundary: `admin`. [Storage.GetAlistStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage_remote.go#L107)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": false, "connected": false}})
@@ -3425,7 +3425,7 @@ JSON(http.StatusOK, gin.H{"data": h.remoteStorageService.GetAlistStatus()})
 
 ### GET /api/admin/storage/s3
 
-Access boundary: `admin`. [Storage.GetS3Config](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage_remote.go#L157)
+Access boundary: `admin`. [Storage.GetS3Config](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage_remote.go#L157)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{
@@ -3447,7 +3447,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{
 
 ### PUT /api/admin/storage/s3
 
-Access boundary: `admin`. [Storage.UpdateS3Config](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage_remote.go#L194)
+Access boundary: `admin`. [Storage.UpdateS3Config](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage_remote.go#L194)
 
 ```go
 UpdateS3ConfigRequest
@@ -3461,7 +3461,7 @@ JSON(http.StatusOK, gin.H{"message": "S3 配置已更新"})
 
 ### POST /api/admin/storage/s3/test
 
-Access boundary: `admin`. [Storage.TestS3Connection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage_remote.go#L264)
+Access boundary: `admin`. [Storage.TestS3Connection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage_remote.go#L264)
 
 ```go
 TestS3Request
@@ -3476,7 +3476,7 @@ JSON(http.StatusOK, gin.H{"message": "S3 连接测试成功"})
 
 ### GET /api/admin/storage/s3/status
 
-Access boundary: `admin`. [Storage.GetS3Status](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/storage_remote.go#L244)
+Access boundary: `admin`. [Storage.GetS3Status](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/storage_remote.go#L244)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": false, "connected": false}})
@@ -3485,7 +3485,7 @@ JSON(http.StatusOK, gin.H{"data": h.remoteStorageService.GetS3Status()})
 
 ### POST /api/admin/system/clear-data
 
-Access boundary: `admin`. [Admin.ClearAllData](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_system.go#L518)
+Access boundary: `admin`. [Admin.ClearAllData](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_system.go#L518)
 
 ```go
 ClearAllDataRequest
@@ -3509,7 +3509,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/metadata/bangumi/search
 
-Access boundary: `admin`. [Admin.SearchBangumi](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L358)
+Access boundary: `admin`. [Admin.SearchBangumi](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L358)
 
 Parameters: `Query q; DefaultQuery type = 2; Query year`
 
@@ -3520,7 +3520,7 @@ JSON(http.StatusOK, gin.H{"data": results})
 
 ### GET /api/admin/metadata/bangumi/subject/:subjectId
 
-Access boundary: `admin`. [Admin.GetBangumiSubject](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L382)
+Access boundary: `admin`. [Admin.GetBangumiSubject](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L382)
 
 Parameters: `Param subjectId`
 
@@ -3531,7 +3531,7 @@ JSON(http.StatusOK, gin.H{"data": subject})
 
 ### POST /api/admin/media/:mediaId/match/bangumi
 
-Access boundary: `admin`. [Admin.MatchMediaBangumi](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L399)
+Access boundary: `admin`. [Admin.MatchMediaBangumi](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L399)
 
 Parameters: `Param mediaId`
 
@@ -3548,7 +3548,7 @@ JSON(http.StatusOK, gin.H{"message": "已关联 Bangumi 元数据"})
 
 ### POST /api/admin/series/:seriesId/match/bangumi
 
-Access boundary: `admin`. [Admin.MatchSeriesBangumi](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L419)
+Access boundary: `admin`. [Admin.MatchSeriesBangumi](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L419)
 
 Parameters: `Param seriesId`
 
@@ -3565,7 +3565,7 @@ JSON(http.StatusOK, gin.H{"message": "已关联 Bangumi 元数据"})
 
 ### GET /api/admin/settings/bangumi
 
-Access boundary: `admin`. [Admin.GetBangumiConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L439)
+Access boundary: `admin`. [Admin.GetBangumiConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L439)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3578,7 +3578,7 @@ JSON(http.StatusOK, gin.H{
 
 ### PUT /api/admin/settings/bangumi
 
-Access boundary: `admin`. [Admin.UpdateBangumiConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L460)
+Access boundary: `admin`. [Admin.UpdateBangumiConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L460)
 
 ```go
 {
@@ -3598,7 +3598,7 @@ JSON(http.StatusOK, gin.H{
 
 ### DELETE /api/admin/settings/bangumi
 
-Access boundary: `admin`. [Admin.ClearBangumiConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L485)
+Access boundary: `admin`. [Admin.ClearBangumiConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L485)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3611,7 +3611,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/metadata/douban/search
 
-Access boundary: `admin`. [Admin.SearchDouban](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L258)
+Access boundary: `admin`. [Admin.SearchDouban](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L258)
 
 Parameters: `Query q; Query year`
 
@@ -3622,7 +3622,7 @@ JSON(http.StatusOK, gin.H{"data": results})
 
 ### POST /api/admin/media/:mediaId/match/douban
 
-Access boundary: `admin`. [Admin.MatchMediaDouban](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L276)
+Access boundary: `admin`. [Admin.MatchMediaDouban](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L276)
 
 Parameters: `Param mediaId`
 
@@ -3639,7 +3639,7 @@ JSON(http.StatusOK, gin.H{"message": "已关联豆瓣元数据"})
 
 ### POST /api/admin/series/:seriesId/match/douban
 
-Access boundary: `admin`. [Admin.MatchSeriesDouban](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L296)
+Access boundary: `admin`. [Admin.MatchSeriesDouban](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L296)
 
 Parameters: `Param seriesId`
 
@@ -3656,7 +3656,7 @@ JSON(http.StatusOK, gin.H{"message": "已关联豆瓣元数据"})
 
 ### GET /api/admin/settings/douban
 
-Access boundary: `admin`. [Admin.GetDoubanConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L504)
+Access boundary: `admin`. [Admin.GetDoubanConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L504)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3669,7 +3669,7 @@ JSON(http.StatusOK, gin.H{
 
 ### PUT /api/admin/settings/douban
 
-Access boundary: `admin`. [Admin.UpdateDoubanConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L522)
+Access boundary: `admin`. [Admin.UpdateDoubanConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L522)
 
 ```go
 UpdateDoubanConfigRequest
@@ -3690,7 +3690,7 @@ JSON(http.StatusOK, gin.H{
 
 ### DELETE /api/admin/settings/douban
 
-Access boundary: `admin`. [Admin.ClearDoubanConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L559)
+Access boundary: `admin`. [Admin.ClearDoubanConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L559)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3704,7 +3704,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/settings/douban/validate
 
-Access boundary: `admin`. [Admin.ValidateDoubanConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L577)
+Access boundary: `admin`. [Admin.ValidateDoubanConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L577)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3736,7 +3736,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/settings/douban/import-token
 
-Access boundary: `admin`. [Admin.CreateDoubanImportToken](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L668)
+Access boundary: `admin`. [Admin.CreateDoubanImportToken](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L668)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3754,7 +3754,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/settings/douban/import-token
 
-Access boundary: `admin`. [Admin.GetDoubanImportTokenStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L715)
+Access boundary: `admin`. [Admin.GetDoubanImportTokenStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L715)
 
 Parameters: `Query token`
 
@@ -3779,7 +3779,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/metadata/thetvdb/search
 
-Access boundary: `admin`. [Admin.SearchTheTVDB](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L318)
+Access boundary: `admin`. [Admin.SearchTheTVDB](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L318)
 
 Parameters: `Query q; Query year`
 
@@ -3790,7 +3790,7 @@ JSON(http.StatusOK, gin.H{"data": results})
 
 ### POST /api/admin/series/:seriesId/match/thetvdb
 
-Access boundary: `admin`. [Admin.MatchSeriesTheTVDB](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/admin_metadata.go#L336)
+Access boundary: `admin`. [Admin.MatchSeriesTheTVDB](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/admin_metadata.go#L336)
 
 Parameters: `Param seriesId`
 
@@ -3807,7 +3807,7 @@ JSON(http.StatusOK, gin.H{"message": "已关联 TheTVDB 元数据"})
 
 ### GET /api/admin/ai/status
 
-Access boundary: `admin`. [AI.GetAIStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L52)
+Access boundary: `admin`. [AI.GetAIStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L52)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": status})
@@ -3815,7 +3815,7 @@ JSON(http.StatusOK, gin.H{"data": status})
 
 ### PUT /api/admin/ai/config
 
-Access boundary: `admin`. [AI.UpdateAIConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L58)
+Access boundary: `admin`. [AI.UpdateAIConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L58)
 
 ```go
 map
@@ -3828,7 +3828,7 @@ JSON(http.StatusOK, gin.H{"message": "AI 配置已更新", "data": status})
 
 ### POST /api/admin/ai/auto-pilot
 
-Access boundary: `admin`. [AI.EnableAutoPilot](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L147)
+Access boundary: `admin`. [AI.EnableAutoPilot](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L147)
 
 ```go
 {
@@ -3846,7 +3846,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/ai/test
 
-Access boundary: `admin`. [AI.TestAIConnection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L75)
+Access boundary: `admin`. [AI.TestAIConnection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L75)
 
 ```go
 {
@@ -3861,7 +3861,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### POST /api/admin/ai/desensitize/test
 
-Access boundary: `admin`. [AI.TestDesensitizeConnection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L90)
+Access boundary: `admin`. [AI.TestDesensitizeConnection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L90)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": result})
@@ -3869,7 +3869,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### DELETE /api/admin/ai/cache
 
-Access boundary: `admin`. [AI.ClearAICache](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L96)
+Access boundary: `admin`. [AI.ClearAICache](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L96)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -3880,7 +3880,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/ai/cache
 
-Access boundary: `admin`. [AI.GetAICacheStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L105)
+Access boundary: `admin`. [AI.GetAICacheStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L105)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": stats})
@@ -3888,7 +3888,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### GET /api/admin/ai/errors
 
-Access boundary: `admin`. [AI.GetAIErrorLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L111)
+Access boundary: `admin`. [AI.GetAIErrorLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L111)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": logs})
@@ -3896,7 +3896,7 @@ JSON(http.StatusOK, gin.H{"data": logs})
 
 ### POST /api/admin/ai/test/search
 
-Access boundary: `admin`. [AI.TestSmartSearch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L117)
+Access boundary: `admin`. [AI.TestSmartSearch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L117)
 
 ```go
 {
@@ -3912,7 +3912,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### POST /api/admin/ai/test/recommend
 
-Access boundary: `admin`. [AI.TestRecommendReason](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L191)
+Access boundary: `admin`. [AI.TestRecommendReason](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L191)
 
 ```go
 {
@@ -3929,7 +3929,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### GET /api/admin/ai/models
 
-Access boundary: `admin`. [AICost.ListModels](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_cost.go#L35)
+Access boundary: `admin`. [AICost.ListModels](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_cost.go#L35)
 
 Parameters: `Query provider`
 
@@ -3939,7 +3939,7 @@ JSON(http.StatusOK, gin.H{"data": models, "total": len(models)})
 
 ### GET /api/admin/ai/cost/estimate
 
-Access boundary: `admin`. [AICost.Estimate](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_cost.go#L45)
+Access boundary: `admin`. [AICost.Estimate](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_cost.go#L45)
 
 Parameters: `Query model; Query provider; DefaultQuery prompt_tokens = 1000; DefaultQuery completion_tokens = 500`
 
@@ -3951,7 +3951,7 @@ JSON(http.StatusOK, gin.H{"data": est})
 
 ### GET /api/admin/ai/cost/summary
 
-Access boundary: `admin`. [AICost.Summary](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_cost.go#L64)
+Access boundary: `admin`. [AICost.Summary](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_cost.go#L64)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": sum})
@@ -3959,7 +3959,7 @@ JSON(http.StatusOK, gin.H{"data": sum})
 
 ### GET /api/admin/ai/router
 
-Access boundary: `admin`. [AI.GetRouterSnapshot](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L215)
+Access boundary: `admin`. [AI.GetRouterSnapshot](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L215)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{
@@ -3972,7 +3972,7 @@ JSON(http.StatusOK, gin.H{"data": h.router.GetSnapshot()})
 
 ### POST /api/admin/ai/router/switch
 
-Access boundary: `admin`. [AI.ForceSwitchProvider](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L230)
+Access boundary: `admin`. [AI.ForceSwitchProvider](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L230)
 
 ```go
 {
@@ -3992,7 +3992,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/ai/router/restore
 
-Access boundary: `admin`. [AI.RestoreProvider](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L254)
+Access boundary: `admin`. [AI.RestoreProvider](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L254)
 
 ```go
 JSON(http.StatusServiceUnavailable, gin.H{"error": "AIRouter 未启用"})
@@ -4005,7 +4005,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/ai/router/logs
 
-Access boundary: `admin`. [AI.ListFailoverLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L273)
+Access boundary: `admin`. [AI.ListFailoverLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L273)
 
 Parameters: `Query limit`
 
@@ -4016,7 +4016,7 @@ JSON(http.StatusOK, gin.H{"data": logs})
 
 ### GET /api/admin/ai/usage
 
-Access boundary: `admin`. [AI.GetUsageBuckets](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L297)
+Access boundary: `admin`. [AI.GetUsageBuckets](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L297)
 
 Parameters: `DefaultQuery range = month; Query provider`
 
@@ -4035,7 +4035,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/ai/providers
 
-Access boundary: `admin`. [AI.ListProviders](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L338)
+Access boundary: `admin`. [AI.ListProviders](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L338)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{"providers": providers}})
@@ -4043,7 +4043,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"providers": providers}})
 
 ### POST /api/admin/ai/providers
 
-Access boundary: `admin`. [AI.AddProvider](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L348)
+Access boundary: `admin`. [AI.AddProvider](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L348)
 
 ```go
 {
@@ -4066,7 +4066,7 @@ JSON(http.StatusOK, gin.H{"message": "供应商已添加", "data": gin.H{
 
 ### PUT /api/admin/ai/providers/:id
 
-Access boundary: `admin`. [AI.UpdateProvider](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L396)
+Access boundary: `admin`. [AI.UpdateProvider](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L396)
 
 Parameters: `Param id`
 
@@ -4090,7 +4090,7 @@ JSON(http.StatusOK, gin.H{"message": "供应商已更新"})
 
 ### DELETE /api/admin/ai/providers/:id
 
-Access boundary: `admin`. [AI.DeleteProvider](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L457)
+Access boundary: `admin`. [AI.DeleteProvider](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L457)
 
 Parameters: `Param id`
 
@@ -4104,7 +4104,7 @@ JSON(http.StatusOK, gin.H{"message": "供应商已删除"})
 
 ### POST /api/admin/ai/set-active
 
-Access boundary: `admin`. [AI.SetActive](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L505)
+Access boundary: `admin`. [AI.SetActive](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L505)
 
 ```go
 {
@@ -4124,7 +4124,7 @@ JSON(http.StatusOK, gin.H{"message": "AI 配置已更新", "data": gin.H{
 
 ### POST /api/admin/ai/providers/fetch-models
 
-Access boundary: `admin`. [AI.FetchModels](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai.go#L540)
+Access boundary: `admin`. [AI.FetchModels](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai.go#L540)
 
 ```go
 {
@@ -4150,7 +4150,7 @@ JSON(http.StatusOK, gin.H{"data": models})
 
 ### GET /api/admin/stats/:userId
 
-Access boundary: `admin`. [Stats.GetUserStatsAdmin](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/stats.go#L53)
+Access boundary: `admin`. [Stats.GetUserStatsAdmin](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/stats.go#L53)
 
 Parameters: `Param userId`
 
@@ -4162,7 +4162,7 @@ JSON(http.StatusOK, gin.H{"data": overview})
 
 ### POST /api/admin/smart-rename/scan
 
-Access boundary: `admin`. [SmartRename.Scan](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/smart_rename.go#L50)
+Access boundary: `admin`. [SmartRename.Scan](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/smart_rename.go#L50)
 
 ```go
 scanRequest
@@ -4175,7 +4175,7 @@ JSON(http.StatusOK, gin.H{"data": plan})
 
 ### POST /api/admin/smart-rename/execute
 
-Access boundary: `admin`. [SmartRename.Execute](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/smart_rename.go#L80)
+Access boundary: `admin`. [SmartRename.Execute](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/smart_rename.go#L80)
 
 ```go
 executeRequest
@@ -4188,7 +4188,7 @@ JSON(http.StatusOK, gin.H{"data": plan, "dry_run": !req.Confirm})
 
 ### POST /api/admin/smart-rename/rollback/:planId
 
-Access boundary: `admin`. [SmartRename.Rollback](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/smart_rename.go#L100)
+Access boundary: `admin`. [SmartRename.Rollback](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/smart_rename.go#L100)
 
 Parameters: `Param planId`
 
@@ -4198,7 +4198,7 @@ JSON(http.StatusOK, gin.H{"data": plan})
 
 ### POST /api/admin/smart-rename/cancel/:planId
 
-Access boundary: `admin`. [SmartRename.Cancel](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/smart_rename.go#L111)
+Access boundary: `admin`. [SmartRename.Cancel](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/smart_rename.go#L111)
 
 Parameters: `Param planId`
 
@@ -4209,7 +4209,7 @@ JSON(http.StatusOK, gin.H{"message": "ok"})
 
 ### GET /api/admin/smart-rename/plans
 
-Access boundary: `admin`. [SmartRename.ListPlans](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/smart_rename.go#L121)
+Access boundary: `admin`. [SmartRename.ListPlans](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/smart_rename.go#L121)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; Query library_id`
 
@@ -4224,7 +4224,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{
 
 ### GET /api/admin/smart-rename/plans/:planId
 
-Access boundary: `admin`. [SmartRename.GetPlan](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/smart_rename.go#L139)
+Access boundary: `admin`. [SmartRename.GetPlan](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/smart_rename.go#L139)
 
 Parameters: `Param planId`
 
@@ -4235,7 +4235,7 @@ JSON(http.StatusOK, gin.H{"data": plan})
 
 ### DELETE /api/admin/smart-rename/plans/:planId
 
-Access boundary: `admin`. [SmartRename.DeletePlan](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/smart_rename.go#L150)
+Access boundary: `admin`. [SmartRename.DeletePlan](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/smart_rename.go#L150)
 
 Parameters: `Param planId`
 
@@ -4246,7 +4246,7 @@ JSON(http.StatusOK, gin.H{"message": "ok"})
 
 ### PUT /api/admin/smart-rename/items/:itemId
 
-Access boundary: `admin`. [SmartRename.UpdateItem](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/smart_rename.go#L162)
+Access boundary: `admin`. [SmartRename.UpdateItem](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/smart_rename.go#L162)
 
 Parameters: `Param itemId`
 
@@ -4261,7 +4261,7 @@ JSON(http.StatusOK, gin.H{"data": it})
 
 ### GET /api/admin/scan-classify
 
-Access boundary: `admin`. [ScanPostProcess.List](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/scan_postprocess.go#L56)
+Access boundary: `admin`. [ScanPostProcess.List](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/scan_postprocess.go#L56)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 50; DefaultQuery min_score = 0; Query library_id; Query status; Query category; Query region; Query decade; Query keyword`
 
@@ -4276,7 +4276,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{
 
 ### GET /api/admin/scan-classify/stats
 
-Access boundary: `admin`. [ScanPostProcess.Stats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/scan_postprocess.go#L193)
+Access boundary: `admin`. [ScanPostProcess.Stats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/scan_postprocess.go#L193)
 
 Parameters: `Query library_id`
 
@@ -4286,7 +4286,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### GET /api/admin/scan-classify/:mediaId
 
-Access boundary: `admin`. [ScanPostProcess.Get](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/scan_postprocess.go#L86)
+Access boundary: `admin`. [ScanPostProcess.Get](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/scan_postprocess.go#L86)
 
 Parameters: `Param mediaId`
 
@@ -4297,7 +4297,7 @@ JSON(http.StatusOK, gin.H{"data": item})
 
 ### POST /api/admin/scan-classify/reprocess
 
-Access boundary: `admin`. [ScanPostProcess.Reprocess](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/scan_postprocess.go#L103)
+Access boundary: `admin`. [ScanPostProcess.Reprocess](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/scan_postprocess.go#L103)
 
 ```go
 reprocessRequest
@@ -4319,7 +4319,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{
 
 ### POST /api/admin/scan-classify/cancel
 
-Access boundary: `admin`. [ScanPostProcess.Cancel](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/scan_postprocess.go#L209)
+Access boundary: `admin`. [ScanPostProcess.Cancel](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/scan_postprocess.go#L209)
 
 Parameters: `Query library_id`
 
@@ -4329,7 +4329,7 @@ JSON(http.StatusOK, gin.H{"data": res})
 
 ### POST /api/admin/scan-classify/correct
 
-Access boundary: `admin`. [ScanPostProcess.Correct](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/scan_postprocess.go#L149)
+Access boundary: `admin`. [ScanPostProcess.Correct](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/scan_postprocess.go#L149)
 
 ```go
 correctRequest
@@ -4343,7 +4343,7 @@ JSON(http.StatusOK, gin.H{"data": out})
 
 ### DELETE /api/admin/scan-classify
 
-Access boundary: `admin`. [ScanPostProcess.Clear](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/scan_postprocess.go#L175)
+Access boundary: `admin`. [ScanPostProcess.Clear](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/scan_postprocess.go#L175)
 
 Parameters: `Query library_id`
 
@@ -4353,7 +4353,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"deleted": count}})
 
 ### POST /api/admin/ingest/submit
 
-Access boundary: `admin`. [LazyIngest.Submit](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ingest_lazy.go#L44)
+Access boundary: `admin`. [LazyIngest.Submit](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ingest_lazy.go#L44)
 
 ```go
 lazyIngestSubmitRequest
@@ -4372,7 +4372,7 @@ JSON(http.StatusOK, gin.H{"data": job})
 
 ### GET /api/admin/ingest/jobs
 
-Access boundary: `admin`. [LazyIngest.ListJobs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ingest_lazy.go#L95)
+Access boundary: `admin`. [LazyIngest.ListJobs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ingest_lazy.go#L95)
 
 Parameters: `DefaultQuery limit = 50`
 
@@ -4382,7 +4382,7 @@ JSON(http.StatusOK, gin.H{"data": jobs})
 
 ### GET /api/admin/ingest/jobs/:id
 
-Access boundary: `admin`. [LazyIngest.GetJob](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ingest_lazy.go#L82)
+Access boundary: `admin`. [LazyIngest.GetJob](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ingest_lazy.go#L82)
 
 Parameters: `Param id`
 
@@ -4393,7 +4393,7 @@ JSON(http.StatusOK, gin.H{"data": job})
 
 ### GET /api/admin/ingest/jobs/:id/items
 
-Access boundary: `admin`. [LazyIngest.GetJobItems](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ingest_lazy.go#L121)
+Access boundary: `admin`. [LazyIngest.GetJobItems](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ingest_lazy.go#L121)
 
 Parameters: `Param id`
 
@@ -4404,7 +4404,7 @@ JSON(http.StatusOK, gin.H{"data": items, "total": len(items)})
 
 ### POST /api/admin/ingest/jobs/:id/cancel
 
-Access boundary: `admin`. [LazyIngest.CancelJob](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ingest_lazy.go#L108)
+Access boundary: `admin`. [LazyIngest.CancelJob](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ingest_lazy.go#L108)
 
 Parameters: `Param id`
 
@@ -4415,7 +4415,7 @@ JSON(http.StatusOK, gin.H{"message": "ok"})
 
 ### POST /api/admin/ingest/jobs/:id/rollback
 
-Access boundary: `admin`. [LazyIngest.RollbackJob](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ingest_lazy.go#L134)
+Access boundary: `admin`. [LazyIngest.RollbackJob](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ingest_lazy.go#L134)
 
 Parameters: `Param id`
 
@@ -4426,7 +4426,7 @@ JSON(http.StatusOK, gin.H{"data": res})
 
 ### GET /api/admin/adult-scraper/config
 
-Access boundary: `admin`. [AdultScraper.GetConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper.go#L62)
+Access boundary: `admin`. [AdultScraper.GetConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper.go#L62)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -4461,7 +4461,7 @@ JSON(http.StatusOK, gin.H{
 
 ### PUT /api/admin/adult-scraper/config
 
-Access boundary: `admin`. [AdultScraper.UpdateConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper.go#L141)
+Access boundary: `admin`. [AdultScraper.UpdateConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper.go#L141)
 
 ```go
 {
@@ -4493,7 +4493,7 @@ JSON(http.StatusOK, gin.H{"message": "配置已更新"})
 
 ### POST /api/admin/adult-scraper/scrape
 
-Access boundary: `admin`. [AdultScraper.ScrapeByCode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper.go#L260)
+Access boundary: `admin`. [AdultScraper.ScrapeByCode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper.go#L260)
 
 ```go
 {
@@ -4509,7 +4509,7 @@ JSON(http.StatusOK, gin.H{"data": meta})
 
 ### GET /api/admin/adult-scraper/browser/status
 
-Access boundary: `admin`. [AdultScraper.BrowserMediaStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_browser.go#L11)
+Access boundary: `admin`. [AdultScraper.BrowserMediaStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_browser.go#L11)
 
 Parameters: `Query path; Query video_path`
 
@@ -4521,7 +4521,7 @@ JSON(http.StatusOK, gin.H{"data": status})
 
 ### POST /api/admin/adult-scraper/browser/import
 
-Access boundary: `admin`. [AdultScraper.ImportBrowserMetadata](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_browser.go#L30)
+Access boundary: `admin`. [AdultScraper.ImportBrowserMetadata](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_browser.go#L30)
 
 ```go
 {
@@ -4539,7 +4539,7 @@ JSON(http.StatusOK, resp)
 
 ### GET /api/admin/adult-scraper/parse
 
-Access boundary: `admin`. [AdultScraper.ParseCode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper.go#L279)
+Access boundary: `admin`. [AdultScraper.ParseCode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper.go#L279)
 
 Parameters: `Query input`
 
@@ -4563,7 +4563,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/adult-scraper/python-health
 
-Access boundary: `admin`. [AdultScraper.PythonServiceHealth](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper.go#L309)
+Access boundary: `admin`. [AdultScraper.PythonServiceHealth](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper.go#L309)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -4602,7 +4602,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/adult-scraper/aggregate
 
-Access boundary: `admin`. [AdultScraper.ScrapeAggregated](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p2.go#L19)
+Access boundary: `admin`. [AdultScraper.ScrapeAggregated](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p2.go#L19)
 
 ```go
 {
@@ -4624,7 +4624,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/adult-scraper/test-sources
 
-Access boundary: `admin`. [AdultScraper.TestAllSources](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p2.go#L46)
+Access boundary: `admin`. [AdultScraper.TestAllSources](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p2.go#L46)
 
 Parameters: `Query code`
 
@@ -4650,7 +4650,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/adult-scraper/mappings
 
-Access boundary: `admin`. [AdultScraper.GetMappings](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p2.go#L96)
+Access boundary: `admin`. [AdultScraper.GetMappings](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p2.go#L96)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -4668,7 +4668,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/adult-scraper/mappings
 
-Access boundary: `admin`. [AdultScraper.AddMappings](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p2.go#L113)
+Access boundary: `admin`. [AdultScraper.AddMappings](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p2.go#L113)
 
 ```go
 {
@@ -4690,7 +4690,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/adult-scraper/normalize-test
 
-Access boundary: `admin`. [AdultScraper.TestNormalize](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p2.go#L151)
+Access boundary: `admin`. [AdultScraper.TestNormalize](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p2.go#L151)
 
 ```go
 {
@@ -4727,7 +4727,7 @@ JSON(http.StatusOK, gin.H{
 
 ### PUT /api/admin/adult-scraper/config-ext
 
-Access boundary: `admin`. [AdultScraper.UpdateConfigExtended](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p2.go#L189)
+Access boundary: `admin`. [AdultScraper.UpdateConfigExtended](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p2.go#L189)
 
 ```go
 {
@@ -4784,7 +4784,7 @@ JSON(http.StatusOK, gin.H{"message": "扩展配置已更新"})
 
 ### GET /api/admin/adult-scraper/lazy/status
 
-Access boundary: `admin`. [AdultScraper.GetLazyStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L220)
+Access boundary: `admin`. [AdultScraper.GetLazyStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L220)
 
 Parameters: `Query days`
 
@@ -4815,7 +4815,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/adult-scraper/lazy/start
 
-Access boundary: `admin`. [AdultScraper.StartLazyScrape](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L140)
+Access boundary: `admin`. [AdultScraper.StartLazyScrape](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L140)
 
 ```go
 {
@@ -4852,7 +4852,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/adult-scraper/lazy/retry-failed
 
-Access boundary: `admin`. [AdultScraper.RetryLazyFailed](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L358)
+Access boundary: `admin`. [AdultScraper.RetryLazyFailed](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L358)
 
 ```go
 {
@@ -4878,7 +4878,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/adult-scraper/batch/start
 
-Access boundary: `admin`. [AdultScraper.StartBatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L462)
+Access boundary: `admin`. [AdultScraper.StartBatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L462)
 
 ```go
 {
@@ -4900,7 +4900,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"task_id": taskID}})
 
 ### POST /api/admin/adult-scraper/batch/:id/pause
 
-Access boundary: `admin`. [AdultScraper.PauseBatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L497)
+Access boundary: `admin`. [AdultScraper.PauseBatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L497)
 
 Parameters: `Param id`
 
@@ -4911,7 +4911,7 @@ JSON(http.StatusOK, gin.H{"message": "已暂停"})
 
 ### POST /api/admin/adult-scraper/batch/:id/resume
 
-Access boundary: `admin`. [AdultScraper.ResumeBatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L507)
+Access boundary: `admin`. [AdultScraper.ResumeBatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L507)
 
 Parameters: `Param id`
 
@@ -4922,7 +4922,7 @@ JSON(http.StatusOK, gin.H{"message": "已恢复"})
 
 ### POST /api/admin/adult-scraper/batch/:id/cancel
 
-Access boundary: `admin`. [AdultScraper.CancelBatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L517)
+Access boundary: `admin`. [AdultScraper.CancelBatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L517)
 
 Parameters: `Param id`
 
@@ -4933,7 +4933,7 @@ JSON(http.StatusOK, gin.H{"message": "已取消"})
 
 ### GET /api/admin/adult-scraper/batch/:id
 
-Access boundary: `admin`. [AdultScraper.GetBatchStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L527)
+Access boundary: `admin`. [AdultScraper.GetBatchStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L527)
 
 Parameters: `Param id`
 
@@ -4945,7 +4945,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### GET /api/admin/adult-scraper/batch
 
-Access boundary: `admin`. [AdultScraper.ListBatchTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L546)
+Access boundary: `admin`. [AdultScraper.ListBatchTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L546)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -4958,7 +4958,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/adult-scraper/mirrors
 
-Access boundary: `admin`. [AdultScraper.ListMirrors](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L567)
+Access boundary: `admin`. [AdultScraper.ListMirrors](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L567)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{}})
@@ -4972,7 +4972,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/adult-scraper/mirrors/health-check
 
-Access boundary: `admin`. [AdultScraper.HealthCheckMirrors](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L590)
+Access boundary: `admin`. [AdultScraper.HealthCheckMirrors](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L590)
 
 ```go
 JSON(http.StatusServiceUnavailable, gin.H{"error": "代理管理器未初始化"})
@@ -4986,7 +4986,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/adult-scraper/mirrors/:source
 
-Access boundary: `admin`. [AdultScraper.SetMirrors](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L607)
+Access boundary: `admin`. [AdultScraper.SetMirrors](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L607)
 
 Parameters: `Param source`
 
@@ -5003,7 +5003,7 @@ JSON(http.StatusOK, gin.H{"message": "镜像列表已更新", "source": src, "co
 
 ### GET /api/admin/adult-scraper/cache
 
-Access boundary: `admin`. [AdultScraper.GetCacheStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L624)
+Access boundary: `admin`. [AdultScraper.GetCacheStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L624)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": false}})
@@ -5012,7 +5012,7 @@ JSON(http.StatusOK, gin.H{"data": h.cache.Stats()})
 
 ### DELETE /api/admin/adult-scraper/cache
 
-Access boundary: `admin`. [AdultScraper.ClearCache](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L634)
+Access boundary: `admin`. [AdultScraper.ClearCache](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L634)
 
 ```go
 JSON(http.StatusOK, gin.H{"message": "缓存未启用"})
@@ -5021,7 +5021,7 @@ JSON(http.StatusOK, gin.H{"message": "缓存已清空"})
 
 ### DELETE /api/admin/adult-scraper/cache/:code
 
-Access boundary: `admin`. [AdultScraper.InvalidateCache](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L645)
+Access boundary: `admin`. [AdultScraper.InvalidateCache](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L645)
 
 Parameters: `Param code`
 
@@ -5031,7 +5031,7 @@ JSON(http.StatusOK, gin.H{"message": "已失效: " + code})
 
 ### GET /api/admin/adult-scraper/scheduler
 
-Access boundary: `admin`. [AdultScraper.GetSchedulerConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L657)
+Access boundary: `admin`. [AdultScraper.GetSchedulerConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L657)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": false}})
@@ -5046,7 +5046,7 @@ JSON(http.StatusOK, gin.H{
 
 ### PUT /api/admin/adult-scraper/scheduler
 
-Access boundary: `admin`. [AdultScraper.UpdateSchedulerConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L673)
+Access boundary: `admin`. [AdultScraper.UpdateSchedulerConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L673)
 
 ```go
 service.AdultSchedulerConfig
@@ -5060,7 +5060,7 @@ JSON(http.StatusOK, gin.H{"message": "调度器配置已更新"})
 
 ### POST /api/admin/adult-scraper/scheduler/run
 
-Access boundary: `admin`. [AdultScraper.TriggerScheduler](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L689)
+Access boundary: `admin`. [AdultScraper.TriggerScheduler](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L689)
 
 ```go
 JSON(http.StatusServiceUnavailable, gin.H{"error": "调度器未初始化"})
@@ -5069,7 +5069,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"task_id": taskID}})
 
 ### GET /api/admin/adult-scraper/report
 
-Access boundary: `admin`. [AdultScraper.GetReport](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L706)
+Access boundary: `admin`. [AdultScraper.GetReport](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L706)
 
 Parameters: `Query days`
 
@@ -5080,7 +5080,7 @@ JSON(http.StatusOK, gin.H{"data": report})
 
 ### GET /api/admin/adult-scraper/failed-items
 
-Access boundary: `admin`. [AdultScraper.GetFailedItems](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L723)
+Access boundary: `admin`. [AdultScraper.GetFailedItems](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L723)
 
 Parameters: `Query days`
 
@@ -5091,7 +5091,7 @@ JSON(http.StatusOK, gin.H{"data": items, "count": len(items)})
 
 ### POST /api/admin/adult-scraper/retry-failed
 
-Access boundary: `admin`. [AdultScraper.RetryFailed](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_p3.go#L741)
+Access boundary: `admin`. [AdultScraper.RetryFailed](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_p3.go#L741)
 
 ```go
 {
@@ -5114,7 +5114,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/adult-scraper/folder/scan
 
-Access boundary: `admin`. [AdultScraper.ScanFolder](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_folder.go#L17)
+Access boundary: `admin`. [AdultScraper.ScanFolder](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_folder.go#L17)
 
 Parameters: `Query path; DefaultQuery recursive = true; DefaultQuery max_depth = 0`
 
@@ -5127,7 +5127,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### POST /api/admin/adult-scraper/folder/batch/start
 
-Access boundary: `admin`. [AdultScraper.StartFolderBatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_folder.go#L43)
+Access boundary: `admin`. [AdultScraper.StartFolderBatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_folder.go#L43)
 
 ```go
 {
@@ -5148,7 +5148,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"task_id": taskID}})
 
 ### GET /api/admin/adult-scraper/folder/batch
 
-Access boundary: `admin`. [AdultScraper.ListFolderBatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_folder.go#L91)
+Access boundary: `admin`. [AdultScraper.ListFolderBatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_folder.go#L91)
 
 ```go
 JSON(http.StatusServiceUnavailable, gin.H{"error": "文件夹刮削服务未初始化"})
@@ -5157,7 +5157,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"active": active, "history": history}})
 
 ### GET /api/admin/adult-scraper/folder/batch/:id
 
-Access boundary: `admin`. [AdultScraper.GetFolderBatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_folder.go#L75)
+Access boundary: `admin`. [AdultScraper.GetFolderBatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_folder.go#L75)
 
 Parameters: `Param id`
 
@@ -5169,7 +5169,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### POST /api/admin/adult-scraper/folder/batch/:id/cancel
 
-Access boundary: `admin`. [AdultScraper.CancelFolderBatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_folder.go#L102)
+Access boundary: `admin`. [AdultScraper.CancelFolderBatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_folder.go#L102)
 
 Parameters: `Param id`
 
@@ -5181,7 +5181,7 @@ JSON(http.StatusOK, gin.H{"message": "已取消"})
 
 ### GET /api/admin/adult-scraper/cookie/test
 
-Access boundary: `admin`. [AdultScraper.TestCookie](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/adult_scraper_folder.go#L119)
+Access boundary: `admin`. [AdultScraper.TestCookie](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/adult_scraper_folder.go#L119)
 
 Parameters: `Query site`
 
@@ -5200,7 +5200,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/files
 
-Access boundary: `admin`. [FileManager.ListFiles](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L34)
+Access boundary: `admin`. [FileManager.ListFiles](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L34)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; Query library_id; Query media_type; Query keyword; DefaultQuery sort_by = created_at; DefaultQuery sort_order = desc; Query scraped`
 
@@ -5216,7 +5216,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/files/folders
 
-Access boundary: `admin`. [FileManager.GetFolderTree](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L84)
+Access boundary: `admin`. [FileManager.GetFolderTree](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L84)
 
 Parameters: `Query library_id`
 
@@ -5227,7 +5227,7 @@ JSON(http.StatusOK, gin.H{"data": tree})
 
 ### GET /api/admin/files/by-folder
 
-Access boundary: `admin`. [FileManager.ListFilesByFolder](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L97)
+Access boundary: `admin`. [FileManager.ListFilesByFolder](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L97)
 
 Parameters: `Query path; DefaultQuery page = 1; DefaultQuery size = 20; Query library_id; Query media_type; Query keyword; DefaultQuery sort_by = created_at; DefaultQuery sort_order = desc; Query scraped`
 
@@ -5246,7 +5246,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/files/folders/create
 
-Access boundary: `admin`. [FileManager.CreateFolder](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L143)
+Access boundary: `admin`. [FileManager.CreateFolder](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L143)
 
 ```go
 {
@@ -5263,7 +5263,7 @@ JSON(http.StatusOK, gin.H{"message": "文件夹创建成功"})
 
 ### POST /api/admin/files/folders/rename
 
-Access boundary: `admin`. [FileManager.RenameFolder](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L161)
+Access boundary: `admin`. [FileManager.RenameFolder](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L161)
 
 ```go
 {
@@ -5280,7 +5280,7 @@ JSON(http.StatusOK, gin.H{"message": "文件夹重命名成功"})
 
 ### POST /api/admin/files/folders/delete
 
-Access boundary: `admin`. [FileManager.DeleteFolder](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L179)
+Access boundary: `admin`. [FileManager.DeleteFolder](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L179)
 
 ```go
 {
@@ -5297,7 +5297,7 @@ JSON(http.StatusOK, gin.H{"message": "文件夹删除成功"})
 
 ### GET /api/admin/files/:id
 
-Access boundary: `admin`. [FileManager.GetFileDetail](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L73)
+Access boundary: `admin`. [FileManager.GetFileDetail](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L73)
 
 Parameters: `Param id`
 
@@ -5308,7 +5308,7 @@ JSON(http.StatusOK, gin.H{"data": media})
 
 ### POST /api/admin/files/import
 
-Access boundary: `admin`. [FileManager.ImportFile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L199)
+Access boundary: `admin`. [FileManager.ImportFile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L199)
 
 ```go
 service.FileImportRequest
@@ -5322,7 +5322,7 @@ JSON(http.StatusOK, gin.H{"data": media, "message": "文件导入成功"})
 
 ### PUT /api/admin/files/:id
 
-Access boundary: `admin`. [FileManager.UpdateFile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L219)
+Access boundary: `admin`. [FileManager.UpdateFile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L219)
 
 Parameters: `Param id`
 
@@ -5338,7 +5338,7 @@ JSON(http.StatusOK, gin.H{"data": media, "message": "更新成功"})
 
 ### DELETE /api/admin/files/:id
 
-Access boundary: `admin`. [FileManager.DeleteFile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L240)
+Access boundary: `admin`. [FileManager.DeleteFile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L240)
 
 Parameters: `Param id`
 
@@ -5349,7 +5349,7 @@ JSON(http.StatusOK, gin.H{"message": "文件记录已删除（原始文件未受
 
 ### POST /api/admin/files/batch/delete
 
-Access boundary: `admin`. [FileManager.BatchDeleteFiles](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L253)
+Access boundary: `admin`. [FileManager.BatchDeleteFiles](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L253)
 
 ```go
 {
@@ -5368,7 +5368,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/files/:id/scrape
 
-Access boundary: `admin`. [FileManager.ScrapeFile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L275)
+Access boundary: `admin`. [FileManager.ScrapeFile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L275)
 
 Parameters: `Param id`
 
@@ -5385,7 +5385,7 @@ JSON(http.StatusOK, gin.H{"message": "刮削已启动"})
 
 ### POST /api/admin/files/batch/scrape
 
-Access boundary: `admin`. [FileManager.BatchScrapeFiles](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L292)
+Access boundary: `admin`. [FileManager.BatchScrapeFiles](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L292)
 
 ```go
 {
@@ -5405,7 +5405,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/files/rename/preview
 
-Access boundary: `admin`. [FileManager.PreviewRename](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L315)
+Access boundary: `admin`. [FileManager.PreviewRename](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L315)
 
 ```go
 {
@@ -5422,7 +5422,7 @@ JSON(http.StatusOK, gin.H{"data": previews})
 
 ### POST /api/admin/files/rename/execute
 
-Access boundary: `admin`. [FileManager.ExecuteRename](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L339)
+Access boundary: `admin`. [FileManager.ExecuteRename](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L339)
 
 ```go
 {
@@ -5442,7 +5442,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/files/rename/ai
 
-Access boundary: `admin`. [FileManager.AIGenerateRenames](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L364)
+Access boundary: `admin`. [FileManager.AIGenerateRenames](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L364)
 
 ```go
 {
@@ -5459,7 +5459,7 @@ JSON(http.StatusOK, gin.H{"data": previews})
 
 ### GET /api/admin/files/rename/templates
 
-Access boundary: `admin`. [FileManager.GetRenameTemplates](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L384)
+Access boundary: `admin`. [FileManager.GetRenameTemplates](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L384)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": templates})
@@ -5467,7 +5467,7 @@ JSON(http.StatusOK, gin.H{"data": templates})
 
 ### GET /api/admin/files/stats
 
-Access boundary: `admin`. [FileManager.GetStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L392)
+Access boundary: `admin`. [FileManager.GetStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L392)
 
 Parameters: `Query library_id; Query folder_path`
 
@@ -5478,7 +5478,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### GET /api/admin/files/logs
 
-Access boundary: `admin`. [FileManager.GetOperationLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/file_manager.go#L404)
+Access boundary: `admin`. [FileManager.GetOperationLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/file_manager.go#L404)
 
 Parameters: `DefaultQuery limit = 50`
 
@@ -5488,7 +5488,7 @@ JSON(http.StatusOK, gin.H{"data": logs})
 
 ### POST /api/admin/assistant/chat
 
-Access boundary: `admin`. [AIAssistant.Chat](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_assistant.go#L19)
+Access boundary: `admin`. [AIAssistant.Chat](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_assistant.go#L19)
 
 ```go
 service.ChatRequest
@@ -5503,7 +5503,7 @@ JSON(http.StatusOK, gin.H{"data": resp})
 
 ### POST /api/admin/assistant/execute
 
-Access boundary: `admin`. [AIAssistant.ExecuteAction](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_assistant.go#L42)
+Access boundary: `admin`. [AIAssistant.ExecuteAction](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_assistant.go#L42)
 
 ```go
 service.ExecuteRequest
@@ -5517,7 +5517,7 @@ JSON(http.StatusOK, gin.H{"data": resp})
 
 ### POST /api/admin/assistant/undo/:opId
 
-Access boundary: `admin`. [AIAssistant.UndoOperation](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_assistant.go#L60)
+Access boundary: `admin`. [AIAssistant.UndoOperation](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_assistant.go#L60)
 
 Parameters: `Param opId`
 
@@ -5529,7 +5529,7 @@ JSON(http.StatusOK, gin.H{"data": resp})
 
 ### GET /api/admin/assistant/session/:sessionId
 
-Access boundary: `admin`. [AIAssistant.GetSession](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_assistant.go#L78)
+Access boundary: `admin`. [AIAssistant.GetSession](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_assistant.go#L78)
 
 Parameters: `Param sessionId`
 
@@ -5540,7 +5540,7 @@ JSON(http.StatusOK, gin.H{"data": session})
 
 ### DELETE /api/admin/assistant/session/:sessionId
 
-Access boundary: `admin`. [AIAssistant.DeleteSession](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_assistant.go#L90)
+Access boundary: `admin`. [AIAssistant.DeleteSession](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_assistant.go#L90)
 
 Parameters: `Param sessionId`
 
@@ -5550,7 +5550,7 @@ JSON(http.StatusOK, gin.H{"message": "会话已删除"})
 
 ### GET /api/admin/assistant/history
 
-Access boundary: `admin`. [AIAssistant.GetOperationHistory](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_assistant.go#L97)
+Access boundary: `admin`. [AIAssistant.GetOperationHistory](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_assistant.go#L97)
 
 Parameters: `DefaultQuery limit = 20`
 
@@ -5560,7 +5560,7 @@ JSON(http.StatusOK, gin.H{"data": history})
 
 ### GET /api/admin/assistant/misclassification
 
-Access boundary: `admin`. [AIAssistant.AnalyzeMisclassification](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_assistant.go#L109)
+Access boundary: `admin`. [AIAssistant.AnalyzeMisclassification](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_assistant.go#L109)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": report})
@@ -5568,7 +5568,7 @@ JSON(http.StatusOK, gin.H{"data": report})
 
 ### POST /api/admin/assistant/reclassify
 
-Access boundary: `admin`. [AIAssistant.ReclassifyFiles](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/ai_assistant.go#L120)
+Access boundary: `admin`. [AIAssistant.ReclassifyFiles](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/ai_assistant.go#L120)
 
 ```go
 service.ReclassifyRequest
@@ -5582,7 +5582,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### GET /api/admin/notification/config
 
-Access boundary: `admin`. [Notification.GetConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L19)
+Access boundary: `admin`. [Notification.GetConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L19)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": cfg})
@@ -5590,7 +5590,7 @@ JSON(http.StatusOK, gin.H{"data": cfg})
 
 ### PUT /api/admin/notification/config
 
-Access boundary: `admin`. [Notification.UpdateConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L25)
+Access boundary: `admin`. [Notification.UpdateConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L25)
 
 ```go
 service.NotificationConfig
@@ -5603,7 +5603,7 @@ JSON(http.StatusOK, gin.H{"message": "通知配置已更新", "data": cfg})
 
 ### POST /api/admin/notification/test
 
-Access boundary: `admin`. [Notification.TestNotification](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L37)
+Access boundary: `admin`. [Notification.TestNotification](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L37)
 
 Parameters: `Query channel`
 
@@ -5614,7 +5614,7 @@ JSON(http.StatusOK, gin.H{"message": "测试通知已发送"})
 
 ### POST /api/admin/batch/metadata/media
 
-Access boundary: `admin`. [BatchMetadata.BatchUpdateMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L134)
+Access boundary: `admin`. [BatchMetadata.BatchUpdateMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L134)
 
 ```go
 service.BatchUpdateRequest
@@ -5630,7 +5630,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/batch/metadata/series
 
-Access boundary: `admin`. [BatchMetadata.BatchUpdateSeries](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L154)
+Access boundary: `admin`. [BatchMetadata.BatchUpdateSeries](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L154)
 
 ```go
 {
@@ -5649,7 +5649,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/import/test
 
-Access boundary: `admin`. [BatchMetadata.TestImportConnection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L177)
+Access boundary: `admin`. [BatchMetadata.TestImportConnection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L177)
 
 ```go
 service.ImportSource
@@ -5662,7 +5662,7 @@ JSON(http.StatusOK, gin.H{"message": "连接成功"})
 
 ### POST /api/admin/import/libraries
 
-Access boundary: `admin`. [BatchMetadata.FetchImportLibraries](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L193)
+Access boundary: `admin`. [BatchMetadata.FetchImportLibraries](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L193)
 
 ```go
 service.ImportSource
@@ -5675,7 +5675,7 @@ JSON(http.StatusOK, gin.H{"data": libraries})
 
 ### POST /api/admin/import/external
 
-Access boundary: `admin`. [BatchMetadata.ImportFromExternal](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L210)
+Access boundary: `admin`. [BatchMetadata.ImportFromExternal](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L210)
 
 ```go
 {
@@ -5695,7 +5695,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/export/library
 
-Access boundary: `admin`. [BatchMetadata.ExportLibrary](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L234)
+Access boundary: `admin`. [BatchMetadata.ExportLibrary](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L234)
 
 Parameters: `Query library_id`
 
@@ -5708,7 +5708,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/import/data
 
-Access boundary: `admin`. [BatchMetadata.ImportFromExportData](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/notification.go#L250)
+Access boundary: `admin`. [BatchMetadata.ImportFromExportData](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/notification.go#L250)
 
 ```go
 {
@@ -5727,7 +5727,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/import/targets
 
-Access boundary: `admin`. [ImportTarget.List](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/import_target.go#L35)
+Access boundary: `admin`. [ImportTarget.List](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/import_target.go#L35)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取媒体库列表失败"})
@@ -5738,7 +5738,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/import/ensure-library
 
-Access boundary: `admin`. [ImportTarget.EnsureLibrary](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/import_target.go#L66)
+Access boundary: `admin`. [ImportTarget.EnsureLibrary](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/import_target.go#L66)
 
 ```go
 ensureLibraryRequest
@@ -5760,7 +5760,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/emby/detect
 
-Access boundary: `admin`. [EmbyCompat.DetectEmbyFormat](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/emby_compat.go#L18)
+Access boundary: `admin`. [EmbyCompat.DetectEmbyFormat](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/emby_compat.go#L18)
 
 Parameters: `Query path`
 
@@ -5772,7 +5772,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### POST /api/admin/emby/import
 
-Access boundary: `admin`. [EmbyCompat.ImportEmbyLibrary](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/emby_compat.go#L35)
+Access boundary: `admin`. [EmbyCompat.ImportEmbyLibrary](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/emby_compat.go#L35)
 
 ```go
 service.EmbyImportRequest
@@ -5790,7 +5790,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/emby/info
 
-Access boundary: `admin`. [EmbyCompat.GetEmbyCompatInfo](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/emby_compat.go#L69)
+Access boundary: `admin`. [EmbyCompat.GetEmbyCompatInfo](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/emby_compat.go#L69)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": info})
@@ -5798,7 +5798,7 @@ JSON(http.StatusOK, gin.H{"data": info})
 
 ### GET /api/admin/emby/nfo/:mediaId
 
-Access boundary: `admin`. [EmbyCompat.GenerateEmbyNFO](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/emby_compat.go#L75)
+Access boundary: `admin`. [EmbyCompat.GenerateEmbyNFO](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/emby_compat.go#L75)
 
 Parameters: `Param mediaId`
 
@@ -5812,7 +5812,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/profiles
 
-Access boundary: `admin`. [UserProfile.ListProfiles](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L19)
+Access boundary: `admin`. [UserProfile.ListProfiles](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L19)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": profiles})
@@ -5820,7 +5820,7 @@ JSON(http.StatusOK, gin.H{"data": profiles})
 
 ### POST /api/admin/profiles
 
-Access boundary: `admin`. [UserProfile.CreateProfile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L29)
+Access boundary: `admin`. [UserProfile.CreateProfile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L29)
 
 ```go
 service.UserProfile
@@ -5833,7 +5833,7 @@ JSON(http.StatusOK, gin.H{"message": "配置文件已创建", "data": profile})
 
 ### GET /api/admin/profiles/:id
 
-Access boundary: `admin`. [UserProfile.GetProfile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L43)
+Access boundary: `admin`. [UserProfile.GetProfile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L43)
 
 Parameters: `Param id`
 
@@ -5844,7 +5844,7 @@ JSON(http.StatusOK, gin.H{"data": profile})
 
 ### PUT /api/admin/profiles/:id
 
-Access boundary: `admin`. [UserProfile.UpdateProfile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L53)
+Access boundary: `admin`. [UserProfile.UpdateProfile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L53)
 
 Parameters: `Param id`
 
@@ -5859,7 +5859,7 @@ JSON(http.StatusOK, gin.H{"message": "配置文件已更新"})
 
 ### DELETE /api/admin/profiles/:id
 
-Access boundary: `admin`. [UserProfile.DeleteProfile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L67)
+Access boundary: `admin`. [UserProfile.DeleteProfile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L67)
 
 Parameters: `Param id`
 
@@ -5870,7 +5870,7 @@ JSON(http.StatusOK, gin.H{"message": "配置文件已删除"})
 
 ### POST /api/admin/profiles/:id/switch
 
-Access boundary: `admin`. [UserProfile.SwitchProfile](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L76)
+Access boundary: `admin`. [UserProfile.SwitchProfile](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L76)
 
 Parameters: `Param id`
 
@@ -5887,7 +5887,7 @@ JSON(http.StatusOK, gin.H{"data": profile})
 
 ### GET /api/admin/profiles/:id/watch-logs
 
-Access boundary: `admin`. [UserProfile.GetWatchLogs](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L90)
+Access boundary: `admin`. [UserProfile.GetWatchLogs](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L90)
 
 Parameters: `Param id; DefaultQuery days = 7`
 
@@ -5897,7 +5897,7 @@ JSON(http.StatusOK, gin.H{"data": logs})
 
 ### GET /api/admin/profiles/:id/usage
 
-Access boundary: `admin`. [UserProfile.GetDailyUsage](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L101)
+Access boundary: `admin`. [UserProfile.GetDailyUsage](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L101)
 
 Parameters: `Param id; DefaultQuery days = 30`
 
@@ -5907,7 +5907,7 @@ JSON(http.StatusOK, gin.H{"data": usage})
 
 ### GET /api/admin/profiles/:id/stats
 
-Access boundary: `admin`. [UserProfile.GetProfileStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L112)
+Access boundary: `admin`. [UserProfile.GetProfileStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L112)
 
 Parameters: `Param id`
 
@@ -5917,7 +5917,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### POST /api/admin/downloads
 
-Access boundary: `admin`. [OfflineDownload.CreateDownload](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L125)
+Access boundary: `admin`. [OfflineDownload.CreateDownload](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L125)
 
 ```go
 {
@@ -5937,7 +5937,7 @@ JSON(http.StatusOK, gin.H{"message": "下载任务已创建", "data": task})
 
 ### POST /api/admin/downloads/batch
 
-Access boundary: `admin`. [OfflineDownload.BatchDownload](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L146)
+Access boundary: `admin`. [OfflineDownload.BatchDownload](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L146)
 
 ```go
 service.BatchDownloadRequest
@@ -5950,7 +5950,7 @@ JSON(http.StatusOK, gin.H{"data": tasks, "errors": errors})
 
 ### GET /api/admin/downloads
 
-Access boundary: `admin`. [OfflineDownload.ListDownloads](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L157)
+Access boundary: `admin`. [OfflineDownload.ListDownloads](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L157)
 
 Parameters: `Query status`
 
@@ -5960,7 +5960,7 @@ JSON(http.StatusOK, gin.H{"data": tasks})
 
 ### GET /api/admin/downloads/queue
 
-Access boundary: `admin`. [OfflineDownload.GetQueueInfo](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L168)
+Access boundary: `admin`. [OfflineDownload.GetQueueInfo](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L168)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": info})
@@ -5968,7 +5968,7 @@ JSON(http.StatusOK, gin.H{"data": info})
 
 ### POST /api/admin/downloads/:id/cancel
 
-Access boundary: `admin`. [OfflineDownload.CancelDownload](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L178)
+Access boundary: `admin`. [OfflineDownload.CancelDownload](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L178)
 
 Parameters: `Param id`
 
@@ -5979,7 +5979,7 @@ JSON(http.StatusOK, gin.H{"message": "下载已取消"})
 
 ### POST /api/admin/downloads/:id/pause
 
-Access boundary: `admin`. [OfflineDownload.PauseDownload](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L188)
+Access boundary: `admin`. [OfflineDownload.PauseDownload](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L188)
 
 Parameters: `Param id`
 
@@ -5990,7 +5990,7 @@ JSON(http.StatusOK, gin.H{"message": "下载已暂停"})
 
 ### POST /api/admin/downloads/:id/resume
 
-Access boundary: `admin`. [OfflineDownload.ResumeDownload](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L198)
+Access boundary: `admin`. [OfflineDownload.ResumeDownload](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L198)
 
 Parameters: `Param id`
 
@@ -6001,7 +6001,7 @@ JSON(http.StatusOK, gin.H{"message": "下载已恢复"})
 
 ### DELETE /api/admin/downloads/:id
 
-Access boundary: `admin`. [OfflineDownload.DeleteDownload](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L208)
+Access boundary: `admin`. [OfflineDownload.DeleteDownload](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L208)
 
 Parameters: `Param id`
 
@@ -6012,7 +6012,7 @@ JSON(http.StatusOK, gin.H{"message": "下载已删除"})
 
 ### GET /api/admin/abr/status
 
-Access boundary: `admin`. [ABR.GetStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L699)
+Access boundary: `admin`. [ABR.GetStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L699)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": status})
@@ -6020,7 +6020,7 @@ JSON(http.StatusOK, gin.H{"data": status})
 
 ### GET /api/admin/abr/gpu
 
-Access boundary: `admin`. [ABR.GetGPUInfo](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L704)
+Access boundary: `admin`. [ABR.GetGPUInfo](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L704)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": info})
@@ -6028,7 +6028,7 @@ JSON(http.StatusOK, gin.H{"data": info})
 
 ### DELETE /api/admin/abr/cache
 
-Access boundary: `admin`. [ABR.CleanCache](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L709)
+Access boundary: `admin`. [ABR.CleanCache](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L709)
 
 Parameters: `Query media_id`
 
@@ -6039,7 +6039,7 @@ JSON(http.StatusOK, gin.H{"message": "所有 ABR 缓存已清理", "freed_bytes"
 
 ### GET /api/admin/plugins
 
-Access boundary: `admin`. [Plugin.ListPlugins](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L225)
+Access boundary: `admin`. [Plugin.ListPlugins](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L225)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": plugins})
@@ -6047,7 +6047,7 @@ JSON(http.StatusOK, gin.H{"data": plugins})
 
 ### GET /api/admin/plugins/:id
 
-Access boundary: `admin`. [Plugin.GetPlugin](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L234)
+Access boundary: `admin`. [Plugin.GetPlugin](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L234)
 
 Parameters: `Param id`
 
@@ -6058,7 +6058,7 @@ JSON(http.StatusOK, gin.H{"data": info, "manifest": manifest})
 
 ### POST /api/admin/plugins/:id/enable
 
-Access boundary: `admin`. [Plugin.EnablePlugin](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L244)
+Access boundary: `admin`. [Plugin.EnablePlugin](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L244)
 
 Parameters: `Param id`
 
@@ -6069,7 +6069,7 @@ JSON(http.StatusOK, gin.H{"message": "插件已启用"})
 
 ### POST /api/admin/plugins/:id/disable
 
-Access boundary: `admin`. [Plugin.DisablePlugin](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L253)
+Access boundary: `admin`. [Plugin.DisablePlugin](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L253)
 
 Parameters: `Param id`
 
@@ -6080,7 +6080,7 @@ JSON(http.StatusOK, gin.H{"message": "插件已禁用"})
 
 ### DELETE /api/admin/plugins/:id
 
-Access boundary: `admin`. [Plugin.UninstallPlugin](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L262)
+Access boundary: `admin`. [Plugin.UninstallPlugin](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L262)
 
 Parameters: `Param id`
 
@@ -6091,7 +6091,7 @@ JSON(http.StatusOK, gin.H{"message": "插件已卸载"})
 
 ### PUT /api/admin/plugins/:id/config
 
-Access boundary: `admin`. [Plugin.UpdatePluginConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L271)
+Access boundary: `admin`. [Plugin.UpdatePluginConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L271)
 
 Parameters: `Param id`
 
@@ -6106,7 +6106,7 @@ JSON(http.StatusOK, gin.H{"message": "插件配置已更新"})
 
 ### POST /api/admin/plugins/scan
 
-Access boundary: `admin`. [Plugin.ScanPlugins](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L285)
+Access boundary: `admin`. [Plugin.ScanPlugins](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L285)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": discovered})
@@ -6114,7 +6114,7 @@ JSON(http.StatusOK, gin.H{"data": discovered})
 
 ### POST /api/admin/music/scan
 
-Access boundary: `admin`. [Music.ScanLibrary](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L369)
+Access boundary: `admin`. [Music.ScanLibrary](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L369)
 
 ```go
 {
@@ -6130,7 +6130,7 @@ JSON(http.StatusOK, gin.H{"message": "扫描完成", "count": count})
 
 ### POST /api/admin/photos/scan
 
-Access boundary: `admin`. [Photo.ScanLibrary](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L564)
+Access boundary: `admin`. [Photo.ScanLibrary](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L564)
 
 ```go
 {
@@ -6146,7 +6146,7 @@ JSON(http.StatusOK, gin.H{"message": "扫描完成", "count": count})
 
 ### GET /api/admin/federation/nodes
 
-Access boundary: `admin`. [Federation.ListNodes](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L588)
+Access boundary: `admin`. [Federation.ListNodes](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L588)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": nodes})
@@ -6154,7 +6154,7 @@ JSON(http.StatusOK, gin.H{"data": nodes})
 
 ### POST /api/admin/federation/nodes
 
-Access boundary: `admin`. [Federation.RegisterNode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L597)
+Access boundary: `admin`. [Federation.RegisterNode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L597)
 
 ```go
 {
@@ -6173,7 +6173,7 @@ JSON(http.StatusOK, gin.H{"message": "节点已注册", "data": node})
 
 ### DELETE /api/admin/federation/nodes/:id
 
-Access boundary: `admin`. [Federation.RemoveNode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L616)
+Access boundary: `admin`. [Federation.RemoveNode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L616)
 
 Parameters: `Param id`
 
@@ -6184,7 +6184,7 @@ JSON(http.StatusOK, gin.H{"message": "节点已移除"})
 
 ### POST /api/admin/federation/nodes/:id/sync
 
-Access boundary: `admin`. [Federation.SyncNode](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L625)
+Access boundary: `admin`. [Federation.SyncNode](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L625)
 
 Parameters: `Param id; DefaultQuery type = full`
 
@@ -6195,7 +6195,7 @@ JSON(http.StatusOK, gin.H{"message": "同步已开始", "data": task})
 
 ### GET /api/admin/federation/stats
 
-Access boundary: `admin`. [Federation.GetStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L658)
+Access boundary: `admin`. [Federation.GetStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L658)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": stats})
@@ -6203,7 +6203,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### GET /api/admin/federation/sync-tasks
 
-Access boundary: `admin`. [Federation.GetSyncTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L667)
+Access boundary: `admin`. [Federation.GetSyncTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L667)
 
 Parameters: `Query node_id`
 
@@ -6213,7 +6213,7 @@ JSON(http.StatusOK, gin.H{"data": tasks})
 
 ### POST /api/admin/media/batch-move
 
-Access boundary: `admin`. [Library.BatchMoveMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v4_features.go#L13)
+Access boundary: `admin`. [Library.BatchMoveMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v4_features.go#L13)
 
 ```go
 service.BatchMoveMediaRequest
@@ -6227,7 +6227,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### GET /api/admin/duplicates
 
-Access boundary: `admin`. [Library.DetectAllDuplicates](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L421)
+Access boundary: `admin`. [Library.DetectAllDuplicates](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L421)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -6238,7 +6238,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/libraries/:id/duplicates
 
-Access boundary: `admin`. [Library.DetectDuplicates](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L406)
+Access boundary: `admin`. [Library.DetectDuplicates](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L406)
 
 Parameters: `Param id`
 
@@ -6251,7 +6251,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/libraries/:id/mark-duplicates
 
-Access boundary: `admin`. [Library.MarkDuplicates](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/library.go#L435)
+Access boundary: `admin`. [Library.MarkDuplicates](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/library.go#L435)
 
 Parameters: `Param id`
 
@@ -6264,7 +6264,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/pulse/dashboard
 
-Access boundary: `admin`. [Pulse.GetDashboard](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L21)
+Access boundary: `admin`. [Pulse.GetDashboard](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L21)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取仪表盘数据失败"})
@@ -6273,7 +6273,7 @@ JSON(http.StatusOK, gin.H{"data": data})
 
 ### GET /api/admin/pulse/dashboard/trends
 
-Access boundary: `admin`. [Pulse.GetPlayTrends](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L31)
+Access boundary: `admin`. [Pulse.GetPlayTrends](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L31)
 
 Parameters: `DefaultQuery days = 30`
 
@@ -6284,7 +6284,7 @@ JSON(http.StatusOK, gin.H{"data": trends})
 
 ### GET /api/admin/pulse/dashboard/top-content
 
-Access boundary: `admin`. [Pulse.GetTopContent](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L42)
+Access boundary: `admin`. [Pulse.GetTopContent](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L42)
 
 Parameters: `DefaultQuery days = 30; DefaultQuery limit = 10`
 
@@ -6295,7 +6295,7 @@ JSON(http.StatusOK, gin.H{"data": items})
 
 ### GET /api/admin/pulse/dashboard/top-users
 
-Access boundary: `admin`. [Pulse.GetTopUsers](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L54)
+Access boundary: `admin`. [Pulse.GetTopUsers](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L54)
 
 Parameters: `DefaultQuery days = 30; DefaultQuery limit = 10`
 
@@ -6306,7 +6306,7 @@ JSON(http.StatusOK, gin.H{"data": items})
 
 ### GET /api/admin/pulse/dashboard/recent
 
-Access boundary: `admin`. [Pulse.GetRecentPlays](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L66)
+Access boundary: `admin`. [Pulse.GetRecentPlays](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L66)
 
 Parameters: `DefaultQuery limit = 20`
 
@@ -6317,7 +6317,7 @@ JSON(http.StatusOK, gin.H{"data": items})
 
 ### GET /api/admin/pulse/analytics
 
-Access boundary: `admin`. [Pulse.GetAnalytics](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L79)
+Access boundary: `admin`. [Pulse.GetAnalytics](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L79)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取媒体分析失败"})
@@ -6326,7 +6326,7 @@ JSON(http.StatusOK, gin.H{"data": data})
 
 ### GET /api/admin/pulse/analytics/hourly
 
-Access boundary: `admin`. [Pulse.GetHourlyDistribution](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L89)
+Access boundary: `admin`. [Pulse.GetHourlyDistribution](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L89)
 
 Parameters: `DefaultQuery days = 30`
 
@@ -6337,7 +6337,7 @@ JSON(http.StatusOK, gin.H{"data": items})
 
 ### GET /api/admin/pulse/analytics/libraries
 
-Access boundary: `admin`. [Pulse.GetLibraryStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L100)
+Access boundary: `admin`. [Pulse.GetLibraryStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L100)
 
 ```go
 JSON(http.StatusInternalServerError, gin.H{"error": "获取媒体库统计失败"})
@@ -6346,7 +6346,7 @@ JSON(http.StatusOK, gin.H{"data": items})
 
 ### GET /api/admin/pulse/analytics/growth
 
-Access boundary: `admin`. [Pulse.GetMediaGrowth](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/pulse.go#L110)
+Access boundary: `admin`. [Pulse.GetMediaGrowth](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/pulse.go#L110)
 
 Parameters: `DefaultQuery months = 12`
 
@@ -6357,7 +6357,7 @@ JSON(http.StatusOK, gin.H{"data": items})
 
 ### POST /api/admin/preprocess/submit
 
-Access boundary: `admin`. [Preprocess.SubmitMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L25)
+Access boundary: `admin`. [Preprocess.SubmitMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L25)
 
 ```go
 {
@@ -6378,7 +6378,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/preprocess/batch
 
-Access boundary: `admin`. [Preprocess.BatchSubmit](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L51)
+Access boundary: `admin`. [Preprocess.BatchSubmit](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L51)
 
 ```go
 {
@@ -6402,7 +6402,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/preprocess/library/:id
 
-Access boundary: `admin`. [Preprocess.SubmitLibrary](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L78)
+Access boundary: `admin`. [Preprocess.SubmitLibrary](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L78)
 
 Parameters: `Param id`
 
@@ -6424,7 +6424,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/preprocess/tasks
 
-Access boundary: `admin`. [Preprocess.ListTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L132)
+Access boundary: `admin`. [Preprocess.ListTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L132)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery page_size = 20; Query status`
 
@@ -6442,7 +6442,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/preprocess/tasks/:id
 
-Access boundary: `admin`. [Preprocess.GetTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L100)
+Access boundary: `admin`. [Preprocess.GetTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L100)
 
 Parameters: `Param id`
 
@@ -6453,7 +6453,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### POST /api/admin/preprocess/tasks/:id/pause
 
-Access boundary: `admin`. [Preprocess.PauseTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L161)
+Access boundary: `admin`. [Preprocess.PauseTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L161)
 
 Parameters: `Param id`
 
@@ -6464,7 +6464,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已暂停"})
 
 ### POST /api/admin/preprocess/tasks/:id/resume
 
-Access boundary: `admin`. [Preprocess.ResumeTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L171)
+Access boundary: `admin`. [Preprocess.ResumeTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L171)
 
 Parameters: `Param id`
 
@@ -6475,7 +6475,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已恢复"})
 
 ### POST /api/admin/preprocess/tasks/:id/cancel
 
-Access boundary: `admin`. [Preprocess.CancelTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L181)
+Access boundary: `admin`. [Preprocess.CancelTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L181)
 
 Parameters: `Param id`
 
@@ -6486,7 +6486,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已取消"})
 
 ### POST /api/admin/preprocess/tasks/:id/retry
 
-Access boundary: `admin`. [Preprocess.RetryTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L191)
+Access boundary: `admin`. [Preprocess.RetryTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L191)
 
 Parameters: `Param id`
 
@@ -6497,7 +6497,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已重新提交"})
 
 ### DELETE /api/admin/preprocess/tasks/:id
 
-Access boundary: `admin`. [Preprocess.DeleteTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L201)
+Access boundary: `admin`. [Preprocess.DeleteTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L201)
 
 Parameters: `Param id`
 
@@ -6508,7 +6508,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已删除"})
 
 ### GET /api/admin/preprocess/statistics
 
-Access boundary: `admin`. [Preprocess.GetStatistics](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L277)
+Access boundary: `admin`. [Preprocess.GetStatistics](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L277)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": stats})
@@ -6516,7 +6516,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### GET /api/admin/preprocess/system-load
 
-Access boundary: `admin`. [Preprocess.GetSystemLoad](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L283)
+Access boundary: `admin`. [Preprocess.GetSystemLoad](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L283)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": load})
@@ -6524,7 +6524,7 @@ JSON(http.StatusOK, gin.H{"data": load})
 
 ### POST /api/admin/preprocess/tasks/batch-delete
 
-Access boundary: `admin`. [Preprocess.BatchDeleteTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L211)
+Access boundary: `admin`. [Preprocess.BatchDeleteTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L211)
 
 ```go
 {
@@ -6542,7 +6542,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/preprocess/tasks/batch-cancel
 
-Access boundary: `admin`. [Preprocess.BatchCancelTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L233)
+Access boundary: `admin`. [Preprocess.BatchCancelTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L233)
 
 ```go
 {
@@ -6560,7 +6560,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/preprocess/tasks/batch-retry
 
-Access boundary: `admin`. [Preprocess.BatchRetryTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L255)
+Access boundary: `admin`. [Preprocess.BatchRetryTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L255)
 
 ```go
 {
@@ -6578,7 +6578,7 @@ JSON(http.StatusOK, gin.H{
 
 ### DELETE /api/admin/preprocess/cache/:id
 
-Access boundary: `admin`. [Preprocess.CleanCache](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L289)
+Access boundary: `admin`. [Preprocess.CleanCache](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L289)
 
 Parameters: `Param id`
 
@@ -6589,7 +6589,7 @@ JSON(http.StatusOK, gin.H{"message": "预处理缓存已清理"})
 
 ### GET /api/admin/preprocess/storage-usage
 
-Access boundary: `admin`. [Preprocess.GetStorageUsage](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L302)
+Access boundary: `admin`. [Preprocess.GetStorageUsage](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L302)
 
 Parameters: `DefaultQuery limit = 20`
 
@@ -6599,7 +6599,7 @@ JSON(http.StatusOK, gin.H{"data": usage})
 
 ### POST /api/admin/preprocess/clean-orphan
 
-Access boundary: `admin`. [Preprocess.CleanOrphanCache](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L320)
+Access boundary: `admin`. [Preprocess.CleanOrphanCache](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L320)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -6613,7 +6613,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/cache/usage
 
-Access boundary: `admin`. [Preprocess.GetCacheUsage](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L339)
+Access boundary: `admin`. [Preprocess.GetCacheUsage](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L339)
 
 Parameters: `Query force; Query force`
 
@@ -6623,7 +6623,7 @@ JSON(http.StatusOK, gin.H{"data": usage})
 
 ### POST /api/admin/cache/clean
 
-Access boundary: `admin`. [Preprocess.CleanCacheCategory](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L356)
+Access boundary: `admin`. [Preprocess.CleanCacheCategory](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L356)
 
 Parameters: `Query key; Query mode`
 
@@ -6638,7 +6638,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/cache/clean-all
 
-Access boundary: `admin`. [Preprocess.CleanAllCache](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L375)
+Access boundary: `admin`. [Preprocess.CleanAllCache](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L375)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -6654,7 +6654,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/preprocess/filter-preview
 
-Access boundary: `admin`. [Preprocess.PreviewByFilter](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L426)
+Access boundary: `admin`. [Preprocess.PreviewByFilter](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L426)
 
 ```go
 preprocessFilterRequest
@@ -6667,7 +6667,7 @@ JSON(http.StatusOK, gin.H{"data": preview})
 
 ### POST /api/admin/preprocess/submit-by-filter
 
-Access boundary: `admin`. [Preprocess.SubmitByFilter](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L447)
+Access boundary: `admin`. [Preprocess.SubmitByFilter](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L447)
 
 ```go
 {
@@ -6690,7 +6690,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/preprocess/candidates
 
-Access boundary: `admin`. [Preprocess.ListCandidateMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/preprocess.go#L486)
+Access boundary: `admin`. [Preprocess.ListCandidateMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/preprocess.go#L486)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery size = 20; Query only_need_preprocess; Query keyword; Query library_id; Query media_type; Query video_codec; Query sort_by; Query sort_order`
 
@@ -6700,7 +6700,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### POST /api/admin/video-analysis/tasks
 
-Access boundary: `admin`. [VideoAnalysis.SubmitMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L37)
+Access boundary: `admin`. [VideoAnalysis.SubmitMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L37)
 
 ```go
 {
@@ -6719,7 +6719,7 @@ JSON(http.StatusAccepted, gin.H{"data": task, "reused": reused})
 
 ### POST /api/admin/video-analysis/tasks/batch
 
-Access boundary: `admin`. [VideoAnalysis.BatchSubmit](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L68)
+Access boundary: `admin`. [VideoAnalysis.BatchSubmit](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L68)
 
 ```go
 {
@@ -6737,7 +6737,7 @@ JSON(http.StatusAccepted, gin.H{"data": result})
 
 ### GET /api/admin/video-analysis/tasks
 
-Access boundary: `admin`. [VideoAnalysis.ListTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L130)
+Access boundary: `admin`. [VideoAnalysis.ListTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L130)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery page_size = 20; Query group_by_media; Query status; Query library_id; Query keyword; Query media_id`
 
@@ -6751,7 +6751,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{
 
 ### GET /api/admin/video-analysis/tasks/latest
 
-Access boundary: `admin`. [VideoAnalysis.GetLatestTaskByMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L108)
+Access boundary: `admin`. [VideoAnalysis.GetLatestTaskByMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L108)
 
 Parameters: `Query media_id`
 
@@ -6765,7 +6765,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### GET /api/admin/video-analysis/tasks/:id
 
-Access boundary: `admin`. [VideoAnalysis.GetTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L91)
+Access boundary: `admin`. [VideoAnalysis.GetTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L91)
 
 Parameters: `Param id`
 
@@ -6778,7 +6778,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### POST /api/admin/video-analysis/tasks/:id/retry
 
-Access boundary: `admin`. [VideoAnalysis.RetryTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L157)
+Access boundary: `admin`. [VideoAnalysis.RetryTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L157)
 
 Parameters: `Param id`
 
@@ -6792,7 +6792,7 @@ JSON(http.StatusAccepted, gin.H{"data": task})
 
 ### DELETE /api/admin/video-analysis/tasks/:id
 
-Access boundary: `admin`. [VideoAnalysis.DeleteTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L180)
+Access boundary: `admin`. [VideoAnalysis.DeleteTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L180)
 
 Parameters: `Param id`
 
@@ -6806,7 +6806,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已删除"})
 
 ### GET /api/admin/video-analysis/statistics
 
-Access boundary: `admin`. [VideoAnalysis.Statistics](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L199)
+Access boundary: `admin`. [VideoAnalysis.Statistics](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L199)
 
 ```go
 JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
@@ -6816,7 +6816,7 @@ JSON(http.StatusOK, gin.H{"data": counts})
 
 ### GET /api/admin/video-analysis/statistics/detailed
 
-Access boundary: `admin`. [VideoAnalysis.DetailedStatistics](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L212)
+Access boundary: `admin`. [VideoAnalysis.DetailedStatistics](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L212)
 
 ```go
 JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
@@ -6826,7 +6826,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### GET /api/admin/video-analysis/config
 
-Access boundary: `admin`. [VideoAnalysis.GetConfig](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L226)
+Access boundary: `admin`. [VideoAnalysis.GetConfig](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L226)
 
 ```go
 JSON(http.StatusServiceUnavailable, gin.H{"error": "视频分析服务未启用或配置无效"})
@@ -6835,7 +6835,7 @@ JSON(http.StatusOK, gin.H{"data": config})
 
 ### GET /api/admin/video-analysis/health
 
-Access boundary: `admin`. [VideoAnalysis.GetHealth](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L237)
+Access boundary: `admin`. [VideoAnalysis.GetHealth](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L237)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": h.service.GetHealth(c.Request.Context())})
@@ -6843,7 +6843,7 @@ JSON(http.StatusOK, gin.H{"data": h.service.GetHealth(c.Request.Context())})
 
 ### GET /api/admin/video-analysis/settings
 
-Access boundary: `admin`. [VideoAnalysis.GetSettings](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L319)
+Access boundary: `admin`. [VideoAnalysis.GetSettings](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L319)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": videoAnalysisSettingsView{
@@ -6858,7 +6858,7 @@ JSON(http.StatusOK, gin.H{"data": videoAnalysisSettingsView{
 
 ### PUT /api/admin/video-analysis/settings
 
-Access boundary: `admin`. [VideoAnalysis.UpdateSettings](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L334)
+Access boundary: `admin`. [VideoAnalysis.UpdateSettings](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L334)
 
 ```go
 updateVideoAnalysisSettingsRequest
@@ -6874,7 +6874,7 @@ Status(http.StatusOK)
 
 ### POST /api/admin/video-analysis/cleanup
 
-Access boundary: `admin`. [VideoAnalysis.Cleanup](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L391)
+Access boundary: `admin`. [VideoAnalysis.Cleanup](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L391)
 
 ```go
 {
@@ -6890,7 +6890,7 @@ JSON(http.StatusOK, gin.H{"data": gin.H{"deleted_count": deletedCount}})
 
 ### GET /api/admin/video-analysis/scenes/search
 
-Access boundary: `admin`. [VideoAnalysis.SearchScenes](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L495)
+Access boundary: `admin`. [VideoAnalysis.SearchScenes](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L495)
 
 Parameters: `Query q; DefaultQuery limit = 20; DefaultQuery mode = text; Query library_id`
 
@@ -6903,7 +6903,7 @@ JSON(http.StatusOK, gin.H{"data": results})
 
 ### GET /api/admin/video-analysis/tasks/:id/scenes
 
-Access boundary: `admin`. [VideoAnalysis.ListScenesByTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L535)
+Access boundary: `admin`. [VideoAnalysis.ListScenesByTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L535)
 
 Parameters: `Param id`
 
@@ -6915,7 +6915,7 @@ JSON(http.StatusOK, gin.H{"scenes": items})
 
 ### GET /api/admin/video-analysis/tasks/:id/workflow
 
-Access boundary: `admin`. [VideoAnalysis.GetWorkflow](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L582)
+Access boundary: `admin`. [VideoAnalysis.GetWorkflow](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L582)
 
 Parameters: `Param id`
 
@@ -6926,7 +6926,7 @@ JSON(http.StatusOK, gin.H{"data": workflow})
 
 ### POST /api/admin/video-analysis/tasks/:id/run-stage
 
-Access boundary: `admin`. [VideoAnalysis.RunStage](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L596)
+Access boundary: `admin`. [VideoAnalysis.RunStage](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L596)
 
 Parameters: `Param id`
 
@@ -6944,7 +6944,7 @@ JSON(http.StatusOK, gin.H{"message": "阶段已启动"})
 
 ### POST /api/admin/video-analysis/tasks/:id/run-all
 
-Access boundary: `admin`. [VideoAnalysis.RunAll](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L616)
+Access boundary: `admin`. [VideoAnalysis.RunAll](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L616)
 
 Parameters: `Param id`
 
@@ -6955,7 +6955,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已全部执行完成"})
 
 ### POST /api/admin/video-analysis/tasks/:id/run-missing
 
-Access boundary: `admin`. [VideoAnalysis.RunMissing](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L629)
+Access boundary: `admin`. [VideoAnalysis.RunMissing](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L629)
 
 Parameters: `Param id`
 
@@ -6966,7 +6966,7 @@ JSON(http.StatusOK, gin.H{"message": "缺失阶段已补齐"})
 
 ### POST /api/admin/video-analysis/models/pull
 
-Access boundary: `admin`. [VideoAnalysis.PullModelHubModel](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/video_analysis.go#L266)
+Access boundary: `admin`. [VideoAnalysis.PullModelHubModel](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/video_analysis.go#L266)
 
 ```go
 {
@@ -6984,7 +6984,7 @@ JSON(http.StatusAccepted, gin.H{"data": gin.H{"task_id": taskID}})
 
 ### POST /api/admin/subtitle-preprocess/submit
 
-Access boundary: `admin`. [SubtitlePreprocess.SubmitMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L22)
+Access boundary: `admin`. [SubtitlePreprocess.SubmitMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L22)
 
 ```go
 {
@@ -7004,7 +7004,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/subtitle-preprocess/batch
 
-Access boundary: `admin`. [SubtitlePreprocess.BatchSubmit](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L46)
+Access boundary: `admin`. [SubtitlePreprocess.BatchSubmit](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L46)
 
 ```go
 {
@@ -7027,7 +7027,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/subtitle-preprocess/library/:id
 
-Access boundary: `admin`. [SubtitlePreprocess.SubmitLibrary](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L73)
+Access boundary: `admin`. [SubtitlePreprocess.SubmitLibrary](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L73)
 
 Parameters: `Param id`
 
@@ -7050,7 +7050,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/subtitle-preprocess/tasks
 
-Access boundary: `admin`. [SubtitlePreprocess.ListTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L101)
+Access boundary: `admin`. [SubtitlePreprocess.ListTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L101)
 
 Parameters: `DefaultQuery page = 1; DefaultQuery page_size = 20; Query status`
 
@@ -7067,7 +7067,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/subtitle-preprocess/tasks/:id
 
-Access boundary: `admin`. [SubtitlePreprocess.GetTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L130)
+Access boundary: `admin`. [SubtitlePreprocess.GetTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L130)
 
 Parameters: `Param id`
 
@@ -7078,7 +7078,7 @@ JSON(http.StatusOK, gin.H{"data": task})
 
 ### POST /api/admin/subtitle-preprocess/tasks/:id/cancel
 
-Access boundary: `admin`. [SubtitlePreprocess.CancelTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L142)
+Access boundary: `admin`. [SubtitlePreprocess.CancelTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L142)
 
 Parameters: `Param id`
 
@@ -7089,7 +7089,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已取消"})
 
 ### POST /api/admin/subtitle-preprocess/tasks/:id/retry
 
-Access boundary: `admin`. [SubtitlePreprocess.RetryTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L153)
+Access boundary: `admin`. [SubtitlePreprocess.RetryTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L153)
 
 Parameters: `Param id`
 
@@ -7100,7 +7100,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已重新提交"})
 
 ### DELETE /api/admin/subtitle-preprocess/tasks/:id
 
-Access boundary: `admin`. [SubtitlePreprocess.DeleteTask](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L164)
+Access boundary: `admin`. [SubtitlePreprocess.DeleteTask](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L164)
 
 Parameters: `Param id`
 
@@ -7111,7 +7111,7 @@ JSON(http.StatusOK, gin.H{"message": "任务已删除"})
 
 ### GET /api/admin/subtitle-preprocess/statistics
 
-Access boundary: `admin`. [SubtitlePreprocess.GetStatistics](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L175)
+Access boundary: `admin`. [SubtitlePreprocess.GetStatistics](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L175)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": stats})
@@ -7119,7 +7119,7 @@ JSON(http.StatusOK, gin.H{"data": stats})
 
 ### POST /api/admin/subtitle-preprocess/tasks/batch-delete
 
-Access boundary: `admin`. [SubtitlePreprocess.BatchDeleteTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L181)
+Access boundary: `admin`. [SubtitlePreprocess.BatchDeleteTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L181)
 
 ```go
 {
@@ -7137,7 +7137,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/subtitle-preprocess/tasks/batch-cancel
 
-Access boundary: `admin`. [SubtitlePreprocess.BatchCancelTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L203)
+Access boundary: `admin`. [SubtitlePreprocess.BatchCancelTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L203)
 
 ```go
 {
@@ -7155,7 +7155,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/subtitle-preprocess/tasks/batch-retry
 
-Access boundary: `admin`. [SubtitlePreprocess.BatchRetryTasks](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L225)
+Access boundary: `admin`. [SubtitlePreprocess.BatchRetryTasks](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L225)
 
 ```go
 {
@@ -7173,7 +7173,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/subtitle-preprocess/retry-all-failed
 
-Access boundary: `admin`. [SubtitlePreprocess.RetryAllFailed](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L264)
+Access boundary: `admin`. [SubtitlePreprocess.RetryAllFailed](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L264)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -7184,7 +7184,7 @@ JSON(http.StatusOK, gin.H{
 
 ### DELETE /api/admin/subtitle-preprocess/tasks/by-status/:status
 
-Access boundary: `admin`. [SubtitlePreprocess.DeleteByStatus](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L278)
+Access boundary: `admin`. [SubtitlePreprocess.DeleteByStatus](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L278)
 
 Parameters: `Param status`
 
@@ -7199,7 +7199,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/subtitle-preprocess/asr-health
 
-Access boundary: `admin`. [SubtitlePreprocess.CheckASRHealth](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/subtitle_preprocess.go#L302)
+Access boundary: `admin`. [SubtitlePreprocess.CheckASRHealth](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/subtitle_preprocess.go#L302)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": result})
@@ -7207,7 +7207,7 @@ JSON(http.StatusOK, gin.H{"data": result})
 
 ### POST /api/admin/collections
 
-Access boundary: `admin`. [Collection.CreateCollection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L134)
+Access boundary: `admin`. [Collection.CreateCollection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L134)
 
 ```go
 {
@@ -7223,7 +7223,7 @@ JSON(http.StatusOK, gin.H{"data": coll})
 
 ### POST /api/admin/collections/auto-match
 
-Access boundary: `admin`. [Collection.AutoMatch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L119)
+Access boundary: `admin`. [Collection.AutoMatch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L119)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -7234,7 +7234,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/collections/rematch
 
-Access boundary: `admin`. [Collection.Rematch](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L325)
+Access boundary: `admin`. [Collection.Rematch](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L325)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -7245,7 +7245,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/collections/merge-duplicates
 
-Access boundary: `admin`. [Collection.MergeDuplicates](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L293)
+Access boundary: `admin`. [Collection.MergeDuplicates](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L293)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -7256,7 +7256,7 @@ JSON(http.StatusOK, gin.H{
 
 ### POST /api/admin/collections/cleanup-empty
 
-Access boundary: `admin`. [Collection.CleanupEmpty](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L308)
+Access boundary: `admin`. [Collection.CleanupEmpty](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L308)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -7267,7 +7267,7 @@ JSON(http.StatusOK, gin.H{
 
 ### GET /api/admin/collections/duplicate-stats
 
-Access boundary: `admin`. [Collection.DuplicateStats](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L340)
+Access boundary: `admin`. [Collection.DuplicateStats](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L340)
 
 ```go
 JSON(http.StatusOK, gin.H{
@@ -7278,7 +7278,7 @@ JSON(http.StatusOK, gin.H{
 
 ### PUT /api/admin/collections/:id
 
-Access boundary: `admin`. [Collection.UpdateCollection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L155)
+Access boundary: `admin`. [Collection.UpdateCollection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L155)
 
 Parameters: `Param id`
 
@@ -7296,7 +7296,7 @@ JSON(http.StatusOK, gin.H{"message": "更新成功"})
 
 ### DELETE /api/admin/collections/:id
 
-Access boundary: `admin`. [Collection.DeleteCollection](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L176)
+Access boundary: `admin`. [Collection.DeleteCollection](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L176)
 
 Parameters: `Param id`
 
@@ -7306,7 +7306,7 @@ JSON(http.StatusOK, gin.H{"message": "删除成功"})
 
 ### POST /api/admin/collections/:id/media
 
-Access boundary: `admin`. [Collection.AddMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L188)
+Access boundary: `admin`. [Collection.AddMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L188)
 
 Parameters: `Param id`
 
@@ -7323,7 +7323,7 @@ JSON(http.StatusOK, gin.H{"message": "添加成功"})
 
 ### DELETE /api/admin/collections/:id/media/:mediaId
 
-Access boundary: `admin`. [Collection.RemoveMedia](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/collection.go#L355)
+Access boundary: `admin`. [Collection.RemoveMedia](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/collection.go#L355)
 
 Parameters: `Param id; Param mediaId`
 
@@ -7333,7 +7333,7 @@ JSON(http.StatusOK, gin.H{"message": "移除成功"})
 
 ### GET /api/federation/health
 
-Access boundary: `separate/public`. [Federation.Health](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L678)
+Access boundary: `separate/public`. [Federation.Health](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L678)
 
 ```go
 JSON(http.StatusOK, health)
@@ -7341,7 +7341,7 @@ JSON(http.StatusOK, health)
 
 ### GET /api/federation/media
 
-Access boundary: `separate/public`. [Federation.MediaList](https://github.com/ictrektech/nowen-video/blob/main/internal/handler/v2_handlers.go#L683)
+Access boundary: `separate/public`. [Federation.MediaList](https://github.com/ictrektech/V-Cine/blob/main/internal/handler/v2_handlers.go#L683)
 
 ```go
 JSON(http.StatusOK, gin.H{"data": media})
