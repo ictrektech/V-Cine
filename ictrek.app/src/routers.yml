@@ -10,3 +10,14 @@ routers:
     keep-alive: true
     entry-point: true
     embed: true
+  - id: v-cine-api
+    kind: page
+    title:
+      zh-CN: API 文档
+      en: API documentation
+    icon: lucide:book-open
+    order: 261
+    iframe-src: /app/com.ictrek.v-cine/api-guide.html
+    keep-alive: true
+    entry-point: true
+    embed: true
