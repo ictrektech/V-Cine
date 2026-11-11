@@ -187,3 +187,6 @@ python3 scripts/nowen_media_search stats
 - ✅ **v0.9.5** 完整 Emby API 兼容层（Infuse / Kodi / Emby 原生客户端）
 - 🔄 **v1.0** ABR 无缝码率切换、FFmpeg 节流、移动端响应式、PWA、测试覆盖率 > 60%、Prometheus 监控
 - 🚀 **v1.1+** 移动原生 App、4K/HDR、WebDAV、分布式转码、AV1、插件市场
+## API 文档
+
+VOS 侧栏 → API 文档提供身份、Key 创建/查看/撤销/删除、异步任务和完整 HTTP 字段目录；[中文参考](docs/api-reference.zh.md)、[English reference](docs/api-reference.en.md)。目录从实际 Gin 注册和处理器生成：`python3 scripts/generate-api-reference.py`。个人 Key 列表可重新返回完整 Key，不能将其描述为仅显示一次。本文档源码随下次发版进入应用，本轮不更新镜像。

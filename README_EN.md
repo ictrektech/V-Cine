@@ -190,3 +190,7 @@ If this project helps you, consider buying the author a coffee / keyboard / bug-
 Released under the [GNU General Public License v3.0](./LICENSE).
 
 You may freely run, study, modify and distribute this software. Any derivative work distributed externally **must** also be released under GPL-3.0 with the original copyright notice preserved. The software is provided "as is", without warranty of any kind.
+
+## API documentation
+
+The VOS sidebar API guide documents identity, personal Key creation/list/revocation/deletion, asynchronous jobs and native HTTP fields. See the [English reference](docs/api-reference.en.md) and [Chinese reference](docs/api-reference.zh.md). Regenerate the source catalogue with `python3 scripts/generate-api-reference.py`. Key listings can disclose the complete Key again; this is not one-time-only secret display. Documentation ships in the next application release; no image is published in this task.
