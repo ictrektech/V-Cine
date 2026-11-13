@@ -29,3 +29,4 @@ Layout:
 
 The first user registered on first launch becomes the administrator. The library can point at the in-container `/media` directory, or at a supported remote storage configured inside the app.
 
+On VOS with Traefik v3, opening the app root directly in a browser redirects to its VOS page. Embedded pages and API requests use their existing routes.

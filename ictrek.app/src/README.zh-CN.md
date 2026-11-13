@@ -36,3 +36,5 @@ V-Cine
 在 VOS 内打开时，V-Cine 使用平台注入的 OIDC Fastpath 完成登录。应用后端通过 VOS JWKS 验签 RS256 access token，以 `sub` 绑定本地账号；首次登录会自动创建同名用户。`roles` 含 `system_admin` 的用户映射为 V-Cine 管理员，其余映射为普通用户，角色变更会在下次登录同步。
 
 为避免同名账户接管，已有但尚未绑定 VOS `sub` 的本地账号不会被自动关联，需要管理员完成迁移后再登录。
+
+在使用 Traefik v3 的 VOS 上，从浏览器直接打开应用根地址会跳转到 VOS 应用页面。嵌入页面和 API 请求沿用原有路由。

@@ -27,7 +27,7 @@ http:
     # ---- 顶层打开兜底：浏览器地址栏直接访问 /app/com.ictrek.v-cine
     #      重定向到平台 hash 路由（平台前端 iframe 打开应用）----
     v-cine-top-open:
-      rule: "PathPrefix(`/app/com.ictrek.v-cine`) && HeadersRegexp(`Sec-Fetch-Dest`, `document`)"
+      rule: "(Path(`/app/com.ictrek.v-cine`) || Path(`/app/com.ictrek.v-cine/`)) && HeaderRegexp(`Sec-Fetch-Dest`, `document`)"
       priority: 1000
       service: v-cine-web
       middlewares:
