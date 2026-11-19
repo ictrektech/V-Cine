@@ -1,3 +1,4 @@
+router-type: structured
 routers:
   - id: nowen-video
     kind: page
@@ -19,5 +20,4 @@ routers:
     order: 261
     iframe-src: /app/com.ictrek.v-cine/api-guide.html
     keep-alive: true
-    entry-point: true
     embed: true

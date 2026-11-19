@@ -1,5 +1,7 @@
 # Nowen Video User Guide
 
+In VOS, open **Application Management → App Drawer → V-Cine → API documentation**.
+
 Nowen Video is a self-hosted media service for organizing and playing your home video library.
 
 ## Installation & Access
